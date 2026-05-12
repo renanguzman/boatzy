@@ -5,6 +5,7 @@ import { useState } from 'react';
 import { Mail, Lock, Eye, EyeOff, ArrowRight, Loader2 } from 'lucide-react';
 import Link from 'next/link';
 import Image from 'next/image';
+import { translateClerkError } from '@/lib/clerk-errors';
 
 export default function PainelLoginPage() {
   const clerk = useClerk();
@@ -32,12 +33,7 @@ export default function PainelLoginPage() {
         window.location.href = '/api/painel/setup-role';
       }
     } catch (err: unknown) {
-      const clerkError = err as { errors?: Array<{ message?: string; longMessage?: string }> };
-      setError(
-        clerkError.errors?.[0]?.longMessage ??
-        clerkError.errors?.[0]?.message ??
-        'Credenciais inválidas. Tente novamente.'
-      );
+      setError(translateClerkError(err, 'Credenciais inválidas. Tente novamente.'));
     } finally {
       setLoading(false);
     }
@@ -72,13 +68,13 @@ export default function PainelLoginPage() {
         {/* Bottom text */}
         <div className="absolute bottom-12 left-10 right-10 z-10">
           <p className="text-white/90 font-semibold text-lg italic mb-2">
-            Precision in every knot.
+            Precisão em cada nó.
           </p>
           <p className="text-white/60 text-sm leading-relaxed max-w-md">
-            Managing the world&apos;s most exclusive maritime charters with the Boatzy administrative suite.
+            Gerencie as charters marítimas mais exclusivas com a suíte administrativa Boatzy.
           </p>
           <p className="mt-6 text-xs font-bold tracking-[0.3em] text-cyan-400/80 uppercase">
-            Maritime Excellence
+            Excelência Marítima
           </p>
         </div>
       </div>
@@ -99,9 +95,9 @@ export default function PainelLoginPage() {
           </div>
 
           {/* Welcome */}
-          <h1 className="text-2xl font-bold text-[#0B2447] mb-1">Welcome Back</h1>
+          <h1 className="text-2xl font-bold text-[#0B2447] mb-1">Bem-vindo de volta</h1>
           <p className="text-slate-500 text-sm mb-8">
-            Secure access to the Fleet Management Portal.
+            Acesso seguro ao Portal de Gestão da Frota.
           </p>
 
           {/* Form */}
@@ -109,7 +105,7 @@ export default function PainelLoginPage() {
             {/* Email */}
             <div>
               <label htmlFor="email" className="block text-xs font-bold text-[#0B2447] tracking-wider uppercase mb-2">
-                Email Address
+                E-mail
               </label>
               <div className="relative">
                 <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
@@ -129,10 +125,10 @@ export default function PainelLoginPage() {
             <div>
               <div className="flex items-center justify-between mb-2">
                 <label htmlFor="password" className="block text-xs font-bold text-[#0B2447] tracking-wider uppercase">
-                  Password
+                  Senha
                 </label>
                 <button type="button" className="text-xs font-medium text-[#0B3D91] hover:text-[#0B2447] transition-colors">
-                  Forgot password?
+                  Esqueceu a senha?
                 </button>
               </div>
               <div className="relative">
@@ -173,7 +169,7 @@ export default function PainelLoginPage() {
                   )}
                 </div>
               </div>
-              <span className="text-sm text-slate-600">Keep me signed in</span>
+              <span className="text-sm text-slate-600">Mantenha-me conectado</span>
             </label>
 
             {/* Error */}
@@ -193,7 +189,7 @@ export default function PainelLoginPage() {
                 <Loader2 className="w-5 h-5 animate-spin" />
               ) : (
                 <>
-                  Sign In to Dashboard
+                  Entrar no Painel
                   <ArrowRight className="w-4 h-4" />
                 </>
               )}
@@ -202,9 +198,9 @@ export default function PainelLoginPage() {
 
           {/* Sign up link */}
           <p className="text-center text-sm text-slate-500 mt-6">
-            Don&apos;t have an account?{' '}
+            Ainda não tem conta?{' '}
             <Link href="/painel/cadastro" className="text-[#0B3D91] font-medium hover:underline">
-              Create one
+              Criar agora
             </Link>
           </p>
         </div>
@@ -213,8 +209,8 @@ export default function PainelLoginPage() {
         <div className="flex items-center justify-between text-xs text-slate-400 pt-8 border-t border-slate-100 mt-8">
           <p>© {new Date().getFullYear()} BOATZY MARITIME SYSTEMS</p>
           <div className="flex items-center gap-6">
-            <span className="hover:text-slate-600 cursor-pointer transition-colors">PRIVACY</span>
-            <span className="hover:text-slate-600 cursor-pointer transition-colors">SECURITY</span>
+            <span className="hover:text-slate-600 cursor-pointer transition-colors">PRIVACIDADE</span>
+            <span className="hover:text-slate-600 cursor-pointer transition-colors">SEGURANÇA</span>
           </div>
         </div>
       </div>

@@ -2,6 +2,8 @@
 
 import { auth, clerkClient } from '@clerk/nextjs/server';
 import { supabaseAdmin } from '@/lib/supabase';
+import { addRole, hasRole, syncRolesToClerk } from '@/lib/roles';
+import { translateClerkError } from '@/lib/clerk-errors';
 import type { UserRole } from '@/types/supabase';
 
 export type CreateUserState =
@@ -14,8 +16,7 @@ export async function createUser(
   formData: FormData
 ): Promise<CreateUserState> {
   const { sessionClaims } = await auth();
-  const role = (sessionClaims?.metadata as { role?: string } | undefined)?.role;
-  if (role !== 'gestor' && role !== 'admin') {
+  if (!hasRole(sessionClaims, 'gestor') && !hasRole(sessionClaims, 'admin')) {
     return { status: 'error', message: 'Acesso não autorizado.' };
   }
 
@@ -30,7 +31,7 @@ export async function createUser(
     return { status: 'error', message: 'Nome, e-mail e senha são obrigatórios.' };
   }
 
-  // 1. Criar usuário no Clerk
+  // 1. Criar usuário no Clerk (sem roles ainda — preenchidas pelo sync)
   const client = await clerkClient();
   let clerkUser;
   try {
@@ -40,12 +41,12 @@ export async function createUser(
       lastName: rest.join(' ') || undefined,
       emailAddress: [email],
       password,
-      publicMetadata: { role: userRole },
     });
   } catch (err: unknown) {
-    const msg =
-      err instanceof Error ? err.message : 'Erro ao criar usuário no Clerk.';
-    return { status: 'error', message: msg };
+    return {
+      status: 'error',
+      message: translateClerkError(err, 'Erro ao criar usuário no Clerk.'),
+    };
   }
 
   // 2. Persistir no Supabase (users)
@@ -71,11 +72,9 @@ export async function createUser(
     };
   }
 
-  // 3. Inserir role na tabela user_roles
-  await supabaseAdmin.from('user_roles').insert({
-    user_id: dbUser.id,
-    role: userRole,
-  });
+  // 3. Inserir role e espelhar no Clerk
+  await addRole(dbUser.id, userRole);
+  await syncRolesToClerk(clerkUser.id);
 
   return {
     status: 'success',

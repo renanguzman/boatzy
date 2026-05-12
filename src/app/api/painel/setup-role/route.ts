@@ -1,12 +1,12 @@
-import { auth, clerkClient, currentUser } from '@clerk/nextjs/server';
+import { auth, currentUser } from '@clerk/nextjs/server';
 import { supabaseAdmin } from '@/lib/supabase';
 import { NextResponse } from 'next/server';
+import { addRole, syncRolesToClerk } from '@/lib/roles';
 import type { Database } from '@/types/supabase';
 
 export const dynamic = 'force-dynamic';
 
 type UserInsert = Database['public']['Tables']['users']['Insert'];
-type RoleInsert = Database['public']['Tables']['user_roles']['Insert'];
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000';
 
@@ -17,42 +17,49 @@ export async function GET() {
     return NextResponse.redirect(new URL('/painel/login', APP_URL));
   }
 
-  const clerk = await clerkClient();
-
-  // 1. Atribuir role 'gestor' no Clerk publicMetadata
-  await clerk.users.updateUserMetadata(userId, {
-    publicMetadata: { role: 'gestor' },
-  });
-
-  // 2. Inserir/atualizar usuário no Supabase
   const user = await currentUser();
-  if (user) {
+  if (!user) {
+    return NextResponse.redirect(new URL('/painel/login', APP_URL));
+  }
+
+  const email = user.emailAddresses[0]?.emailAddress ?? '';
+
+  // Upsert do usuário em `users`. Mantém o registro existente (mesmo e-mail)
+  // e apenas atualiza o id_clerk caso tenha mudado.
+  const { data: existingUser } = await supabaseAdmin
+    .from('users')
+    .select('id')
+    .eq('email', email)
+    .maybeSingle();
+
+  let dbUserId: string | null = null;
+
+  if (existingUser) {
+    await supabaseAdmin
+      .from('users')
+      .update({ id_clerk: userId })
+      .eq('id', existingUser.id);
+    dbUserId = existingUser.id;
+  } else {
     const userData: UserInsert = {
       id_clerk: userId,
       name: [user.firstName, user.lastName].filter(Boolean).join(' ') || 'Sem nome',
-      email: user.emailAddresses[0]?.emailAddress ?? '',
+      email,
       avatar_url: user.imageUrl ?? null,
     };
-
-    // Upsert do usuário
-    const { data: dbUser } = await supabaseAdmin
+    const { data: newUser } = await supabaseAdmin
       .from('users')
-      .upsert(userData, { onConflict: 'id_clerk' })
+      .insert(userData)
       .select('id')
       .single();
-
-    // Inserir role 'gestor' na tabela user_roles (ignora se já existir)
-    if (dbUser) {
-      const roleData: RoleInsert = {
-        user_id: dbUser.id,
-        role: 'gestor',
-      };
-      await supabaseAdmin
-        .from('user_roles')
-        .upsert(roleData, { onConflict: 'user_id,role' });
-    }
+    dbUserId = newUser?.id ?? null;
   }
 
-  // 3. Redirecionar para a página de refresh de sessão
+  if (dbUserId) {
+    await addRole(dbUserId, 'gestor');
+  }
+
+  await syncRolesToClerk(userId);
+
   return NextResponse.redirect(new URL('/painel/auth/atualizando', APP_URL));
 }

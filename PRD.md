@@ -62,7 +62,8 @@ Validar um marketplace de aluguel de embarcações, garantindo:
 - ✅ Role `gestor` atribuída automaticamente via API após cadastro
 - ✅ Dashboard em `/painel` com visão geral (stats)
 - ✅ Menu com Agendamentos e Embarcações
-- Cadastro de embarcação (em desenvolvimento)
+- ✅ Estrutura do banco de dados para embarcações (migration 002)
+- Cadastro de embarcação — tela em desenvolvimento
 - Upload de imagens (em desenvolvimento)
 - Definição de preço (em desenvolvimento)
 - Gerenciamento de reservas (em desenvolvimento)
@@ -74,9 +75,13 @@ Validar um marketplace de aluguel de embarcações, garantindo:
 ### 6.1 Autenticação
 
 - Login via Clerk (email, Google, etc.)
+- ✅ Um mesmo e-mail pode acumular múltiplas roles (`cliente` + `gestor`), sem precisar criar conta nova.
+- ✅ Roles são armazenadas em `user_roles` (Supabase, fonte da verdade) e espelhadas em `publicMetadata.roles` (array, no Clerk JWT).
+- ✅ Cliente que tenta acessar `/painel` vê a opção "Tornar-me gestor", que adiciona a role sem destruir o vínculo de cliente.
 - Separação de perfis:
-  - Cliente
-  - Dono (Owner)
+  - Cliente — acessa o hotsite (`/`)
+  - Gestor (Owner) — acessa o painel (`/painel`)
+  - Admin — acessa o painel
 
 ---
 

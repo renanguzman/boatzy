@@ -14,11 +14,11 @@ const isPublicPainelRoute = createRouteMatcher([
 const isPainelRoute = createRouteMatcher(['/painel(.*)']);
 
 export default clerkMiddleware(async (auth, req) => {
-  // Rotas do painel que NÃO são públicas → proteger
+  // Middleware só garante autenticação. O gating por role acontece no layout
+  // do painel para permitir o fluxo de upgrade (cliente → gestor) sem
+  // redirect-loop.
   if (isPainelRoute(req) && !isPublicPainelRoute(req)) {
     const { userId } = await auth();
-
-    // Se não autenticado → redirecionar para login
     if (!userId) {
       return NextResponse.redirect(new URL('/painel/login', req.url));
     }
