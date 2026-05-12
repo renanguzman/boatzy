@@ -2,8 +2,7 @@
 
 import { useClerk } from '@clerk/nextjs';
 import { useState } from 'react';
-import { useRouter } from 'next/navigation';
-import { Ship, Mail, Lock, Eye, EyeOff, ArrowRight, Loader2 } from 'lucide-react';
+import { Mail, Lock, Eye, EyeOff, ArrowRight, Loader2 } from 'lucide-react';
 import Link from 'next/link';
 import Image from 'next/image';
 
@@ -15,8 +14,6 @@ export default function PainelLoginPage() {
   const [keepSigned, setKeepSigned] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
-  const router = useRouter();
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!clerk.loaded) return;
@@ -32,7 +29,7 @@ export default function PainelLoginPage() {
 
       if (result.status === 'complete' && result.createdSessionId) {
         await clerk.setActive({ session: result.createdSessionId });
-        router.push('/painel');
+        window.location.href = '/api/painel/setup-role';
       }
     } catch (err: unknown) {
       const clerkError = err as { errors?: Array<{ message?: string; longMessage?: string }> };
@@ -60,6 +57,18 @@ export default function PainelLoginPage() {
         {/* Gradient overlay */}
         <div className="absolute inset-0 bg-gradient-to-t from-[#0B2447]/80 via-[#0B2447]/30 to-transparent" />
 
+        {/* Logo at top left */}
+        <div className="absolute top-10 left-10 z-20">
+          <Image
+            src="/images/logo-white.png"
+            alt="Boatzy"
+            width={200}
+            height={60}
+            className="h-14 w-auto"
+            priority
+          />
+        </div>
+
         {/* Bottom text */}
         <div className="absolute bottom-12 left-10 right-10 z-10">
           <p className="text-white/90 font-semibold text-lg italic mb-2">
@@ -79,12 +88,14 @@ export default function PainelLoginPage() {
         <div className="flex-1 flex flex-col justify-center max-w-md mx-auto w-full">
           {/* Branding */}
           <div className="flex items-center gap-2.5 mb-10">
-            <div className="w-9 h-9 bg-[#0B2447] rounded-lg flex items-center justify-center">
-              <Ship className="w-5 h-5 text-white" />
-            </div>
-            <span className="text-[#0B2447] font-bold text-lg tracking-tight">
-              Boatzy Admin
-            </span>
+            <Image
+              src="/images/logo.png"
+              alt="Boatzy"
+              width={200}
+              height={60}
+              className="h-12 w-auto"
+              priority
+            />
           </div>
 
           {/* Welcome */}

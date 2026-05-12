@@ -3,11 +3,14 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
+import { usePathname } from 'next/navigation';
 import { Menu, X, User, Globe } from 'lucide-react';
 import { Show, UserButton, SignInButton } from '@clerk/nextjs';
 
 export default function Header() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const pathname = usePathname();
+  const setupUrl = `/api/auth/setup-cliente?redirect_to=${encodeURIComponent(pathname)}`;
 
   return (
     <header className="sticky top-0 z-50 bg-white/95 backdrop-blur-md border-b border-slate-100 shadow-sm">
@@ -18,9 +21,9 @@ export default function Header() {
             <Image
               src="/images/logo.png"
               alt="Boatzy"
-              width={120}
-              height={36}
-              className="h-9 w-auto"
+              width={180}
+              height={54}
+              className="h-14 w-auto"
               priority
             />
           </Link>
@@ -59,7 +62,7 @@ export default function Header() {
 
             {/* Clerk Auth Section */}
             <Show when="signed-out">
-              <SignInButton mode="modal">
+              <SignInButton mode="modal" forceRedirectUrl={setupUrl}>
                 <button
                   className="hidden md:flex items-center gap-2 rounded-full border border-slate-200 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 hover:border-[#0B3D91] hover:text-[#0B3D91] transition-all"
                   id="auth-button"
@@ -114,7 +117,7 @@ export default function Header() {
               </Link>
               <hr className="border-slate-100" />
               <Show when="signed-out">
-                <SignInButton mode="modal">
+                <SignInButton mode="modal" forceRedirectUrl={setupUrl}>
                   <button className="flex w-full items-center gap-2 px-3 py-2 text-sm font-medium text-[#0B3D91]">
                     <User className="h-4 w-4" />
                     Entrar

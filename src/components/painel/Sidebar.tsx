@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import Image from 'next/image';
 import { usePathname } from 'next/navigation';
 import { useClerk } from '@clerk/nextjs';
 import {
@@ -34,16 +35,18 @@ export default function Sidebar() {
     <aside className="w-[260px] h-full bg-white border-r border-slate-200 flex flex-col">
       {/* Logo / Branding */}
       <div className="px-6 py-6">
-        <Link href="/painel" className="flex items-center gap-3">
-          <div className="w-8 h-8 bg-[#0B2447] rounded-lg flex items-center justify-center">
-            <Anchor className="w-4 h-4 text-white" />
-          </div>
-          <div className="leading-tight">
-            <span className="text-[#0B2447] font-bold text-sm block">Boatzy Admin</span>
-            <span className="text-[10px] text-slate-400 font-medium tracking-wider uppercase">
-              Luxury Fleet Management
-            </span>
-          </div>
+        <Link href="/painel" className="block">
+          <Image
+            src="/images/logo.png"
+            alt="Boatzy"
+            width={180}
+            height={54}
+            className="h-12 w-auto mb-1"
+            priority
+          />
+          <span className="text-[10px] text-slate-400 font-medium tracking-wider uppercase ml-1 block">
+            Admin Portal
+          </span>
         </Link>
       </div>
 
