@@ -133,17 +133,17 @@ GET /api/reviews/:boat_id
 - Apenas usuários autenticados podem reservar  
 - Apenas owners podem criar embarcações  
 - Usuário só pode avaliar após reserva concluída  
-- Comissão padrão: 20%  
+- Taxa da plataforma: dinâmica — ver seção 14  
 - Sem conflito de datas  
 
 ---
 
 ## 6. Integração com Stripe
 
-Split automático:
+Split automático calculado em runtime:
 
-- Owner: 80%  
-- Boatzy: 20%  
+- Owner: `100% - taxa_efetiva`
+- Boatzy: `taxa_efetiva` (resolvida via `get_taxa_usuario`)  
 
 ---
 
@@ -383,7 +383,189 @@ RLS:
 
 ---
 
-## 14. Futuro
+## 14. Taxas da Plataforma
+
+Migration: `supabase/migrations/004_taxas_plataforma.sql`
+
+### Tabela `taxa_plataforma` (singleton)
+
+```sql
+id           uuid primary key default gen_random_uuid()
+taxa_percent numeric(5,2) not null check (taxa_percent between 0 and 100)
+descricao    text
+singleton    boolean not null default true unique check (singleton = true)  -- garante 1 linha
+created_at   timestamptz not null default now()
+updated_at   timestamptz not null default now()
+```
+
+Seed inicial: `10.00` (10%). Um único registro atualizado in-place pelos admins.
+
+RLS:
+- service role: acesso total.
+- público: SELECT (necessário para exibir a taxa no checkout/hotsite).
+
+---
+
+### Tabela `usuario_taxa`
+
+```sql
+id             uuid primary key default gen_random_uuid()
+user_id        uuid not null unique FK → users(id) ON DELETE CASCADE
+taxa_percent   numeric(5,2) not null check (taxa_percent between 0 and 100)
+ativo          boolean not null default true
+data_validade  date                    -- null = sem expiração; preenchido = expira no final do dia
+observacao     text
+created_at     timestamptz not null default now()
+updated_at     timestamptz not null default now()
+```
+
+RLS:
+- service role: acesso total.
+- usuário autenticado: SELECT sobre seu próprio registro.
+
+---
+
+### Função `get_taxa_usuario`
+
+```sql
+public.get_taxa_usuario(p_user_id uuid) → numeric(5,2)
+```
+
+Resolve a taxa efetiva de um usuário com a seguinte lógica:
+
+```
+SE existe usuario_taxa onde
+     user_id = p_user_id
+     AND ativo = true
+     AND (data_validade IS NULL OR data_validade >= CURRENT_DATE)
+ENTÃO retorna usuario_taxa.taxa_percent
+SENÃO retorna taxa_plataforma.taxa_percent
+```
+
+> **OBRIGATÓRIO:** todo cálculo de reserva no backend e qualquer exibição de taxa no frontend **deve** consultar essa função. Nunca hardcode o valor da taxa.
+
+**Exemplo de uso no backend (Supabase RPC):**
+
+```ts
+const { data } = await supabaseAdmin.rpc('get_taxa_usuario', {
+  p_user_id: dbUserId,
+});
+const taxaPercent: number = data; // ex.: 8.50
+```
+
+**Exemplo de uso direto no SQL (ao criar reserva):**
+
+```sql
+SELECT public.get_taxa_usuario('uuid-do-usuario') AS taxa;
+```
+
+---
+
+## 15. Precificação Dinâmica de Embarcações
+
+Migration: `supabase/migrations/006_embarcacao_precificacao.sql`
+
+### Coluna `preco_base` em `embarcacao`
+
+```sql
+preco_base  numeric(10,2)   -- valor padrão por dia; null = sem preço definido
+```
+
+Fallback quando nenhuma regra ativa se aplicar à data pesquisada.
+
+---
+
+### Tabela `embarcacao_preco_regra`
+
+```sql
+id                  uuid primary key
+embarcacao_id       uuid not null FK → embarcacao(id) ON DELETE CASCADE
+nome                text not null          -- ex: "Fim de Semana", "Verão 2025"
+valor               numeric(10,2) not null
+tipo                preco_regra_tipo       -- 'dia_semana' | 'periodo_anual' | 'data_fixa'
+prioridade          integer default 0      -- desempate entre regras do mesmo tipo (maior vence)
+ativo               boolean default true
+
+-- tipo = 'dia_semana'
+dias_semana         integer[]              -- 0=dom … 6=sab
+
+-- tipo = 'periodo_anual'
+periodo_mes_inicio  integer                -- 1–12
+periodo_dia_inicio  integer                -- 1–31
+periodo_mes_fim     integer
+periodo_dia_fim     integer
+
+-- tipo = 'data_fixa'
+data_inicio         date
+data_fim            date
+
+created_at / updated_at
+```
+
+Constraints CHECK garantem que os campos corretos para cada `tipo` estejam preenchidos.
+
+#### Camadas de prioridade (maior → menor)
+
+| Camada | tipo | Exemplo |
+|--------|------|---------|
+| 1ª | `data_fixa` | Réveillon 29/12–02/01: R$ 3.000 |
+| 2ª | `periodo_anual` | Verão (01/12–28/02): R$ 2.000 |
+| 3ª | `dia_semana` | Sábado e domingo: R$ 1.500 |
+| 4ª | — | `preco_base`: R$ 1.000 |
+
+Dentro do mesmo tipo, `prioridade DESC` quebra empates.
+
+#### Suporte a períodos que cruzam o ano
+
+O tipo `periodo_anual` detecta automaticamente cruzamento de ano (ex: dezembro → março) comparando `inicio_mmdd` vs `fim_mmdd`. O campo `mmdd = mes * 100 + dia` é calculado na função, sem coluna extra.
+
+RLS:
+- service role: acesso total.
+- owner autenticado: SELECT / INSERT / UPDATE / DELETE sobre regras das suas embarcações.
+- público: SELECT (exibição de preço no hotsite).
+
+---
+
+### Função `get_preco_embarcacao`
+
+```sql
+public.get_preco_embarcacao(p_embarcacao_id uuid, p_data date) → numeric(10,2)
+```
+
+Resolve o preço efetivo de uma embarcação para uma data específica percorrendo as camadas em ordem de prioridade. Retorna `NULL` se `preco_base` também for nulo.
+
+**OBRIGATÓRIO:** toda exibição de preço no frontend e todo cálculo de reserva no backend devem chamar essa função. Nunca leia `preco_base` diretamente para exibir ao usuário.
+
+**Exemplo de uso no backend (Supabase RPC):**
+```ts
+const { data: preco } = await supabaseAdmin.rpc('get_preco_embarcacao', {
+  p_embarcacao_id: embarcacaoId,
+  p_data: '2025-12-31',         // date da reserva desejada
+});
+// preco: 3000.00 (regra data_fixa de Réveillon)
+```
+
+**Exemplo de uso na listagem (múltiplas embarcações):**
+```ts
+const { data: precos } = await supabaseAdmin.rpc('get_precos_embarcacoes', {
+  p_embarcacao_ids: ids,         // uuid[]
+  p_data: searchDate,
+});
+// precos: [{ embarcacao_id, preco_efetivo }, ...]
+```
+
+### Função `get_precos_embarcacoes`
+
+```sql
+public.get_precos_embarcacoes(p_embarcacao_ids uuid[], p_data date)
+  → TABLE (embarcacao_id uuid, preco_efetivo numeric(10,2))
+```
+
+Batch da função anterior. Use na tela de busca do hotsite para resolver preços de todas as embarcações listadas em uma única chamada RPC.
+
+---
+
+## 16. Futuro
 
 - Chat  
 - Notificações  

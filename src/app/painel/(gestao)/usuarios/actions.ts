@@ -2,7 +2,7 @@
 
 import { auth, clerkClient } from '@clerk/nextjs/server';
 import { supabaseAdmin } from '@/lib/supabase';
-import { addRole, hasRole, syncRolesToClerk } from '@/lib/roles';
+import { addRole, checkRoleInDb, syncRolesToClerk } from '@/lib/roles';
 import { translateClerkError } from '@/lib/clerk-errors';
 import type { UserRole } from '@/types/supabase';
 
@@ -15,8 +15,19 @@ export async function createUser(
   _prev: CreateUserState,
   formData: FormData
 ): Promise<CreateUserState> {
-  const { sessionClaims } = await auth();
-  if (!hasRole(sessionClaims, 'gestor') && !hasRole(sessionClaims, 'admin')) {
+  const { userId: clerkId } = await auth();
+  if (!clerkId) return { status: 'error', message: 'Não autenticado.' };
+
+  const { data: caller } = await supabaseAdmin
+    .from('users')
+    .select('id')
+    .eq('id_clerk', clerkId)
+    .maybeSingle();
+
+  if (!caller) return { status: 'error', message: 'Usuário não encontrado.' };
+
+  const autorizado = await checkRoleInDb(caller.id, ['gestor', 'admin']);
+  if (!autorizado) {
     return { status: 'error', message: 'Acesso não autorizado.' };
   }
 

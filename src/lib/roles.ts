@@ -49,10 +49,25 @@ export async function addRole(dbUserId: string, role: UserRole): Promise<void> {
 
 /**
  * Helper para checar role a partir das sessionClaims (server components / middleware).
+ * Depende de JWT template configurado no Clerk Dashboard para incluir publicMetadata.
  */
 export function hasRole(
   claims: CustomJwtSessionClaims | null | undefined,
   role: UserRole,
 ): boolean {
   return (claims?.metadata?.roles ?? []).includes(role);
+}
+
+/**
+ * Verifica se um usuário (pelo dbUserId do Supabase) possui ao menos uma das roles informadas.
+ * Usa o banco como fonte da verdade — não depende de JWT claims.
+ */
+export async function checkRoleInDb(dbUserId: string, roles: UserRole[]): Promise<boolean> {
+  const { data } = await supabaseAdmin
+    .from('user_roles')
+    .select('role')
+    .eq('user_id', dbUserId)
+    .in('role', roles)
+    .maybeSingle();
+  return !!data;
 }

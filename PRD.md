@@ -256,9 +256,19 @@ created_at
 
 - Apenas usuários com reserva concluída podem avaliar
 - Cancelamentos devem respeitar política definida
-- Comissão padrão da plataforma: 20%
 - Um usuário pode ter múltiplas reservas
 - Um barco pode ter múltiplas avaliações
+
+### Taxa de cobrança da plataforma
+
+A taxa cobrada pela Boatzy em cima de cada aluguel segue a seguinte prioridade:
+
+1. **Taxa específica do usuário** (`usuario_taxa`) — se existir, estiver ativa (`ativo = true`) e dentro da validade (`data_validade IS NULL` ou `data_validade >= hoje`), essa taxa prevalece.
+2. **Taxa geral da plataforma** (`taxa_plataforma`) — aplicada quando não há taxa específica vigente para o usuário.
+
+A taxa padrão configurada inicialmente é **10%**. Admins podem alterá-la a qualquer momento.
+
+> **Implementação:** ao calcular o valor de uma reserva, backend e frontend **devem** chamar a função PostgreSQL `public.get_taxa_usuario(user_id uuid)`, que já encapsula toda essa lógica de fallback e validade. Nunca hardcode a taxa — sempre consulte via essa função.
 
 ---
 

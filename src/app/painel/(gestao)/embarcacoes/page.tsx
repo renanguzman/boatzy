@@ -1,32 +1,62 @@
-import { auth } from '@clerk/nextjs/server';
-import { Ship } from 'lucide-react';
+import { auth, currentUser } from '@clerk/nextjs/server';
+import { redirect } from 'next/navigation';
+import Link from 'next/link';
+import { Plus } from 'lucide-react';
+import { supabaseAdmin } from '@/lib/supabase';
+import EmbarcacoesGrid, { type EmbarcacaoListItem } from './_components/EmbarcacoesGrid';
 
 export default async function EmbarcacoesPage() {
   await auth.protect();
 
+  const clerkUser = await currentUser();
+  if (!clerkUser) redirect('/painel/login');
+
+  const { data: dbUser } = await supabaseAdmin
+    .from('users')
+    .select('id')
+    .eq('id_clerk', clerkUser.id)
+    .single();
+
+  if (!dbUser) redirect('/painel/login');
+
+  const { data } = await supabaseAdmin
+    .from('embarcacao')
+    .select(`
+      id,
+      nome,
+      status,
+      capacidade,
+      created_at,
+      embarcacao_tipo ( nome ),
+      embarcacao_categoria ( nome ),
+      municipios ( nome, estados ( uf ) ),
+      embarcacao_imagens ( url_imagem, principal )
+    `)
+    .eq('owner_id', dbUser.id)
+    .order('created_at', { ascending: false });
+
+  const embarcacoes = (data ?? []) as unknown as EmbarcacaoListItem[];
+
   return (
     <div className="p-8">
-      <div className="mb-8 flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <Ship className="w-6 h-6 text-cyan-500" />
-          <div>
-            <h1 className="text-2xl font-bold text-slate-900">Embarcações</h1>
-            <p className="text-slate-500 mt-0.5 text-sm">Cadastre e gerencie suas embarcações.</p>
-          </div>
+      {/* Header */}
+      <div className="mb-6 flex items-start justify-between">
+        <div>
+          <h1 className="text-2xl font-bold text-[#0B2447]">Vessel Directory</h1>
+          <p className="text-sm text-slate-400 mt-1">
+            Gerencie sua frota — dados, imagens e disponibilidade em um só lugar.
+          </p>
         </div>
-        <button
-          disabled
-          className="bg-cyan-500 text-white text-sm font-medium px-4 py-2 rounded-lg opacity-50 cursor-not-allowed"
+        <Link
+          href="/painel/embarcacoes/novo"
+          className="flex items-center gap-2 bg-[#0B2447] hover:bg-[#0B3D91] text-white text-sm font-semibold px-5 py-2.5 rounded-xl transition-colors shadow-md shadow-[#0B2447]/10 whitespace-nowrap"
         >
-          + Nova embarcação
-        </button>
+          <Plus className="w-4 h-4" />
+          Nova embarcação
+        </Link>
       </div>
 
-      <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-12 flex flex-col items-center justify-center text-center">
-        <Ship className="w-12 h-12 text-slate-300 mb-4" />
-        <p className="text-slate-500 font-medium">Nenhuma embarcação cadastrada</p>
-        <p className="text-slate-400 text-sm mt-1">Adicione sua primeira embarcação para começar.</p>
-      </div>
+      <EmbarcacoesGrid embarcacoes={embarcacoes} />
     </div>
   );
 }
