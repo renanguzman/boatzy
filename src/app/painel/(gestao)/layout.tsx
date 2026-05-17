@@ -1,14 +1,26 @@
 import Sidebar from '@/components/painel/Sidebar';
 import Header from '@/components/painel/Header';
-import { currentUser } from '@clerk/nextjs/server';
+import SignOutLink from '@/components/painel/SignOutLink';
+import { createClient } from '@/lib/supabase/server';
+import { supabaseAdmin } from '@/lib/supabase';
 import { Ship } from 'lucide-react';
 import Link from 'next/link';
-import { SignOutButton } from '@clerk/nextjs';
 import type { UserRole } from '@/types/supabase';
 
 export default async function GestaoLayout({ children }: { children: React.ReactNode }) {
-  const user = await currentUser();
-  const roles = (user?.publicMetadata?.roles ?? []) as UserRole[];
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+
+  // Busca roles diretamente no banco — fonte da verdade.
+  let roles: UserRole[] = [];
+  if (user) {
+    const { data: rows } = await supabaseAdmin
+      .from('user_roles')
+      .select('role')
+      .eq('user_id', user.id);
+    roles = (rows ?? []).map((r) => r.role);
+  }
+
   const canAccess = roles.includes('gestor') || roles.includes('admin');
 
   if (!canAccess) {
@@ -36,11 +48,7 @@ export default async function GestaoLayout({ children }: { children: React.React
             >
               Voltar ao Site
             </Link>
-            <SignOutButton redirectUrl="/painel/login">
-              <button className="w-full text-red-500 font-semibold py-3 hover:bg-red-50 rounded-xl transition-colors text-sm">
-                Sair da Conta
-              </button>
-            </SignOutButton>
+            <SignOutLink redirectUrl="/painel/login" />
           </div>
         </div>
       </div>

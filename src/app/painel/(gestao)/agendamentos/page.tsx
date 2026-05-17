@@ -1,8 +1,11 @@
-import { auth } from '@clerk/nextjs/server';
+import { redirect } from 'next/navigation';
+import { createClient } from '@/lib/supabase/server';
 import { CalendarDays } from 'lucide-react';
 
 export default async function AgendamentosPage() {
-  await auth.protect();
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) redirect('/painel/login');
 
   return (
     <div className="p-8">

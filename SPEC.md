@@ -16,7 +16,7 @@
 - Frontend: React (Next.js - App Router)
 - Backend: Next.js API Routes (Node.js)
 - Database: Supabase (PostgreSQL)
-- Auth: Clerk
+- Auth: Supabase Auth (OAuth: Google, Facebook, Apple; email/senha)
 - Storage: Supabase Storage
 - Payments: Stripe Connect
 
@@ -28,11 +28,11 @@ Client (React / Next.js)
         ↓
 Next.js API (Server)
         ↓
+Supabase Auth (Sessions / OAuth)
+        ↓
 Supabase (DB + Storage)
         ↓
 Stripe (Payments)
-        ↓
-Clerk (Auth)
 
 ---
 
@@ -156,13 +156,13 @@ Split automático calculado em runtime:
 
 ## 8. Segurança
 
-- Auth via Clerk com localização pt-BR (`@clerk/localizations` → `ptBR` passado ao `ClerkProvider` em `src/app/layout.tsx`). Cobre `<SignIn>`, `<SignUp>`, `<UserButton>`, `<SignInButton mode="modal">` e modais internos.
-- Fluxos custom (form em `/painel/login`, server action `createUser`) usam `src/lib/clerk-errors.ts` (`translateClerkError`) para mapear `ClerkAPIError.code` em mensagens pt-BR (códigos: `form_identifier_not_found`, `form_password_incorrect`, `form_identifier_exists`, `too_many_attempts`, `captcha_invalid`, etc.). Quando o `code` é desconhecido, cai no `longMessage`/`message` original.
-
-- Middleware para rotas privadas (`src/proxy.ts` usando `clerkMiddleware`) — apenas garante autenticação em `/painel/**`; o gating por role acontece no layout do painel.
-- Rotas `/painel/**` protegidas: exigem autenticação. O acesso ao conteúdo do painel exige `publicMetadata.roles` contendo `'gestor'` ou `'admin'` (checado em `src/app/painel/(gestao)/layout.tsx`). Usuários autenticados sem a role veem uma tela com botão "Tornar-me gestor" que chama `/api/painel/setup-role`.
-- Rotas públicas do painel: `/painel/login`, `/painel/cadastro`, `/painel/auth/*`, `/api/painel/setup-role`
-- Validação de inputs  
+- **Auth via Supabase Auth** (`@supabase/ssr`) com suporte a email/senha e OAuth (Google, Facebook, Apple).
+- Sessões gerenciadas via cookies HTTP-only, renovadas automaticamente pelo middleware.
+- Middleware (`src/proxy.ts`): cria client Supabase SSR, chama `getUser()` para renovar a sessão, redireciona rotas `/painel/**` não autenticadas para `/painel/login`.
+- Rotas públicas do painel: `/painel/login`, `/painel/cadastro`, `/painel/auth/*`, `/api/painel/setup-role`.
+- Gating por role: `src/app/painel/(gestao)/layout.tsx` consulta `user_roles` no Supabase para verificar se o usuário tem `gestor` ou `admin`. Usuários sem a role veem tela "Acesso Restrito" com botão "Tornar-me gestor".
+- `SUPABASE_SERVICE_ROLE_KEY` nunca exposta ao browser — usada apenas em `src/lib/supabase/admin.ts` (`server-only`).
+- Validação de inputs e open-redirect mitigation em todas as rotas de callback.  
 
 ---
 
@@ -195,21 +195,26 @@ STRIPE_SECRET_KEY
 ### Tabela `users`
 
 ```sql
-id          uuid primary key default gen_random_uuid()
-id_clerk    text not null unique          -- ID do usuário no Clerk
+id          uuid primary key                     -- = auth.users.id (FK)
 name        text not null
 email       text not null unique
 cpf_cnpj    text
 birthday    date
-role        user_role ('admin','gestor','cliente') default 'cliente'
+avatar_url  text
 created_at  timestamptz default now()
+updated_at  timestamptz default now()
 ```
 
-Migration: `supabase/migrations/001_create_users_table.sql`
+`users.id` referencia `auth.users(id) ON DELETE CASCADE`.  
+RLS habilitado: usuário lê/atualiza apenas o próprio registro.
+
+Migration: `supabase/migrations/001_create_users_table.sql`  
+Migration de migração Clerk→Supabase: `supabase/migrations/20260517_clerk_to_supabase_auth.sql`
 
 Clientes Supabase:
-- `supabase` (anon key) — client-side / RLS ativo
-- `supabaseAdmin` (service role) — server-only, sem RLS
+- `createClient()` de `@/lib/supabase/client` — browser, anon key, RLS ativo
+- `createClient()` de `@/lib/supabase/server` — Server Components / Route Handlers, SSR com cookies
+- `supabaseAdmin` de `@/lib/supabase/admin` — server-only, service role, bypassa RLS
 
 ---
 
@@ -230,45 +235,53 @@ Módulo independente do hotsite, acessível apenas por usuários cuja lista de r
 
 ### Modelo multi-role
 
-Um usuário pode ter mais de uma role com o mesmo e-mail (ex.: `['cliente', 'gestor']`). A fonte da verdade é a tabela Supabase `user_roles` (chave única `(user_id, role)`); o Clerk armazena um espelho em `publicMetadata.roles` (array) para que o middleware e Server Components leiam do JWT sem hit no banco.
+Um usuário pode ter mais de uma role com o mesmo e-mail (ex.: `['cliente', 'gestor']`). A fonte da verdade é a tabela Supabase `user_roles` (chave única `(user_id, role)`). Roles são lidas diretamente do banco pelos Server Components — não há cache em JWT (a menos que o Custom Access Token Hook seja habilitado no Supabase Dashboard).
 
-Helpers em `src/lib/roles.ts`:
-- `getRolesFromDb(clerkUserId)` — lê roles do Supabase.
-- `syncRolesToClerk(clerkUserId)` — espelha roles do Supabase no `publicMetadata.roles` do Clerk.
-- `addRole(dbUserId, role)` — upsert idempotente em `user_roles`.
-- `hasRole(sessionClaims, role)` — leitura tipada do JWT.
+Helpers em `src/lib/roles.ts` (`server-only`):
+- `getRolesFromDb(userId)` — lê roles do Supabase via `user_id = auth.uid`.
+- `addRole(userId, role)` — upsert idempotente em `user_roles`.
+- `checkRoleInDb(userId, roles)` — verifica se o usuário tem pelo menos uma das roles (fonte da verdade).
+
+### Provedores OAuth suportados
+
+| Provedor | Supabase Provider ID |
+|----------|---------------------|
+| Google   | `google`            |
+| Facebook | `facebook`          |
+| Apple    | `apple`             |
+
+Todos configurados no Supabase Dashboard → Authentication → Providers.  
+Redirect URI obrigatória: `https://SEU_PROJECT.supabase.co/auth/v1/callback`
 
 ### Endpoints de atribuição
 
 Ambos são **aditivos** (não substituem roles existentes):
 
 - `GET /api/painel/setup-role`
-  1. Upsert do usuário em `users` (por e-mail; atualiza `id_clerk` se mudou).
-  2. `addRole(dbUserId, 'gestor')`.
-  3. `syncRolesToClerk(userId)` para atualizar `publicMetadata.roles`.
-  4. Redireciona para `/painel/auth/atualizando` (força `session.reload()` no Clerk antes de entrar no painel).
+  1. Lê sessão via `createClient()` SSR.
+  2. Upsert do usuário em `users` com `id = auth.uid()`.
+  3. `addRole(userId, 'gestor')`.
+  4. Redireciona para `/painel`.
 
 - `GET /api/auth/setup-cliente?redirect_to=/...`
-  1. Mesmo fluxo de upsert em `users`.
-  2. `addRole(dbUserId, 'cliente')`.
-  3. `syncRolesToClerk(userId)`.
-  4. Redireciona para `redirect_to` (caminho relativo apenas, para evitar open redirect).
+  1. Mesmo fluxo de upsert.
+  2. `addRole(userId, 'cliente')`.
+  3. Redireciona para `redirect_to` (caminho relativo apenas).
+
+### Callback OAuth
+
+- `/painel/auth/callback` — para OAuth iniciado no painel; após trocar code por session, redireciona para `/api/painel/setup-role`.
+- `/auth/callback?next=...` — para OAuth iniciado no site público; redireciona para `next` (geralmente `/api/auth/setup-cliente?redirect_to=...`).
 
 ### Verificação de acesso
 
-Middleware (`src/proxy.ts`): apenas garante `userId` em rotas `/painel/**` não públicas.
-
-Layout do painel (`src/app/painel/(gestao)/layout.tsx`):
+Layout do painel (`src/app/painel/(gestao)/layout.tsx`) consulta `user_roles` no banco:
 ```ts
-const roles = (user?.publicMetadata?.roles ?? []) as UserRole[];
+const { data: rows } = await supabaseAdmin.from('user_roles').select('role').eq('user_id', user.id);
 const canAccess = roles.includes('gestor') || roles.includes('admin');
 ```
 
-Usuário autenticado sem `gestor`/`admin` vê tela "Acesso Restrito" com botão **Tornar-me gestor** → chama `/api/painel/setup-role`, que adiciona a role sem perder o `'cliente'` existente.
-
-### JWT staleness
-
-Após mudar `publicMetadata`, o JWT em circulação ainda reflete o estado anterior. O fluxo de upgrade passa por `/painel/auth/atualizando`, que chama `session.reload()` no client e então navega para `/painel`.
+Usuário sem role adequada vê tela "Acesso Restrito" com botão **Tornar-me gestor** → chama `/api/painel/setup-role`.
 
 ---
 

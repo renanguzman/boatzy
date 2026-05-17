@@ -1,7 +1,7 @@
-import { auth, currentUser } from '@clerk/nextjs/server';
+import { createClient } from '@/lib/supabase/server';
 import { supabaseAdmin } from '@/lib/supabase';
 import { NextResponse } from 'next/server';
-import { addRole, syncRolesToClerk } from '@/lib/roles';
+import { addRole } from '@/lib/roles';
 import type { Database } from '@/types/supabase';
 
 export const dynamic = 'force-dynamic';
@@ -13,56 +13,48 @@ const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000';
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const rawRedirect = searchParams.get('redirect_to') ?? '/';
-  // Aceita apenas caminhos relativos para evitar open redirect
   const redirectTo = rawRedirect.startsWith('/') && !rawRedirect.startsWith('//') ? rawRedirect : '/';
 
-  const { userId } = await auth();
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
 
-  if (!userId) {
-    return NextResponse.redirect(new URL('/', APP_URL));
-  }
-
-  const user = await currentUser();
   if (!user) {
     return NextResponse.redirect(new URL('/', APP_URL));
   }
 
-  const email = user.emailAddresses[0]?.emailAddress ?? '';
+  const email = user.email ?? '';
+  const name =
+    (user.user_metadata?.full_name as string | undefined) ??
+    (user.user_metadata?.name as string | undefined) ??
+    email.split('@')[0];
+  const avatarUrl =
+    (user.user_metadata?.avatar_url as string | undefined) ??
+    (user.user_metadata?.picture as string | undefined) ??
+    null;
 
-  const { data: existingUser } = await supabaseAdmin
+  // Upsert do usuário — o id coincide com auth.users.id
+  const { data: existing } = await supabaseAdmin
     .from('users')
     .select('id')
-    .eq('email', email)
+    .eq('id', user.id)
     .maybeSingle();
 
-  let dbUserId: string | null = null;
-
-  if (existingUser) {
+  if (!existing) {
+    const userData: UserInsert = {
+      id: user.id,
+      name,
+      email,
+      avatar_url: avatarUrl,
+    };
+    await supabaseAdmin.from('users').insert(userData);
+  } else {
     await supabaseAdmin
       .from('users')
-      .update({ id_clerk: userId })
-      .eq('id', existingUser.id);
-    dbUserId = existingUser.id;
-  } else {
-    const userData: UserInsert = {
-      id_clerk: userId,
-      name: [user.firstName, user.lastName].filter(Boolean).join(' ') || 'Sem nome',
-      email,
-      avatar_url: user.imageUrl ?? null,
-    };
-    const { data: newUser } = await supabaseAdmin
-      .from('users')
-      .insert(userData)
-      .select('id')
-      .single();
-    dbUserId = newUser?.id ?? null;
+      .update({ avatar_url: avatarUrl, name })
+      .eq('id', user.id);
   }
 
-  if (dbUserId) {
-    await addRole(dbUserId, 'cliente');
-  }
-
-  await syncRolesToClerk(userId);
+  await addRole(user.id, 'cliente');
 
   return NextResponse.redirect(new URL(redirectTo, APP_URL));
 }

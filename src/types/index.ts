@@ -25,7 +25,6 @@ export type UserRoleType = 'admin' | 'gestor' | 'cliente';
 
 export interface User {
   id: string;
-  id_clerk: string;
   name: string;
   email: string;
   cpf_cnpj: string | null;

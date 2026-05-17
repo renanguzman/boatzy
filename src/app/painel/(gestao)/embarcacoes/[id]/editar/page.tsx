@@ -1,5 +1,5 @@
-import { auth, currentUser } from '@clerk/nextjs/server';
 import { redirect, notFound } from 'next/navigation';
+import { createClient } from '@/lib/supabase/server';
 import { supabaseAdmin } from '@/lib/supabase';
 import EditarEmbarcacaoForm from './_components/EditarEmbarcacaoForm';
 
@@ -8,22 +8,12 @@ export default async function EditarEmbarcacaoPage({
 }: {
   params: Promise<{ id: string }>;
 }) {
-  await auth.protect();
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) redirect('/painel/login');
 
   const { id } = await params;
 
-  const clerkUser = await currentUser();
-  if (!clerkUser) redirect('/painel/login');
-
-  const { data: dbUser } = await supabaseAdmin
-    .from('users')
-    .select('id')
-    .eq('id_clerk', clerkUser.id)
-    .single();
-
-  if (!dbUser) redirect('/painel/login');
-
-  // Queries separadas para evitar problemas de inferência de tipo com joins aninhados
   const [
     { data: emb },
     { data: imagens },
@@ -36,7 +26,7 @@ export default async function EditarEmbarcacaoPage({
       .from('embarcacao')
       .select('id, nome, descricao, embarcacao_tipo_id, embarcacao_categoria_id, status, capacidade, comprimento, cabines, tripulacao, preco_base, municipio_id, cep, bairro, logradouro, logradouro_numero, complemento')
       .eq('id', id)
-      .eq('owner_id', dbUser.id)
+      .eq('owner_id', user.id)
       .single(),
     supabaseAdmin
       .from('embarcacao_imagens')
@@ -54,7 +44,6 @@ export default async function EditarEmbarcacaoPage({
 
   if (!emb) notFound();
 
-  // Resolve estado_id a partir do municipio_id
   let estadoId: number | null = null;
   let municipios: { id: number; nome: string }[] = [];
 
@@ -95,8 +84,8 @@ export default async function EditarEmbarcacaoPage({
             prioridade: number; ativo: boolean;
             dias_semana: number[] | null;
             periodo_mes_inicio: number | null; periodo_dia_inicio: number | null;
-            periodo_mes_fim: number | null;   periodo_dia_fim: number | null;
-            data_inicio: string | null;       data_fim: string | null;
+            periodo_mes_fim: number | null; periodo_dia_fim: number | null;
+            data_inicio: string | null; data_fim: string | null;
           }[],
         }}
         tipos={tipos ?? []}

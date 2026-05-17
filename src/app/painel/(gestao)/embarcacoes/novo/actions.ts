@@ -1,6 +1,6 @@
 'use server';
 
-import { auth } from '@clerk/nextjs/server';
+import { createClient } from '@/lib/supabase/server';
 import { supabaseAdmin } from '@/lib/supabase';
 import { checkRoleInDb } from '@/lib/roles';
 import type { EmbarcacaoStatus, PrecoRegraTipo } from '@/types/supabase';
@@ -46,44 +46,37 @@ export type SalvarImagemPayload = {
 export async function criarEmbarcacao(
   payload: CriarEmbarcacaoPayload,
 ): Promise<CriarEmbarcacaoResult> {
-  const { userId: clerkId } = await auth();
-  if (!clerkId) return { ok: false, error: 'Não autenticado.' };
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { ok: false, error: 'Não autenticado.' };
 
   if (!payload.nome.trim()) {
     return { ok: false, error: 'O nome da embarcação é obrigatório.' };
   }
 
-  const { data: dbUser } = await supabaseAdmin
-    .from('users')
-    .select('id')
-    .eq('id_clerk', clerkId)
-    .single();
-
-  if (!dbUser) return { ok: false, error: 'Usuário não encontrado.' };
-
-  const autorizado = await checkRoleInDb(dbUser.id, ['gestor', 'admin']);
+  const autorizado = await checkRoleInDb(user.id, ['gestor', 'admin']);
   if (!autorizado) return { ok: false, error: 'Acesso não autorizado.' };
 
   const { data, error } = await supabaseAdmin
     .from('embarcacao')
     .insert({
-      owner_id: dbUser.id,
+      owner_id: user.id,
       nome: payload.nome.trim(),
       descricao: payload.descricao.trim() || null,
-      embarcacao_tipo_id:      payload.embarcacao_tipo_id      || null,
+      embarcacao_tipo_id: payload.embarcacao_tipo_id || null,
       embarcacao_categoria_id: payload.embarcacao_categoria_id || null,
       status: payload.status,
-      capacidade:  payload.capacidade  ? parseInt(payload.capacidade,  10) : null,
-      comprimento: payload.comprimento ? parseFloat(payload.comprimento)   : null,
-      cabines:     payload.cabines     ? parseInt(payload.cabines,     10) : null,
-      tripulacao:  payload.tripulacao  ? parseInt(payload.tripulacao,  10) : null,
-      preco_base:  payload.preco_base  ? parseFloat(payload.preco_base)    : null,
+      capacidade: payload.capacidade ? parseInt(payload.capacidade, 10) : null,
+      comprimento: payload.comprimento ? parseFloat(payload.comprimento) : null,
+      cabines: payload.cabines ? parseInt(payload.cabines, 10) : null,
+      tripulacao: payload.tripulacao ? parseInt(payload.tripulacao, 10) : null,
+      preco_base: payload.preco_base ? parseFloat(payload.preco_base) : null,
       municipio_id: payload.municipio_id ? parseInt(payload.municipio_id, 10) : null,
-      cep:               payload.cep.replace(/\D/g, '')   || null,
-      bairro:            payload.bairro.trim()             || null,
-      logradouro:        payload.logradouro.trim()         || null,
-      logradouro_numero: payload.logradouro_numero.trim()  || null,
-      complemento:       payload.complemento.trim()        || null,
+      cep: payload.cep.replace(/\D/g, '') || null,
+      bairro: payload.bairro.trim() || null,
+      logradouro: payload.logradouro.trim() || null,
+      logradouro_numero: payload.logradouro_numero.trim() || null,
+      complemento: payload.complemento.trim() || null,
     })
     .select('id')
     .single();
@@ -92,36 +85,29 @@ export async function criarEmbarcacao(
     return { ok: false, error: error?.message ?? 'Erro ao salvar embarcação.' };
   }
 
-  return { ok: true, embarcacaoId: data.id, ownerId: dbUser.id };
+  return { ok: true, embarcacaoId: data.id, ownerId: user.id };
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Action: salvar registro de imagem após upload no R2
 // ─────────────────────────────────────────────────────────────────────────────
 
-export async function salvarImagem(payload: SalvarImagemPayload): Promise<{ ok: boolean; error?: string }> {
-  const { userId: clerkId } = await auth();
-  if (!clerkId) return { ok: false, error: 'Não autenticado.' };
+export async function salvarImagem(
+  payload: SalvarImagemPayload,
+): Promise<{ ok: boolean; error?: string }> {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { ok: false, error: 'Não autenticado.' };
 
-  const { data: dbUser } = await supabaseAdmin
-    .from('users')
-    .select('id')
-    .eq('id_clerk', clerkId)
-    .single();
-
-  if (!dbUser) return { ok: false, error: 'Usuário não encontrado.' };
-
-  // Verifica que a embarcação pertence ao usuário
   const { data: emb } = await supabaseAdmin
     .from('embarcacao')
     .select('id')
     .eq('id', payload.embarcacaoId)
-    .eq('owner_id', dbUser.id)
+    .eq('owner_id', user.id)
     .single();
 
   if (!emb) return { ok: false, error: 'Embarcação não encontrada ou sem permissão.' };
 
-  // Se esta será a principal, remove principal das outras
   if (payload.principal) {
     await supabaseAdmin
       .from('embarcacao_imagens')
@@ -131,9 +117,9 @@ export async function salvarImagem(payload: SalvarImagemPayload): Promise<{ ok: 
 
   const { error } = await supabaseAdmin.from('embarcacao_imagens').insert({
     embarcacao_id: payload.embarcacaoId,
-    url_imagem:   payload.urlImagem,
-    titulo:       payload.titulo ?? null,
-    principal:    payload.principal,
+    url_imagem: payload.urlImagem,
+    titulo: payload.titulo ?? null,
+    principal: payload.principal,
   });
 
   if (error) return { ok: false, error: error.message };
@@ -150,14 +136,11 @@ export type CriarRegraPayload = {
   valor: number;
   tipo: PrecoRegraTipo;
   prioridade: number;
-  // dia_semana
   diasSemana?: number[];
-  // periodo_anual
   periodoMesInicio?: number;
   periodoDiaInicio?: number;
   periodoMesFim?: number;
   periodoDiaFim?: number;
-  // data_fixa
   dataInicio?: string;
   dataFim?: string;
 };
@@ -165,31 +148,24 @@ export type CriarRegraPayload = {
 export async function criarRegra(
   payload: CriarRegraPayload,
 ): Promise<{ ok: boolean; error?: string }> {
-  const { userId: clerkId } = await auth();
-  if (!clerkId) return { ok: false, error: 'Não autenticado.' };
-
-  const { data: dbUser } = await supabaseAdmin
-    .from('users')
-    .select('id')
-    .eq('id_clerk', clerkId)
-    .single();
-
-  if (!dbUser) return { ok: false, error: 'Usuário não encontrado.' };
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { ok: false, error: 'Não autenticado.' };
 
   const { error } = await supabaseAdmin.from('embarcacao_preco_regra').insert({
     embarcacao_id: payload.embarcacaoId,
-    nome:          payload.nome,
-    valor:         payload.valor,
-    tipo:          payload.tipo,
-    prioridade:    payload.prioridade,
-    ativo:         true,
-    dias_semana:        payload.diasSemana       ?? null,
+    nome: payload.nome,
+    valor: payload.valor,
+    tipo: payload.tipo,
+    prioridade: payload.prioridade,
+    ativo: true,
+    dias_semana: payload.diasSemana ?? null,
     periodo_mes_inicio: payload.periodoMesInicio ?? null,
     periodo_dia_inicio: payload.periodoDiaInicio ?? null,
-    periodo_mes_fim:    payload.periodoMesFim    ?? null,
-    periodo_dia_fim:    payload.periodoDiaFim    ?? null,
-    data_inicio:        payload.dataInicio       ?? null,
-    data_fim:           payload.dataFim          ?? null,
+    periodo_mes_fim: payload.periodoMesFim ?? null,
+    periodo_dia_fim: payload.periodoDiaFim ?? null,
+    data_inicio: payload.dataInicio ?? null,
+    data_fim: payload.dataFim ?? null,
   });
 
   if (error) return { ok: false, error: error.message };

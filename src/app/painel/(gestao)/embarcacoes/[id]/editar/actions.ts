@@ -1,6 +1,6 @@
 'use server';
 
-import { auth } from '@clerk/nextjs/server';
+import { createClient } from '@/lib/supabase/server';
 import { supabaseAdmin } from '@/lib/supabase';
 import { checkRoleInDb } from '@/lib/roles';
 import { buildKeyFromUrl, deleteFromR2 } from '@/lib/r2';
@@ -32,31 +32,23 @@ type ActionResult = { ok: boolean; error?: string };
 // ─── Helper de autenticação + ownership ──────────────────────────────────────
 
 async function getAuthorizedUser(embarcacaoId: string) {
-  const { userId: clerkId } = await auth();
-  if (!clerkId) return { error: 'Não autenticado.' };
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { error: 'Não autenticado.' };
 
-  const { data: dbUser } = await supabaseAdmin
-    .from('users')
-    .select('id')
-    .eq('id_clerk', clerkId)
-    .single();
-
-  if (!dbUser) return { error: 'Usuário não encontrado.' };
-
-  const autorizado = await checkRoleInDb(dbUser.id, ['gestor', 'admin']);
+  const autorizado = await checkRoleInDb(user.id, ['gestor', 'admin']);
   if (!autorizado) return { error: 'Acesso não autorizado.' };
 
-  // Confirma que a embarcação pertence ao usuário
   const { data: emb } = await supabaseAdmin
     .from('embarcacao')
     .select('id')
     .eq('id', embarcacaoId)
-    .eq('owner_id', dbUser.id)
+    .eq('owner_id', user.id)
     .single();
 
   if (!emb) return { error: 'Embarcação não encontrada ou sem permissão.' };
 
-  return { dbUser, ok: true as const };
+  return { userId: user.id, ok: true as const };
 }
 
 // ─── Action: atualizar embarcação ─────────────────────────────────────────────
@@ -65,30 +57,30 @@ export async function atualizarEmbarcacao(
   embarcacaoId: string,
   payload: AtualizarEmbarcacaoPayload,
 ): Promise<ActionResult> {
-  const auth = await getAuthorizedUser(embarcacaoId);
-  if ('error' in auth && auth.error) return { ok: false, error: auth.error };
+  const result = await getAuthorizedUser(embarcacaoId);
+  if ('error' in result && result.error) return { ok: false, error: result.error };
 
   if (!payload.nome.trim()) return { ok: false, error: 'O nome da embarcação é obrigatório.' };
 
   const { error } = await supabaseAdmin
     .from('embarcacao')
     .update({
-      nome:        payload.nome.trim(),
-      descricao:   payload.descricao.trim() || null,
-      embarcacao_tipo_id:      payload.embarcacao_tipo_id      || null,
+      nome: payload.nome.trim(),
+      descricao: payload.descricao.trim() || null,
+      embarcacao_tipo_id: payload.embarcacao_tipo_id || null,
       embarcacao_categoria_id: payload.embarcacao_categoria_id || null,
-      status:      payload.status,
-      capacidade:  payload.capacidade  ? parseInt(payload.capacidade,  10) : null,
-      comprimento: payload.comprimento ? parseFloat(payload.comprimento)   : null,
-      cabines:     payload.cabines     ? parseInt(payload.cabines,     10) : null,
-      tripulacao:  payload.tripulacao  ? parseInt(payload.tripulacao,  10) : null,
-      preco_base:  payload.preco_base  ? parseFloat(payload.preco_base)    : null,
+      status: payload.status,
+      capacidade: payload.capacidade ? parseInt(payload.capacidade, 10) : null,
+      comprimento: payload.comprimento ? parseFloat(payload.comprimento) : null,
+      cabines: payload.cabines ? parseInt(payload.cabines, 10) : null,
+      tripulacao: payload.tripulacao ? parseInt(payload.tripulacao, 10) : null,
+      preco_base: payload.preco_base ? parseFloat(payload.preco_base) : null,
       municipio_id: payload.municipio_id ? parseInt(payload.municipio_id, 10) : null,
-      cep:               payload.cep.replace(/\D/g, '')   || null,
-      bairro:            payload.bairro.trim()             || null,
-      logradouro:        payload.logradouro.trim()         || null,
-      logradouro_numero: payload.logradouro_numero.trim()  || null,
-      complemento:       payload.complemento.trim()        || null,
+      cep: payload.cep.replace(/\D/g, '') || null,
+      bairro: payload.bairro.trim() || null,
+      logradouro: payload.logradouro.trim() || null,
+      logradouro_numero: payload.logradouro_numero.trim() || null,
+      complemento: payload.complemento.trim() || null,
     })
     .eq('id', embarcacaoId);
 
@@ -102,10 +94,9 @@ export async function excluirImagem(
   embarcacaoId: string,
   imagemId: string,
 ): Promise<ActionResult> {
-  const auth = await getAuthorizedUser(embarcacaoId);
-  if ('error' in auth && auth.error) return { ok: false, error: auth.error };
+  const result = await getAuthorizedUser(embarcacaoId);
+  if ('error' in result && result.error) return { ok: false, error: result.error };
 
-  // Busca a URL antes de deletar para poder remover do R2
   const { data: imagem } = await supabaseAdmin
     .from('embarcacao_imagens')
     .select('url_imagem')
@@ -113,7 +104,6 @@ export async function excluirImagem(
     .eq('embarcacao_id', embarcacaoId)
     .single();
 
-  // Remove do R2 (silencia erros — o registro do banco é deletado de qualquer forma)
   if (imagem?.url_imagem) {
     const key = buildKeyFromUrl(imagem.url_imagem);
     await deleteFromR2(key).catch(() => null);
@@ -135,8 +125,8 @@ export async function definirPrincipal(
   embarcacaoId: string,
   imagemId: string,
 ): Promise<ActionResult> {
-  const auth = await getAuthorizedUser(embarcacaoId);
-  if ('error' in auth && auth.error) return { ok: false, error: auth.error };
+  const result = await getAuthorizedUser(embarcacaoId);
+  if ('error' in result && result.error) return { ok: false, error: result.error };
 
   await supabaseAdmin
     .from('embarcacao_imagens')
@@ -159,8 +149,8 @@ export async function excluirRegra(
   embarcacaoId: string,
   regraId: string,
 ): Promise<ActionResult> {
-  const auth = await getAuthorizedUser(embarcacaoId);
-  if ('error' in auth && auth.error) return { ok: false, error: auth.error };
+  const result = await getAuthorizedUser(embarcacaoId);
+  if ('error' in result && result.error) return { ok: false, error: result.error };
 
   const { error } = await supabaseAdmin
     .from('embarcacao_preco_regra')

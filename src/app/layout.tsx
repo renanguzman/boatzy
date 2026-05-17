@@ -1,6 +1,4 @@
 import type { Metadata } from "next";
-import { ClerkProvider } from "@clerk/nextjs";
-import { ptBR } from "@clerk/localizations";
 import { Inter } from "next/font/google";
 import "./globals.css";
 
@@ -41,9 +39,7 @@ export default function RootLayout({
   return (
     <html lang="pt-BR" className={`${inter.variable} h-full antialiased`}>
       <body className="min-h-full flex flex-col bg-white text-slate-900">
-        <ClerkProvider afterSignOutUrl="/" localization={ptBR}>
-          {children}
-        </ClerkProvider>
+        {children}
       </body>
     </html>
   );

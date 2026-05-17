@@ -1,7 +1,7 @@
-import { auth, currentUser } from '@clerk/nextjs/server';
+import { createClient } from '@/lib/supabase/server';
 import { supabaseAdmin } from '@/lib/supabase';
 import { NextResponse } from 'next/server';
-import { addRole, syncRolesToClerk } from '@/lib/roles';
+import { addRole } from '@/lib/roles';
 import type { Database } from '@/types/supabase';
 
 export const dynamic = 'force-dynamic';
@@ -11,55 +11,46 @@ type UserInsert = Database['public']['Tables']['users']['Insert'];
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000';
 
 export async function GET() {
-  const { userId } = await auth();
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
 
-  if (!userId) {
-    return NextResponse.redirect(new URL('/painel/login', APP_URL));
-  }
-
-  const user = await currentUser();
   if (!user) {
     return NextResponse.redirect(new URL('/painel/login', APP_URL));
   }
 
-  const email = user.emailAddresses[0]?.emailAddress ?? '';
+  const email = user.email ?? '';
+  const name =
+    (user.user_metadata?.full_name as string | undefined) ??
+    (user.user_metadata?.name as string | undefined) ??
+    email.split('@')[0];
+  const avatarUrl =
+    (user.user_metadata?.avatar_url as string | undefined) ??
+    (user.user_metadata?.picture as string | undefined) ??
+    null;
 
-  // Upsert do usuário em `users`. Mantém o registro existente (mesmo e-mail)
-  // e apenas atualiza o id_clerk caso tenha mudado.
-  const { data: existingUser } = await supabaseAdmin
+  // Upsert do usuário — o id coincide com auth.users.id
+  const { data: existing } = await supabaseAdmin
     .from('users')
     .select('id')
-    .eq('email', email)
+    .eq('id', user.id)
     .maybeSingle();
 
-  let dbUserId: string | null = null;
-
-  if (existingUser) {
+  if (!existing) {
+    const userData: UserInsert = {
+      id: user.id,
+      name,
+      email,
+      avatar_url: avatarUrl,
+    };
+    await supabaseAdmin.from('users').insert(userData);
+  } else {
     await supabaseAdmin
       .from('users')
-      .update({ id_clerk: userId })
-      .eq('id', existingUser.id);
-    dbUserId = existingUser.id;
-  } else {
-    const userData: UserInsert = {
-      id_clerk: userId,
-      name: [user.firstName, user.lastName].filter(Boolean).join(' ') || 'Sem nome',
-      email,
-      avatar_url: user.imageUrl ?? null,
-    };
-    const { data: newUser } = await supabaseAdmin
-      .from('users')
-      .insert(userData)
-      .select('id')
-      .single();
-    dbUserId = newUser?.id ?? null;
+      .update({ avatar_url: avatarUrl, name })
+      .eq('id', user.id);
   }
 
-  if (dbUserId) {
-    await addRole(dbUserId, 'gestor');
-  }
+  await addRole(user.id, 'gestor');
 
-  await syncRolesToClerk(userId);
-
-  return NextResponse.redirect(new URL('/painel/auth/atualizando', APP_URL));
+  return NextResponse.redirect(new URL('/painel', APP_URL));
 }

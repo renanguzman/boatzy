@@ -39,7 +39,7 @@ Validar um marketplace de aluguel de embarcações, garantindo:
 - **Frontend:** React (Next.js)
 - **Backend:** Node.js (Next.js API Routes)
 - **Banco de Dados:** Supabase (PostgreSQL)
-- **Autenticação:** Clerk
+- **Autenticação:** Supabase Auth (OAuth: Google, Facebook, Apple; email/senha)
 - **Hospedagem:** Vercel
 - **Pagamentos:** Stripe Connect (Marketplace)
 
@@ -58,7 +58,7 @@ Validar um marketplace de aluguel de embarcações, garantindo:
 - Avaliar embarcação
 
 #### Dono da Embarcação (role: gestor)
-- ✅ Cadastro/Login exclusivo em `/painel/cadastro` e `/painel/login` (Clerk)
+- ✅ Cadastro/Login exclusivo em `/painel/cadastro` e `/painel/login` (Supabase Auth — email/senha, Google, Facebook, Apple)
 - ✅ Role `gestor` atribuída automaticamente via API após cadastro
 - ✅ Dashboard em `/painel` com visão geral (stats)
 - ✅ Menu com Agendamentos e Embarcações
@@ -74,14 +74,14 @@ Validar um marketplace de aluguel de embarcações, garantindo:
 
 ### 6.1 Autenticação
 
-- Login via Clerk (email, Google, etc.)
+- ✅ Login via Supabase Auth: email/senha, Google, Facebook e Apple.
 - ✅ Um mesmo e-mail pode acumular múltiplas roles (`cliente` + `gestor`), sem precisar criar conta nova.
-- ✅ Roles são armazenadas em `user_roles` (Supabase, fonte da verdade) e espelhadas em `publicMetadata.roles` (array, no Clerk JWT).
+- ✅ Roles são armazenadas em `user_roles` (Supabase, fonte da verdade). Lidas diretamente do banco nos Server Components.
 - ✅ Cliente que tenta acessar `/painel` vê a opção "Tornar-me gestor", que adiciona a role sem destruir o vínculo de cliente.
 - Separação de perfis:
-  - Cliente — acessa o hotsite (`/`)
-  - Gestor (Owner) — acessa o painel (`/painel`)
-  - Admin — acessa o painel
+  - Cliente — acessa o hotsite (`/`), autenticado via social/email com role `cliente`
+  - Gestor (Owner) — acessa o painel (`/painel`), com role `gestor`
+  - Admin — acessa o painel (futuro)
 
 ---
 

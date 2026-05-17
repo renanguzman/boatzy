@@ -9,11 +9,15 @@ const nextConfig: NextConfig = {
     remotePatterns: [
       {
         protocol: 'https',
-        hostname: 'img.clerk.com',
+        hostname: '*.googleusercontent.com',
       },
       {
         protocol: 'https',
-        hostname: '*.clerk.com',
+        hostname: 'lh3.googleusercontent.com',
+      },
+      {
+        protocol: 'https',
+        hostname: '*.fbcdn.net',
       },
       {
         protocol: 'https',

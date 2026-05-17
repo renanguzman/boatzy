@@ -1,23 +1,13 @@
-import { auth, currentUser } from '@clerk/nextjs/server';
 import { redirect } from 'next/navigation';
+import { createClient } from '@/lib/supabase/server';
 import { supabaseAdmin } from '@/lib/supabase';
 import NovaEmbarcacaoForm from './_components/NovaEmbarcacaoForm';
 
 export default async function NovaEmbarcacaoPage() {
-  await auth.protect();
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) redirect('/painel/login');
 
-  const clerkUser = await currentUser();
-  if (!clerkUser) redirect('/painel/login');
-
-  const { data: dbUser } = await supabaseAdmin
-    .from('users')
-    .select('id')
-    .eq('id_clerk', clerkUser.id)
-    .single();
-
-  if (!dbUser) redirect('/painel/login');
-
-  // Carrega dropdowns de forma paralela
   const [{ data: tipos }, { data: categorias }, { data: estados }] = await Promise.all([
     supabaseAdmin.from('embarcacao_tipo').select('id, nome').order('nome'),
     supabaseAdmin.from('embarcacao_categoria').select('id, nome').order('nome'),

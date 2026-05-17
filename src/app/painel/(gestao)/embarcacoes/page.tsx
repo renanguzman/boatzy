@@ -1,23 +1,14 @@
-import { auth, currentUser } from '@clerk/nextjs/server';
 import { redirect } from 'next/navigation';
 import Link from 'next/link';
 import { Plus } from 'lucide-react';
+import { createClient } from '@/lib/supabase/server';
 import { supabaseAdmin } from '@/lib/supabase';
 import EmbarcacoesGrid, { type EmbarcacaoListItem } from './_components/EmbarcacoesGrid';
 
 export default async function EmbarcacoesPage() {
-  await auth.protect();
-
-  const clerkUser = await currentUser();
-  if (!clerkUser) redirect('/painel/login');
-
-  const { data: dbUser } = await supabaseAdmin
-    .from('users')
-    .select('id')
-    .eq('id_clerk', clerkUser.id)
-    .single();
-
-  if (!dbUser) redirect('/painel/login');
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) redirect('/painel/login');
 
   const { data } = await supabaseAdmin
     .from('embarcacao')
@@ -32,7 +23,7 @@ export default async function EmbarcacoesPage() {
       municipios ( nome, estados ( uf ) ),
       embarcacao_imagens ( url_imagem, principal )
     `)
-    .eq('owner_id', dbUser.id)
+    .eq('owner_id', user.id)
     .order('created_at', { ascending: false });
 
   const embarcacoes = (data ?? []) as unknown as EmbarcacaoListItem[];

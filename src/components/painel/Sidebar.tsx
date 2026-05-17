@@ -2,8 +2,8 @@
 
 import Link from 'next/link';
 import Image from 'next/image';
-import { usePathname } from 'next/navigation';
-import { useClerk } from '@clerk/nextjs';
+import { usePathname, useRouter } from 'next/navigation';
+import { createClient } from '@/lib/supabase/client';
 import {
   LayoutDashboard,
   Ship,
@@ -14,7 +14,6 @@ import {
   Plus,
   LogOut,
   HelpCircle,
-  Anchor,
 } from 'lucide-react';
 import clsx from 'clsx';
 
@@ -29,28 +28,25 @@ const navItems = [
 
 export default function Sidebar() {
   const pathname = usePathname();
-  const { signOut } = useClerk();
+  const router = useRouter();
+  const supabase = createClient();
+
+  async function handleSignOut() {
+    await supabase.auth.signOut();
+    router.push('/painel/login');
+  }
 
   return (
     <aside className="w-[260px] h-full bg-white border-r border-slate-200 flex flex-col">
-      {/* Logo / Branding */}
       <div className="px-6 py-6">
         <Link href="/painel" className="block">
-          <Image
-            src="/images/logo.png"
-            alt="Boatzy"
-            width={180}
-            height={54}
-            className="h-12 w-auto mb-1"
-            priority
-          />
+          <Image src="/images/logo.png" alt="Boatzy" width={180} height={54} className="h-12 w-auto mb-1" priority />
           <span className="text-[10px] text-slate-400 font-medium tracking-wider uppercase ml-1 block">
             Admin Portal
           </span>
         </Link>
       </div>
 
-      {/* Navigation */}
       <nav className="flex-1 px-4 space-y-0.5">
         {navItems.map(({ href, label, icon: Icon, exact }) => {
           const active = exact ? pathname === href : pathname.startsWith(href);
@@ -62,7 +58,7 @@ export default function Sidebar() {
                 'flex items-center gap-3 px-3 py-2.5 rounded-lg text-xs font-semibold tracking-wide transition-all duration-150',
                 active
                   ? 'bg-[#0B2447] text-white shadow-md shadow-[#0B2447]/20'
-                  : 'text-slate-500 hover:bg-slate-50 hover:text-[#0B2447]'
+                  : 'text-slate-500 hover:bg-slate-50 hover:text-[#0B2447]',
               )}
             >
               <Icon className="w-4 h-4 flex-shrink-0" />
@@ -71,7 +67,6 @@ export default function Sidebar() {
           );
         })}
 
-        {/* Add New Vessel Button */}
         <div className="pt-4">
           <Link
             href="/painel/embarcacoes/novo"
@@ -83,7 +78,6 @@ export default function Sidebar() {
         </div>
       </nav>
 
-      {/* Bottom section */}
       <div className="px-4 pb-6 space-y-0.5">
         <Link
           href="/painel/suporte"
@@ -93,8 +87,8 @@ export default function Sidebar() {
           SUPPORT
         </Link>
 
-        <button 
-          onClick={() => signOut({ redirectUrl: '/painel/login' })}
+        <button
+          onClick={handleSignOut}
           className="flex items-center gap-3 px-3 py-2.5 w-full rounded-lg text-xs font-semibold tracking-wide text-slate-500 hover:bg-red-50 hover:text-red-600 transition-all duration-150"
         >
           <LogOut className="w-4 h-4" />

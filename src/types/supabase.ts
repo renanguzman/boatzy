@@ -8,7 +8,6 @@ export type Database = {
       users: {
         Row: {
           id: string;
-          id_clerk: string;
           name: string;
           email: string;
           cpf_cnpj: string | null;
@@ -18,8 +17,7 @@ export type Database = {
           updated_at: string;
         };
         Insert: {
-          id?: string;
-          id_clerk: string;
+          id: string;
           name: string;
           email: string;
           cpf_cnpj?: string | null;
@@ -30,7 +28,6 @@ export type Database = {
         };
         Update: {
           id?: string;
-          id_clerk?: string;
           name?: string;
           email?: string;
           cpf_cnpj?: string | null;
