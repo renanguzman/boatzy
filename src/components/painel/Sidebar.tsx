@@ -10,7 +10,7 @@ import {
   CalendarDays,
   DollarSign,
   Users,
-  Wrench,
+  MapPin,
   Plus,
   LogOut,
   HelpCircle,
@@ -19,11 +19,11 @@ import clsx from 'clsx';
 
 const navItems = [
   { href: '/painel', label: 'DASHBOARD', icon: LayoutDashboard, exact: true },
-  { href: '/painel/embarcacoes', label: 'FLEET MANAGEMENT', icon: Ship, exact: false },
-  { href: '/painel/agendamentos', label: 'BOOKINGS', icon: CalendarDays, exact: false },
-  { href: '/painel/receitas', label: 'REVENUE', icon: DollarSign, exact: false },
-  { href: '/painel/clientes', label: 'CUSTOMER INSIGHTS', icon: Users, exact: false },
-  { href: '/painel/manutencao', label: 'MAINTENANCE', icon: Wrench, exact: false },
+  { href: '/painel/agendamentos', label: 'AGENDAMENTOS', icon: CalendarDays, exact: false },
+  { href: '/painel/embarcacoes', label: 'EMBARCAÇÕES', icon: Ship, exact: false },
+  { href: '/painel/roteiros', label: 'ROTEIROS', icon: MapPin, exact: false },
+  { href: '/painel/clientes', label: 'CLIENTES', icon: Users, exact: false },
+  { href: '/painel/receitas', label: 'RECEITAS', icon: DollarSign, exact: false },
 ];
 
 export default function Sidebar() {
@@ -73,7 +73,7 @@ export default function Sidebar() {
             className="flex items-center justify-center gap-2 w-full bg-[#0B3D91] hover:bg-[#0B2447] text-white font-semibold text-xs py-3 rounded-xl transition-all duration-200 shadow-lg shadow-[#0B3D91]/20"
           >
             <Plus className="w-4 h-4" />
-            Add New Vessel
+            Nova Embarcação
           </Link>
         </div>
       </nav>

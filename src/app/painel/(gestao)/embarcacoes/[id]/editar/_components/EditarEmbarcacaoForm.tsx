@@ -75,7 +75,7 @@ type EmbarcacaoData = {
   embarcacao_tipo_id: string | null; embarcacao_categoria_id: string | null;
   status: EmbarcacaoStatus;
   capacidade: number | null; comprimento: number | null;
-  cabines: number | null;    tripulacao: number | null;
+  cabines: number | null;    banheiros: number | null; tripulacao: number | null;
   preco_base: number | null;
   municipio_id: number | null; estado_id: number | null;
   cep: string | null; bairro: string | null; logradouro: string | null;
@@ -188,6 +188,7 @@ export default function EditarEmbarcacaoForm({ embarcacao, tipos, categorias, es
     capacidade:  embarcacao.capacidade  != null ? String(embarcacao.capacidade)  : '',
     comprimento: embarcacao.comprimento != null ? String(embarcacao.comprimento) : '',
     cabines:     embarcacao.cabines     != null ? String(embarcacao.cabines)     : '',
+    banheiros:   embarcacao.banheiros   != null ? String(embarcacao.banheiros)   : '',
     tripulacao:  embarcacao.tripulacao  != null ? String(embarcacao.tripulacao)  : '',
     preco_base:  embarcacao.preco_base  != null ? String(embarcacao.preco_base)  : '',
     estado_id:   embarcacao.estado_id   != null ? String(embarcacao.estado_id)   : '',
@@ -393,7 +394,7 @@ export default function EditarEmbarcacaoForm({ embarcacao, tipos, categorias, es
       embarcacao_categoria_id: form.embarcacao_categoria_id,
       status: form.status as EmbarcacaoStatus,
       capacidade: form.capacidade, comprimento: form.comprimento,
-      cabines: form.cabines, tripulacao: form.tripulacao,
+      cabines: form.cabines, banheiros: form.banheiros, tripulacao: form.tripulacao,
       preco_base: form.preco_base, municipio_id: form.municipio_id,
       cep: form.cep, bairro: form.bairro, logradouro: form.logradouro,
       logradouro_numero: form.logradouro_numero, complemento: form.complemento,
@@ -515,6 +516,10 @@ export default function EditarEmbarcacaoForm({ embarcacao, tipos, categorias, es
           <Field label="Cabines">
             <input className={inputCls} type="number" min="0" placeholder="ex: 2"
               value={form.cabines} onChange={e => setField('cabines', e.target.value)} />
+          </Field>
+          <Field label="Banheiros">
+            <input className={inputCls} type="number" min="0" placeholder="ex: 1"
+              value={form.banheiros} onChange={e => setField('banheiros', e.target.value)} />
           </Field>
           <Field label="Tripulação">
             <input className={inputCls} type="number" min="0" placeholder="ex: 3"

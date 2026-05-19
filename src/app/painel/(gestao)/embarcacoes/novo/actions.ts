@@ -18,6 +18,7 @@ export type CriarEmbarcacaoPayload = {
   capacidade: string;
   comprimento: string;
   cabines: string;
+  banheiros: string;
   tripulacao: string;
   preco_base: string;
   municipio_id: string;
@@ -69,6 +70,7 @@ export async function criarEmbarcacao(
       capacidade: payload.capacidade ? parseInt(payload.capacidade, 10) : null,
       comprimento: payload.comprimento ? parseFloat(payload.comprimento) : null,
       cabines: payload.cabines ? parseInt(payload.cabines, 10) : null,
+      banheiros: payload.banheiros !== '' ? parseInt(payload.banheiros, 10) : null,
       tripulacao: payload.tripulacao ? parseInt(payload.tripulacao, 10) : null,
       preco_base: payload.preco_base ? parseFloat(payload.preco_base) : null,
       municipio_id: payload.municipio_id ? parseInt(payload.municipio_id, 10) : null,
