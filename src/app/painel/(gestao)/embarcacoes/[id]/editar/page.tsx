@@ -24,7 +24,7 @@ export default async function EditarEmbarcacaoPage({
   ] = await Promise.all([
     supabaseAdmin
       .from('embarcacao')
-      .select('id, nome, descricao, embarcacao_tipo_id, embarcacao_categoria_id, status, capacidade, comprimento, cabines, tripulacao, preco_base, municipio_id, cep, bairro, logradouro, logradouro_numero, complemento')
+      .select('id, nome, descricao, embarcacao_tipo_id, embarcacao_categoria_id, status, capacidade, comprimento, cabines, banheiros, tripulacao, preco_base, municipio_id, cep, bairro, logradouro, logradouro_numero, complemento')
       .eq('id', id)
       .eq('owner_id', user.id)
       .single(),

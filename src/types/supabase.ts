@@ -151,6 +151,7 @@ export type Database = {
           capacidade: number | null;
           comprimento: number | null;
           cabines: number | null;
+          banheiros: number | null;
           tripulacao: number | null;
           embarcacao_tipo_id: string | null;
           embarcacao_categoria_id: string | null;
@@ -174,6 +175,7 @@ export type Database = {
           capacidade?: number | null;
           comprimento?: number | null;
           cabines?: number | null;
+          banheiros?: number | null;
           tripulacao?: number | null;
           embarcacao_tipo_id?: string | null;
           embarcacao_categoria_id?: string | null;
@@ -197,6 +199,7 @@ export type Database = {
           capacidade?: number | null;
           comprimento?: number | null;
           cabines?: number | null;
+          banheiros?: number | null;
           tripulacao?: number | null;
           embarcacao_tipo_id?: string | null;
           embarcacao_categoria_id?: string | null;
