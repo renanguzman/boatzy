@@ -114,9 +114,24 @@ Visualização:
 - Lista
 - Mapa (Google Maps)
 
+#### ✅ Implementado — Barra de Busca Inteligente (Hero Section)
+
+- `LocationPicker`: autocomplete de municípios com roteiros cadastrados, opção "Próximo de mim" via geolocalização do navegador, histórico de buscas recentes (localStorage).
+- `DatePicker`: calendário de 2 meses, datas passadas bloqueadas, opções de flexibilidade (Data exata, ±1, ±2, ±3, ±7 dias), totalmente em pt-BR.
+- `GuestPicker`: contador +/− com mínimo 0, dropdown.
+- Navegação para `/buscar?municipio=&data=&flex=&pessoas=` ao submeter.
+
+#### ✅ Implementado — Página de Resultados `/buscar`
+
+- Barra de busca compacta no topo (reutiliza os mesmos pickers com prop `compact`).
+- Chips de filtros ativos com link de remoção individual.
+- Grid de roteiros (4 colunas responsivo: 1 → 2 → 3 → 4).
+- Paginação server-side via URL (`?pagina=N`), contagem exata via `count: 'exact'`.
+- `RoteiroCard`: imagem principal, badge de localidade, meta (pessoas/duração), nome, preço base.
+
 ---
 
-### 6.4 Página da Embarcação
+### 6.4 Página da Embarcação / Roteiro
 
 Exibir:
 
@@ -125,6 +140,25 @@ Exibir:
 - Avaliações
 - Localização
 - Botão "Reservar"
+
+#### ✅ Implementado — Página de Detalhes `/roteiros/[id]`
+
+- Galeria: imagem principal (2/3 largura) + 2 miniaturas laterais.
+- Specs row: ícones com Localização, Duração, Pessoas, Preço — layout com `min-w-0` + `truncate` para evitar overflow.
+- "Sobre a Embarcação": nome clicável que abre `EmbarcacaoFotosModal` com galeria completa e especificações da embarcação.
+- "Comodidades a bordo": grid 3 colunas com ícones `CheckCircle2`.
+- "O que está incluído": itens do catálogo vinculados ao roteiro (`roteiro_catalogo`).
+- "Itinerário": timeline vertical com gradiente.
+- Reviews: seção placeholder.
+- Sidebar `BookingCard`: seleção de data e pessoas, breakdown de preço com taxa de serviço (12%), total estimado, botão "Solicitar Reserva" → `/reservas/novo`.
+
+#### ✅ Implementado — Modal de Fotos da Embarcação (`EmbarcacaoFotosModal`)
+
+- Trigger: nome da embarcação como link estilizado (underline pontilhado + ícone câmera com contagem + ExternalLink no hover).
+- Modal: backdrop escuro + blur, painel `max-w-4xl`, header gradiente navy.
+- Navegação: setas ◀ ▶, teclado (ESC fecha, ← → navega), contador "N / total".
+- Thumbnails: strip no rodapé com ring cyan no ativo.
+- Footer de especificações: capacidade, comprimento, cabines, tripulação, modalidade do capitão.
 
 ---
 

@@ -642,9 +642,225 @@ Seção "Comodidades" no formulário de cadastro de embarcação: chips clicáve
 
 ---
 
-## 17. Futuro
+## 18. Hotsite — Busca e Roteiros
+
+### 18.1 API de Localização
+
+**`GET /api/buscar/locais`**
+
+| Parâmetro | Tipo | Descrição |
+|-----------|------|-----------|
+| `q` | string | Texto para autocomplete de municípios |
+| `lat` + `lng` | numeric | Coordenadas para busca "próximo de mim" |
+
+Retorna `LocalResult[]`:
+```ts
+type LocalResult = {
+  id: number;         // municipio_id (IBGE)
+  nome: string;
+  uf: string;
+  estado: string;
+  latitude: number | null;
+  longitude: number | null;
+};
+```
+
+Apenas municípios que possuem pelo menos um `roteiro` cadastrado são retornados. Para geolocalização, os resultados são ordenados por distância (Haversine via `Math.hypot`).
+
+---
+
+### 18.2 Componentes de Busca
+
+Localizados em `src/components/home/search/`.
+
+#### `LocationPicker`
+
+```ts
+type LocationValue =
+  | { type: 'place'; id: number; nome: string; uf: string }
+  | { type: 'geo'; lat: number; lng: number; label: string };
+
+type Props = {
+  value: LocationValue | null;
+  onChange: (v: LocationValue) => void;
+  isOpen: boolean;
+  onOpen: () => void;
+  onClose: () => void;
+  compact?: boolean;
+};
+```
+
+- Dropdown com "Próximo de mim" (geolocation), histórico recente (localStorage key `boatzy_recent_locations`), e sugestões da API (debounce 300ms).
+- `compact` reduz o trigger para tamanho menor (usado em `SearchBarCompact`).
+
+#### `DatePicker`
+
+```ts
+type DateValue = { date: Date; flexibility: number };
+
+type Props = {
+  value: DateValue | null;
+  onChange: (v: DateValue | null) => void;
+  isOpen: boolean;
+  onOpen: () => void;
+  onClose: () => void;
+  compact?: boolean;
+};
+```
+
+- Calendário de 2 meses, navegação por mês, datas passadas desabilitadas.
+- Botões de flexibilidade: 0 (Data exata), 1, 2, 3, 7 (dias).
+- Display: "15 de jun." ou "15 de jun. ±2 dias".
+
+#### `GuestPicker`
+
+```ts
+type Props = {
+  value: number;
+  onChange: (v: number) => void;
+  isOpen: boolean;
+  onOpen: () => void;
+  onClose: () => void;
+  compact?: boolean;
+};
+```
+
+- Dropdown com contador Minus/Plus, mínimo 0.
+
+---
+
+### 18.3 Página de Busca `/buscar`
+
+**Arquivo:** `src/app/buscar/page.tsx` (Server Component)
+
+**Query params:**
+
+| Param | Tipo | Descrição |
+|-------|------|-----------|
+| `municipio` | number | ID do município filtrado |
+| `local` | string | Label exibido no chip de filtro |
+| `lat` + `lng` | number | Busca por proximidade (futuro) |
+| `data` | YYYY-MM-DD | Data da busca |
+| `flex` | number | Flexibilidade em dias |
+| `pessoas` | number | Quantidade mínima de pessoas |
+| `pagina` | number | Página atual (padrão: 1) |
+
+**Componentes:**
+- `src/app/buscar/_components/SearchBarCompact.tsx` — barra compacta (`'use client'`), reutiliza pickers com `compact` prop, navega via `router.push()`.
+- `src/app/buscar/_components/RoteiroCard.tsx` — card de roteiro (`'use client'`), imagem, localidade, specs, preço.
+
+**Tipo `RoteiroCardData`:**
+```ts
+type RoteiroCardData = {
+  id: string;
+  nome: string;
+  descricao: string;
+  quantidade_pessoas: number | null;
+  preco_base: number | null;
+  duracao: string | null;
+  municipios: { nome: string; estados: { uf: string } | null } | null;
+  roteiro_imagens: { url_imagem: string; principal: boolean }[];
+};
+```
+
+---
+
+### 18.4 Página de Detalhe `/roteiros/[id]`
+
+**Arquivo:** `src/app/roteiros/[id]/page.tsx` (Server Component)
+
+**Query Supabase (select completo):**
+```ts
+.select(`
+  id, nome, descricao, origem, destino, duracao, quantidade_pessoas, preco_base,
+  latitude, longitude,
+  municipios ( nome, estados ( uf, nome ) ),
+  roteiro_imagens ( id, url_imagem, titulo, principal ),
+  embarcacao (
+    nome, capacidade, comprimento, cabines, tripulacao, modalidade_capitao,
+    embarcacao_tipo ( nome ),
+    embarcacao_comodidades ( comodidade ( nome ) ),
+    embarcacao_imagens ( id, url_imagem, titulo, principal )
+  ),
+  roteiro_catalogo ( id, valor_customizado, catalogo ( id, descricao, valor, tipo ) )
+`)
+```
+
+**Componentes client:**
+- `src/app/roteiros/[id]/_components/BookingCard.tsx` — gerencia estado de data/hóspedes, calcula taxa de serviço (12% hardcoded para exibição), navega para `/reservas/novo?roteiro=...&data=...&pessoas=...`.
+- `src/app/roteiros/[id]/_components/EmbarcacaoFotosModal.tsx` — modal de fotos da embarcação (ver 18.5).
+
+**Tipo `RoteiroDetalhe`:**
+```ts
+type RoteiroDetalhe = {
+  id: string;
+  nome: string;
+  descricao: string | null;
+  origem: string | null;
+  destino: string | null;
+  duracao: string | null;
+  quantidade_pessoas: number | null;
+  preco_base: number | null;
+  latitude: number | null;
+  longitude: number | null;
+  municipios: { nome: string; estados: { uf: string; nome: string } | null } | null;
+  roteiro_imagens: { id: string; url_imagem: string; titulo: string | null; principal: boolean }[];
+  embarcacao: {
+    nome: string;
+    capacidade: number | null;
+    comprimento: number | null;
+    cabines: number | null;
+    tripulacao: number | null;
+    modalidade_capitao: string;
+    embarcacao_tipo: { nome: string } | null;
+    embarcacao_comodidades: { comodidade: { nome: string } | null }[];
+    embarcacao_imagens: { id: string; url_imagem: string; titulo: string | null; principal: boolean }[];
+  } | null;
+  roteiro_catalogo: {
+    id: string;
+    valor_customizado: number | null;
+    catalogo: { id: string; descricao: string; valor: number; tipo: string } | null;
+  }[];
+};
+```
+
+---
+
+### 18.5 Modal de Fotos da Embarcação
+
+**Arquivo:** `src/app/roteiros/[id]/_components/EmbarcacaoFotosModal.tsx`
+
+**Props:**
+```ts
+type Props = {
+  embarcacao: {
+    nome: string;
+    capacidade: number | null;
+    comprimento: number | null;
+    cabines: number | null;
+    tripulacao: number | null;
+    modalidade_capitao: string;
+    embarcacao_tipo: { nome: string } | null;
+    embarcacao_imagens: { id: string; url_imagem: string; titulo: string | null; principal: boolean }[];
+  };
+};
+```
+
+- Imagem principal (`principal: true`) ordenada primeira.
+- `z-index: 200` para sobrepor todos os demais elementos.
+- `document.body.style.overflow = 'hidden'` enquanto aberto.
+- Teclado: ESC fecha, ← / → navega entre fotos.
+
+---
+
+## 19. Futuro
 
 - Chat  
 - Notificações  
 - App mobile  
-- Antifraude  
+- Antifraude
+- Página `/reservas/novo` (fluxo de reserva do cliente)
+- Autenticação de clientes (role `cliente`)
+- Filtros adicionais na busca (tipo de embarcação, faixa de preço)
+- Visualização em mapa no `/buscar`
+- Avaliações reais em `/roteiros/[id]`

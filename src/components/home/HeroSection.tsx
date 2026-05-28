@@ -1,21 +1,79 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import Image from 'next/image';
-import { Search, MapPin, Calendar, Users } from 'lucide-react';
+import { Search, X } from 'lucide-react';
+import LocationPicker, { type LocationValue } from './search/LocationPicker';
+import DatePicker, { type DateValue } from './search/DatePicker';
+import GuestPicker from './search/GuestPicker';
+
+type ActivePanel = 'location' | 'date' | 'guests' | null;
 
 export default function HeroSection() {
-  const [location, setLocation] = useState('');
-  const [dates, setDates] = useState('');
-  const [guests, setGuests] = useState('');
+  const [location, setLocation] = useState<LocationValue | null>(null);
+  const [date, setDate] = useState<DateValue | null>(null);
+  const [guests, setGuests] = useState(0);
+  const [active, setActive] = useState<ActivePanel>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  // Close dropdowns on outside click
+  useEffect(() => {
+    function handleClick(e: MouseEvent) {
+      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
+        setActive(null);
+      }
+    }
+    document.addEventListener('mousedown', handleClick);
+    return () => document.removeEventListener('mousedown', handleClick);
+  }, []);
+
+  function open(panel: ActivePanel) {
+    setActive((prev) => (prev === panel ? null : panel));
+  }
+
+  function clearLocation() {
+    setLocation(null);
+    setActive('location');
+  }
+
+  function clearDate() {
+    setDate(null);
+  }
+
+  function handleSearch() {
+    const params = new URLSearchParams();
+    if (location) {
+      if (location.type === 'place') {
+        params.set('municipio', String(location.id));
+        params.set('local', `${location.nome}, ${location.uf}`);
+      } else {
+        params.set('lat', String(location.lat));
+        params.set('lng', String(location.lng));
+      }
+    }
+    if (date) {
+      params.set('data', date.date.toISOString().slice(0, 10));
+      if (date.flexibility > 0) params.set('flex', String(date.flexibility));
+    }
+    if (guests > 0) params.set('pessoas', String(guests));
+
+    window.location.href = `/buscar?${params.toString()}`;
+  }
+
+  const locationLabel =
+    location?.type === 'place'
+      ? `${location.nome}, ${location.uf}`
+      : location?.type === 'geo'
+      ? location.label
+      : null;
 
   return (
-    <section className="relative h-[600px] md:h-[650px] overflow-hidden" id="hero-section">
+    <section className="relative z-10 h-[600px] md:h-[650px]" id="hero-section">
       {/* Background Image */}
-      <div className="absolute inset-0">
+      <div className="absolute inset-0 overflow-hidden">
         <Image
           src="/images/hero-yacht.png"
-          alt="Luxury yacht sailing at sunset"
+          alt="Iate de luxo ao amanhecer"
           fill
           className="object-cover"
           priority
@@ -25,93 +83,114 @@ export default function HeroSection() {
 
       {/* Content */}
       <div className="relative z-10 flex flex-col items-center justify-center h-full px-4 text-center">
-        <p className="text-cyan-300 text-sm font-medium tracking-widest uppercase mb-3 animate-fade-in">
+        <p className="text-cyan-300 text-sm font-medium tracking-widest uppercase mb-3">
           Bem-vindo ao Boatzy
         </p>
         <h1 className="text-4xl md:text-6xl lg:text-7xl font-bold text-white mb-4 tracking-tight">
-          The Horizon is{' '}
+          O horizonte é{' '}
           <span className="bg-gradient-to-r from-cyan-300 to-teal-300 bg-clip-text text-transparent">
-            Yours
+            seu
           </span>
           .
         </h1>
         <p className="text-slate-200 text-base md:text-lg max-w-xl mb-10 leading-relaxed">
-          Explore embarcações de luxo pelo Brasil e encontre sua experiência perfeita no mar.
+          Explore embarcações pelo Brasil e encontre sua experiência perfeita no mar.
         </p>
 
         {/* Search Bar */}
         <div
-          className="bg-white rounded-2xl shadow-2xl p-2 w-full max-w-3xl flex flex-col md:flex-row gap-2"
+          ref={containerRef}
+          className="bg-white rounded-2xl shadow-2xl p-2 w-full max-w-3xl"
           id="search-bar"
         >
-          {/* Location */}
-          <div className="flex items-center gap-3 flex-1 px-4 py-3 rounded-xl hover:bg-slate-50 transition-colors">
-            <MapPin className="h-5 w-5 text-[#0B3D91] shrink-0" />
-            <div className="flex flex-col text-left w-full">
-              <label className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider">
-                Destino
-              </label>
-              <input
-                type="text"
-                placeholder="Para onde?"
-                value={location}
-                onChange={(e) => setLocation(e.target.value)}
-                className="text-sm text-slate-800 bg-transparent outline-none placeholder:text-slate-400 w-full"
-                id="search-location"
-              />
+          <div className="flex flex-col md:flex-row items-stretch gap-1">
+            {/* Location */}
+            <div className="flex-1 relative min-w-0">
+              {location ? (
+                <div className="relative">
+                  <LocationPicker
+                    value={location}
+                    onChange={setLocation}
+                    isOpen={active === 'location'}
+                    onOpen={() => open('location')}
+                    onClose={() => setActive(null)}
+                  />
+                  <button
+                    type="button"
+                    onClick={clearLocation}
+                    className="absolute right-2 top-1/2 -translate-y-1/2 h-6 w-6 rounded-full bg-slate-100 hover:bg-slate-200 flex items-center justify-center transition-colors"
+                  >
+                    <X className="h-3.5 w-3.5 text-slate-500" />
+                  </button>
+                </div>
+              ) : (
+                <LocationPicker
+                  value={null}
+                  onChange={setLocation}
+                  isOpen={active === 'location'}
+                  onOpen={() => open('location')}
+                  onClose={() => setActive(null)}
+                />
+              )}
             </div>
-          </div>
 
-          {/* Divider */}
-          <div className="hidden md:block w-px bg-slate-200 my-2" />
+            {/* Divider */}
+            <div className="hidden md:block w-px bg-slate-200 my-2 shrink-0" />
 
-          {/* Dates */}
-          <div className="flex items-center gap-3 flex-1 px-4 py-3 rounded-xl hover:bg-slate-50 transition-colors">
-            <Calendar className="h-5 w-5 text-[#0B3D91] shrink-0" />
-            <div className="flex flex-col text-left w-full">
-              <label className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider">
-                Check-in / Check-out
-              </label>
-              <input
-                type="text"
-                placeholder="Adicione datas"
-                value={dates}
-                onChange={(e) => setDates(e.target.value)}
-                className="text-sm text-slate-800 bg-transparent outline-none placeholder:text-slate-400 w-full"
-                id="search-dates"
-              />
+            {/* Date */}
+            <div className="flex-1 relative min-w-0">
+              {date ? (
+                <div className="relative">
+                  <DatePicker
+                    value={date}
+                    onChange={setDate}
+                    isOpen={active === 'date'}
+                    onOpen={() => open('date')}
+                    onClose={() => setActive(null)}
+                  />
+                  <button
+                    type="button"
+                    onClick={clearDate}
+                    className="absolute right-2 top-1/2 -translate-y-1/2 h-6 w-6 rounded-full bg-slate-100 hover:bg-slate-200 flex items-center justify-center transition-colors"
+                  >
+                    <X className="h-3.5 w-3.5 text-slate-500" />
+                  </button>
+                </div>
+              ) : (
+                <DatePicker
+                  value={null}
+                  onChange={setDate}
+                  isOpen={active === 'date'}
+                  onOpen={() => open('date')}
+                  onClose={() => setActive(null)}
+                />
+              )}
             </div>
-          </div>
 
-          {/* Divider */}
-          <div className="hidden md:block w-px bg-slate-200 my-2" />
+            {/* Divider */}
+            <div className="hidden md:block w-px bg-slate-200 my-2 shrink-0" />
 
-          {/* Guests */}
-          <div className="flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-slate-50 transition-colors">
-            <Users className="h-5 w-5 text-[#0B3D91] shrink-0" />
-            <div className="flex flex-col text-left">
-              <label className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider">
-                Hóspedes
-              </label>
-              <input
-                type="text"
-                placeholder="Quantos?"
+            {/* Guests + Search button */}
+            <div className="flex items-center gap-1">
+              <GuestPicker
                 value={guests}
-                onChange={(e) => setGuests(e.target.value)}
-                className="text-sm text-slate-800 bg-transparent outline-none placeholder:text-slate-400 w-24"
-                id="search-guests"
+                onChange={setGuests}
+                isOpen={active === 'guests'}
+                onOpen={() => open('guests')}
+                onClose={() => setActive(null)}
               />
+
+              <button
+                type="button"
+                onClick={handleSearch}
+                className="bg-[#0B3D91] hover:bg-[#092E6E] text-white rounded-xl p-3.5 flex items-center justify-center transition-all hover:shadow-lg hover:scale-[1.03] active:scale-[0.97] cursor-pointer shrink-0"
+                id="search-button"
+                aria-label="Buscar"
+              >
+                <Search className="h-5 w-5" />
+              </button>
             </div>
           </div>
-
-          {/* Search Button */}
-          <button
-            className="bg-[#0B3D91] hover:bg-[#092E6E] text-white rounded-xl px-6 py-3 flex items-center justify-center gap-2 font-medium transition-all hover:shadow-lg hover:scale-[1.02] active:scale-[0.98] cursor-pointer"
-            id="search-button"
-          >
-            <Search className="h-5 w-5" />
-            <span className="md:hidden">Buscar</span>
-          </button>
         </div>
       </div>
     </section>
