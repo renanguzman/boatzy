@@ -1,6 +1,7 @@
 export type UserRole = 'admin' | 'gestor' | 'cliente';
 export type EmbarcacaoStatus = 'ativo' | 'inativo' | 'em_manutencao';
 export type PrecoRegraTipo = 'dia_semana' | 'periodo_anual' | 'data_fixa';
+export type ModalidadeCapitao = 'sem_capitao' | 'com_capitao' | 'opcional';
 
 export type Database = {
   public: {
@@ -151,6 +152,8 @@ export type Database = {
           capacidade: number | null;
           comprimento: number | null;
           cabines: number | null;
+          quartos: number | null;
+          suites: number | null;
           banheiros: number | null;
           tripulacao: number | null;
           embarcacao_tipo_id: string | null;
@@ -161,7 +164,10 @@ export type Database = {
           logradouro: string | null;
           logradouro_numero: string | null;
           complemento: string | null;
+          latitude: number | null;
+          longitude: number | null;
           status: EmbarcacaoStatus;
+          modalidade_capitao: ModalidadeCapitao;
           preco_base: number | null;
           created_at: string;
           updated_at: string;
@@ -175,6 +181,8 @@ export type Database = {
           capacidade?: number | null;
           comprimento?: number | null;
           cabines?: number | null;
+          quartos?: number | null;
+          suites?: number | null;
           banheiros?: number | null;
           tripulacao?: number | null;
           embarcacao_tipo_id?: string | null;
@@ -185,7 +193,10 @@ export type Database = {
           logradouro?: string | null;
           logradouro_numero?: string | null;
           complemento?: string | null;
+          latitude?: number | null;
+          longitude?: number | null;
           status?: EmbarcacaoStatus;
+          modalidade_capitao?: ModalidadeCapitao;
           preco_base?: number | null;
           created_at?: string;
           updated_at?: string;
@@ -199,6 +210,8 @@ export type Database = {
           capacidade?: number | null;
           comprimento?: number | null;
           cabines?: number | null;
+          quartos?: number | null;
+          suites?: number | null;
           banheiros?: number | null;
           tripulacao?: number | null;
           embarcacao_tipo_id?: string | null;
@@ -209,7 +222,10 @@ export type Database = {
           logradouro?: string | null;
           logradouro_numero?: string | null;
           complemento?: string | null;
+          latitude?: number | null;
+          longitude?: number | null;
           status?: EmbarcacaoStatus;
+          modalidade_capitao?: ModalidadeCapitao;
           preco_base?: number | null;
           updated_at?: string;
           data_criacao?: string;
@@ -299,6 +315,110 @@ export type Database = {
         };
         Relationships: [];
       };
+      comodidade: {
+        Row: { id: string; nome: string };
+        Insert: { id?: string; nome: string };
+        Update: { id?: string; nome?: string };
+        Relationships: [];
+      };
+      embarcacao_comodidades: {
+        Row: { id: string; embarcacao_id: string; comodidade_id: string };
+        Insert: { id?: string; embarcacao_id: string; comodidade_id: string };
+        Update: { id?: string; embarcacao_id?: string; comodidade_id?: string };
+        Relationships: [];
+      };
+      roteiro: {
+        Row: {
+          id: string;
+          owner_id: string;
+          embarcacao_id: string | null;
+          nome: string;
+          descricao: string;
+          duracao: string | null;
+          quantidade_pessoas: number | null;
+          origem: string | null;
+          destino: string | null;
+          municipio_id: number | null;
+          cep: string | null;
+          bairro: string | null;
+          logradouro: string | null;
+          logradouro_numero: string | null;
+          complemento: string | null;
+          latitude: number | null;
+          longitude: number | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          owner_id: string;
+          embarcacao_id?: string | null;
+          nome: string;
+          descricao: string;
+          duracao?: string | null;
+          quantidade_pessoas?: number | null;
+          origem?: string | null;
+          destino?: string | null;
+          municipio_id?: number | null;
+          cep?: string | null;
+          bairro?: string | null;
+          logradouro?: string | null;
+          logradouro_numero?: string | null;
+          complemento?: string | null;
+          latitude?: number | null;
+          longitude?: number | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          owner_id?: string;
+          embarcacao_id?: string | null;
+          nome?: string;
+          descricao?: string;
+          duracao?: string | null;
+          quantidade_pessoas?: number | null;
+          origem?: string | null;
+          destino?: string | null;
+          municipio_id?: number | null;
+          cep?: string | null;
+          bairro?: string | null;
+          logradouro?: string | null;
+          logradouro_numero?: string | null;
+          complemento?: string | null;
+          latitude?: number | null;
+          longitude?: number | null;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
+      roteiro_imagens: {
+        Row: {
+          id: string;
+          roteiro_id: string;
+          url_imagem: string;
+          titulo: string | null;
+          principal: boolean;
+          data_criacao: string;
+        };
+        Insert: {
+          id?: string;
+          roteiro_id: string;
+          url_imagem: string;
+          titulo?: string | null;
+          principal?: boolean;
+          data_criacao?: string;
+        };
+        Update: {
+          id?: string;
+          roteiro_id?: string;
+          url_imagem?: string;
+          titulo?: string | null;
+          principal?: boolean;
+          data_criacao?: string;
+        };
+        Relationships: [];
+      };
     };
     Views: Record<string, never>;
     Functions: Record<string, never>;
@@ -306,6 +426,7 @@ export type Database = {
       user_role: UserRole;
       embarcacao_status: EmbarcacaoStatus;
       preco_regra_tipo: PrecoRegraTipo;
+      modalidade_capitao: ModalidadeCapitao;
     };
     CompositeTypes: Record<string, never>;
   };

@@ -4,7 +4,7 @@ import { createClient } from '@/lib/supabase/server';
 import { supabaseAdmin } from '@/lib/supabase';
 import { checkRoleInDb } from '@/lib/roles';
 import { buildKeyFromUrl, deleteFromR2 } from '@/lib/r2';
-import type { EmbarcacaoStatus } from '@/types/supabase';
+import type { EmbarcacaoStatus, ModalidadeCapitao } from '@/types/supabase';
 
 // ─── Tipos ───────────────────────────────────────────────────────────────────
 
@@ -14,13 +14,18 @@ export type AtualizarEmbarcacaoPayload = {
   embarcacao_tipo_id: string;
   embarcacao_categoria_id: string;
   status: EmbarcacaoStatus;
+  modalidade_capitao: ModalidadeCapitao;
   capacidade: string;
   comprimento: string;
   cabines: string;
+  quartos: string;
+  suites: string;
   banheiros: string;
   tripulacao: string;
   preco_base: string;
   municipio_id: string;
+  latitude: string;
+  longitude: string;
   cep: string;
   bairro: string;
   logradouro: string;
@@ -71,13 +76,18 @@ export async function atualizarEmbarcacao(
       embarcacao_tipo_id: payload.embarcacao_tipo_id || null,
       embarcacao_categoria_id: payload.embarcacao_categoria_id || null,
       status: payload.status,
+      modalidade_capitao: payload.modalidade_capitao,
       capacidade: payload.capacidade ? parseInt(payload.capacidade, 10) : null,
       comprimento: payload.comprimento ? parseFloat(payload.comprimento) : null,
       cabines: payload.cabines ? parseInt(payload.cabines, 10) : null,
+      quartos: payload.quartos ? parseInt(payload.quartos, 10) : null,
+      suites: payload.suites ? parseInt(payload.suites, 10) : null,
       banheiros: payload.banheiros !== '' ? parseInt(payload.banheiros, 10) : null,
       tripulacao: payload.tripulacao ? parseInt(payload.tripulacao, 10) : null,
       preco_base: payload.preco_base ? parseFloat(payload.preco_base) : null,
       municipio_id: payload.municipio_id ? parseInt(payload.municipio_id, 10) : null,
+      latitude: payload.latitude ? parseFloat(payload.latitude) : null,
+      longitude: payload.longitude ? parseFloat(payload.longitude) : null,
       cep: payload.cep.replace(/\D/g, '') || null,
       bairro: payload.bairro.trim() || null,
       logradouro: payload.logradouro.trim() || null,
@@ -142,6 +152,30 @@ export async function definirPrincipal(
     .eq('embarcacao_id', embarcacaoId);
 
   if (error) return { ok: false, error: error.message };
+  return { ok: true };
+}
+
+// ─── Action: substituir comodidades vinculadas ────────────────────────────────
+
+export async function atualizarComodidades(
+  embarcacaoId: string,
+  comodidadeIds: string[],
+): Promise<ActionResult> {
+  const result = await getAuthorizedUser(embarcacaoId);
+  if ('error' in result && result.error) return { ok: false, error: result.error };
+
+  await supabaseAdmin
+    .from('embarcacao_comodidades')
+    .delete()
+    .eq('embarcacao_id', embarcacaoId);
+
+  if (comodidadeIds.length > 0) {
+    const { error } = await supabaseAdmin
+      .from('embarcacao_comodidades')
+      .insert(comodidadeIds.map(comodidade_id => ({ embarcacao_id: embarcacaoId, comodidade_id })));
+    if (error) return { ok: false, error: error.message };
+  }
+
   return { ok: true };
 }
 

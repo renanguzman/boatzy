@@ -354,10 +354,14 @@ descricao               text
 capacidade              integer
 comprimento             numeric(6,2)          -- metros
 cabines                 integer
+quartos                 integer
+suites                  integer
 tripulacao              integer
 embarcacao_tipo_id      uuid FK → embarcacao_tipo(id)
 embarcacao_categoria_id uuid FK → embarcacao_categoria(id)
 municipio_id            integer FK → municipios(id)
+latitude                numeric(10,7)         -- coordenada exata da atracação
+longitude               numeric(10,7)
 cep                     char(8)
 bairro                  text
 logradouro              text
@@ -578,7 +582,67 @@ Batch da função anterior. Use na tela de busca do hotsite para resolver preço
 
 ---
 
-## 16. Futuro
+## 16. Localização Geográfica (Google Maps)
+
+Migration: `supabase/migrations/010_embarcacao_coordenadas.sql`
+
+Colunas adicionadas em `embarcacao`: `latitude numeric(10,7)`, `longitude numeric(10,7)`.
+
+### Integração no formulário
+
+- Pacote: `@react-google-maps/api`
+- Variável de ambiente: `NEXT_PUBLIC_GOOGLE_MAPS_API_KEY`
+- APIs Google habilitadas: Maps JavaScript API, Geocoding API, Places API
+- Componente `MapaPicker` (`_components/MapaPicker.tsx`): renderiza mapa interativo com marcador arrastável.
+- Fluxo: ao preencher o CEP, o endereço é geocodificado automaticamente e o marcador é posicionado. O usuário pode clicar ou arrastar o marcador para o ponto exato de atracação.
+
+---
+
+## 17. Comodidades de Embarcações
+
+Migration: `supabase/migrations/007_comodidades.sql`
+
+### Tabela `comodidade` (catálogo)
+
+```sql
+id    uuid primary key default gen_random_uuid()
+nome  text not null unique
+```
+
+Seeds iniciais: Churrasqueira, TV com Satélite, Internet WiFi, Ar-Condicionado, Cozinha Completa, Som Ambiente, Jet Ski incluso, Prancha de Stand Up, Equipamento de Mergulho, Geladeira, Banheiro a bordo, Toldo/Cobertura, Âncora, GPS Náutico, Salva-vidas completo.
+
+RLS: leitura pública; escrita apenas via service role.
+
+---
+
+### Tabela `embarcacao_comodidades` (ligação N:N)
+
+```sql
+id              uuid primary key default gen_random_uuid()
+embarcacao_id   uuid not null FK → embarcacao(id) ON DELETE CASCADE
+comodidade_id   uuid not null FK → comodidade(id) ON DELETE CASCADE
+UNIQUE (embarcacao_id, comodidade_id)
+```
+
+RLS:
+- service role: acesso total.
+- público: SELECT.
+- owner autenticado: INSERT / DELETE sobre comodidades das suas embarcações.
+
+---
+
+### Server Actions
+
+- `getComodidades()` — lista todas as comodidades ordenadas por nome.
+- `salvarComodidades(embarcacaoId, comodidadeIds[])` — insere os vínculos em `embarcacao_comodidades`.
+
+### UI
+
+Seção "Comodidades" no formulário de cadastro de embarcação: chips clicáveis (toggle). Comodidades selecionadas são salvas após a criação da embarcação e das regras de preço.
+
+---
+
+## 17. Futuro
 
 - Chat  
 - Notificações  

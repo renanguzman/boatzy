@@ -63,7 +63,7 @@ Validar um marketplace de aluguel de embarcações, garantindo:
 - ✅ Dashboard em `/painel` com visão geral (stats)
 - ✅ Menu com Agendamentos e Embarcações
 - ✅ Estrutura do banco de dados para embarcações (migration 002)
-- Cadastro de embarcação — tela em desenvolvimento
+- ✅ Cadastro de embarcação com seleção de comodidades (tabelas `comodidade` e `embarcacao_comodidades`, migration 007)
 - Upload de imagens (em desenvolvimento)
 - Definição de preço (em desenvolvimento)
 - Gerenciamento de reservas (em desenvolvimento)

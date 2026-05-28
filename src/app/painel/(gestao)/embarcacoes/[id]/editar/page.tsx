@@ -21,10 +21,12 @@ export default async function EditarEmbarcacaoPage({
     { data: tipos },
     { data: categorias },
     { data: estados },
+    { data: comodidades },
+    { data: comodidadesVinculadas },
   ] = await Promise.all([
     supabaseAdmin
       .from('embarcacao')
-      .select('id, nome, descricao, embarcacao_tipo_id, embarcacao_categoria_id, status, capacidade, comprimento, cabines, banheiros, tripulacao, preco_base, municipio_id, cep, bairro, logradouro, logradouro_numero, complemento')
+      .select('id, nome, descricao, embarcacao_tipo_id, embarcacao_categoria_id, status, modalidade_capitao, capacidade, comprimento, cabines, quartos, suites, banheiros, tripulacao, preco_base, municipio_id, latitude, longitude, cep, bairro, logradouro, logradouro_numero, complemento')
       .eq('id', id)
       .eq('owner_id', user.id)
       .single(),
@@ -40,6 +42,8 @@ export default async function EditarEmbarcacaoPage({
     supabaseAdmin.from('embarcacao_tipo').select('id, nome').order('nome'),
     supabaseAdmin.from('embarcacao_categoria').select('id, nome').order('nome'),
     supabaseAdmin.from('estados').select('id, uf, nome').order('nome'),
+    supabaseAdmin.from('comodidade').select('id, nome').order('nome'),
+    supabaseAdmin.from('embarcacao_comodidades').select('comodidade_id').eq('embarcacao_id', id),
   ]);
 
   if (!emb) notFound();
@@ -92,6 +96,8 @@ export default async function EditarEmbarcacaoPage({
         categorias={categorias ?? []}
         estados={estados ?? []}
         municipiosIniciais={municipios}
+        comodidades={comodidades ?? []}
+        comodidadesIniciais={(comodidadesVinculadas ?? []).map(c => c.comodidade_id)}
       />
     </div>
   );

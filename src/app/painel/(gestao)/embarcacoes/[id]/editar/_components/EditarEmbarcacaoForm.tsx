@@ -4,12 +4,13 @@ import { useState, useTransition, useRef, useCallback } from 'react';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import {
-  Ship, Info, Ruler, DollarSign, MapPin, ImageIcon,
+  Info, Ruler, DollarSign, MapPin, ImageIcon, Sparkles,
   Upload, X, Star, Loader2, AlertCircle, CheckCircle,
   ChevronRight, Plus, ChevronDown, ChevronUp, Trash2, HelpCircle,
 } from 'lucide-react';
 import {
   atualizarEmbarcacao,
+  atualizarComodidades,
   excluirImagem,
   excluirRegra,
   definirPrincipal,
@@ -20,7 +21,8 @@ import {
   salvarImagem,
   getMunicipiosByEstado,
 } from '../../../novo/actions';
-import type { EmbarcacaoStatus, PrecoRegraTipo } from '@/types/supabase';
+import MapaPicker from '../../../novo/_components/MapaPicker';
+import type { EmbarcacaoStatus, ModalidadeCapitao, PrecoRegraTipo } from '@/types/supabase';
 
 // ─── Constantes ───────────────────────────────────────────────────────────────
 
@@ -45,6 +47,7 @@ const TIPO_CONFIG: Record<PrecoRegraTipo, { label: string; badgeCls: string; dot
 type Tipo      = { id: string; nome: string };
 type Estado    = { id: number; uf: string; nome: string };
 type Municipio = { id: number; nome: string };
+type Comodidade = { id: string; nome: string };
 
 type ExistingImage = {
   id: string; url: string; titulo: string | null; principal: boolean;
@@ -74,10 +77,13 @@ type EmbarcacaoData = {
   nome: string; descricao: string | null;
   embarcacao_tipo_id: string | null; embarcacao_categoria_id: string | null;
   status: EmbarcacaoStatus;
+  modalidade_capitao: ModalidadeCapitao | null;
   capacidade: number | null; comprimento: number | null;
-  cabines: number | null;    banheiros: number | null; tripulacao: number | null;
+  cabines: number | null; quartos: number | null; suites: number | null;
+  banheiros: number | null; tripulacao: number | null;
   preco_base: number | null;
   municipio_id: number | null; estado_id: number | null;
+  latitude: number | null; longitude: number | null;
   cep: string | null; bairro: string | null; logradouro: string | null;
   logradouro_numero: string | null; complemento: string | null;
   embarcacao_imagens: { id: string; url_imagem: string; titulo: string | null; principal: boolean }[];
@@ -94,6 +100,8 @@ type Props = {
   embarcacao: EmbarcacaoData;
   tipos: Tipo[]; categorias: Tipo[]; estados: Estado[];
   municipiosIniciais: Municipio[];
+  comodidades: Comodidade[];
+  comodidadesIniciais: string[];
 };
 
 // ─── Helpers de UI ────────────────────────────────────────────────────────────
@@ -171,10 +179,14 @@ const emptyNewRegra = (): Omit<NewRegra, 'localId'> => ({
 
 // ─── Componente principal ─────────────────────────────────────────────────────
 
-export default function EditarEmbarcacaoForm({ embarcacao, tipos, categorias, estados, municipiosIniciais }: Props) {
+export default function EditarEmbarcacaoForm({
+  embarcacao, tipos, categorias, estados, municipiosIniciais,
+  comodidades, comodidadesIniciais,
+}: Props) {
   const router = useRouter();
   const [, startTransition] = useTransition();
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  const fileInputRef   = useRef<HTMLInputElement>(null);
+  const numeroInputRef = useRef<HTMLInputElement>(null);
 
   // ── Form base ──────────────────────────────────────────────────────────────
   const [form, setForm] = useState<Omit<AtualizarEmbarcacaoPayload, 'municipio_id'> & {
@@ -185,14 +197,19 @@ export default function EditarEmbarcacaoForm({ embarcacao, tipos, categorias, es
     embarcacao_tipo_id:      embarcacao.embarcacao_tipo_id      ?? '',
     embarcacao_categoria_id: embarcacao.embarcacao_categoria_id ?? '',
     status:      embarcacao.status,
+    modalidade_capitao: embarcacao.modalidade_capitao ?? 'sem_capitao',
     capacidade:  embarcacao.capacidade  != null ? String(embarcacao.capacidade)  : '',
     comprimento: embarcacao.comprimento != null ? String(embarcacao.comprimento) : '',
     cabines:     embarcacao.cabines     != null ? String(embarcacao.cabines)     : '',
+    quartos:     embarcacao.quartos     != null ? String(embarcacao.quartos)     : '',
+    suites:      embarcacao.suites      != null ? String(embarcacao.suites)      : '',
     banheiros:   embarcacao.banheiros   != null ? String(embarcacao.banheiros)   : '',
     tripulacao:  embarcacao.tripulacao  != null ? String(embarcacao.tripulacao)  : '',
     preco_base:  embarcacao.preco_base  != null ? String(embarcacao.preco_base)  : '',
     estado_id:   embarcacao.estado_id   != null ? String(embarcacao.estado_id)   : '',
     municipio_id: embarcacao.municipio_id != null ? String(embarcacao.municipio_id) : '',
+    latitude:    embarcacao.latitude    != null ? String(embarcacao.latitude)    : '',
+    longitude:   embarcacao.longitude   != null ? String(embarcacao.longitude)   : '',
     cep:               embarcacao.cep               ?? '',
     bairro:            embarcacao.bairro            ?? '',
     logradouro:        embarcacao.logradouro         ?? '',
@@ -205,6 +222,15 @@ export default function EditarEmbarcacaoForm({ embarcacao, tipos, categorias, es
   const [loadingMunicipios, setLoadingMunicipios] = useState(false);
   const [cepLoading, setCepLoading]               = useState(false);
   const [cepError,   setCepError]                 = useState<string | null>(null);
+
+  // ── Comodidades ────────────────────────────────────────────────────────────
+  const [comodidadesSelecionadas, setComodidadesSelecionadas] = useState<string[]>(comodidadesIniciais);
+
+  function toggleComodidade(id: string) {
+    setComodidadesSelecionadas(prev =>
+      prev.includes(id) ? prev.filter(c => c !== id) : [...prev, id],
+    );
+  }
 
   // ── Imagens existentes ─────────────────────────────────────────────────────
   const [existingImages, setExistingImages] = useState<ExistingImage[]>(
@@ -273,7 +299,10 @@ export default function EditarEmbarcacaoForm({ embarcacao, tipos, categorias, es
       const res  = await fetch(`https://viacep.com.br/ws/${digits}/json/`);
       if (!res.ok) throw new Error();
       const data = await res.json() as Record<string, string>;
-      if (data.erro) { setCepError('CEP não encontrado.'); return; }
+      if (data.erro) {
+        setCepError('CEP não encontrado. Verifique o número digitado ou preencha o endereço manualmente.');
+        return;
+      }
       if (data.logradouro) setField('logradouro', data.logradouro);
       if (data.bairro)     setField('bairro',     data.bairro);
       const estado = estados.find(e => e.uf === data.uf);
@@ -285,11 +314,37 @@ export default function EditarEmbarcacaoForm({ embarcacao, tipos, categorias, es
       const norm = (s: string) => s.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
       const mun = muns.find(m => norm(m.nome) === norm(data.localidade ?? ''));
       if (mun) setField('municipio_id', String(mun.id));
+
+      if (data.logradouro && data.bairro) {
+        setTimeout(() => numeroInputRef.current?.focus(), 50);
+      }
     } catch {
       setCepError('Erro ao consultar o CEP. Preencha manualmente.');
     } finally {
       setCepLoading(false);
     }
+  }
+
+  function geocodificarEndereco() {
+    if (!form.logradouro || !form.logradouro_numero) return;
+    if (typeof window === 'undefined' || !window.google?.maps?.Geocoder) return;
+
+    const partes = [
+      form.logradouro,
+      form.logradouro_numero,
+      form.bairro,
+      form.cep.replace(/\D/g, ''),
+      'Brasil',
+    ].filter(Boolean).join(', ');
+
+    const geocoder = new window.google.maps.Geocoder();
+    geocoder.geocode({ address: partes }, (results, status) => {
+      if (status === 'OK' && results?.[0]) {
+        const loc = results[0].geometry.location;
+        setField('latitude',  loc.lat().toFixed(7));
+        setField('longitude', loc.lng().toFixed(7));
+      }
+    });
   }
 
   // ─── Imagens existentes ────────────────────────────────────────────────────
@@ -393,9 +448,12 @@ export default function EditarEmbarcacaoForm({ embarcacao, tipos, categorias, es
       embarcacao_tipo_id: form.embarcacao_tipo_id,
       embarcacao_categoria_id: form.embarcacao_categoria_id,
       status: form.status as EmbarcacaoStatus,
+      modalidade_capitao: form.modalidade_capitao as ModalidadeCapitao,
       capacidade: form.capacidade, comprimento: form.comprimento,
-      cabines: form.cabines, banheiros: form.banheiros, tripulacao: form.tripulacao,
+      cabines: form.cabines, quartos: form.quartos, suites: form.suites,
+      banheiros: form.banheiros, tripulacao: form.tripulacao,
       preco_base: form.preco_base, municipio_id: form.municipio_id,
+      latitude: form.latitude, longitude: form.longitude,
       cep: form.cep, bairro: form.bairro, logradouro: form.logradouro,
       logradouro_numero: form.logradouro_numero, complemento: form.complemento,
     });
@@ -406,18 +464,21 @@ export default function EditarEmbarcacaoForm({ embarcacao, tipos, categorias, es
       return;
     }
 
-    // 2. Excluir imagens marcadas
+    // 2. Atualizar comodidades
+    await atualizarComodidades(embarcacao.id, comodidadesSelecionadas);
+
+    // 3. Excluir imagens marcadas
     for (const img of existingImages.filter(i => i.markedForDelete)) {
       await excluirImagem(embarcacao.id, img.id);
     }
 
-    // 3. Atualizar principal de imagens existentes (não deletadas)
+    // 4. Atualizar principal de imagens existentes (não deletadas)
     const principalExisting = existingImages.find(i => i.principal && !i.markedForDelete);
     if (principalExisting) {
       await definirPrincipal(embarcacao.id, principalExisting.id);
     }
 
-    // 4. Upload de novas imagens
+    // 5. Upload de novas imagens
     const hasPrincipal = !!principalExisting;
     for (let i = 0; i < newImages.length; i++) {
       setNewImages(prev => prev.map((img, idx) => idx === i ? { ...img, uploading: true } : img));
@@ -428,12 +489,12 @@ export default function EditarEmbarcacaoForm({ embarcacao, tipos, categorias, es
       ));
     }
 
-    // 5. Excluir regras marcadas
+    // 6. Excluir regras marcadas
     for (const regra of existingRegras.filter(r => r.markedForDelete)) {
       await excluirRegra(embarcacao.id, regra.id);
     }
 
-    // 6. Criar novas regras
+    // 7. Criar novas regras
     for (const regra of newRegras) {
       await criarRegra({
         embarcacaoId: embarcacao.id,
@@ -491,6 +552,14 @@ export default function EditarEmbarcacaoForm({ embarcacao, tipos, categorias, es
               {categorias.map(c => <option key={c.id} value={c.id}>{c.nome}</option>)}
             </select>
           </Field>
+          <Field label="Capitão">
+            <select className={selectCls} value={form.modalidade_capitao}
+              onChange={e => setField('modalidade_capitao', e.target.value as ModalidadeCapitao)}>
+              <option value="sem_capitao">Sem capitão (locatário pilota)</option>
+              <option value="com_capitao">Com capitão obrigatório</option>
+              <option value="opcional">Capitão opcional</option>
+            </select>
+          </Field>
           <Field label="Status">
             <select className={selectCls} value={form.status}
               onChange={e => setField('status', e.target.value as EmbarcacaoStatus)}>
@@ -517,18 +586,59 @@ export default function EditarEmbarcacaoForm({ embarcacao, tipos, categorias, es
             <input className={inputCls} type="number" min="0" placeholder="ex: 2"
               value={form.cabines} onChange={e => setField('cabines', e.target.value)} />
           </Field>
-          <Field label="Banheiros">
-            <input className={inputCls} type="number" min="0" placeholder="ex: 1"
-              value={form.banheiros} onChange={e => setField('banheiros', e.target.value)} />
-          </Field>
           <Field label="Tripulação">
             <input className={inputCls} type="number" min="0" placeholder="ex: 3"
               value={form.tripulacao} onChange={e => setField('tripulacao', e.target.value)} />
           </Field>
+          <Field label="Quartos">
+            <input className={inputCls} type="number" min="0" placeholder="ex: 3"
+              value={form.quartos} onChange={e => setField('quartos', e.target.value)} />
+          </Field>
+          <Field label="Suítes">
+            <input className={inputCls} type="number" min="0" placeholder="ex: 1"
+              value={form.suites} onChange={e => setField('suites', e.target.value)} />
+          </Field>
+          <Field label="Banheiros">
+            <input className={inputCls} type="number" min="0" placeholder="ex: 1"
+              value={form.banheiros} onChange={e => setField('banheiros', e.target.value)} />
+          </Field>
         </div>
       </SectionCard>
 
-      {/* ── 3. Preço ──────────────────────────────────────────────────────── */}
+      {/* ── 3. Comodidades ────────────────────────────────────────────────── */}
+      {comodidades.length > 0 && (
+        <SectionCard icon={Sparkles} title="Comodidades">
+          <p className="text-xs text-slate-400 mb-4">
+            Selecione as comodidades disponíveis a bordo desta embarcação.
+          </p>
+          <div className="flex flex-wrap gap-2">
+            {comodidades.map(c => {
+              const ativo = comodidadesSelecionadas.includes(c.id);
+              return (
+                <button
+                  key={c.id}
+                  type="button"
+                  onClick={() => toggleComodidade(c.id)}
+                  className={`px-3.5 py-2 rounded-xl text-sm font-semibold border transition-all ${
+                    ativo
+                      ? 'bg-[#0B2447] text-white border-[#0B2447] shadow-sm shadow-[#0B2447]/20'
+                      : 'bg-white text-slate-600 border-slate-200 hover:border-[#0B2447]/40 hover:text-[#0B2447]'
+                  }`}
+                >
+                  {c.nome}
+                </button>
+              );
+            })}
+          </div>
+          {comodidadesSelecionadas.length > 0 && (
+            <p className="mt-3 text-xs text-slate-400">
+              {comodidadesSelecionadas.length} comodidade{comodidadesSelecionadas.length > 1 ? 's' : ''} selecionada{comodidadesSelecionadas.length > 1 ? 's' : ''}.
+            </p>
+          )}
+        </SectionCard>
+      )}
+
+      {/* ── 4. Preço ──────────────────────────────────────────────────────── */}
       <SectionCard icon={DollarSign} title="Preço">
         <div className="max-w-xs mb-6">
           <Field label="Preço base (R$ / dia)"
@@ -544,7 +654,6 @@ export default function EditarEmbarcacaoForm({ embarcacao, tipos, categorias, es
 
         <div className="border-t border-slate-100 mb-5" />
 
-        {/* Instruções */}
         <button type="button" onClick={() => setShowInstrucoes(v => !v)}
           className="flex items-center gap-2 text-sm font-semibold text-[#0B2447] mb-4 hover:text-[#0B3D91] transition-colors">
           <HelpCircle className="w-4 h-4" />
@@ -758,7 +867,7 @@ export default function EditarEmbarcacaoForm({ embarcacao, tipos, categorias, es
         )}
       </SectionCard>
 
-      {/* ── 4. Localização ────────────────────────────────────────────────── */}
+      {/* ── 5. Localização ────────────────────────────────────────────────── */}
       <SectionCard icon={MapPin} title="Localização">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
           <div className="md:col-span-2">
@@ -805,17 +914,34 @@ export default function EditarEmbarcacaoForm({ embarcacao, tipos, categorias, es
               value={form.logradouro} onChange={e => setField('logradouro', e.target.value)} />
           </Field>
           <Field label="Número">
-            <input className={inputCls} placeholder="ex: 1500"
-              value={form.logradouro_numero} onChange={e => setField('logradouro_numero', e.target.value)} />
+            <input ref={numeroInputRef} className={inputCls} placeholder="ex: 1500"
+              value={form.logradouro_numero}
+              onChange={e => setField('logradouro_numero', e.target.value)}
+              onBlur={geocodificarEndereco} />
           </Field>
           <Field label="Complemento">
             <input className={inputCls} placeholder="ex: Marina Sul, Vaga 42"
               value={form.complemento} onChange={e => setField('complemento', e.target.value)} />
           </Field>
+
+          {/* Mapa — ponto exato de atracação */}
+          <div className="md:col-span-2 mt-1">
+            <label className="block text-sm font-medium text-slate-700 mb-1.5">
+              Localização no mapa
+            </label>
+            <MapaPicker
+              lat={form.latitude}
+              lng={form.longitude}
+              onChange={(lat, lng) => {
+                setField('latitude', lat);
+                setField('longitude', lng);
+              }}
+            />
+          </div>
         </div>
       </SectionCard>
 
-      {/* ── 5. Imagens ────────────────────────────────────────────────────── */}
+      {/* ── 6. Imagens ────────────────────────────────────────────────────── */}
       <SectionCard icon={ImageIcon} title="Imagens">
 
         {/* Imagens existentes */}
