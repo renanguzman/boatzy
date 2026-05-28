@@ -1,9 +1,5 @@
-import Image from 'next/image';
-import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import {
-  ChevronLeft,
-  Camera,
   MapPin,
   Users,
   Clock,
@@ -20,6 +16,7 @@ import EmbarcacaoFotosModal from './_components/EmbarcacaoFotosModal';
 import AddonsSection from './_components/AddonsSection';
 import { CartProvider } from './_components/CartContext';
 import LocalizacaoMap from './_components/LocalizacaoMap';
+import GaleriaRoteiro from './_components/GaleriaRoteiro';
 import { supabaseAdmin } from '@/lib/supabase';
 
 type RoteiroDetalhe = {
@@ -89,8 +86,6 @@ export default async function RoteiroDetalhePage({ params }: { params: Promise<{
   const images = [...roteiro.roteiro_imagens].sort((a, b) =>
     a.principal === b.principal ? 0 : a.principal ? -1 : 1,
   );
-  const mainImage = images[0] ?? null;
-  const sideImages = images.slice(1, 3);
 
   const localidade = roteiro.municipios
     ? roteiro.municipios.estados
@@ -117,60 +112,7 @@ export default async function RoteiroDetalhePage({ params }: { params: Promise<{
     <div className="min-h-screen bg-white">
       <Header />
 
-      {/* Image Gallery */}
-      <section className="relative" id="roteiro-gallery">
-        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-6">
-          <div className={`grid gap-3 h-[300px] md:h-[450px] ${mainImage && sideImages.length > 0 ? 'grid-cols-1 lg:grid-cols-3' : 'grid-cols-1'}`}>
-            {/* Main image */}
-            <div className={`relative rounded-2xl overflow-hidden bg-slate-100 ${sideImages.length > 0 ? 'lg:col-span-2' : ''}`}>
-              {mainImage ? (
-                <Image
-                  src={mainImage.url_imagem}
-                  alt={mainImage.titulo ?? roteiro.nome}
-                  fill
-                  className="object-cover"
-                  priority
-                />
-              ) : (
-                <div className="w-full h-full flex flex-col items-center justify-center gap-3">
-                  <Anchor className="h-12 w-12 text-slate-200" />
-                  <p className="text-sm text-slate-300">Sem fotos disponíveis</p>
-                </div>
-              )}
-
-              {/* Back button */}
-              <Link
-                href="/buscar"
-                className="absolute top-4 left-4 h-10 w-10 rounded-full bg-white/80 backdrop-blur-sm flex items-center justify-center hover:bg-white transition-colors shadow-sm"
-              >
-                <ChevronLeft className="h-5 w-5 text-slate-700" />
-              </Link>
-            </div>
-
-            {/* Side images */}
-            {sideImages.length > 0 && (
-              <div className="hidden lg:grid grid-rows-2 gap-3">
-                {sideImages.map((img, i) => (
-                  <div key={img.id} className="relative rounded-2xl overflow-hidden bg-slate-100">
-                    <Image
-                      src={img.url_imagem}
-                      alt={img.titulo ?? `Foto ${i + 2}`}
-                      fill
-                      className="object-cover"
-                    />
-                    {i === 1 && images.length > 3 && (
-                      <button className="absolute bottom-3 right-3 bg-white/90 backdrop-blur-sm text-slate-800 text-xs font-medium px-4 py-2 rounded-lg flex items-center gap-1.5 hover:bg-white transition-colors">
-                        <Camera className="h-3.5 w-3.5" />
-                        Ver todas ({images.length})
-                      </button>
-                    )}
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-        </div>
-      </section>
+      <GaleriaRoteiro images={images} nome={roteiro.nome} />
 
       {/* Content */}
       <section className="pb-16" id="roteiro-content">
