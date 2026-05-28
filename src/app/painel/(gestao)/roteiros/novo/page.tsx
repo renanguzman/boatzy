@@ -8,7 +8,7 @@ export default async function NovoRoteiroPage() {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect('/painel/login');
 
-  const [{ data: estados }, { data: embarcacoes }] = await Promise.all([
+  const [{ data: estados }, { data: embarcacoes }, { data: catalogo }] = await Promise.all([
     supabaseAdmin.from('estados').select('id, uf, nome').order('nome'),
     supabaseAdmin
       .from('embarcacao')
@@ -16,6 +16,12 @@ export default async function NovoRoteiroPage() {
       .eq('owner_id', user.id)
       .eq('status', 'ativo')
       .order('nome'),
+    supabaseAdmin
+      .from('catalogo')
+      .select('id, descricao, valor, tipo')
+      .eq('owner_id', user.id)
+      .order('tipo')
+      .order('descricao'),
   ]);
 
   return (
@@ -30,6 +36,7 @@ export default async function NovoRoteiroPage() {
       <NovoRoteiroForm
         estados={estados ?? []}
         embarcacoes={embarcacoes ?? []}
+        catalogo={(catalogo ?? []) as { id: string; descricao: string; valor: number; tipo: 'produto' | 'servico' }[]}
       />
     </div>
   );

@@ -17,12 +17,15 @@ export default async function EditarRoteiroPage({
   const [
     { data: roteiro },
     { data: imagens },
+    { data: regras },
     { data: estados },
     { data: embarcacoes },
+    { data: catalogo },
+    { data: catalogoVinculado },
   ] = await Promise.all([
     supabaseAdmin
       .from('roteiro')
-      .select('id, embarcacao_id, nome, descricao, duracao, quantidade_pessoas, origem, destino, municipio_id, cep, bairro, logradouro, logradouro_numero, complemento, latitude, longitude')
+      .select('id, embarcacao_id, nome, descricao, duracao, quantidade_pessoas, origem, destino, municipio_id, cep, bairro, logradouro, logradouro_numero, complemento, latitude, longitude, preco_base')
       .eq('id', id)
       .eq('owner_id', user.id)
       .single(),
@@ -30,6 +33,11 @@ export default async function EditarRoteiroPage({
       .from('roteiro_imagens')
       .select('id, url_imagem, titulo, principal')
       .eq('roteiro_id', id),
+    supabaseAdmin
+      .from('roteiro_preco_regra')
+      .select('id, nome, valor, tipo, prioridade, ativo, dias_semana, periodo_mes_inicio, periodo_dia_inicio, periodo_mes_fim, periodo_dia_fim, data_inicio, data_fim')
+      .eq('roteiro_id', id)
+      .order('prioridade', { ascending: false }),
     supabaseAdmin.from('estados').select('id, uf, nome').order('nome'),
     supabaseAdmin
       .from('embarcacao')
@@ -37,6 +45,16 @@ export default async function EditarRoteiroPage({
       .eq('owner_id', user.id)
       .eq('status', 'ativo')
       .order('nome'),
+    supabaseAdmin
+      .from('catalogo')
+      .select('id, descricao, valor, tipo')
+      .eq('owner_id', user.id)
+      .order('tipo')
+      .order('descricao'),
+    supabaseAdmin
+      .from('roteiro_catalogo')
+      .select('catalogo_id, valor_customizado')
+      .eq('roteiro_id', id),
   ]);
 
   if (!roteiro) notFound();
@@ -76,10 +94,23 @@ export default async function EditarRoteiroPage({
           ...roteiro,
           estado_id: estadoId,
           roteiro_imagens: imagens ?? [],
+          roteiro_preco_regra: (regras ?? []) as {
+            id: string; nome: string; valor: number; tipo: string;
+            prioridade: number; ativo: boolean;
+            dias_semana: number[] | null;
+            periodo_mes_inicio: number | null; periodo_dia_inicio: number | null;
+            periodo_mes_fim: number | null; periodo_dia_fim: number | null;
+            data_inicio: string | null; data_fim: string | null;
+          }[],
         }}
         estados={estados ?? []}
         municipiosIniciais={municipios}
         embarcacoes={embarcacoes ?? []}
+        catalogo={(catalogo ?? []) as { id: string; descricao: string; valor: number; tipo: 'produto' | 'servico' }[]}
+        catalogoIniciais={(catalogoVinculado ?? []).map(c => ({
+          catalogoId: c.catalogo_id,
+          valorCustomizado: c.valor_customizado != null ? String(c.valor_customizado) : '',
+        }))}
       />
     </div>
   );

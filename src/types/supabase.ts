@@ -2,6 +2,7 @@ export type UserRole = 'admin' | 'gestor' | 'cliente';
 export type EmbarcacaoStatus = 'ativo' | 'inativo' | 'em_manutencao';
 export type PrecoRegraTipo = 'dia_semana' | 'periodo_anual' | 'data_fixa';
 export type ModalidadeCapitao = 'sem_capitao' | 'com_capitao' | 'opcional';
+export type CatalogoTipo = 'produto' | 'servico';
 
 export type Database = {
   public: {
@@ -346,6 +347,7 @@ export type Database = {
           complemento: string | null;
           latitude: number | null;
           longitude: number | null;
+          preco_base: number | null;
           created_at: string;
           updated_at: string;
         };
@@ -367,6 +369,7 @@ export type Database = {
           complemento?: string | null;
           latitude?: number | null;
           longitude?: number | null;
+          preco_base?: number | null;
           created_at?: string;
           updated_at?: string;
         };
@@ -388,6 +391,63 @@ export type Database = {
           complemento?: string | null;
           latitude?: number | null;
           longitude?: number | null;
+          preco_base?: number | null;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
+      roteiro_preco_regra: {
+        Row: {
+          id: string;
+          roteiro_id: string;
+          nome: string;
+          valor: number;
+          tipo: PrecoRegraTipo;
+          prioridade: number;
+          ativo: boolean;
+          dias_semana: number[] | null;
+          periodo_mes_inicio: number | null;
+          periodo_dia_inicio: number | null;
+          periodo_mes_fim: number | null;
+          periodo_dia_fim: number | null;
+          data_inicio: string | null;
+          data_fim: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          roteiro_id: string;
+          nome: string;
+          valor: number;
+          tipo: PrecoRegraTipo;
+          prioridade?: number;
+          ativo?: boolean;
+          dias_semana?: number[] | null;
+          periodo_mes_inicio?: number | null;
+          periodo_dia_inicio?: number | null;
+          periodo_mes_fim?: number | null;
+          periodo_dia_fim?: number | null;
+          data_inicio?: string | null;
+          data_fim?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          roteiro_id?: string;
+          nome?: string;
+          valor?: number;
+          tipo?: PrecoRegraTipo;
+          prioridade?: number;
+          ativo?: boolean;
+          dias_semana?: number[] | null;
+          periodo_mes_inicio?: number | null;
+          periodo_dia_inicio?: number | null;
+          periodo_mes_fim?: number | null;
+          periodo_dia_fim?: number | null;
+          data_inicio?: string | null;
+          data_fim?: string | null;
           updated_at?: string;
         };
         Relationships: [];
@@ -419,6 +479,86 @@ export type Database = {
         };
         Relationships: [];
       };
+      catalogo: {
+        Row: {
+          id: string;
+          descricao: string;
+          valor: number;
+          tipo: CatalogoTipo;
+          owner_id: string;
+          is_boatzy: boolean;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          descricao: string;
+          valor: number;
+          tipo: CatalogoTipo;
+          owner_id: string;
+          is_boatzy?: boolean;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          descricao?: string;
+          valor?: number;
+          tipo?: CatalogoTipo;
+          owner_id?: string;
+          is_boatzy?: boolean;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'catalogo_owner_id_fkey';
+            columns: ['owner_id'];
+            isOneToOne: false;
+            referencedRelation: 'users';
+            referencedColumns: ['id'];
+          },
+        ];
+      };
+      roteiro_catalogo: {
+        Row: {
+          id: string;
+          roteiro_id: string;
+          catalogo_id: string;
+          valor_customizado: number | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          roteiro_id: string;
+          catalogo_id: string;
+          valor_customizado?: number | null;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          roteiro_id?: string;
+          catalogo_id?: string;
+          valor_customizado?: number | null;
+          created_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'roteiro_catalogo_roteiro_id_fkey';
+            columns: ['roteiro_id'];
+            isOneToOne: false;
+            referencedRelation: 'roteiro';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'roteiro_catalogo_catalogo_id_fkey';
+            columns: ['catalogo_id'];
+            isOneToOne: false;
+            referencedRelation: 'catalogo';
+            referencedColumns: ['id'];
+          },
+        ];
+      };
     };
     Views: Record<string, never>;
     Functions: Record<string, never>;
@@ -427,6 +567,7 @@ export type Database = {
       embarcacao_status: EmbarcacaoStatus;
       preco_regra_tipo: PrecoRegraTipo;
       modalidade_capitao: ModalidadeCapitao;
+      catalogo_tipo: CatalogoTipo;
     };
     CompositeTypes: Record<string, never>;
   };

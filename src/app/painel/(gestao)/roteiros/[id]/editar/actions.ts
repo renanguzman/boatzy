@@ -16,6 +16,7 @@ export type AtualizarRoteiroPayload = {
   origem: string;
   destino: string;
   municipio_id: string;
+  preco_base: string;
   latitude: string;
   longitude: string;
   cep: string;
@@ -67,6 +68,7 @@ export async function atualizarRoteiro(
       embarcacao_id:      payload.embarcacao_id || null,
       nome:               payload.nome.trim(),
       descricao:          payload.descricao.trim(),
+      preco_base:         payload.preco_base ? parseFloat(payload.preco_base) : null,
       duracao:            payload.duracao.trim() || null,
       quantidade_pessoas: payload.quantidade_pessoas ? parseInt(payload.quantidade_pessoas, 10) : null,
       origem:             payload.origem.trim() || null,
@@ -114,6 +116,55 @@ export async function excluirImagemRoteiro(
     .eq('roteiro_id', roteiroId);
 
   if (error) return { ok: false, error: error.message };
+  return { ok: true };
+}
+
+// ─── Action: excluir regra de preço ──────────────────────────────────────────
+
+export async function excluirRegraRoteiro(
+  roteiroId: string,
+  regraId: string,
+): Promise<ActionResult> {
+  const result = await getAuthorizedUser(roteiroId);
+  if ('error' in result && result.error) return { ok: false, error: result.error };
+
+  const { error } = await supabaseAdmin
+    .from('roteiro_preco_regra')
+    .delete()
+    .eq('id', regraId)
+    .eq('roteiro_id', roteiroId);
+
+  if (error) return { ok: false, error: error.message };
+  return { ok: true };
+}
+
+// ─── Action: substituir itens do catálogo vinculados ao roteiro ──────────────
+
+export type ItemCatalogoRoteiro = {
+  catalogoId: string;
+  valorCustomizado: number | null;
+};
+
+export async function atualizarCatalogoRoteiro(
+  roteiroId: string,
+  itens: ItemCatalogoRoteiro[],
+): Promise<ActionResult> {
+  const result = await getAuthorizedUser(roteiroId);
+  if ('error' in result && result.error) return { ok: false, error: result.error };
+
+  // Exclui todos os vínculos anteriores e recria
+  await supabaseAdmin.from('roteiro_catalogo').delete().eq('roteiro_id', roteiroId);
+
+  if (itens.length > 0) {
+    const rows = itens.map(i => ({
+      roteiro_id:        roteiroId,
+      catalogo_id:       i.catalogoId,
+      valor_customizado: i.valorCustomizado,
+    }));
+    const { error } = await supabaseAdmin.from('roteiro_catalogo').insert(rows);
+    if (error) return { ok: false, error: error.message };
+  }
+
   return { ok: true };
 }
 

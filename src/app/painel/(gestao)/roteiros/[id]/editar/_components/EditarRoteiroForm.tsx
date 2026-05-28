@@ -4,20 +4,61 @@ import { useState, useTransition, useRef, useCallback } from 'react';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import {
-  Info, MapPin, ImageIcon, Upload, X, Star,
+  Info, MapPin, ImageIcon, Upload, X, Star, DollarSign,
   Loader2, AlertCircle, CheckCircle, ChevronRight,
+  Plus, ChevronDown, ChevronUp, Trash2, HelpCircle, BookOpen,
 } from 'lucide-react';
 import {
   atualizarRoteiro,
+  atualizarCatalogoRoteiro,
   excluirImagemRoteiro,
   definirPrincipalRoteiro,
+  excluirRegraRoteiro,
   type AtualizarRoteiroPayload,
 } from '../actions';
-import { salvarImagemRoteiro } from '../../../novo/actions';
-import { getMunicipiosByEstado } from '../../../novo/actions';
+import {
+  salvarImagemRoteiro,
+  getMunicipiosByEstado,
+  criarRegraRoteiro,
+} from '../../../novo/actions';
 import MapaPicker from '../../../../embarcacoes/novo/_components/MapaPicker';
+import CatalogoSelector, { type CatalogoItem, type ItemSelecionado } from '../../../_components/CatalogoSelector';
+import type { PrecoRegraTipo } from '@/types/supabase';
+
+// ─── Constantes ───────────────────────────────────────────────────────────────
+
+const DIAS_SEMANA = [
+  { value: 0, label: 'Dom' }, { value: 1, label: 'Seg' }, { value: 2, label: 'Ter' },
+  { value: 3, label: 'Qua' }, { value: 4, label: 'Qui' }, { value: 5, label: 'Sex' },
+  { value: 6, label: 'Sáb' },
+];
+const MESES = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
+const DIAS_MES: Record<number, number> = {
+  1:31, 2:29, 3:31, 4:30, 5:31, 6:30, 7:31, 8:31, 9:30, 10:31, 11:30, 12:31,
+};
+const TIPO_CONFIG: Record<PrecoRegraTipo, { label: string; badgeCls: string; dot: string }> = {
+  dia_semana:    { label: 'Dias da Semana',  badgeCls: 'bg-blue-50 text-blue-700 border-blue-200',     dot: 'bg-blue-500'   },
+  periodo_anual: { label: 'Período Anual',   badgeCls: 'bg-amber-50 text-amber-700 border-amber-200',  dot: 'bg-amber-500'  },
+  data_fixa:     { label: 'Data Específica', badgeCls: 'bg-violet-50 text-violet-700 border-violet-200', dot: 'bg-violet-500' },
+};
 
 // ─── Tipos ────────────────────────────────────────────────────────────────────
+
+type RoteiroPrecoRegra = {
+  id: string;
+  nome: string;
+  valor: number;
+  tipo: string;
+  prioridade: number;
+  ativo: boolean;
+  dias_semana: number[] | null;
+  periodo_mes_inicio: number | null;
+  periodo_dia_inicio: number | null;
+  periodo_mes_fim: number | null;
+  periodo_dia_fim: number | null;
+  data_inicio: string | null;
+  data_fim: string | null;
+};
 
 type RoteiroImagem = {
   id: string;
@@ -43,8 +84,10 @@ type RoteiroData = {
   complemento: string | null;
   latitude: number | null;
   longitude: number | null;
+  preco_base: number | null;
   estado_id: number | null;
   roteiro_imagens: RoteiroImagem[];
+  roteiro_preco_regra: RoteiroPrecoRegra[];
 };
 
 type Estado     = { id: number; uf: string; nome: string };
@@ -58,11 +101,29 @@ type NewImage = {
   uploading: boolean; uploaded: boolean; error?: string;
 };
 
+type RegraExistente = RoteiroPrecoRegra & { markedForDelete: boolean };
+
+type RegraLocal = {
+  localId: string;
+  tipo: PrecoRegraTipo;
+  nome: string;
+  valor: string;
+  diasSemana: number[];
+  periodoMesInicio: number;
+  periodoDiaInicio: number;
+  periodoMesFim: number;
+  periodoDiaFim: number;
+  dataInicio: string;
+  dataFim: string;
+};
+
 type Props = {
   roteiro: RoteiroData;
   estados: Estado[];
   municipiosIniciais: Municipio[];
   embarcacoes: Embarcacao[];
+  catalogo: CatalogoItem[];
+  catalogoIniciais: ItemSelecionado[];
 };
 
 // ─── Helpers de UI ────────────────────────────────────────────────────────────
@@ -100,9 +161,48 @@ function Field({ label, required, hint, children }: {
   );
 }
 
+function fmtBRL(v: string | number): string {
+  const n = typeof v === 'string' ? parseFloat(v) : v;
+  if (!v || isNaN(n)) return '';
+  return n.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+}
+
+function formatRegraResumo(r: RegraLocal | RegraExistente): string {
+  const tipo = r.tipo as PrecoRegraTipo;
+  if (tipo === 'dia_semana') {
+    const dias = 'diasSemana' in r ? r.diasSemana : (r.dias_semana ?? []);
+    return dias.map((d: number) => DIAS_SEMANA[d].label).join(', ');
+  }
+  if (tipo === 'periodo_anual') {
+    const mesI = 'periodoMesInicio' in r ? r.periodoMesInicio : (r.periodo_mes_inicio ?? 1);
+    const diaI = 'periodoDiaInicio' in r ? r.periodoDiaInicio : (r.periodo_dia_inicio ?? 1);
+    const mesF = 'periodoMesFim'    in r ? r.periodoMesFim    : (r.periodo_mes_fim    ?? 1);
+    const diaF = 'periodoDiaFim'    in r ? r.periodoDiaFim    : (r.periodo_dia_fim    ?? 1);
+    return `${String(diaI).padStart(2,'0')}/${MESES[mesI-1]} → ${String(diaF).padStart(2,'0')}/${MESES[mesF-1]}`;
+  }
+  if (tipo === 'data_fixa') {
+    const ini = 'dataInicio' in r ? r.dataInicio : r.data_inicio;
+    const fim = 'dataFim'    in r ? r.dataFim    : r.data_fim;
+    if (ini && fim) {
+      const fmt = (d: string) => d.split('-').reverse().join('/');
+      return `${fmt(ini)} → ${fmt(fim)}`;
+    }
+  }
+  return '';
+}
+
+const emptyRegra = (): Omit<RegraLocal, 'localId'> => ({
+  tipo: 'dia_semana',
+  nome: '', valor: '',
+  diasSemana: [],
+  periodoMesInicio: 12, periodoDiaInicio: 1,
+  periodoMesFim: 2,    periodoDiaFim: 28,
+  dataInicio: '', dataFim: '',
+});
+
 // ─── Componente principal ─────────────────────────────────────────────────────
 
-export default function EditarRoteiroForm({ roteiro, estados, municipiosIniciais, embarcacoes }: Props) {
+export default function EditarRoteiroForm({ roteiro, estados, municipiosIniciais, embarcacoes, catalogo, catalogoIniciais }: Props) {
   const router = useRouter();
   const [, startTransition] = useTransition();
   const fileInputRef   = useRef<HTMLInputElement>(null);
@@ -124,6 +224,7 @@ export default function EditarRoteiroForm({ roteiro, estados, municipiosIniciais
     quantidade_pessoas: roteiro.quantidade_pessoas != null ? String(roteiro.quantidade_pessoas) : '',
     origem:             roteiro.origem ?? '',
     destino:            roteiro.destino ?? '',
+    preco_base:         roteiro.preco_base != null ? String(roteiro.preco_base) : '',
     estado_id:          roteiro.estado_id != null ? String(roteiro.estado_id) : '',
     municipio_id:       roteiro.municipio_id != null ? String(roteiro.municipio_id) : '',
     latitude:           roteiro.latitude  != null ? String(roteiro.latitude)  : '',
@@ -140,6 +241,17 @@ export default function EditarRoteiroForm({ roteiro, estados, municipiosIniciais
   const [cepLoading, setCepLoading]               = useState(false);
   const [cepError, setCepError]                   = useState<string | null>(null);
 
+  // Regras existentes
+  const [regrasExistentes, setRegrasExistentes] = useState<RegraExistente[]>(
+    roteiro.roteiro_preco_regra.map(r => ({ ...r, markedForDelete: false })),
+  );
+  // Novas regras (adicionadas localmente)
+  const [novasRegras, setNovasRegras]       = useState<RegraLocal[]>([]);
+  const [showRegraForm, setShowRegraForm]   = useState(false);
+  const [showInstrucoes, setShowInstrucoes] = useState(false);
+  const [rf, setRf]                         = useState(emptyRegra());
+
+  // Imagens
   const [existingImages, setExistingImages] = useState<ExistingImage[]>(
     roteiro.roteiro_imagens.map(img => ({ ...img, markedForDelete: false })),
   );
@@ -147,6 +259,7 @@ export default function EditarRoteiroForm({ roteiro, estados, municipiosIniciais
   const [dragging, setDragging]     = useState(false);
   const [feedback, setFeedback]     = useState<{ type: 'error' | 'success'; msg: string } | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [itensCatalogo, setItensCatalogo] = useState<ItemSelecionado[]>(catalogoIniciais);
 
   function setField<K extends keyof typeof form>(k: K, v: typeof form[K]) {
     setForm(f => ({ ...f, [k]: v }));
@@ -173,41 +286,28 @@ export default function EditarRoteiroForm({ roteiro, estados, municipiosIniciais
     const masked = digits.length > 5 ? `${digits.slice(0, 5)}-${digits.slice(5)}` : digits;
     setField('cep', masked);
     setCepError(null);
-
     if (digits.length !== 8) return;
-
     setCepLoading(true);
     try {
       const res  = await fetch(`https://viacep.com.br/ws/${digits}/json/`);
       if (!res.ok) throw new Error();
       const data = await res.json() as Record<string, string>;
-
       if (data.erro) {
         setCepError('CEP não encontrado. Verifique o número digitado ou preencha o endereço manualmente.');
         return;
       }
-
       if (data.logradouro) setField('logradouro', data.logradouro);
       if (data.bairro)     setField('bairro',     data.bairro);
-
       const estado = estados.find(e => e.uf === data.uf);
       if (!estado) return;
-
-      setField('estado_id',    String(estado.id));
+      setField('estado_id', String(estado.id));
       setField('municipio_id', '');
       setMunicipios([]);
-
       const muns = await carregarMunicipios(estado.id);
-
-      const norm = (s: string) =>
-        s.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
-      const localidade = norm(data.localidade ?? '');
-      const mun = muns.find(m => norm(m.nome) === localidade);
+      const norm = (s: string) => s.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
+      const mun = muns.find(m => norm(m.nome) === norm(data.localidade ?? ''));
       if (mun) setField('municipio_id', String(mun.id));
-
-      if (data.logradouro && data.bairro) {
-        setTimeout(() => numeroInputRef.current?.focus(), 50);
-      }
+      if (data.logradouro && data.bairro) setTimeout(() => numeroInputRef.current?.focus(), 50);
     } catch {
       setCepError('Erro ao consultar o CEP. Preencha manualmente.');
     } finally {
@@ -218,15 +318,7 @@ export default function EditarRoteiroForm({ roteiro, estados, municipiosIniciais
   function geocodificarEndereco() {
     if (!form.logradouro || !form.logradouro_numero) return;
     if (typeof window === 'undefined' || !window.google?.maps?.Geocoder) return;
-
-    const partes = [
-      form.logradouro,
-      form.logradouro_numero,
-      form.bairro,
-      form.cep.replace(/\D/g, ''),
-      'Brasil',
-    ].filter(Boolean).join(', ');
-
+    const partes = [form.logradouro, form.logradouro_numero, form.bairro, form.cep.replace(/\D/g, ''), 'Brasil'].filter(Boolean).join(', ');
     const geocoder = new window.google.maps.Geocoder();
     geocoder.geocode({ address: partes }, (results, status) => {
       if (status === 'OK' && results?.[0]) {
@@ -235,6 +327,46 @@ export default function EditarRoteiroForm({ roteiro, estados, municipiosIniciais
         setField('longitude', loc.lng().toFixed(7));
       }
     });
+  }
+
+  // ─── Regras ───────────────────────────────────────────────────────────────
+
+  function setRfField<K extends keyof typeof rf>(k: K, v: typeof rf[K]) {
+    setRf(r => ({ ...r, [k]: v }));
+  }
+
+  function toggleDia(day: number) {
+    setRf(r => ({
+      ...r,
+      diasSemana: r.diasSemana.includes(day)
+        ? r.diasSemana.filter(d => d !== day)
+        : [...r.diasSemana, day].sort(),
+    }));
+  }
+
+  function podeAdicionarRegra(): boolean {
+    if (!rf.nome.trim() || !rf.valor || parseFloat(rf.valor) <= 0) return false;
+    if (rf.tipo === 'dia_semana'    && rf.diasSemana.length === 0)            return false;
+    if (rf.tipo === 'data_fixa'     && (!rf.dataInicio || !rf.dataFim))       return false;
+    if (rf.tipo === 'data_fixa'     && rf.dataInicio > rf.dataFim)            return false;
+    return true;
+  }
+
+  function handleAddRegra() {
+    if (!podeAdicionarRegra()) return;
+    setNovasRegras(prev => [...prev, { ...rf, localId: crypto.randomUUID() }]);
+    setRf(emptyRegra());
+    setShowRegraForm(false);
+  }
+
+  function toggleDeleteRegra(id: string) {
+    setRegrasExistentes(prev =>
+      prev.map(r => r.id === id ? { ...r, markedForDelete: !r.markedForDelete } : r),
+    );
+  }
+
+  function removeNovaRegra(localId: string) {
+    setNovasRegras(prev => prev.filter(r => r.localId !== localId));
   }
 
   // ─── Imagens existentes ───────────────────────────────────────────────────
@@ -246,9 +378,7 @@ export default function EditarRoteiroForm({ roteiro, estados, municipiosIniciais
   }
 
   function setPrincipalExisting(id: string) {
-    setExistingImages(prev =>
-      prev.map(img => ({ ...img, principal: img.id === id })),
-    );
+    setExistingImages(prev => prev.map(img => ({ ...img, principal: img.id === id })));
   }
 
   // ─── Novas imagens ────────────────────────────────────────────────────────
@@ -291,17 +421,10 @@ export default function EditarRoteiroForm({ roteiro, estados, municipiosIniciais
     const body = new FormData();
     body.append('file', img.file);
     body.append('roteiroId', roteiro.id);
-
     const res = await fetch('/api/painel/roteiros/upload', { method: 'POST', body });
     if (!res.ok) return null;
-
     const { publicUrl } = await res.json();
-    await salvarImagemRoteiro({
-      roteiroId:  roteiro.id,
-      urlImagem:  publicUrl,
-      titulo:     img.file.name,
-      principal:  isPrincipal,
-    });
+    await salvarImagemRoteiro({ roteiroId: roteiro.id, urlImagem: publicUrl, titulo: img.file.name, principal: isPrincipal });
     return publicUrl as string;
   }
 
@@ -313,7 +436,7 @@ export default function EditarRoteiroForm({ roteiro, estados, municipiosIniciais
     setFeedback(null);
     setSubmitting(true);
 
-    // 1. Atualizar dados do roteiro
+    // 1. Atualizar dados
     const result = await atualizarRoteiro(roteiro.id, {
       embarcacao_id:      form.embarcacao_id,
       nome:               form.nome,
@@ -322,6 +445,7 @@ export default function EditarRoteiroForm({ roteiro, estados, municipiosIniciais
       quantidade_pessoas: form.quantidade_pessoas,
       origem:             form.origem,
       destino:            form.destino,
+      preco_base:         form.preco_base,
       municipio_id:       form.municipio_id,
       latitude:           form.latitude,
       longitude:          form.longitude,
@@ -338,19 +462,42 @@ export default function EditarRoteiroForm({ roteiro, estados, municipiosIniciais
       return;
     }
 
-    // 2. Excluir imagens marcadas
+    // 2. Excluir regras marcadas
+    for (const regra of regrasExistentes.filter(r => r.markedForDelete)) {
+      await excluirRegraRoteiro(roteiro.id, regra.id);
+    }
+
+    // 3. Criar novas regras
+    for (const regra of novasRegras) {
+      await criarRegraRoteiro({
+        roteiroId:         roteiro.id,
+        nome:              regra.nome,
+        valor:             parseFloat(regra.valor),
+        tipo:              regra.tipo,
+        prioridade:        0,
+        diasSemana:        regra.tipo === 'dia_semana'    ? regra.diasSemana       : undefined,
+        periodoMesInicio:  regra.tipo === 'periodo_anual' ? regra.periodoMesInicio : undefined,
+        periodoDiaInicio:  regra.tipo === 'periodo_anual' ? regra.periodoDiaInicio : undefined,
+        periodoMesFim:     regra.tipo === 'periodo_anual' ? regra.periodoMesFim    : undefined,
+        periodoDiaFim:     regra.tipo === 'periodo_anual' ? regra.periodoDiaFim    : undefined,
+        dataInicio:        regra.tipo === 'data_fixa'     ? regra.dataInicio       : undefined,
+        dataFim:           regra.tipo === 'data_fixa'     ? regra.dataFim          : undefined,
+      });
+    }
+
+    // 4. Excluir imagens marcadas
     for (const img of existingImages.filter(i => i.markedForDelete)) {
       await excluirImagemRoteiro(roteiro.id, img.id);
     }
 
-    // 3. Definir nova principal em imagens existentes (se houver)
+    // 5. Definir principal em imagens existentes
     const principalExisting = existingImages.find(i => i.principal && !i.markedForDelete);
     const principalNew      = newImages.find(i => i.principal);
     if (principalExisting && !principalNew) {
       await definirPrincipalRoteiro(roteiro.id, principalExisting.id);
     }
 
-    // 4. Upload de novas imagens
+    // 6. Upload de novas imagens
     for (let i = 0; i < newImages.length; i++) {
       setNewImages(prev => prev.map((img, idx) => idx === i ? { ...img, uploading: true } : img));
       const url = await uploadNewImage(newImages[i], newImages[i].principal);
@@ -358,6 +505,15 @@ export default function EditarRoteiroForm({ roteiro, estados, municipiosIniciais
         idx === i ? { ...img, uploading: false, uploaded: !!url, error: url ? undefined : 'Falha no upload' } : img,
       ));
     }
+
+    // 7. Atualizar itens do catálogo vinculados
+    await atualizarCatalogoRoteiro(
+      roteiro.id,
+      itensCatalogo.map(i => ({
+        catalogoId: i.catalogoId,
+        valorCustomizado: i.valorCustomizado !== '' ? parseFloat(i.valorCustomizado) : null,
+      })),
+    );
 
     setFeedback({ type: 'success', msg: 'Roteiro atualizado com sucesso!' });
     setSubmitting(false);
@@ -413,10 +569,259 @@ export default function EditarRoteiroForm({ roteiro, estados, municipiosIniciais
         </div>
       </SectionCard>
 
-      {/* ── 2. Localização de partida ────────────────────────────────────── */}
+      {/* ── 2. Preço ─────────────────────────────────────────────────────── */}
+      <SectionCard icon={DollarSign} title="Preço">
+        <div className="max-w-xs mb-6">
+          <Field label="Preço base (R$ / dia)"
+            hint="Aplicado quando nenhuma regra específica estiver vigente na data da reserva.">
+            <div className="relative">
+              <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-sm text-slate-400 font-medium">R$</span>
+              <input className={`${inputCls} pl-10`} type="number" min="0" step="0.01"
+                placeholder="0,00" value={form.preco_base}
+                onChange={e => setField('preco_base', e.target.value)} />
+            </div>
+          </Field>
+        </div>
+
+        <div className="border-t border-slate-100 mb-5" />
+
+        <button type="button" onClick={() => setShowInstrucoes(v => !v)}
+          className="flex items-center gap-2 text-sm font-semibold text-[#0B2447] mb-4 hover:text-[#0B3D91] transition-colors">
+          <HelpCircle className="w-4 h-4" />
+          Como funciona a precificação dinâmica?
+          {showInstrucoes ? <ChevronUp className="w-3.5 h-3.5 ml-1" /> : <ChevronDown className="w-3.5 h-3.5 ml-1" />}
+        </button>
+
+        {showInstrucoes && (
+          <div className="mb-6 rounded-xl border border-slate-100 bg-slate-50/60 p-5 space-y-4">
+            <div>
+              <p className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Ordem de prioridade (maior → menor)</p>
+              <div className="flex items-center gap-2 flex-wrap text-xs font-semibold">
+                <span className="px-2.5 py-1 rounded-full bg-violet-50 text-violet-700 border border-violet-200">Data Específica</span>
+                <ChevronRight className="w-3 h-3 text-slate-400" />
+                <span className="px-2.5 py-1 rounded-full bg-amber-50 text-amber-700 border border-amber-200">Período Anual</span>
+                <ChevronRight className="w-3 h-3 text-slate-400" />
+                <span className="px-2.5 py-1 rounded-full bg-blue-50 text-blue-700 border border-blue-200">Dias da Semana</span>
+                <ChevronRight className="w-3 h-3 text-slate-400" />
+                <span className="px-2.5 py-1 rounded-full bg-slate-100 text-slate-600">Preço Base</span>
+              </div>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-1">
+              <div className="rounded-lg bg-blue-50 border border-blue-100 p-3">
+                <p className="text-xs font-bold text-blue-700 mb-1">🗓 Dias da Semana</p>
+                <p className="text-xs text-blue-600 leading-relaxed">Recorrente toda semana. Ex: Sábado e Domingo → <strong>R$ 1.500</strong>.</p>
+              </div>
+              <div className="rounded-lg bg-amber-50 border border-amber-100 p-3">
+                <p className="text-xs font-bold text-amber-700 mb-1">☀️ Período Anual</p>
+                <p className="text-xs text-amber-600 leading-relaxed">Repete todo ano. Ex: 01/Dez → 28/Fev (Verão) → <strong>R$ 2.000</strong>.</p>
+              </div>
+              <div className="rounded-lg bg-violet-50 border border-violet-100 p-3">
+                <p className="text-xs font-bold text-violet-700 mb-1">📌 Data Específica</p>
+                <p className="text-xs text-violet-600 leading-relaxed">Intervalo único. Ex: 29/12 → 02/01 → <strong>R$ 3.000</strong>. Prioridade máxima.</p>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Regras existentes */}
+        {regrasExistentes.length > 0 && (
+          <div className="space-y-2 mb-4">
+            <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">
+              Regras salvas ({regrasExistentes.filter(r => !r.markedForDelete).length})
+            </p>
+            {regrasExistentes.map(regra => {
+              const cfg = TIPO_CONFIG[regra.tipo as PrecoRegraTipo];
+              return (
+                <div key={regra.id}
+                  className={`flex items-center gap-3 bg-white border rounded-xl px-4 py-3 shadow-sm transition-opacity ${
+                    regra.markedForDelete ? 'opacity-40 border-red-200' : 'border-slate-100'
+                  }`}>
+                  <span className={`w-2 h-2 rounded-full flex-shrink-0 ${cfg.dot}`} />
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${cfg.badgeCls}`}>{cfg.label}</span>
+                      <span className="text-sm font-semibold text-[#0B2447] truncate">{regra.nome}</span>
+                      {regra.markedForDelete && <span className="text-[10px] text-red-500 font-semibold">— será excluída</span>}
+                    </div>
+                    <p className="text-xs text-slate-400 mt-0.5">{formatRegraResumo(regra)}</p>
+                  </div>
+                  <span className="text-sm font-bold text-emerald-700 whitespace-nowrap">{fmtBRL(regra.valor)}</span>
+                  <button type="button" onClick={() => toggleDeleteRegra(regra.id)}
+                    title={regra.markedForDelete ? 'Desfazer exclusão' : 'Excluir regra'}
+                    className={`w-7 h-7 flex items-center justify-center rounded-lg transition-colors flex-shrink-0 ${
+                      regra.markedForDelete
+                        ? 'text-slate-400 hover:text-slate-600 hover:bg-slate-100'
+                        : 'text-slate-300 hover:text-red-500 hover:bg-red-50'
+                    }`}>
+                    <Trash2 className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              );
+            })}
+          </div>
+        )}
+
+        {/* Novas regras adicionadas na sessão */}
+        {novasRegras.length > 0 && (
+          <div className="space-y-2 mb-4">
+            <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">
+              Novas regras ({novasRegras.length})
+            </p>
+            {novasRegras.map(regra => {
+              const cfg = TIPO_CONFIG[regra.tipo];
+              return (
+                <div key={regra.localId}
+                  className="flex items-center gap-3 bg-white border border-slate-100 rounded-xl px-4 py-3 shadow-sm">
+                  <span className={`w-2 h-2 rounded-full flex-shrink-0 ${cfg.dot}`} />
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${cfg.badgeCls}`}>{cfg.label}</span>
+                      <span className="text-sm font-semibold text-[#0B2447] truncate">{regra.nome}</span>
+                    </div>
+                    <p className="text-xs text-slate-400 mt-0.5">{formatRegraResumo(regra)}</p>
+                  </div>
+                  <span className="text-sm font-bold text-emerald-700 whitespace-nowrap">{fmtBRL(regra.valor)}</span>
+                  <button type="button" onClick={() => removeNovaRegra(regra.localId)}
+                    className="w-7 h-7 flex items-center justify-center rounded-lg text-slate-300 hover:text-red-500 hover:bg-red-50 transition-colors flex-shrink-0">
+                    <Trash2 className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              );
+            })}
+          </div>
+        )}
+
+        {/* Formulário inline de nova regra */}
+        {!showRegraForm ? (
+          <button type="button" onClick={() => setShowRegraForm(true)}
+            className="flex items-center gap-2 text-sm font-semibold text-[#0B3D91] hover:text-[#0B2447] border border-dashed border-[#0B3D91]/30 hover:border-[#0B2447]/40 rounded-xl px-4 py-3 w-full justify-center transition-colors hover:bg-slate-50/50">
+            <Plus className="w-4 h-4" />
+            Adicionar regra de preço
+          </button>
+        ) : (
+          <div className="rounded-xl border border-slate-200 bg-slate-50/40 p-5 space-y-4">
+            <p className="text-sm font-bold text-[#0B2447]">Nova regra</p>
+
+            <div className="flex gap-1 bg-slate-100 rounded-xl p-1">
+              {(['dia_semana','periodo_anual','data_fixa'] as PrecoRegraTipo[]).map(t => (
+                <button key={t} type="button" onClick={() => setRfField('tipo', t)}
+                  className={`flex-1 text-xs font-semibold py-2 rounded-lg transition-all ${
+                    rf.tipo === t ? 'bg-white text-[#0B2447] shadow-sm' : 'text-slate-500 hover:text-slate-700'
+                  }`}>
+                  {TIPO_CONFIG[t].label}
+                </button>
+              ))}
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <Field label="Nome da regra" required>
+                <input className={inputCls}
+                  placeholder={rf.tipo === 'dia_semana' ? 'ex: Fim de Semana' : rf.tipo === 'periodo_anual' ? 'ex: Alta Temporada' : 'ex: Réveillon 2025'}
+                  value={rf.nome} onChange={e => setRfField('nome', e.target.value)} />
+              </Field>
+              <Field label="Preço (R$ / dia)" required>
+                <div className="relative">
+                  <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-sm text-slate-400 font-medium">R$</span>
+                  <input className={`${inputCls} pl-10`} type="number" min="0" step="0.01"
+                    placeholder="0,00" value={rf.valor} onChange={e => setRfField('valor', e.target.value)} />
+                </div>
+              </Field>
+            </div>
+
+            {rf.tipo === 'dia_semana' && (
+              <div>
+                <p className="text-xs font-medium text-slate-600 mb-2">Dias da semana <span className="text-red-500">*</span></p>
+                <div className="flex gap-2 flex-wrap">
+                  {DIAS_SEMANA.map(d => {
+                    const active = rf.diasSemana.includes(d.value);
+                    return (
+                      <button key={d.value} type="button" onClick={() => toggleDia(d.value)}
+                        className={`w-12 h-10 rounded-xl text-xs font-bold transition-all ${
+                          active ? 'bg-[#0B2447] text-white shadow-md shadow-[#0B2447]/20' : 'bg-white border border-slate-200 text-slate-500 hover:border-[#0B2447]/30'
+                        }`}>
+                        {d.label}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            {rf.tipo === 'periodo_anual' && (
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <p className="text-xs font-medium text-slate-600 mb-2">Início <span className="text-red-500">*</span></p>
+                  <div className="flex gap-2">
+                    <select className={`${selectCls} flex-1`} value={rf.periodoMesInicio} onChange={e => setRfField('periodoMesInicio', parseInt(e.target.value))}>
+                      {MESES.map((m, i) => <option key={i} value={i+1}>{m}</option>)}
+                    </select>
+                    <select className={`${selectCls} w-20`} value={rf.periodoDiaInicio} onChange={e => setRfField('periodoDiaInicio', parseInt(e.target.value))}>
+                      {Array.from({ length: DIAS_MES[rf.periodoMesInicio] }, (_, i) => i+1).map(d => (
+                        <option key={d} value={d}>{String(d).padStart(2,'0')}</option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+                <div>
+                  <p className="text-xs font-medium text-slate-600 mb-2">Fim <span className="text-red-500">*</span></p>
+                  <div className="flex gap-2">
+                    <select className={`${selectCls} flex-1`} value={rf.periodoMesFim} onChange={e => setRfField('periodoMesFim', parseInt(e.target.value))}>
+                      {MESES.map((m, i) => <option key={i} value={i+1}>{m}</option>)}
+                    </select>
+                    <select className={`${selectCls} w-20`} value={rf.periodoDiaFim} onChange={e => setRfField('periodoDiaFim', parseInt(e.target.value))}>
+                      {Array.from({ length: DIAS_MES[rf.periodoMesFim] }, (_, i) => i+1).map(d => (
+                        <option key={d} value={d}>{String(d).padStart(2,'0')}</option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+                <p className="col-span-2 text-xs text-slate-400">
+                  💡 Para períodos que cruzam o ano (ex: Dez → Mar), o sistema identifica automaticamente.
+                </p>
+              </div>
+            )}
+
+            {rf.tipo === 'data_fixa' && (
+              <div className="grid grid-cols-2 gap-4">
+                <Field label="Data inicial" required>
+                  <input className={inputCls} type="date" value={rf.dataInicio} onChange={e => setRfField('dataInicio', e.target.value)} />
+                </Field>
+                <Field label="Data final" required>
+                  <input className={inputCls} type="date" min={rf.dataInicio} value={rf.dataFim} onChange={e => setRfField('dataFim', e.target.value)} />
+                </Field>
+              </div>
+            )}
+
+            <div className="flex items-center justify-end gap-2 pt-1">
+              <button type="button" onClick={() => { setShowRegraForm(false); setRf(emptyRegra()); }}
+                className="px-4 py-2 text-sm font-semibold text-slate-500 hover:text-slate-700 transition-colors">
+                Cancelar
+              </button>
+              <button type="button" onClick={handleAddRegra} disabled={!podeAdicionarRegra()}
+                className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-[#0B2447] hover:bg-[#0B3D91] text-white text-sm font-semibold transition-colors disabled:opacity-40 disabled:cursor-not-allowed">
+                <Plus className="w-3.5 h-3.5" />
+                Adicionar regra
+              </button>
+            </div>
+          </div>
+        )}
+      </SectionCard>
+
+      {/* ── 3. Catálogo ──────────────────────────────────────────────────── */}
+      <SectionCard icon={BookOpen} title="Catálogo — Produtos e Serviços">
+        <p className="text-xs text-slate-400 mb-5">
+          Selecione os produtos e serviços disponíveis neste roteiro. Você pode ajustar o valor de cada item especificamente para este roteiro.
+        </p>
+        <CatalogoSelector
+          catalogo={catalogo}
+          selecionados={itensCatalogo}
+          onChange={setItensCatalogo}
+        />
+      </SectionCard>
+
+      {/* ── 4. Localização de partida ────────────────────────────────────── */}
       <SectionCard icon={MapPin} title="Localização de partida">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-
           <div className="md:col-span-2">
             <label className="block text-sm font-medium text-slate-700 mb-1.5">CEP</label>
             <div className="relative max-w-xs">
@@ -424,9 +829,7 @@ export default function EditarRoteiroForm({ roteiro, estados, municipiosIniciais
                 className={`${inputCls} ${cepError ? 'border-red-300 focus:ring-red-200 focus:border-red-400' : ''}`}
                 placeholder="00000-000" maxLength={9}
                 value={form.cep} onChange={e => handleCepChange(e.target.value)} />
-              {cepLoading && (
-                <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 animate-spin text-[#0B2447]" />
-              )}
+              {cepLoading && <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 animate-spin text-[#0B2447]" />}
             </div>
             {cepError
               ? <p className="mt-1 text-xs text-red-500">{cepError}</p>
@@ -435,8 +838,7 @@ export default function EditarRoteiroForm({ roteiro, estados, municipiosIniciais
           </div>
 
           <Field label="Estado">
-            <select className={selectCls} value={form.estado_id}
-              onChange={e => handleEstadoChange(e.target.value)}>
+            <select className={selectCls} value={form.estado_id} onChange={e => handleEstadoChange(e.target.value)}>
               <option value="">Selecione o estado</option>
               {estados.map(e => <option key={e.id} value={e.id}>{e.nome} ({e.uf})</option>)}
             </select>
@@ -453,9 +855,7 @@ export default function EditarRoteiroForm({ roteiro, estados, municipiosIniciais
                 </option>
                 {municipios.map(m => <option key={m.id} value={m.id}>{m.nome}</option>)}
               </select>
-              {loadingMunicipios && (
-                <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 animate-spin text-slate-400" />
-              )}
+              {loadingMunicipios && <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 animate-spin text-slate-400" />}
             </div>
           </Field>
 
@@ -480,13 +880,11 @@ export default function EditarRoteiroForm({ roteiro, estados, municipiosIniciais
           </Field>
 
           <div className="md:col-span-2 mt-1">
-            <label className="block text-sm font-medium text-slate-700 mb-1.5">
-              Localização no mapa
-            </label>
+            <label className="block text-sm font-medium text-slate-700 mb-1.5">Localização no mapa</label>
             <MapaPicker
               lat={form.latitude}
               lng={form.longitude}
-              onChange={(lat, lng) => {
+              onChange={(lat: string, lng: string) => {
                 setField('latitude', lat);
                 setField('longitude', lng);
               }}
@@ -495,15 +893,11 @@ export default function EditarRoteiroForm({ roteiro, estados, municipiosIniciais
         </div>
       </SectionCard>
 
-      {/* ── 3. Imagens ──────────────────────────────────────────────────── */}
+      {/* ── 4. Imagens ──────────────────────────────────────────────────── */}
       <SectionCard icon={ImageIcon} title="Imagens">
-
-        {/* Imagens existentes */}
         {existingImages.length > 0 && (
           <div className="mb-5">
-            <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">
-              Imagens salvas
-            </p>
+            <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">Imagens salvas</p>
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
               {existingImages.map((img) => (
                 <div key={img.id}
@@ -541,7 +935,6 @@ export default function EditarRoteiroForm({ roteiro, estados, municipiosIniciais
           </div>
         )}
 
-        {/* Drop zone para novas imagens */}
         <div
           onDragOver={e => { e.preventDefault(); setDragging(true); }}
           onDragLeave={() => setDragging(false)}
@@ -613,9 +1006,7 @@ export default function EditarRoteiroForm({ roteiro, estados, municipiosIniciais
           </div>
         )}
         {(existingImages.length > 0 || newImages.length > 0) && (
-          <p className="mt-3 text-xs text-slate-400">
-            Passe o mouse sobre a imagem para defini-la como principal ou removê-la.
-          </p>
+          <p className="mt-3 text-xs text-slate-400">Passe o mouse sobre a imagem para defini-la como principal ou removê-la.</p>
         )}
       </SectionCard>
 
@@ -626,9 +1017,7 @@ export default function EditarRoteiroForm({ roteiro, estados, municipiosIniciais
             ? 'bg-red-50 border border-red-200 text-red-700'
             : 'bg-emerald-50 border border-emerald-200 text-emerald-700'
         }`}>
-          {feedback.type === 'error'
-            ? <AlertCircle className="w-4 h-4 shrink-0" />
-            : <CheckCircle className="w-4 h-4 shrink-0" />}
+          {feedback.type === 'error' ? <AlertCircle className="w-4 h-4 shrink-0" /> : <CheckCircle className="w-4 h-4 shrink-0" />}
           {feedback.msg}
         </div>
       )}

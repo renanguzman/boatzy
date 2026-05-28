@@ -3,6 +3,7 @@
 import { createClient } from '@/lib/supabase/server';
 import { supabaseAdmin } from '@/lib/supabase';
 import { checkRoleInDb } from '@/lib/roles';
+import type { PrecoRegraTipo } from '@/types/supabase';
 
 // ─── Tipos ───────────────────────────────────────────────────────────────────
 
@@ -15,6 +16,7 @@ export type CriarRoteiroPayload = {
   origem: string;
   destino: string;
   municipio_id: string;
+  preco_base: string;
   latitude: string;
   longitude: string;
   cep: string;
@@ -22,6 +24,21 @@ export type CriarRoteiroPayload = {
   logradouro: string;
   logradouro_numero: string;
   complemento: string;
+};
+
+export type CriarRegraRoteiroPayload = {
+  roteiroId: string;
+  nome: string;
+  valor: number;
+  tipo: PrecoRegraTipo;
+  prioridade: number;
+  diasSemana?: number[];
+  periodoMesInicio?: number;
+  periodoDiaInicio?: number;
+  periodoMesFim?: number;
+  periodoDiaFim?: number;
+  dataInicio?: string;
+  dataFim?: string;
 };
 
 export type CriarRoteiroResult =
@@ -57,6 +74,7 @@ export async function criarRoteiro(
       embarcacao_id:      payload.embarcacao_id || null,
       nome:               payload.nome.trim(),
       descricao:          payload.descricao.trim(),
+      preco_base:         payload.preco_base ? parseFloat(payload.preco_base) : null,
       duracao:            payload.duracao.trim() || null,
       quantidade_pessoas: payload.quantidade_pessoas ? parseInt(payload.quantidade_pessoas, 10) : null,
       origem:             payload.origem.trim() || null,
@@ -112,6 +130,63 @@ export async function salvarImagemRoteiro(
     principal:  payload.principal,
   });
 
+  if (error) return { ok: false, error: error.message };
+  return { ok: true };
+}
+
+// ─── Action: criar regra de preço vinculada a um roteiro ─────────────────────
+
+export async function criarRegraRoteiro(
+  payload: CriarRegraRoteiroPayload,
+): Promise<{ ok: boolean; error?: string }> {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { ok: false, error: 'Não autenticado.' };
+
+  const { error } = await supabaseAdmin.from('roteiro_preco_regra').insert({
+    roteiro_id:         payload.roteiroId,
+    nome:               payload.nome,
+    valor:              payload.valor,
+    tipo:               payload.tipo,
+    prioridade:         payload.prioridade,
+    ativo:              true,
+    dias_semana:        payload.diasSemana        ?? null,
+    periodo_mes_inicio: payload.periodoMesInicio  ?? null,
+    periodo_dia_inicio: payload.periodoDiaInicio  ?? null,
+    periodo_mes_fim:    payload.periodoMesFim     ?? null,
+    periodo_dia_fim:    payload.periodoDiaFim     ?? null,
+    data_inicio:        payload.dataInicio        ?? null,
+    data_fim:           payload.dataFim           ?? null,
+  });
+
+  if (error) return { ok: false, error: error.message };
+  return { ok: true };
+}
+
+// ─── Action: salvar itens do catálogo vinculados ao roteiro ──────────────────
+
+export type ItemCatalogoRoteiro = {
+  catalogoId: string;
+  valorCustomizado: number | null;
+};
+
+export async function salvarCatalogoRoteiro(
+  roteiroId: string,
+  itens: ItemCatalogoRoteiro[],
+): Promise<{ ok: boolean; error?: string }> {
+  if (itens.length === 0) return { ok: true };
+
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { ok: false, error: 'Não autenticado.' };
+
+  const rows = itens.map(i => ({
+    roteiro_id:        roteiroId,
+    catalogo_id:       i.catalogoId,
+    valor_customizado: i.valorCustomizado,
+  }));
+
+  const { error } = await supabaseAdmin.from('roteiro_catalogo').insert(rows);
   if (error) return { ok: false, error: error.message };
   return { ok: true };
 }
