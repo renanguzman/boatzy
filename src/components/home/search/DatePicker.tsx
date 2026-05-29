@@ -80,7 +80,7 @@ function MonthCalendar({ year, month, selected, flexibility, today, onSelect }: 
   for (let d = 1; d <= daysInMonth; d++) cells.push(new Date(year, month, d));
 
   return (
-    <div className="flex-1 min-w-[220px]">
+    <div className="flex-1">
       <p className="text-center text-sm font-semibold text-slate-800 mb-3">
         {MESES[month]} {year}
       </p>
@@ -212,7 +212,7 @@ export default function DatePicker({ value, onChange, isOpen, onOpen, onClose, c
 
       {/* Dropdown */}
       {isOpen && (
-        <div className="absolute top-full left-1/2 -translate-x-1/2 mt-2 bg-white rounded-2xl shadow-2xl border border-slate-100 z-50 w-[480px] max-w-[95vw] p-4">
+        <div className="absolute top-full left-1/2 -translate-x-1/2 mt-2 bg-white rounded-2xl shadow-2xl border border-slate-100 z-50 w-[620px] max-w-[95vw] p-4">
           {/* Navigation header */}
           <div className="flex items-center justify-between mb-4">
             <button

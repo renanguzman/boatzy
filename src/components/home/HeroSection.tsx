@@ -9,12 +9,53 @@ import GuestPicker from './search/GuestPicker';
 
 type ActivePanel = 'location' | 'date' | 'guests' | null;
 
+const HERO_SEQUENCES = [
+  { folder: 'hero_site_01', prefix: 'Lancha_por_do_sol01_', count: 80 },
+  { folder: 'hero_site_02', prefix: 'Lancha_navegando_com_mar_nuvens_02_', count: 80 },
+  { folder: 'hero_site_03', prefix: 'Lancha_navegando_com_mar_nuvens_', count: 80 },
+] as const;
+
+function frameUrl(folder: string, prefix: string, index: number) {
+  return `/images/${folder}/${prefix}${String(index).padStart(3, '0')}.jpg`;
+}
+
 export default function HeroSection() {
   const [location, setLocation] = useState<LocationValue | null>(null);
   const [date, setDate] = useState<DateValue | null>(null);
   const [guests, setGuests] = useState(0);
   const [active, setActive] = useState<ActivePanel>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+
+  const [selectedHero, setSelectedHero] = useState(0);
+  const [currentFrame, setCurrentFrame] = useState(0);
+  const [animationReady, setAnimationReady] = useState(false);
+
+  // Select random hero and preload frames
+  useEffect(() => {
+    const index = Math.floor(Math.random() * HERO_SEQUENCES.length);
+    const hero = HERO_SEQUENCES[index];
+    setSelectedHero(index);
+    setCurrentFrame(0);
+
+    const firstImg = new window.Image();
+    firstImg.src = frameUrl(hero.folder, hero.prefix, 0);
+    firstImg.onload = () => setAnimationReady(true);
+
+    for (let i = 1; i < hero.count; i++) {
+      const img = new window.Image();
+      img.src = frameUrl(hero.folder, hero.prefix, i);
+    }
+  }, []);
+
+  // Run animation loop
+  useEffect(() => {
+    if (!animationReady) return;
+    const hero = HERO_SEQUENCES[selectedHero];
+    const id = setInterval(() => {
+      setCurrentFrame((f) => (f + 1) % hero.count);
+    }, Math.round(1000 / 24));
+    return () => clearInterval(id);
+  }, [animationReady, selectedHero]);
 
   // Close dropdowns on outside click
   useEffect(() => {
@@ -60,25 +101,29 @@ export default function HeroSection() {
     window.location.href = `/buscar?${params.toString()}`;
   }
 
-  const locationLabel =
-    location?.type === 'place'
-      ? `${location.nome}, ${location.uf}`
-      : location?.type === 'geo'
-      ? location.label
-      : null;
+  const hero = HERO_SEQUENCES[selectedHero];
 
   return (
     <section className="relative z-10 h-[600px] md:h-[650px]" id="hero-section">
-      {/* Background Image */}
+      {/* Background */}
       <div className="absolute inset-0 overflow-hidden">
-        <Image
-          src="/images/hero-yacht.png"
-          alt="Iate de luxo ao amanhecer"
-          fill
-          className="object-cover"
-          priority
-        />
-        <div className="absolute inset-0 bg-gradient-to-b from-[#0B2447]/60 via-[#0B2447]/40 to-[#0B2447]/70" />
+        {animationReady ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={frameUrl(hero.folder, hero.prefix, currentFrame)}
+            alt=""
+            className="absolute inset-0 w-full h-full object-cover object-top scale-[1.2] origin-top"
+          />
+        ) : (
+          <Image
+            src="/images/hero-yacht.png"
+            alt="Iate de luxo ao amanhecer"
+            fill
+            className="object-cover"
+            priority
+          />
+        )}
+        <div className="absolute inset-0 bg-gradient-to-b from-[#0B2447]/70 via-[#0B2447]/55 to-[#0B2447]/80" />
       </div>
 
       {/* Content */}
