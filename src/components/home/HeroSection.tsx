@@ -9,15 +9,7 @@ import GuestPicker from './search/GuestPicker';
 
 type ActivePanel = 'location' | 'date' | 'guests' | null;
 
-const HERO_SEQUENCES = [
-  { folder: 'hero_site_01', prefix: 'Lancha_por_do_sol01_', count: 80 },
-  { folder: 'hero_site_02', prefix: 'Lancha_navegando_com_mar_nuvens_02_', count: 80 },
-  { folder: 'hero_site_03', prefix: 'Lancha_navegando_com_mar_nuvens_', count: 80 },
-] as const;
-
-function frameUrl(folder: string, prefix: string, index: number) {
-  return `/images/${folder}/${prefix}${String(index).padStart(3, '0')}.jpg`;
-}
+const HERO_VIDEOS = ['/videos/hero01.mp4', '/videos/hero02.mp4', '/videos/hero03.mp4', '/videos/hero04.mp4'];
 
 export default function HeroSection() {
   const [location, setLocation] = useState<LocationValue | null>(null);
@@ -26,53 +18,13 @@ export default function HeroSection() {
   const [active, setActive] = useState<ActivePanel>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
-  const [animationReady, setAnimationReady] = useState(false);
-  // Ref para o <img> do background — atualizamos o src diretamente, sem re-render
-  const bgImgRef = useRef<HTMLImageElement>(null);
-  // Ref que mantém os objetos Image em memória, evitando GC e cancelamento de requests
-  const preloadedRef = useRef<HTMLImageElement[]>([]);
-  const heroIndexRef = useRef(0);
+  const [videoReady, setVideoReady] = useState(false);
+  const [videoSrc, setVideoSrc] = useState<string | null>(null);
 
-  // Seleciona hero aleatório e pré-carrega todos os frames mantendo-os no ref
   useEffect(() => {
-    const index = Math.floor(Math.random() * HERO_SEQUENCES.length);
-    heroIndexRef.current = index;
-    const hero = HERO_SEQUENCES[index];
-
-    const images: HTMLImageElement[] = new Array(hero.count);
-    preloadedRef.current = images; // guarda em ref — não sai do escopo
-
-    for (let i = 0; i < hero.count; i++) {
-      const img = new window.Image();
-      images[i] = img;
-      img.src = frameUrl(hero.folder, hero.prefix, i);
-      if (i === 0) {
-        img.onload = () => {
-          if (bgImgRef.current) bgImgRef.current.src = img.src;
-          setAnimationReady(true);
-        };
-      }
-    }
+    setVideoSrc(HERO_VIDEOS[Math.floor(Math.random() * HERO_VIDEOS.length)]);
   }, []);
 
-  // Loop de animação — atualiza src diretamente via DOM, zero re-renders
-  useEffect(() => {
-    if (!animationReady) return;
-    const hero = HERO_SEQUENCES[heroIndexRef.current];
-    let frame = 0;
-
-    const id = setInterval(() => {
-      frame = (frame + 1) % hero.count;
-      const img = preloadedRef.current[frame];
-      if (bgImgRef.current && img?.complete) {
-        bgImgRef.current.src = img.src;
-      }
-    }, Math.round(1000 / 24));
-
-    return () => clearInterval(id);
-  }, [animationReady]);
-
-  // Fecha dropdowns ao clicar fora
   useEffect(() => {
     function handleClick(e: MouseEvent) {
       if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
@@ -120,8 +72,7 @@ export default function HeroSection() {
     <section className="relative z-10 h-[600px] md:h-[650px]" id="hero-section">
       {/* Background */}
       <div className="absolute inset-0 overflow-hidden">
-        {/* Fallback estático — visível até o primeiro frame carregar */}
-        {!animationReady && (
+        {!videoReady && (
           <Image
             src="/images/hero-yacht.png"
             alt="Iate de luxo ao amanhecer"
@@ -130,15 +81,17 @@ export default function HeroSection() {
             priority
           />
         )}
-        {/* img sempre montada; src atualizado via ref sem re-renders */}
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img
-          ref={bgImgRef}
-          alt=""
+        {videoSrc && <video
+          src={videoSrc}
+          autoPlay
+          muted
+          loop
+          playsInline
+          onCanPlay={() => setVideoReady(true)}
           className={`absolute inset-0 w-full h-full object-cover object-top scale-[1.2] origin-top transition-opacity duration-300 ${
-            animationReady ? 'opacity-100' : 'opacity-0'
+            videoReady ? 'opacity-100' : 'opacity-0'
           }`}
-        />
+        />}
         <div className="absolute inset-0 bg-gradient-to-b from-[#0B2447]/70 via-[#0B2447]/55 to-[#0B2447]/80" />
       </div>
 
