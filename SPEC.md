@@ -253,6 +253,17 @@ Helpers em `src/lib/roles.ts` (`server-only`):
 Todos configurados no Supabase Dashboard → Authentication → Providers.  
 Redirect URI obrigatória: `https://SEU_PROJECT.supabase.co/auth/v1/callback`
 
+Os botões de login social são renderizados pelo componente compartilhado `SocialLoginButtons` (`src/components/auth/SocialLoginButtons.tsx`), usado em `/entrar`, `/painel/login` e `/painel/cadastro`. Ele recebe `onProvider(provider)` e gerencia o próprio estado de loading; cada tela monta o `redirectTo` apropriado (site → `/auth/callback`; painel → `/painel/auth/callback`).
+
+### Login de Cliente no Site (`/entrar`)
+
+`src/app/entrar/page.tsx` (`'use client'`) — login/cadastro do cliente com email/senha **e** OAuth (Google/Facebook/Apple).
+
+- `redirect_to` (query param) preserva a página de origem.
+- **Email/senha:** `signInWithPassword` / `signUp`, depois `window.location.href = /api/auth/setup-cliente?redirect_to=...`.
+- **OAuth:** `signInWithOAuth({ provider, options: { redirectTo: /auth/callback?next=/api/auth/setup-cliente?redirect_to=... } })`.
+- Em qualquer caminho a role resultante é `cliente`.
+
 ### Endpoints de atribuição
 
 Ambos são **aditivos** (não substituem roles existentes):
@@ -860,7 +871,6 @@ type Props = {
 - App mobile  
 - Antifraude
 - Página `/reservas/novo` (fluxo de reserva do cliente)
-- Autenticação de clientes (role `cliente`)
 - Filtros adicionais na busca (tipo de embarcação, faixa de preço)
 - Visualização em mapa no `/buscar`
 - Avaliações reais em `/roteiros/[id]`

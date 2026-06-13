@@ -6,6 +6,7 @@ import { Mail, Lock, Eye, EyeOff, ArrowRight, Loader2, User } from 'lucide-react
 import Link from 'next/link';
 import Image from 'next/image';
 import { createClient } from '@/lib/supabase/client';
+import SocialLoginButtons, { type OAuthProvider } from '@/components/auth/SocialLoginButtons';
 
 function EntrarForm() {
   const searchParams = useSearchParams();
@@ -84,6 +85,24 @@ function EntrarForm() {
     setLoading(false);
   }
 
+  async function handleSocial(provider: OAuthProvider) {
+    setError('');
+
+    // Reaproveita o callback do site e o setup-cliente — garantindo a role `cliente`.
+    const next = `/api/auth/setup-cliente?redirect_to=${encodeURIComponent(redirectTo)}`;
+    const { error: authError } = await supabase.auth.signInWithOAuth({
+      provider,
+      options: {
+        redirectTo: `${window.location.origin}/auth/callback?next=${encodeURIComponent(next)}`,
+      },
+    });
+
+    if (authError) {
+      setError(translateError(authError.message));
+      throw authError; // sinaliza falha ao SocialLoginButtons para limpar o loading
+    }
+  }
+
   if (success) {
     return (
       <div className="text-center">
@@ -128,6 +147,19 @@ function EntrarForm() {
         >
           Criar conta
         </button>
+      </div>
+
+      {/* Login social */}
+      <div className="mb-6">
+        <SocialLoginButtons onProvider={handleSocial} disabled={loading} />
+      </div>
+
+      <div className="flex items-center gap-3 mb-6">
+        <div className="flex-1 h-px bg-slate-200" />
+        <span className="text-xs text-slate-400 font-medium">
+          {mode === 'login' ? 'ou entre com e-mail' : 'ou crie com e-mail'}
+        </span>
+        <div className="flex-1 h-px bg-slate-200" />
       </div>
 
       <form onSubmit={mode === 'login' ? handleLogin : handleCadastro} className="space-y-4">

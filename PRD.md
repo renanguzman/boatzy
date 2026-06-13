@@ -50,7 +50,8 @@ Validar um marketplace de aluguel de embarcações, garantindo:
 ### 5.1 Funcionalidades Core
 
 #### Usuário (Cliente) (role: cliente)
-- Cadastro/Login (Clerk)
+- ✅ Cadastro/Login em `/entrar` (Supabase Auth — email/senha, Google, Facebook, Apple)
+- ✅ Role `cliente` atribuída automaticamente via `/api/auth/setup-cliente` após login/cadastro
 - Buscar embarcações
 - Visualizar detalhes
 - Solicitar reserva
@@ -74,7 +75,8 @@ Validar um marketplace de aluguel de embarcações, garantindo:
 
 ### 6.1 Autenticação
 
-- ✅ Login via Supabase Auth: email/senha, Google, Facebook e Apple.
+- ✅ Login via Supabase Auth: email/senha, Google, Facebook e Apple — disponível tanto no site público (`/entrar`, role `cliente`) quanto no painel (`/painel/login`, role `gestor`).
+- ✅ Botões de login social compartilhados via componente `SocialLoginButtons` (`src/components/auth/SocialLoginButtons.tsx`).
 - ✅ Um mesmo e-mail pode acumular múltiplas roles (`cliente` + `gestor`), sem precisar criar conta nova.
 - ✅ Roles são armazenadas em `user_roles` (Supabase, fonte da verdade). Lidas diretamente do banco nos Server Components.
 - ✅ Cliente que tenta acessar `/painel` vê a opção "Tornar-me gestor", que adiciona a role sem destruir o vínculo de cliente.
