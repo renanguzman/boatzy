@@ -116,12 +116,24 @@ Visualização:
 - Lista
 - Mapa (Google Maps)
 
+#### ✅ Implementado — Alternância de Tipo de Busca (Roteiros / Embarcações)
+
+- Toggle `SearchTypeToggle` na Hero Section e na barra compacta (`/buscar` e `/embarcacoes`) permite escolher entre buscar **Roteiros** (padrão) ou **Embarcações**.
+- Roteiros → resultados em `/buscar`; Embarcações → resultados em `/embarcacoes`. Os filtros (local, data, pessoas) são preservados ao alternar.
+
 #### ✅ Implementado — Barra de Busca Inteligente (Hero Section)
 
 - `LocationPicker`: autocomplete de municípios com roteiros cadastrados, opção "Próximo de mim" via geolocalização do navegador, histórico de buscas recentes (localStorage).
 - `DatePicker`: calendário de 2 meses, datas passadas bloqueadas, opções de flexibilidade (Data exata, ±1, ±2, ±3, ±7 dias), totalmente em pt-BR.
 - `GuestPicker`: contador +/− com mínimo 0, dropdown.
 - Navegação para `/buscar?municipio=&data=&flex=&pessoas=` ao submeter.
+
+#### ✅ Implementado — Página de Resultados de Embarcações `/embarcacoes`
+
+- Espelha a estrutura de `/buscar`, listando embarcações com `status = 'ativo'`.
+- Filtros: município (`municipio_id`), capacidade (`capacidade >= pessoas`), paginação server-side.
+- `EmbarcacaoCard`: imagem principal, badge de tipo e localidade, capacidade, comprimento, preço base.
+- Detalhe em `/embarcacoes/[id]` (galeria, specs, comodidades, mapa, sidebar de reserva).
 
 #### ✅ Implementado — Página de Resultados `/buscar`
 

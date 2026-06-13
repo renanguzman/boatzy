@@ -6,6 +6,7 @@ import { Search, X } from 'lucide-react';
 import LocationPicker, { type LocationValue } from '@/components/home/search/LocationPicker';
 import DatePicker, { type DateValue } from '@/components/home/search/DatePicker';
 import GuestPicker from '@/components/home/search/GuestPicker';
+import SearchTypeToggle, { type SearchType } from '@/components/home/search/SearchTypeToggle';
 
 type ActivePanel = 'location' | 'date' | 'guests' | null;
 
@@ -13,9 +14,10 @@ type Props = {
   initialLocation?: { id: number; nome: string; uf: string } | null;
   initialDate?: { date: string; flex: number } | null;
   initialGuests?: number;
+  tipo?: SearchType;
 };
 
-export default function SearchBarCompact({ initialLocation, initialDate, initialGuests = 0 }: Props) {
+export default function SearchBarCompact({ initialLocation, initialDate, initialGuests = 0, tipo = 'roteiro' }: Props) {
   const router = useRouter();
 
   const [location, setLocation] = useState<LocationValue | null>(
@@ -27,6 +29,7 @@ export default function SearchBarCompact({ initialLocation, initialDate, initial
       : null,
   );
   const [guests, setGuests] = useState(initialGuests);
+  const [searchType, setSearchType] = useState<SearchType>(tipo);
   const [active, setActive] = useState<ActivePanel>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -44,7 +47,7 @@ export default function SearchBarCompact({ initialLocation, initialDate, initial
     setActive((prev) => (prev === panel ? null : panel));
   }
 
-  function handleSearch() {
+  function runSearch(type: SearchType) {
     const params = new URLSearchParams();
     if (location) {
       if (location.type === 'place') {
@@ -61,15 +64,29 @@ export default function SearchBarCompact({ initialLocation, initialDate, initial
     }
     if (guests > 0) params.set('pessoas', String(guests));
 
-    router.push(`/buscar?${params.toString()}`);
+    const base = type === 'embarcacao' ? '/embarcacoes' : '/buscar';
+    router.push(`${base}?${params.toString()}`);
     setActive(null);
   }
 
+  function handleSearch() {
+    runSearch(searchType);
+  }
+
+  function handleTypeChange(type: SearchType) {
+    setSearchType(type);
+    // Troca de aba mantém os filtros atuais e navega para a outra listagem.
+    runSearch(type);
+  }
+
   return (
-    <div
-      ref={containerRef}
-      className="bg-white border border-slate-200 rounded-2xl shadow-sm px-1 py-1 flex items-center gap-1 w-full max-w-2xl"
-    >
+    <div className="w-full max-w-2xl flex flex-col items-center gap-3">
+      <SearchTypeToggle value={searchType} onChange={handleTypeChange} variant="light" />
+
+      <div
+        ref={containerRef}
+        className="bg-white border border-slate-200 rounded-2xl shadow-sm px-1 py-1 flex items-center gap-1 w-full"
+      >
       {/* Location */}
       <div className="flex-1 relative min-w-0">
         {location ? (
@@ -156,6 +173,7 @@ export default function SearchBarCompact({ initialLocation, initialDate, initial
         >
           <Search className="h-4 w-4" />
         </button>
+      </div>
       </div>
     </div>
   );

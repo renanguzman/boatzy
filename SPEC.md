@@ -757,8 +757,17 @@ type Props = {
 | `pagina` | number | Página atual (padrão: 1) |
 
 **Componentes:**
-- `src/app/buscar/_components/SearchBarCompact.tsx` — barra compacta (`'use client'`), reutiliza pickers com `compact` prop, navega via `router.push()`.
+- `src/app/buscar/_components/SearchBarCompact.tsx` — barra compacta (`'use client'`), reutiliza pickers com `compact` prop, navega via `router.push()`. Aceita prop `tipo?: 'roteiro' | 'embarcacao'` (padrão `'roteiro'`) e renderiza o `SearchTypeToggle`; alternar a aba preserva os filtros e navega para `/buscar` ou `/embarcacoes`.
 - `src/app/buscar/_components/RoteiroCard.tsx` — card de roteiro (`'use client'`), imagem, localidade, specs, preço.
+
+#### `SearchTypeToggle` (`src/components/home/search/SearchTypeToggle.tsx`)
+
+```ts
+type SearchType = 'roteiro' | 'embarcacao';
+type Props = { value: SearchType; onChange: (v: SearchType) => void; variant?: 'dark' | 'light' };
+```
+
+Segmented control (Roteiros / Embarcações) usado na Hero Section (`variant="dark"`) e no `SearchBarCompact` (`variant="light"`). A Hero monta o destino em `handleSearch` (`/buscar` ou `/embarcacoes`).
 
 **Tipo `RoteiroCardData`:**
 ```ts
@@ -836,6 +845,52 @@ type RoteiroDetalhe = {
 ```
 
 ---
+
+### 18.6 Busca de Embarcações `/embarcacoes`
+
+**Arquivo:** `src/app/embarcacoes/page.tsx` (Server Component) — espelha `/buscar`.
+
+**Query Supabase:**
+```ts
+supabaseAdmin
+  .from('embarcacao')
+  .select(`id, nome, descricao, capacidade, comprimento, preco_base,
+    embarcacao_tipo ( nome ),
+    municipios ( nome, estados ( uf ) ),
+    embarcacao_imagens ( url_imagem, principal )`, { count: 'exact' })
+  .eq('status', 'ativo')        // somente embarcações ativas no hotsite
+  // + .eq('municipio_id', …) e .gte('capacidade', pessoas) quando aplicável
+```
+
+Query params idênticos a `/buscar` (`municipio`, `local`, `lat`, `lng`, `data`, `flex`, `pessoas`, `pagina`).
+
+**Componente `EmbarcacaoCard`** (`src/app/embarcacoes/_components/EmbarcacaoCard.tsx`, `'use client'`):
+```ts
+type EmbarcacaoCardData = {
+  id: string;
+  nome: string;
+  descricao: string | null;
+  capacidade: number | null;
+  comprimento: number | null;
+  preco_base: number | null;
+  embarcacao_tipo: { nome: string } | null;
+  municipios: { nome: string; estados: { uf: string } | null } | null;
+  embarcacao_imagens: { url_imagem: string; principal: boolean }[];
+};
+```
+Link para `/embarcacoes/[id]`.
+
+> Preço exibido a partir de `preco_base` (paridade com a listagem de roteiros). Refinamento futuro: usar `get_precos_embarcacoes` para preço dependente da data.
+
+### 18.7 Detalhe da Embarcação `/embarcacoes/[id]`
+
+**Arquivo:** `src/app/embarcacoes/[id]/page.tsx` (Server Component).
+
+Carrega a embarcação com tipo, categoria, município, comodidades e imagens. Reutiliza `GaleriaRoteiro` (com prop `voltarHref="/embarcacoes"`) e `LocalizacaoMap` de `roteiros/[id]/_components`.
+
+Seções: badges (tipo/categoria), título + localidade, descrição, grid de specs (capacidade, comprimento, cabines, suítes, banheiros, tripulação), comodidades, mapa + endereço, placeholder de avaliações, sidebar com preço/dia + CTA "Solicitar reserva" (link para `/entrar?redirect_to=/embarcacoes/[id]`).
+
+> `GaleriaRoteiro` ganhou prop `voltarHref?: string` (padrão `/buscar`) para o botão "voltar".
 
 ### 18.5 Modal de Fotos da Embarcação
 

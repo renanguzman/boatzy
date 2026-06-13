@@ -10,9 +10,10 @@ type Imagem = { id: string; url_imagem: string; titulo: string | null; principal
 type Props = {
   images: Imagem[];
   nome: string;
+  voltarHref?: string;
 };
 
-export default function GaleriaRoteiro({ images, nome }: Props) {
+export default function GaleriaRoteiro({ images, nome, voltarHref = '/buscar' }: Props) {
   const total = images.length;
   const [current, setCurrent] = useState(0);
   const [modalOpen, setModalOpen] = useState(false);
@@ -115,7 +116,7 @@ export default function GaleriaRoteiro({ images, nome }: Props) {
 
               {/* Back button */}
               <Link
-                href="/buscar"
+                href={voltarHref}
                 className="absolute top-4 left-4 z-10 h-10 w-10 rounded-full bg-white/80 backdrop-blur-sm flex items-center justify-center hover:bg-white transition-colors shadow-sm"
               >
                 <ChevronLeft className="h-5 w-5 text-slate-700" />

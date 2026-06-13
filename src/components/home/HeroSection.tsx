@@ -6,6 +6,7 @@ import { Search, X } from 'lucide-react';
 import LocationPicker, { type LocationValue } from './search/LocationPicker';
 import DatePicker, { type DateValue } from './search/DatePicker';
 import GuestPicker from './search/GuestPicker';
+import SearchTypeToggle, { type SearchType } from './search/SearchTypeToggle';
 
 type ActivePanel = 'location' | 'date' | 'guests' | null;
 
@@ -15,6 +16,7 @@ export default function HeroSection() {
   const [location, setLocation] = useState<LocationValue | null>(null);
   const [date, setDate] = useState<DateValue | null>(null);
   const [guests, setGuests] = useState(0);
+  const [searchType, setSearchType] = useState<SearchType>('roteiro');
   const [active, setActive] = useState<ActivePanel>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -65,7 +67,8 @@ export default function HeroSection() {
     }
     if (guests > 0) params.set('pessoas', String(guests));
 
-    window.location.href = `/buscar?${params.toString()}`;
+    const base = searchType === 'embarcacao' ? '/embarcacoes' : '/buscar';
+    window.location.href = `${base}?${params.toString()}`;
   }
 
   return (
@@ -110,6 +113,11 @@ export default function HeroSection() {
         <p className="text-slate-200 text-base md:text-lg max-w-xl mb-10 leading-relaxed">
           Explore embarcações pelo Brasil e encontre sua experiência perfeita no mar.
         </p>
+
+        {/* Tipo de busca */}
+        <div className="mb-3">
+          <SearchTypeToggle value={searchType} onChange={setSearchType} variant="dark" />
+        </div>
 
         {/* Search Bar */}
         <div
