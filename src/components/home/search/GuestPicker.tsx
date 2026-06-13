@@ -9,15 +9,54 @@ type Props = {
   onOpen: () => void;
   onClose: () => void;
   compact?: boolean;
+  /** Renderiza o seletor como stepper inline (número sempre visível, sem dropdown). */
+  inline?: boolean;
 };
 
-export default function GuestPicker({ value, onChange, isOpen, onOpen, onClose, compact }: Props) {
+export default function GuestPicker({ value, onChange, isOpen, onOpen, onClose, compact, inline }: Props) {
   function decrement() {
     onChange(Math.max(0, value - 1));
   }
 
   function increment() {
     onChange(value + 1);
+  }
+
+  // Modo inline: rótulo + stepper (- N +) sempre visível, ocupando a linha inteira.
+  if (inline) {
+    return (
+      <div className="w-full flex items-center justify-between gap-3 rounded-2xl px-4 py-3 hover:bg-slate-50 transition-colors min-w-0">
+        <span className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider shrink-0">
+          Pessoas
+        </span>
+        <div className="flex items-center gap-3 shrink-0">
+          <button
+            type="button"
+            onClick={decrement}
+            disabled={value <= 0}
+            aria-label="Remover pessoa"
+            className={`h-8 w-8 rounded-full border-2 flex items-center justify-center transition-colors ${
+              value <= 0
+                ? 'border-slate-200 text-slate-300 cursor-default'
+                : 'border-slate-400 text-slate-700 hover:border-slate-800 hover:text-slate-800'
+            }`}
+          >
+            <Minus className="h-4 w-4" />
+          </button>
+          <span className="w-5 text-center text-base font-semibold text-slate-800 tabular-nums">
+            {value}
+          </span>
+          <button
+            type="button"
+            onClick={increment}
+            aria-label="Adicionar pessoa"
+            className="h-8 w-8 rounded-full border-2 border-slate-400 text-slate-700 flex items-center justify-center hover:border-slate-800 hover:text-slate-800 transition-colors"
+          >
+            <Plus className="h-4 w-4" />
+          </button>
+        </div>
+      </div>
+    );
   }
 
   return (

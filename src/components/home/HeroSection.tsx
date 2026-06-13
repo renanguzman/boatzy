@@ -185,23 +185,27 @@ export default function HeroSection() {
             <div className="hidden md:block w-px bg-slate-200 my-2 shrink-0" />
 
             {/* Guests + Search button */}
-            <div className="flex items-center gap-1">
-              <GuestPicker
-                value={guests}
-                onChange={setGuests}
-                isOpen={active === 'guests'}
-                onOpen={() => open('guests')}
-                onClose={() => setActive(null)}
-              />
+            <div className="flex flex-col md:flex-row items-stretch md:items-center gap-1">
+              <div className="flex-1 min-w-0">
+                <GuestPicker
+                  value={guests}
+                  onChange={setGuests}
+                  isOpen={active === 'guests'}
+                  onOpen={() => open('guests')}
+                  onClose={() => setActive(null)}
+                  inline
+                />
+              </div>
 
               <button
                 type="button"
                 onClick={handleSearch}
-                className="bg-[#0B3D91] hover:bg-[#092E6E] text-white rounded-xl p-3.5 flex items-center justify-center transition-all hover:shadow-lg hover:scale-[1.03] active:scale-[0.97] cursor-pointer shrink-0"
+                className="bg-[#0B3D91] hover:bg-[#092E6E] text-white rounded-xl p-3.5 flex items-center justify-center gap-2 transition-all hover:shadow-lg hover:scale-[1.03] active:scale-[0.97] cursor-pointer shrink-0 w-full md:w-auto"
                 id="search-button"
                 aria-label="Buscar"
               >
                 <Search className="h-5 w-5" />
+                <span className="font-semibold md:hidden">Buscar</span>
               </button>
             </div>
           </div>
