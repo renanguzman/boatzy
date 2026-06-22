@@ -937,6 +937,29 @@ type Props = {
 
 ---
 
+## 18.8 Páginas Institucionais / Legais
+
+### Política de Privacidade `/privacy`
+
+**Arquivo:** `src/app/privacy/page.tsx` (Server Component estático, sem props nem fetch).
+
+- Renderiza `Header` + conteúdo + `Footer` (mesmo padrão das demais páginas do hotsite).
+- Conteúdo HTML/JSX hardcoded a partir de `Boatzy_Politica_Privacidade.md` (raiz do projeto), com seções 1–12 da LGPD, tabela de finalidades/bases legais e aviso de status (minuta v1).
+- `export const metadata` define `title`/`description` próprios da página.
+- Acessada pelos links "Privacidade" do `Footer` (`src/components/layout/Footer.tsx`).
+- Pré-requisito para publicar o login social do Facebook/Meta (URL de política de privacidade exigida ao sair do modo de desenvolvimento).
+
+### Termos de Uso `/terms`
+
+**Arquivo:** `src/app/terms/page.tsx` (Server Component estático, sem props nem fetch).
+
+- Mesmo padrão da Política de Privacidade: `Header` + conteúdo + `Footer`, hero `#0B2447`, aviso de status (minuta v1) e `export const metadata`.
+- Conteúdo HTML/JSX hardcoded a partir de `Boatzy_Termos_Uso.md` (raiz do projeto), com seções 1–14.
+- Links internos para `/privacy` (seções 1 e 10) via `next/link`.
+- Acessada pelos links "Termos de Uso" / "Termos" do `Footer` (`src/components/layout/Footer.tsx`).
+
+---
+
 ## 19. Futuro
 
 - Chat  

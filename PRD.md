@@ -234,6 +234,23 @@ Status:
 - Histórico de reservas
 - Avaliações feitas
 
+### 6.10 Páginas Institucionais / Legais
+
+#### ✅ Implementado — Política de Privacidade `/privacy`
+
+- Página estática institucional acessível pelo item "Privacidade" no rodapé.
+- Conteúdo em conformidade com a LGPD (Lei nº 13.709/2018) e o Marco Civil da Internet, exigido também para publicar o login social do Facebook/Meta.
+- Versão atual é uma minuta provisória (v1) com aviso de status; revisão jurídica pendente para o lançamento oficial.
+- Fonte do texto: `Boatzy_Politica_Privacidade.md` (raiz do projeto).
+
+#### ✅ Implementado — Termos de Uso `/terms`
+
+- Página estática institucional acessível pelos itens "Termos de Uso" / "Termos" no rodapé.
+- Define o Boatzy como plataforma de intermediação (não é parte do contrato de locação), responsabilidades de Anunciantes e Locatários, condutas proibidas e isenção/limitação de responsabilidade.
+- Pagamentos descritos como funcionalidade futura; regido pelas leis brasileiras (CDC).
+- Versão atual é uma minuta provisória (v1) com aviso de status; revisão jurídica pendente para o lançamento oficial.
+- Fonte do texto: `Boatzy_Termos_Uso.md` (raiz do projeto).
+
 ---
 
 ## 7. Modelagem de Dados (Simplificada)
