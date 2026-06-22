@@ -244,14 +244,32 @@ Helpers em `src/lib/roles.ts` (`server-only`):
 
 ### Provedores OAuth suportados
 
-| Provedor | Supabase Provider ID |
-|----------|---------------------|
-| Google   | `google`            |
-| Facebook | `facebook`          |
-| Apple    | `apple`             |
+| Provedor | Supabase Provider ID | Status        | Origem da foto de perfil          |
+|----------|----------------------|---------------|-----------------------------------|
+| Google   | `google`             | ✅ Configurado | `*.googleusercontent.com`         |
+| Facebook | `facebook`           | ✅ Configurado | `platform-lookaside.fbsbx.com`    |
+| Apple    | `apple`              | ⏳ Pendente    | —                                 |
 
-Todos configurados no Supabase Dashboard → Authentication → Providers.  
+Configurados no Supabase Dashboard → Authentication → Providers.  
 Redirect URI obrigatória: `https://SEU_PROJECT.supabase.co/auth/v1/callback`
+
+**Domínios de imagem (`next.config.ts`):** os avatares dos provedores são renderizados com `next/image`, portanto o host precisa estar em `images.remotePatterns`. Liberados: `*.googleusercontent.com`, `*.fbcdn.net` e `platform-lookaside.fbsbx.com` (Facebook entrega a foto de perfil por este último, não por `*.fbcdn.net`). Alterar `next.config.ts` exige reiniciar o servidor de dev.
+
+**Configuração do Facebook (Meta for Developers):** app do tipo Empresa com produto *Login do Facebook*; em *Login do Facebook → Configurações*, a Redirect URI do Supabase deve constar em "URIs de redirecionamento do OAuth válidos"; App ID e App Secret (App settings → Basic) vão em Authentication → Providers → Facebook no Supabase. Em modo de desenvolvimento, só contas com papel no app conseguem logar; publicar exige URL de política de privacidade.
+
+### Vínculo de identidades (mesmo e-mail, múltiplos provedores)
+
+O Supabase Auth faz **vínculo automático de identidades** quando o e-mail é o mesmo **e verificado** pelo provedor: as identidades (`google`, `facebook`, …) apontam para o **mesmo `auth.users.id`**. O código reforça isso — `setup-cliente` e `setup-role` fazem upsert de `public.users` **pela chave `user.id`** (nunca por e-mail), de modo que um mesmo `auth.users.id` sempre mapeia para uma única linha em `public.users` → uma só conta no Boatzy.
+
+Verificação (SQL Editor do Supabase): um único `user_id` com múltiplas linhas em `auth.identities` confirma o vínculo.
+```sql
+select u.id as user_id, u.email, i.provider
+from auth.users u
+join auth.identities i on i.user_id = u.id
+where u.email = 'EMAIL'
+order by i.provider;
+```
+> ⚠️ `public.users.email` é `NOT NULL UNIQUE`. Caso o vínculo automático não ocorra (ex.: e-mail não verificado pelo provedor), o Supabase criaria um segundo `auth.users` com o mesmo e-mail e o insert em `public.users` violaria a unicidade — hoje esse erro não é tratado em `setup-cliente`/`setup-role`. Confirmado em produção que Google + Facebook com e-mail verificado vinculam corretamente.
 
 Os botões de login social são renderizados pelo componente compartilhado `SocialLoginButtons` (`src/components/auth/SocialLoginButtons.tsx`), usado em `/entrar`, `/painel/login` e `/painel/cadastro`. Ele recebe `onProvider(provider)` e gerencia o próprio estado de loading; cada tela monta o `redirectTo` apropriado (site → `/auth/callback`; painel → `/painel/auth/callback`).
 
