@@ -140,6 +140,7 @@ export default function DatePicker({ value, onChange, isOpen, onOpen, onClose, c
 
   function handleSelectDay(date: Date) {
     setTempDate(date);
+    onChange({ date, flexibility: tempFlex });
   }
 
   function handleFlexChange(flex: DateValue['flexibility']) {

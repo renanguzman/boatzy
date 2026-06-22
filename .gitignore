@@ -33,6 +33,10 @@ yarn-error.log*
 # env files (can opt-in for committing if needed)
 .env*
 
+# Apple Sign in — chave privada (.p8), nunca versionar
+*.p8
+AuthKey_*.p8
+
 # vercel
 .vercel
 

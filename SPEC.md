@@ -740,6 +740,7 @@ type Props = {
 - Calendário de 2 meses, navegação por mês, datas passadas desabilitadas.
 - Botões de flexibilidade: 0 (Data exata), 1, 2, 3, 7 (dias).
 - Display: "15 de jun." ou "15 de jun. ±2 dias".
+- Clicar em um dia aplica a seleção imediatamente (`onChange` no clique), preenchendo o campo; o botão "Confirmar" apenas fecha o dropdown.
 
 #### `GuestPicker`
 

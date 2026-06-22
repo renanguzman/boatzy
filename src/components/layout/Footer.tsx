@@ -85,16 +85,6 @@ export default function Footer() {
                 </Link>
               </li>
               <li>
-                <Link href="/blog" className="text-sm text-slate-300 hover:text-white transition-colors">
-                  Blog
-                </Link>
-              </li>
-              <li>
-                <Link href="/careers" className="text-sm text-slate-300 hover:text-white transition-colors">
-                  Carreiras
-                </Link>
-              </li>
-              <li>
                 <Link href="/contact" className="text-sm text-slate-300 hover:text-white transition-colors">
                   Contato
                 </Link>
@@ -123,11 +113,6 @@ export default function Footer() {
                   Privacidade
                 </Link>
               </li>
-              <li>
-                <Link href="/safety" className="text-sm text-slate-300 hover:text-white transition-colors">
-                  Segurança
-                </Link>
-              </li>
             </ul>
           </div>
         </div>
@@ -143,9 +128,6 @@ export default function Footer() {
             </Link>
             <Link href="/terms" className="text-xs text-slate-400 hover:text-white transition-colors">
               Termos
-            </Link>
-            <Link href="/safety" className="text-xs text-slate-400 hover:text-white transition-colors">
-              Segurança
             </Link>
             <Link href="/contact" className="text-xs text-slate-400 hover:text-white transition-colors">
               Contato
