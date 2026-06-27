@@ -358,7 +358,7 @@ export default function NovaEmbarcacaoForm({ tipos, categorias, estados, comodid
     e.preventDefault();
     setDragging(false);
     addFiles(e.dataTransfer.files);
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  }, []);  
 
   async function uploadImage(img: ImagePreview, embarcacaoId: string, isPrincipal: boolean) {
     const body = new FormData();

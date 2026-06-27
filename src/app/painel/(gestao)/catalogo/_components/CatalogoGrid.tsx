@@ -64,6 +64,31 @@ function fmtBRL(valor: number): string {
   return valor.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 }
 
+function ThSortable({ col, label, className = '', sortKey, sortDir, onSort }: {
+  col: SortKey; label: string; className?: string;
+  sortKey: SortKey; sortDir: SortDir; onSort: (col: SortKey) => void;
+}) {
+  const active = sortKey === col;
+  return (
+    <th
+      onClick={() => onSort(col)}
+      className={`pb-3 px-4 text-[10px] font-bold tracking-wider uppercase cursor-pointer select-none whitespace-nowrap ${className}`}
+    >
+      <div className="flex items-center gap-1 text-slate-400 hover:text-[#0B2447] transition-colors">
+        {label}
+        <span className="flex flex-col">
+          <ChevronUp
+            className={`w-2.5 h-2.5 -mb-0.5 ${active && sortDir === 'asc' ? 'text-[#0B2447]' : 'text-slate-300'}`}
+          />
+          <ChevronDown
+            className={`w-2.5 h-2.5 ${active && sortDir === 'desc' ? 'text-[#0B2447]' : 'text-slate-300'}`}
+          />
+        </span>
+      </div>
+    </th>
+  );
+}
+
 export default function CatalogoGrid({ itens }: { itens: CatalogoListItem[] }) {
   const router = useRouter();
   const [, startTransition] = useTransition();
@@ -118,27 +143,6 @@ export default function CatalogoGrid({ itens }: { itens: CatalogoListItem[] }) {
   const totalPages = Math.max(1, Math.ceil(sorted.length / PAGE_SIZE));
   const paged = sorted.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
 
-  function ThSortable({ col, label, className = '' }: { col: SortKey; label: string; className?: string }) {
-    const active = sortKey === col;
-    return (
-      <th
-        onClick={() => handleSort(col)}
-        className={`pb-3 px-4 text-[10px] font-bold tracking-wider uppercase cursor-pointer select-none whitespace-nowrap ${className}`}
-      >
-        <div className="flex items-center gap-1 text-slate-400 hover:text-[#0B2447] transition-colors">
-          {label}
-          <span className="flex flex-col">
-            <ChevronUp
-              className={`w-2.5 h-2.5 -mb-0.5 ${active && sortDir === 'asc' ? 'text-[#0B2447]' : 'text-slate-300'}`}
-            />
-            <ChevronDown
-              className={`w-2.5 h-2.5 ${active && sortDir === 'desc' ? 'text-[#0B2447]' : 'text-slate-300'}`}
-            />
-          </span>
-        </div>
-      </th>
-    );
-  }
 
   return (
     <div>
@@ -170,9 +174,9 @@ export default function CatalogoGrid({ itens }: { itens: CatalogoListItem[] }) {
             <table className="w-full text-left">
               <thead>
                 <tr className="border-b border-slate-100">
-                  <ThSortable col="descricao"  label="Descrição"  className="pl-6" />
-                  <ThSortable col="tipo"       label="Tipo" />
-                  <ThSortable col="valor"      label="Valor" />
+                  <ThSortable col="descricao"  label="Descrição"  className="pl-6" sortKey={sortKey} sortDir={sortDir} onSort={handleSort} />
+                  <ThSortable col="tipo"       label="Tipo"       sortKey={sortKey} sortDir={sortDir} onSort={handleSort} />
+                  <ThSortable col="valor"      label="Valor"      sortKey={sortKey} sortDir={sortDir} onSort={handleSort} />
                   <th className="pb-3 px-4 pr-6 text-[10px] font-bold text-slate-400 tracking-wider uppercase text-right">
                     Ações
                   </th>

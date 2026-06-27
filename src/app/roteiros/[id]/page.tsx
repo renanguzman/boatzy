@@ -80,6 +80,7 @@ export default async function RoteiroDetalhePage({ params }: { params: Promise<{
       )
     `)
     .eq('id', id)
+    .eq('ativo', true)
     .single();
 
   if (error || !data) notFound();
@@ -363,7 +364,6 @@ export default async function RoteiroDetalhePage({ params }: { params: Promise<{
               <BookingCard
                 roteiroId={roteiro.id}
                 preco={roteiro.preco_base}
-                capacidade={roteiro.quantidade_pessoas}
                 diasOperacao={roteiro.disponibilidade_dias_semana}
                 datasBloqueadas={roteiro.roteiro_disponibilidade_bloqueio?.map((b) => b.data) ?? []}
               />

@@ -12,7 +12,6 @@ type ActivePanel = 'date' | 'guests' | null;
 type Props = {
   roteiroId: string;
   preco: number | null;
-  capacidade: number | null;
   /** Dias da semana em que o roteiro opera (0=Dom..6=Sáb). Vazio/null = todos os dias. */
   diasOperacao?: number[] | null;
   /** Datas bloqueadas (exceções), em formato ISO 'yyyy-mm-dd'. */
@@ -25,7 +24,7 @@ function toISO(d: Date): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
 
-export default function BookingCard({ roteiroId, preco, capacidade, diasOperacao, datasBloqueadas }: Props) {
+export default function BookingCard({ roteiroId, preco, diasOperacao, datasBloqueadas }: Props) {
   const [date, setDate] = useState<DateValue | null>(null);
   const [guests, setGuests] = useState(1);
   const [active, setActive] = useState<ActivePanel>(null);

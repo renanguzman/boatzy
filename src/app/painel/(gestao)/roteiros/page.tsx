@@ -20,6 +20,7 @@ export default async function RoteirosPage() {
       quantidade_pessoas,
       origem,
       destino,
+      ativo,
       created_at,
       embarcacao ( nome ),
       municipios ( nome, estados ( uf ) ),

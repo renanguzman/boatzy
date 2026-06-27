@@ -242,6 +242,15 @@ Status:
 - ✅ Melhoria de UX no bloco "Como funciona": a explicação da ordem de prioridade foi unificada em **uma única lista numerada (1→4)**, ordenada de cima para baixo pela prioridade real, eliminando a inconsistência anterior (chips e caixas em ordens opostas). Inclui exemplo de desempate.
 - ✅ As abas de "Nova regra" seguem a mesma ordem de prioridade (Data Específica → Período Anual → Dias da Semana).
 
+#### ✅ Implementado — Ativar/Desativar embarcação no grid (com cascade para roteiros)
+
+- A coluna **Status** no grid de embarcações (`/painel/embarcacoes`) virou um **toggle ativo/inativo**, acionável direto na listagem.
+- Ao **desativar**, uma confirmação mostra quais **roteiros vinculados** ficarão inativos e some da busca; o gestor confirma.
+- **Cascade:** desativar a embarcação desativa os roteiros vinculados; **reativar** a embarcação reativa os roteiros vinculados (comportamento simétrico).
+- Itens inativos **não aparecem na busca** do cliente e retornam **404** se acessados por link direto (`/embarcacoes/[id]`, `/roteiros/[id]`).
+- O grid de **roteiros** (`/painel/roteiros`) também tem o **toggle ativo/inativo** (direto, sem cascade — roteiro não tem dependentes), permitindo controle independente.
+- Tecnicamente: `roteiro` ganhou a coluna `ativo`; `buscar_roteiros` passou a filtrar `ativo = true`. Detalhes em `SPEC.md` §15-C.
+
 #### ✅ Implementado — Disponibilidade (roteiros e embarcações)
 
 - Nova seção "Disponibilidade" nos forms de cadastro/edição (roteiro **e** embarcação): o gestor define os **dias da semana** de operação e **bloqueia datas específicas** (exceções) num mini-calendário, via componente compartilhado `DisponibilidadePicker`.

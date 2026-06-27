@@ -672,6 +672,37 @@ Uma data está **indisponível** quando:
 
 ---
 
+## 15-C. Status (ativação) de Embarcação e Roteiro
+
+Migration: `supabase/migrations/019_roteiro_ativo.sql` (coluna `roteiro.ativo`). Embarcação já tinha `status` (`ativo` | `inativo` | `em_manutencao`, migration 005).
+
+### Modelo
+
+- `embarcacao.status` controla a visibilidade da embarcação no hotsite (`buscar_embarcacoes` filtra `status = 'ativo'`).
+- `roteiro.ativo boolean NOT NULL DEFAULT true` controla a do roteiro (`buscar_roteiros` filtra `ativo = true`).
+
+### Toggle no painel + cascade
+
+- **Grid** `src/app/painel/(gestao)/embarcacoes/_components/EmbarcacoesGrid.tsx`: a coluna **Status** é um *switch* ativo/inativo. A listagem carrega os roteiros vinculados via embed `roteiro ( id, nome )`.
+- **Server action** `alternarStatusEmbarcacao(embarcacaoId, 'ativo' | 'inativo')` (`src/app/painel/(gestao)/embarcacoes/actions.ts`):
+  - Valida auth + role (`gestor`/`admin`) + posse.
+  - Atualiza `embarcacao.status`.
+  - **Cascade simétrico:** `UPDATE roteiro SET ativo = (novoStatus = 'ativo') WHERE embarcacao_id = :id`. Desativar a embarcação desativa os roteiros vinculados; reativar reativa.
+  - `revalidatePath('/painel/embarcacoes')` e `/painel/roteiros`.
+- **Confirmação:** desativar abre um modal listando os roteiros vinculados que ficarão inativos. Reativar é direto.
+
+### Toggle no grid de roteiros
+
+- **Grid** `src/app/painel/(gestao)/roteiros/_components/RoteirosGrid.tsx`: coluna **Status** com o mesmo *switch* ativo/inativo. Roteiro é "folha" (sem dependentes), então o toggle é **direto nos dois sentidos**, sem modal nem cascade.
+- **Server action** `alternarStatusRoteiro(roteiroId, ativo)` (`src/app/painel/(gestao)/roteiros/actions.ts`): valida auth + role + posse, atualiza `roteiro.ativo` e `revalidatePath('/painel/roteiros')`.
+- O status do roteiro pode divergir do cascade da embarcação (controle independente do gestor).
+
+### Bloqueio de acesso direto
+
+As páginas públicas de detalhe retornam **404** para itens inativos: `/embarcacoes/[id]` filtra `status = 'ativo'`; `/roteiros/[id]` filtra `ativo = true`.
+
+---
+
 ## 16. Localização Geográfica (Google Maps)
 
 Migration: `supabase/migrations/010_embarcacao_coordenadas.sql`

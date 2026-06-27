@@ -1,12 +1,14 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useTransition } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import {
   Search, ChevronUp, ChevronDown, Eye, Pencil, Trash2, MapPin,
-  ChevronsLeft, ChevronsRight, ChevronLeft, ChevronRight,
+  ChevronsLeft, ChevronsRight, ChevronLeft, ChevronRight, Loader2,
 } from 'lucide-react';
+import { alternarStatusRoteiro } from '../actions';
 
 const PAGE_SIZE = 10;
 
@@ -18,13 +20,14 @@ export type RoteiroListItem = {
   quantidade_pessoas: number | null;
   origem: string | null;
   destino: string | null;
+  ativo: boolean;
   created_at: string;
   embarcacao: { nome: string } | null;
   municipios: { nome: string; estados: { uf: string } | null } | null;
   roteiro_imagens: { url_imagem: string; principal: boolean }[];
 };
 
-type SortKey = 'nome' | 'embarcacao' | 'localidade' | 'duracao' | 'pessoas' | 'created_at';
+type SortKey = 'nome' | 'embarcacao' | 'localidade' | 'duracao' | 'pessoas' | 'status' | 'created_at';
 type SortDir = 'asc' | 'desc';
 
 function getImage(imgs: { url_imagem: string; principal: boolean }[]): string | null {
@@ -43,6 +46,7 @@ function getSortValue(item: RoteiroListItem, key: SortKey): string | number {
     case 'localidade': return getLocalidade(item.municipios).toLowerCase();
     case 'duracao':    return (item.duracao ?? '').toLowerCase();
     case 'pessoas':    return item.quantidade_pessoas ?? -1;
+    case 'status':     return item.ativo ? 1 : 0;
     case 'created_at': return item.created_at;
   }
 }
@@ -59,11 +63,47 @@ function getPageNumbers(current: number, total: number): (number | '…')[] {
   return pages;
 }
 
+function ThSortable({ col, label, className = '', sortKey, sortDir, onSort }: {
+  col: SortKey; label: string; className?: string;
+  sortKey: SortKey; sortDir: SortDir; onSort: (col: SortKey) => void;
+}) {
+  const active = sortKey === col;
+  return (
+    <th
+      onClick={() => onSort(col)}
+      className={`pb-3 px-4 text-[10px] font-bold tracking-wider uppercase cursor-pointer select-none whitespace-nowrap ${className}`}
+    >
+      <div className="flex items-center gap-1 text-slate-400 hover:text-[#0B2447] transition-colors">
+        {label}
+        <span className="flex flex-col">
+          <ChevronUp   className={`w-2.5 h-2.5 -mb-0.5 ${active && sortDir === 'asc'  ? 'text-[#0B2447]' : 'text-slate-300'}`} />
+          <ChevronDown className={`w-2.5 h-2.5         ${active && sortDir === 'desc' ? 'text-[#0B2447]' : 'text-slate-300'}`} />
+        </span>
+      </div>
+    </th>
+  );
+}
+
 export default function RoteirosGrid({ roteiros }: { roteiros: RoteiroListItem[] }) {
+  const router = useRouter();
   const [search, setSearch]   = useState('');
   const [sortKey, setSortKey] = useState<SortKey>('created_at');
   const [sortDir, setSortDir] = useState<SortDir>('desc');
   const [page, setPage]       = useState(1);
+
+  // Toggle de status (ativo/inativo) — direto, sem cascata (roteiro é folha).
+  const [pendingId, setPendingId] = useState<string | null>(null);
+  const [, startTransition]       = useTransition();
+
+  function handleToggle(item: RoteiroListItem) {
+    if (pendingId) return;
+    setPendingId(item.id);
+    startTransition(async () => {
+      await alternarStatusRoteiro(item.id, !item.ativo);
+      setPendingId(null);
+      router.refresh();
+    });
+  }
 
   function handleSort(key: SortKey) {
     if (sortKey === key) {
@@ -101,24 +141,6 @@ export default function RoteirosGrid({ roteiros }: { roteiros: RoteiroListItem[]
   const totalPages = Math.max(1, Math.ceil(sorted.length / PAGE_SIZE));
   const paged = sorted.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
 
-  function ThSortable({ col, label, className = '' }: { col: SortKey; label: string; className?: string }) {
-    const active = sortKey === col;
-    return (
-      <th
-        onClick={() => handleSort(col)}
-        className={`pb-3 px-4 text-[10px] font-bold tracking-wider uppercase cursor-pointer select-none whitespace-nowrap ${className}`}
-      >
-        <div className="flex items-center gap-1 text-slate-400 hover:text-[#0B2447] transition-colors">
-          {label}
-          <span className="flex flex-col">
-            <ChevronUp   className={`w-2.5 h-2.5 -mb-0.5 ${active && sortDir === 'asc'  ? 'text-[#0B2447]' : 'text-slate-300'}`} />
-            <ChevronDown className={`w-2.5 h-2.5         ${active && sortDir === 'desc' ? 'text-[#0B2447]' : 'text-slate-300'}`} />
-          </span>
-        </div>
-      </th>
-    );
-  }
-
   return (
     <div>
       <div className="relative mb-5">
@@ -148,11 +170,12 @@ export default function RoteirosGrid({ roteiros }: { roteiros: RoteiroListItem[]
             <table className="w-full text-left">
               <thead>
                 <tr className="border-b border-slate-100">
-                  <ThSortable col="nome"       label="Roteiro"     className="pl-6" />
-                  <ThSortable col="embarcacao" label="Embarcação" />
-                  <ThSortable col="localidade" label="Localização" />
-                  <ThSortable col="duracao"    label="Duração" />
-                  <ThSortable col="pessoas"    label="Pessoas" />
+                  <ThSortable col="nome"       label="Roteiro"     className="pl-6" sortKey={sortKey} sortDir={sortDir} onSort={handleSort} />
+                  <ThSortable col="embarcacao" label="Embarcação"  sortKey={sortKey} sortDir={sortDir} onSort={handleSort} />
+                  <ThSortable col="localidade" label="Localização" sortKey={sortKey} sortDir={sortDir} onSort={handleSort} />
+                  <ThSortable col="duracao"    label="Duração"     sortKey={sortKey} sortDir={sortDir} onSort={handleSort} />
+                  <ThSortable col="pessoas"    label="Pessoas"     sortKey={sortKey} sortDir={sortDir} onSort={handleSort} />
+                  <ThSortable col="status"     label="Status"      sortKey={sortKey} sortDir={sortDir} onSort={handleSort} />
                   <th className="pb-3 px-4 pr-6 text-[10px] font-bold text-slate-400 tracking-wider uppercase text-right">
                     Ações
                   </th>
@@ -215,6 +238,41 @@ export default function RoteirosGrid({ roteiros }: { roteiros: RoteiroListItem[]
                         ) : (
                           <span className="text-slate-300 text-xs">—</span>
                         )}
+                      </td>
+
+                      {/* Status — toggle ativo/inativo */}
+                      <td className="py-4 px-4">
+                        {(() => {
+                          const isPending = pendingId === r.id;
+                          return (
+                            <div className="flex items-center gap-2">
+                              <button
+                                type="button"
+                                role="switch"
+                                aria-checked={r.ativo}
+                                disabled={isPending}
+                                onClick={() => handleToggle(r)}
+                                title={r.ativo ? 'Desativar roteiro' : 'Ativar roteiro'}
+                                className={`relative inline-flex h-5 w-9 flex-shrink-0 items-center rounded-full transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${
+                                  r.ativo ? 'bg-emerald-500' : 'bg-slate-300'
+                                }`}
+                              >
+                                <span
+                                  className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform ${
+                                    r.ativo ? 'translate-x-4' : 'translate-x-0.5'
+                                  }`}
+                                />
+                              </button>
+                              {isPending ? (
+                                <Loader2 className="w-3.5 h-3.5 animate-spin text-slate-400" />
+                              ) : (
+                                <span className={`text-[11px] font-semibold ${r.ativo ? 'text-emerald-700' : 'text-slate-500'}`}>
+                                  {r.ativo ? 'Ativo' : 'Inativo'}
+                                </span>
+                              )}
+                            </div>
+                          );
+                        })()}
                       </td>
 
                       <td className="py-4 px-4 pr-6">

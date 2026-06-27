@@ -376,6 +376,7 @@ export type Database = {
           longitude: number | null;
           preco_base: number | null;
           disponibilidade_dias_semana: number[] | null;
+          ativo: boolean;
           created_at: string;
           updated_at: string;
         };
@@ -399,6 +400,7 @@ export type Database = {
           longitude?: number | null;
           preco_base?: number | null;
           disponibilidade_dias_semana?: number[] | null;
+          ativo?: boolean;
           created_at?: string;
           updated_at?: string;
         };
@@ -422,6 +424,7 @@ export type Database = {
           longitude?: number | null;
           preco_base?: number | null;
           disponibilidade_dias_semana?: number[] | null;
+          ativo?: boolean;
           updated_at?: string;
         };
         Relationships: [];

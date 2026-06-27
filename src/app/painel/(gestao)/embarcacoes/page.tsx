@@ -21,7 +21,8 @@ export default async function EmbarcacoesPage() {
       embarcacao_tipo ( nome ),
       embarcacao_categoria ( nome ),
       municipios ( nome, estados ( uf ) ),
-      embarcacao_imagens ( url_imagem, principal )
+      embarcacao_imagens ( url_imagem, principal ),
+      roteiro ( id, nome )
     `)
     .eq('owner_id', user.id)
     .order('created_at', { ascending: false });

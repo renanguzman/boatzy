@@ -24,6 +24,9 @@ export default function HeroSection() {
   const [videoSrc, setVideoSrc] = useState<string | null>(null);
 
   useEffect(() => {
+    // Seleção aleatória só no cliente, após a montagem, para evitar mismatch de
+    // hidratação (o SSR renderiza sem o <video>; o cliente escolhe o vídeo aqui).
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setVideoSrc(HERO_VIDEOS[Math.floor(Math.random() * HERO_VIDEOS.length)]);
   }, []);
 

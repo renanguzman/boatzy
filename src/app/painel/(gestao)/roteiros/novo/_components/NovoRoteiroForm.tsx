@@ -316,7 +316,7 @@ export default function NovoRoteiroForm({ estados, embarcacoes, catalogo }: Prop
     e.preventDefault();
     setDragging(false);
     addFiles(e.dataTransfer.files);
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  }, []);  
 
   async function uploadImage(img: ImagePreview, roteiroId: string, isPrincipal: boolean) {
     const body = new FormData();

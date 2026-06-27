@@ -72,6 +72,7 @@ export default async function EmbarcacaoDetalhePage({ params }: { params: Promis
       embarcacao_imagens ( id, url_imagem, titulo, principal )
     `)
     .eq('id', id)
+    .eq('status', 'ativo')
     .single();
 
   if (error || !data) notFound();
