@@ -136,7 +136,11 @@ Visualização:
 #### ✅ Implementado — Página de Resultados de Embarcações `/embarcacoes`
 
 - Espelha a estrutura de `/buscar`, listando embarcações com `status = 'ativo'`.
-- Filtros: município (`municipio_id`), capacidade (`capacidade >= pessoas`), paginação server-side.
+- ✅ **Filtros inteligentes via RPC `buscar_embarcacoes`:**
+  - **Localização:** município exato **ou** dentro de um raio de **50 km** do centro escolhido (município ou ponto "perto de mim"), por distância real (haversine).
+  - **Data:** considera o **calendário de disponibilidade** da embarcação (dias da semana de operação + bloqueios). Com flexibilidade (±N dias), basta um dia livre na janela.
+  - **Pessoas:** `capacidade >= pessoas`.
+  - **Ordenação:** mais próximas primeiro quando há localização; senão, mais recentes. Paginação server-side.
 - `EmbarcacaoCard`: imagem principal, badge de tipo e localidade, capacidade, comprimento, preço base.
 - Detalhe em `/embarcacoes/[id]` (galeria, specs, comodidades, mapa, sidebar de reserva).
 
@@ -145,7 +149,11 @@ Visualização:
 - Barra de busca compacta no topo (reutiliza os mesmos pickers com prop `compact`).
 - Chips de filtros ativos com link de remoção individual.
 - Grid de roteiros (4 colunas responsivo: 1 → 2 → 3 → 4).
-- Paginação server-side via URL (`?pagina=N`), contagem exata via `count: 'exact'`.
+- ✅ **Filtros inteligentes via RPC `buscar_roteiros`:**
+  - **Localização:** município exato **ou** dentro de um raio de **50 km** do centro escolhido, por distância real (haversine).
+  - **Data:** considera o calendário de disponibilidade do roteiro (dias de operação + bloqueios); com flexibilidade, basta um dia livre na janela.
+  - **Pessoas:** verifica a capacidade da **embarcação vinculada** ao roteiro (`capacidade >= pessoas`). Roteiros sem embarcação vinculada não aparecem quando há filtro de pessoas.
+  - **Ordenação:** mais próximos primeiro quando há localização; senão, mais recentes. Paginação server-side.
 - `RoteiroCard`: imagem principal, badge de localidade, meta (pessoas/duração), nome, preço base.
 
 ---
@@ -170,6 +178,7 @@ Exibir:
 - "Itinerário": timeline vertical com gradiente.
 - Reviews: seção placeholder.
 - Sidebar `BookingCard`: seleção de data e pessoas, breakdown de preço com taxa de serviço (12%), total estimado, botão "Solicitar Reserva" → `/reservas/novo`.
+- ✅ O calendário de data do `BookingCard` respeita a **disponibilidade do roteiro**: datas fora dos dias de operação ou bloqueadas pelo gestor aparecem riscadas e não selecionáveis (ver 6.8 → Disponibilidade do roteiro).
 
 #### ✅ Implementado — Modal de Fotos da Embarcação (`EmbarcacaoFotosModal`)
 
@@ -226,6 +235,19 @@ Status:
 - Editar dados
 - Ver reservas
 - Acompanhar ganhos
+
+#### ✅ Implementado — Precificação dinâmica (UI) — roteiros e embarcações
+
+- Seção "Preço" nos forms de cadastro/edição (roteiro **e** embarcação) com preço base + regras (Dias da Semana, Período Anual, Data Específica).
+- ✅ Melhoria de UX no bloco "Como funciona": a explicação da ordem de prioridade foi unificada em **uma única lista numerada (1→4)**, ordenada de cima para baixo pela prioridade real, eliminando a inconsistência anterior (chips e caixas em ordens opostas). Inclui exemplo de desempate.
+- ✅ As abas de "Nova regra" seguem a mesma ordem de prioridade (Data Específica → Período Anual → Dias da Semana).
+
+#### ✅ Implementado — Disponibilidade (roteiros e embarcações)
+
+- Nova seção "Disponibilidade" nos forms de cadastro/edição (roteiro **e** embarcação): o gestor define os **dias da semana** de operação e **bloqueia datas específicas** (exceções) num mini-calendário, via componente compartilhado `DisponibilidadePicker`.
+- Modelo: recorrência semanal + bloqueios; dia inteiro; capacidade exclusiva (1 reserva/dia). Sem dias selecionados = disponível todos os dias (sujeito a bloqueios).
+- **Roteiro:** a disponibilidade é refletida no calendário público de reserva (`BookingCard`).
+- **Embarcação:** disponibilidade cadastrada e persistida; o reflexo público fica como gancho (a página `/embarcacoes/[id]` ainda não tem calendário de reserva). Detalhes técnicos em `SPEC.md` §15-B.
 
 ---
 

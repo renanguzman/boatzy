@@ -24,6 +24,8 @@ export type AtualizarRoteiroPayload = {
   logradouro: string;
   logradouro_numero: string;
   complemento: string;
+  /** Dias da semana em que o roteiro opera (0=Dom..6=Sáb). Vazio = todos os dias. */
+  disponibilidade_dias_semana: number[];
 };
 
 type ActionResult = { ok: boolean; error?: string };
@@ -81,8 +83,36 @@ export async function atualizarRoteiro(
       logradouro:         payload.logradouro.trim() || null,
       logradouro_numero:  payload.logradouro_numero.trim() || null,
       complemento:        payload.complemento.trim() || null,
+      disponibilidade_dias_semana:
+        payload.disponibilidade_dias_semana.length > 0 ? payload.disponibilidade_dias_semana : null,
     })
     .eq('id', roteiroId);
+
+  if (error) return { ok: false, error: error.message };
+  return { ok: true };
+}
+
+// ─── Action: salvar datas bloqueadas (disponibilidade) ───────────────────────
+
+export async function salvarBloqueiosRoteiro(
+  roteiroId: string,
+  datas: string[],
+): Promise<ActionResult> {
+  const result = await getAuthorizedUser(roteiroId);
+  if ('error' in result && result.error) return { ok: false, error: result.error };
+
+  // Substitui o conjunto de bloqueios pelo informado.
+  await supabaseAdmin
+    .from('roteiro_disponibilidade_bloqueio')
+    .delete()
+    .eq('roteiro_id', roteiroId);
+
+  if (datas.length === 0) return { ok: true };
+
+  const rows = datas.map(data => ({ roteiro_id: roteiroId, data }));
+  const { error } = await supabaseAdmin
+    .from('roteiro_disponibilidade_bloqueio')
+    .insert(rows);
 
   if (error) return { ok: false, error: error.message };
   return { ok: true };

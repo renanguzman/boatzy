@@ -24,6 +24,8 @@ export type CriarRoteiroPayload = {
   logradouro: string;
   logradouro_numero: string;
   complemento: string;
+  /** Dias da semana em que o roteiro opera (0=Dom..6=Sáb). Vazio = todos os dias. */
+  disponibilidade_dias_semana: number[];
 };
 
 export type CriarRegraRoteiroPayload = {
@@ -87,6 +89,8 @@ export async function criarRoteiro(
       logradouro:         payload.logradouro.trim() || null,
       logradouro_numero:  payload.logradouro_numero.trim() || null,
       complemento:        payload.complemento.trim() || null,
+      disponibilidade_dias_semana:
+        payload.disponibilidade_dias_semana.length > 0 ? payload.disponibilidade_dias_semana : null,
     })
     .select('id')
     .single();
@@ -187,6 +191,42 @@ export async function salvarCatalogoRoteiro(
   }));
 
   const { error } = await supabaseAdmin.from('roteiro_catalogo').insert(rows);
+  if (error) return { ok: false, error: error.message };
+  return { ok: true };
+}
+
+// ─── Action: salvar datas bloqueadas (disponibilidade) ───────────────────────
+
+export async function salvarBloqueiosRoteiro(
+  roteiroId: string,
+  datas: string[],
+): Promise<{ ok: boolean; error?: string }> {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { ok: false, error: 'Não autenticado.' };
+
+  const { data: roteiro } = await supabaseAdmin
+    .from('roteiro')
+    .select('id')
+    .eq('id', roteiroId)
+    .eq('owner_id', user.id)
+    .single();
+
+  if (!roteiro) return { ok: false, error: 'Roteiro não encontrado ou sem permissão.' };
+
+  // Substitui o conjunto de bloqueios pelo informado.
+  await supabaseAdmin
+    .from('roteiro_disponibilidade_bloqueio')
+    .delete()
+    .eq('roteiro_id', roteiroId);
+
+  if (datas.length === 0) return { ok: true };
+
+  const rows = datas.map(data => ({ roteiro_id: roteiroId, data }));
+  const { error } = await supabaseAdmin
+    .from('roteiro_disponibilidade_bloqueio')
+    .insert(rows);
+
   if (error) return { ok: false, error: error.message };
   return { ok: true };
 }

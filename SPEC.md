@@ -616,6 +616,62 @@ Batch da função anterior. Use na tela de busca do hotsite para resolver preço
 
 ---
 
+## 15-B. Disponibilidade (Roteiro e Embarcação)
+
+Migrations: `supabase/migrations/015_roteiro_disponibilidade.sql` (roteiro) e `supabase/migrations/016_embarcacao_disponibilidade.sql` (embarcação).
+
+O mesmo modelo se aplica a **roteiro** e **embarcação** — as descrições abaixo usam `roteiro` como exemplo; para embarcação, troque `roteiro` por `embarcacao` e `roteiro_disponibilidade_bloqueio` por `embarcacao_disponibilidade_bloqueio` (coluna `embarcacao_id` no lugar de `roteiro_id`).
+
+Modelo escolhido: **recorrência semanal + bloqueio de datas pontuais**, granularidade de **dia inteiro**, capacidade **exclusiva (1 reserva por dia)**.
+
+### Coluna `disponibilidade_dias_semana` em `roteiro` / `embarcacao`
+
+```sql
+disponibilidade_dias_semana smallint[]   -- dias da semana que opera (0=Dom..6=Sáb)
+```
+
+- `NULL` ou vazio = **sem restrição de dia da semana** (disponível todos os dias, sujeito apenas aos bloqueios). Garante retrocompatibilidade com roteiros já cadastrados.
+- Preenchido = o roteiro só fica disponível nos dias da semana listados.
+- A action grava `null` quando o array vem vazio (não persiste `{}`).
+
+### Tabela `roteiro_disponibilidade_bloqueio`
+
+```sql
+id          uuid PK
+roteiro_id  uuid FK → roteiro ON DELETE CASCADE
+data        date NOT NULL          -- data bloqueada (exceção)
+motivo      text                   -- opcional (reservado para uso futuro)
+created_at  timestamptz
+UNIQUE (roteiro_id, data)
+```
+
+RLS: `service_role` total; `public_read` (SELECT liberado); owner pode INSERT/DELETE nos bloqueios dos seus roteiros/embarcações (via `EXISTS` em `roteiro`/`embarcacao` com `owner_id = auth.uid()`).
+
+### Regra de disponibilidade efetiva (frontend)
+
+Uma data está **indisponível** quando:
+1. `disponibilidade_dias_semana` está definido **e** o dia da semana da data **não** está incluído; **ou**
+2. a data consta em `roteiro_disponibilidade_bloqueio`.
+
+> Capacidade exclusiva está modelada no schema, mas o bloqueio automático de datas já reservadas é um gancho futuro — depende da persistência de reservas, ainda não implementada.
+
+### Painel (cadastro/edição)
+
+- Componente compartilhado `src/components/painel/DisponibilidadePicker.tsx`: chips de dias da semana + mini-calendário para marcar/desmarcar bloqueios + lista de datas bloqueadas. Reutilizado por roteiros **e** embarcações (props genéricas: `diasSemana`, `bloqueios` e callbacks).
+- Usado nos forms `NovoRoteiroForm`/`EditarRoteiroForm` e `NovaEmbarcacaoForm`/`EditarEmbarcacaoForm` (seção "Disponibilidade").
+- Server actions:
+  - Roteiro: `criarRoteiro`/`atualizarRoteiro` gravam `disponibilidade_dias_semana`; `salvarBloqueiosRoteiro(roteiroId, datas[])`.
+  - Embarcação: `criarEmbarcacao`/`atualizarEmbarcacao` gravam `disponibilidade_dias_semana`; `salvarBloqueiosEmbarcacao(embarcacaoId, datas[])`.
+  - Ambas substituem o conjunto de bloqueios (delete-all + insert). Datas trafegam como `'yyyy-mm-dd'`.
+
+### Hotsite (calendário público)
+
+- `DatePicker` (`src/components/home/search/DatePicker.tsx`) recebe prop opcional `isDateDisabled?: (date: Date) => boolean`; datas indisponíveis aparecem riscadas e não clicáveis (além das datas passadas).
+- **Roteiro:** `BookingCard` recebe `diasOperacao` e `datasBloqueadas`, monta `isDateDisabled` e repassa ao `DatePicker`. A página `/roteiros/[id]` inclui `disponibilidade_dias_semana` e `roteiro_disponibilidade_bloqueio ( data )` na query.
+- **Embarcação:** a disponibilidade é cadastrada no painel e persistida, mas **ainda não há reflexo público** — a página `/embarcacoes/[id]` não possui calendário de reserva (apenas botão "Solicitar reserva" → login). Gancho para quando essa página ganhar um seletor de data.
+
+---
+
 ## 16. Localização Geográfica (Google Maps)
 
 Migration: `supabase/migrations/010_embarcacao_coordenadas.sql`
@@ -774,11 +830,20 @@ type Props = {
 |-------|------|-----------|
 | `municipio` | number | ID do município filtrado |
 | `local` | string | Label exibido no chip de filtro |
-| `lat` + `lng` | number | Busca por proximidade (futuro) |
+| `lat` + `lng` | number | Centro para busca "perto de mim" (raio 50 km) |
 | `data` | YYYY-MM-DD | Data da busca |
 | `flex` | number | Flexibilidade em dias |
-| `pessoas` | number | Quantidade mínima de pessoas |
+| `pessoas` | number | Tamanho do grupo |
 | `pagina` | number | Página atual (padrão: 1) |
+
+**Filtros aplicados (via RPC `buscar_roteiros` — migration 018):**
+
+Mesma mecânica de `buscar_embarcacoes` (ver §18.6), com **uma diferença no filtro de pessoas**: a capacidade considerada é a da **embarcação vinculada** ao roteiro (`roteiro.embarcacao_id → embarcacao.capacidade >= pessoas`), **não** o campo `roteiro.quantidade_pessoas` (este segue apenas para exibição no card). Roteiros **sem** embarcação vinculada (ou cuja embarcação não tem `capacidade`) **não aparecem** quando o filtro de pessoas está ativo.
+
+- **Localização:** município exato OU ≤ 50 km do centro (haversine), usando `roteiro.latitude/longitude`.
+- **Data:** disponibilidade via `roteiro.disponibilidade_dias_semana` + `roteiro_disponibilidade_bloqueio`; com `flex`, basta um dia livre na janela.
+- **Ordenação:** por distância quando há centro; senão `created_at` desc. A página chama a RPC (ids + total) e busca os detalhes com `.in('id', ids)` preservando a ordem.
+- `GRANT EXECUTE` para `anon, authenticated, service_role`.
 
 **Componentes:**
 - `src/app/buscar/_components/SearchBarCompact.tsx` — barra compacta (`'use client'`), reutiliza pickers com `compact` prop, navega via `router.push()`. Aceita prop `tipo?: 'roteiro' | 'embarcacao'` (padrão `'roteiro'`) e renderiza o `SearchTypeToggle`; alternar a aba preserva os filtros e navega para `/buscar` ou `/embarcacoes`.
@@ -874,19 +939,26 @@ type RoteiroDetalhe = {
 
 **Arquivo:** `src/app/embarcacoes/page.tsx` (Server Component) — espelha `/buscar`.
 
-**Query Supabase:**
+Query params idênticos a `/buscar` (`municipio`, `local`, `lat`, `lng`, `data`, `flex`, `pessoas`, `pagina`).
+
+**Filtros aplicados (via RPC `buscar_embarcacoes` — migration 017):**
+
+A página delega os filtros à função SQL `public.buscar_embarcacoes(...)`, que resolve tudo em uma chamada e retorna os **ids ordenados + total** (para paginação). A página então busca os detalhes (joins) com `.in('id', ids)`, **preservando a ordem** retornada.
+
 ```ts
-supabaseAdmin
-  .from('embarcacao')
-  .select(`id, nome, descricao, capacidade, comprimento, preco_base,
-    embarcacao_tipo ( nome ),
-    municipios ( nome, estados ( uf ) ),
-    embarcacao_imagens ( url_imagem, principal )`, { count: 'exact' })
-  .eq('status', 'ativo')        // somente embarcações ativas no hotsite
-  // + .eq('municipio_id', …) e .gte('capacidade', pessoas) quando aplicável
+const { data: rpcRows } = await supabaseAdmin.rpc('buscar_embarcacoes', {
+  p_municipio_id, p_lat, p_lng, p_raio_km: 50,
+  p_data, p_flex, p_pessoas, p_limit, p_offset,
+});
+// rpcRows: { id, distancia_km, total }[]  (já ordenado por distância → created_at)
 ```
 
-Query params idênticos a `/buscar` (`municipio`, `local`, `lat`, `lng`, `data`, `flex`, `pessoas`, `pagina`).
+Regras da função:
+- **Localização:** centro = `lat/lng` ("perto de mim") ou coordenadas do `municipio_id`. Aparece se `municipio_id` bater **exato** OU se a distância (haversine) ao centro for ≤ **50 km**. Sem centro = sem filtro de local.
+- **Pessoas:** `capacidade >= pessoas`.
+- **Data:** disponível se **algum** dia da janela `data ± flex` tiver o dia da semana em `disponibilidade_dias_semana` (ou ela for `NULL`) **e** não estiver em `embarcacao_disponibilidade_bloqueio`. Sem `data` = sem filtro de disponibilidade.
+- **Ordenação:** por distância (mais próximas primeiro) quando há centro; senão por `created_at` desc. Embarcações sem coordenadas só aparecem pelo match exato de município (ordenadas por último, `NULLS LAST`).
+- `GRANT EXECUTE` para `anon, authenticated, service_role` (busca anônima no hotsite).
 
 **Componente `EmbarcacaoCard`** (`src/app/embarcacoes/_components/EmbarcacaoCard.tsx`, `'use client'`):
 ```ts

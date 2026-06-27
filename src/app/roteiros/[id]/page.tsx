@@ -28,6 +28,7 @@ type RoteiroDetalhe = {
   duracao: string | null;
   quantidade_pessoas: number | null;
   preco_base: number | null;
+  disponibilidade_dias_semana: number[] | null;
   latitude: number | null;
   longitude: number | null;
   cep: string | null;
@@ -53,6 +54,7 @@ type RoteiroDetalhe = {
     valor_customizado: number | null;
     catalogo: { id: string; descricao: string; valor: number; tipo: string } | null;
   }[];
+  roteiro_disponibilidade_bloqueio: { data: string }[];
 };
 
 export default async function RoteiroDetalhePage({ params }: { params: Promise<{ id: string }> }) {
@@ -62,9 +64,11 @@ export default async function RoteiroDetalhePage({ params }: { params: Promise<{
     .from('roteiro')
     .select(`
       id, nome, descricao, origem, destino, duracao, quantidade_pessoas, preco_base,
+      disponibilidade_dias_semana,
       latitude, longitude, cep, bairro, logradouro, logradouro_numero, complemento,
       municipios ( nome, estados ( uf, nome ) ),
       roteiro_imagens ( id, url_imagem, titulo, principal ),
+      roteiro_disponibilidade_bloqueio ( data ),
       embarcacao ( nome, capacidade, comprimento, cabines, tripulacao, modalidade_capitao,
         embarcacao_tipo ( nome ),
         embarcacao_comodidades ( comodidade ( nome ) ),
@@ -360,6 +364,8 @@ export default async function RoteiroDetalhePage({ params }: { params: Promise<{
                 roteiroId={roteiro.id}
                 preco={roteiro.preco_base}
                 capacidade={roteiro.quantidade_pessoas}
+                diasOperacao={roteiro.disponibilidade_dias_semana}
+                datasBloqueadas={roteiro.roteiro_disponibilidade_bloqueio?.map((b) => b.data) ?? []}
               />
             </div>
           </div>

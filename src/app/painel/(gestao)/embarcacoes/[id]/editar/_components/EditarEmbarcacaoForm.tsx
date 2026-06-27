@@ -4,7 +4,7 @@ import { useState, useTransition, useRef, useCallback } from 'react';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import {
-  Info, Ruler, DollarSign, MapPin, ImageIcon, Sparkles,
+  Info, Ruler, DollarSign, MapPin, ImageIcon, Sparkles, CalendarDays,
   Upload, X, Star, Loader2, AlertCircle, CheckCircle,
   ChevronRight, Plus, ChevronDown, ChevronUp, Trash2, HelpCircle,
 } from 'lucide-react';
@@ -14,6 +14,7 @@ import {
   excluirImagem,
   excluirRegra,
   definirPrincipal,
+  salvarBloqueiosEmbarcacao,
   type AtualizarEmbarcacaoPayload,
 } from '../actions';
 import {
@@ -22,6 +23,7 @@ import {
   getMunicipiosByEstado,
 } from '../../../novo/actions';
 import MapaPicker from '../../../novo/_components/MapaPicker';
+import DisponibilidadePicker from '@/components/painel/DisponibilidadePicker';
 import type { EmbarcacaoStatus, ModalidadeCapitao, PrecoRegraTipo } from '@/types/supabase';
 
 // ─── Constantes ───────────────────────────────────────────────────────────────
@@ -41,6 +43,19 @@ const TIPO_CONFIG: Record<PrecoRegraTipo, { label: string; badgeCls: string; dot
   periodo_anual: { label: 'Período Anual',   badgeCls: 'bg-amber-50 text-amber-700 border-amber-200',   dot: 'bg-amber-500'  },
   data_fixa:     { label: 'Data Específica', badgeCls: 'bg-violet-50 text-violet-700 border-violet-200', dot: 'bg-violet-500' },
 };
+
+// Níveis de precificação em ORDEM DE PRIORIDADE (maior → menor). Esta é a única
+// fonte de verdade da ordem exibida nas instruções — evita inversões visuais.
+const PRECO_NIVEIS = [
+  { nivel: 1, emoji: '📌', titulo: 'Data Específica',  desc: 'Intervalo único, sem repetição. Ex: Réveillon 29/12 → 02/01 = ', exemplo: 'R$ 3.000',
+    cardCls: 'border-violet-200 bg-violet-50/70', tituloCls: 'text-violet-700', descCls: 'text-violet-600', numCls: 'bg-violet-600' },
+  { nivel: 2, emoji: '☀️', titulo: 'Período Anual',   desc: 'Intervalo que repete todo ano. Ex: Verão 01/Dez → 28/Fev = ',    exemplo: 'R$ 2.000',
+    cardCls: 'border-amber-200 bg-amber-50/70',  tituloCls: 'text-amber-700',  descCls: 'text-amber-600',  numCls: 'bg-amber-500' },
+  { nivel: 3, emoji: '🗓', titulo: 'Dias da Semana',   desc: 'Recorrente toda semana. Ex: todo Sábado e Domingo = ',           exemplo: 'R$ 1.500',
+    cardCls: 'border-blue-200 bg-blue-50/70',    tituloCls: 'text-blue-700',   descCls: 'text-blue-600',   numCls: 'bg-blue-500' },
+  { nivel: 4, emoji: '🏷️', titulo: 'Preço Base',       desc: 'Padrão aplicado quando nenhuma regra acima vale para a data.',   exemplo: '',
+    cardCls: 'border-slate-200 bg-white',        tituloCls: 'text-slate-600',  descCls: 'text-slate-400',  numCls: 'bg-slate-400' },
+] as const;
 
 // ─── Tipos locais ─────────────────────────────────────────────────────────────
 
@@ -82,6 +97,7 @@ type EmbarcacaoData = {
   cabines: number | null; quartos: number | null; suites: number | null;
   banheiros: number | null; tripulacao: number | null;
   preco_base: number | null;
+  disponibilidade_dias_semana: number[] | null;
   municipio_id: number | null; estado_id: number | null;
   latitude: number | null; longitude: number | null;
   cep: string | null; bairro: string | null; logradouro: string | null;
@@ -102,6 +118,7 @@ type Props = {
   municipiosIniciais: Municipio[];
   comodidades: Comodidade[];
   comodidadesIniciais: string[];
+  bloqueiosIniciais: string[];
 };
 
 // ─── Helpers de UI ────────────────────────────────────────────────────────────
@@ -181,7 +198,7 @@ const emptyNewRegra = (): Omit<NewRegra, 'localId'> => ({
 
 export default function EditarEmbarcacaoForm({
   embarcacao, tipos, categorias, estados, municipiosIniciais,
-  comodidades, comodidadesIniciais,
+  comodidades, comodidadesIniciais, bloqueiosIniciais,
 }: Props) {
   const router = useRouter();
   const [, startTransition] = useTransition();
@@ -189,7 +206,7 @@ export default function EditarEmbarcacaoForm({
   const numeroInputRef = useRef<HTMLInputElement>(null);
 
   // ── Form base ──────────────────────────────────────────────────────────────
-  const [form, setForm] = useState<Omit<AtualizarEmbarcacaoPayload, 'municipio_id'> & {
+  const [form, setForm] = useState<Omit<AtualizarEmbarcacaoPayload, 'municipio_id' | 'disponibilidade_dias_semana'> & {
     municipio_id: string; estado_id: string;
   }>({
     nome:        embarcacao.nome,
@@ -261,6 +278,10 @@ export default function EditarEmbarcacaoForm({
   const [showRegraForm, setShowRegraForm]     = useState(false);
   const [showInstrucoes, setShowInstrucoes]   = useState(false);
   const [rf, setRf]                           = useState(emptyNewRegra());
+
+  // ── Disponibilidade ─────────────────────────────────────────────────────────
+  const [diasOperacao, setDiasOperacao] = useState<number[]>(embarcacao.disponibilidade_dias_semana ?? []);
+  const [bloqueios, setBloqueios]       = useState<string[]>(bloqueiosIniciais);
 
   // ── Feedback ───────────────────────────────────────────────────────────────
   const [feedback,   setFeedback]   = useState<{ type: 'error' | 'success'; msg: string } | null>(null);
@@ -456,6 +477,7 @@ export default function EditarEmbarcacaoForm({
       latitude: form.latitude, longitude: form.longitude,
       cep: form.cep, bairro: form.bairro, logradouro: form.logradouro,
       logradouro_numero: form.logradouro_numero, complemento: form.complemento,
+      disponibilidade_dias_semana: diasOperacao,
     });
 
     if (!result.ok) {
@@ -466,6 +488,9 @@ export default function EditarEmbarcacaoForm({
 
     // 2. Atualizar comodidades
     await atualizarComodidades(embarcacao.id, comodidadesSelecionadas);
+
+    // Substituir o conjunto de datas bloqueadas
+    await salvarBloqueiosEmbarcacao(embarcacao.id, bloqueios);
 
     // 3. Excluir imagens marcadas
     for (const img of existingImages.filter(i => i.markedForDelete)) {
@@ -662,19 +687,28 @@ export default function EditarEmbarcacaoForm({
         </button>
 
         {showInstrucoes && (
-          <div className="mb-6 rounded-xl border border-slate-100 bg-slate-50/60 p-5 space-y-4">
-            <div>
-              <p className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Ordem de prioridade (maior → menor)</p>
-              <div className="flex items-center gap-2 flex-wrap text-xs font-semibold">
-                <span className="px-2.5 py-1 rounded-full bg-violet-50 text-violet-700 border border-violet-200">Data Específica</span>
-                <ChevronRight className="w-3 h-3 text-slate-400" />
-                <span className="px-2.5 py-1 rounded-full bg-amber-50 text-amber-700 border border-amber-200">Período Anual</span>
-                <ChevronRight className="w-3 h-3 text-slate-400" />
-                <span className="px-2.5 py-1 rounded-full bg-blue-50 text-blue-700 border border-blue-200">Dias da Semana</span>
-                <ChevronRight className="w-3 h-3 text-slate-400" />
-                <span className="px-2.5 py-1 rounded-full bg-slate-100 text-slate-600">Preço Base</span>
-              </div>
-            </div>
+          <div className="mb-6 rounded-xl border border-slate-100 bg-slate-50/60 p-5">
+            <p className="text-sm text-slate-600 leading-relaxed">
+              Para cada data, o sistema aplica <strong>a primeira regra que se encaixa</strong>, seguindo esta ordem — do mais específico (nº&nbsp;1) ao mais geral (nº&nbsp;4):
+            </p>
+            <ol className="mt-4 space-y-2">
+              {PRECO_NIVEIS.map(n => (
+                <li key={n.nivel} className={`flex items-start gap-3 rounded-xl border p-3 ${n.cardCls}`}>
+                  <span className={`flex-shrink-0 w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold text-white ${n.numCls}`}>
+                    {n.nivel}
+                  </span>
+                  <div className="flex-1 min-w-0">
+                    <p className={`text-xs font-bold ${n.tituloCls}`}>{n.emoji} {n.titulo}</p>
+                    <p className={`text-xs leading-relaxed ${n.descCls}`}>
+                      {n.desc}{n.exemplo && <strong>{n.exemplo}</strong>}
+                    </p>
+                  </div>
+                </li>
+              ))}
+            </ol>
+            <p className="mt-4 text-xs text-slate-500 leading-relaxed bg-slate-100/70 rounded-lg p-3">
+              💡 Quando mais de uma regra cai na mesma data, vence a de <strong>menor número</strong>. Ex: 31/12 é domingo, está no verão <em>e</em> é Réveillon — o sistema cobra os <strong>R$ 3.000</strong> da Data Específica (nº&nbsp;1).
+            </p>
           </div>
         )}
 
@@ -769,7 +803,7 @@ export default function EditarEmbarcacaoForm({
           <div className="rounded-xl border border-slate-200 bg-slate-50/40 p-5 space-y-4">
             <p className="text-sm font-bold text-[#0B2447]">Nova regra</p>
             <div className="flex gap-1 bg-slate-100 rounded-xl p-1">
-              {(['dia_semana','periodo_anual','data_fixa'] as PrecoRegraTipo[]).map(t => (
+              {(['data_fixa','periodo_anual','dia_semana'] as PrecoRegraTipo[]).map(t => (
                 <button key={t} type="button" onClick={() => setRfField('tipo', t)}
                   className={`flex-1 text-xs font-semibold py-2 rounded-lg transition-all ${
                     rf.tipo === t ? 'bg-white text-[#0B2447] shadow-sm' : 'text-slate-500 hover:text-slate-700'
@@ -867,7 +901,20 @@ export default function EditarEmbarcacaoForm({
         )}
       </SectionCard>
 
-      {/* ── 5. Localização ────────────────────────────────────────────────── */}
+      {/* ── 5. Disponibilidade ────────────────────────────────────────────── */}
+      <SectionCard icon={CalendarDays} title="Disponibilidade">
+        <p className="text-xs text-slate-400 mb-5">
+          Defina os dias da semana em que a embarcação opera e bloqueie datas específicas em que ela não estará disponível para reserva.
+        </p>
+        <DisponibilidadePicker
+          diasSemana={diasOperacao}
+          onDiasSemanaChange={setDiasOperacao}
+          bloqueios={bloqueios}
+          onBloqueiosChange={setBloqueios}
+        />
+      </SectionCard>
+
+      {/* ── 6. Localização ────────────────────────────────────────────────── */}
       <SectionCard icon={MapPin} title="Localização">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
           <div className="md:col-span-2">

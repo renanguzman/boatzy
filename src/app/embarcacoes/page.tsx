@@ -41,38 +41,53 @@ function getPageNumbers(current: number, total: number): (number | '…')[] {
 export default async function EmbarcacoesPage({ searchParams }: { searchParams: Promise<SearchParams> }) {
   const params = await searchParams;
 
+  const RAIO_KM = 50;
+
   const municipioId = params.municipio ? parseInt(params.municipio) : null;
+  const lat = params.lat ? parseFloat(params.lat) : null;
+  const lng = params.lng ? parseFloat(params.lng) : null;
   const pessoas = params.pessoas ? parseInt(params.pessoas) : 0;
   const pagina = params.pagina ? Math.max(1, parseInt(params.pagina)) : 1;
   const flex = params.flex ? parseInt(params.flex) : 0;
   const from = (pagina - 1) * POR_PAGINA;
 
-  // Build query — apenas embarcações ativas aparecem no hotsite.
-  let query = supabaseAdmin
-    .from('embarcacao')
-    .select(
-      `id, nome, descricao, capacidade, comprimento, preco_base,
-       embarcacao_tipo ( nome ),
-       municipios ( nome, estados ( uf ) ),
-       embarcacao_imagens ( url_imagem, principal )`,
-      { count: 'exact' },
-    )
-    .eq('status', 'ativo');
+  // Resolve filtros (localização/raio + disponibilidade na data + pessoas) e
+  // ordenação por proximidade no banco, retornando ids ordenados + total.
+  const { data: rpcRows } = await supabaseAdmin.rpc('buscar_embarcacoes', {
+    p_municipio_id: municipioId,
+    p_lat: lat,
+    p_lng: lng,
+    p_raio_km: RAIO_KM,
+    p_data: params.data ?? null,
+    p_flex: flex,
+    p_pessoas: pessoas,
+    p_limit: POR_PAGINA,
+    p_offset: from,
+  });
 
-  if (municipioId) {
-    query = query.eq('municipio_id', municipioId);
+  const rows = rpcRows ?? [];
+  const total = rows.length > 0 ? Number(rows[0].total) : 0;
+  const ids = rows.map((r) => r.id);
+
+  // Busca os detalhes (com joins) preservando a ordem retornada pela RPC.
+  let embarcacoes: EmbarcacaoCardData[] = [];
+  if (ids.length > 0) {
+    const { data: detalhes } = await supabaseAdmin
+      .from('embarcacao')
+      .select(
+        `id, nome, descricao, capacidade, comprimento, preco_base,
+         embarcacao_tipo ( nome ),
+         municipios ( nome, estados ( uf ) ),
+         embarcacao_imagens ( url_imagem, principal )`,
+      )
+      .in('id', ids);
+
+    const byId = new Map((detalhes ?? []).map((d) => [d.id, d]));
+    embarcacoes = ids
+      .map((id) => byId.get(id))
+      .filter((d): d is NonNullable<typeof d> => d != null) as unknown as EmbarcacaoCardData[];
   }
 
-  if (pessoas > 0) {
-    query = query.gte('capacidade', pessoas);
-  }
-
-  const { data, count } = await query
-    .order('created_at', { ascending: false })
-    .range(from, from + POR_PAGINA - 1);
-
-  const embarcacoes = (data ?? []) as unknown as EmbarcacaoCardData[];
-  const total = count ?? 0;
   const totalPaginas = Math.max(1, Math.ceil(total / POR_PAGINA));
 
   // Resolve municipio name for initial state

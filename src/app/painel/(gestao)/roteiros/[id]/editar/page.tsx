@@ -22,10 +22,11 @@ export default async function EditarRoteiroPage({
     { data: embarcacoes },
     { data: catalogo },
     { data: catalogoVinculado },
+    { data: bloqueios },
   ] = await Promise.all([
     supabaseAdmin
       .from('roteiro')
-      .select('id, embarcacao_id, nome, descricao, duracao, quantidade_pessoas, origem, destino, municipio_id, cep, bairro, logradouro, logradouro_numero, complemento, latitude, longitude, preco_base')
+      .select('id, embarcacao_id, nome, descricao, duracao, quantidade_pessoas, origem, destino, municipio_id, cep, bairro, logradouro, logradouro_numero, complemento, latitude, longitude, preco_base, disponibilidade_dias_semana')
       .eq('id', id)
       .eq('owner_id', user.id)
       .single(),
@@ -55,6 +56,11 @@ export default async function EditarRoteiroPage({
       .from('roteiro_catalogo')
       .select('catalogo_id, valor_customizado')
       .eq('roteiro_id', id),
+    supabaseAdmin
+      .from('roteiro_disponibilidade_bloqueio')
+      .select('data')
+      .eq('roteiro_id', id)
+      .order('data'),
   ]);
 
   if (!roteiro) notFound();
@@ -111,6 +117,7 @@ export default async function EditarRoteiroPage({
           catalogoId: c.catalogo_id,
           valorCustomizado: c.valor_customizado != null ? String(c.valor_customizado) : '',
         }))}
+        bloqueiosIniciais={(bloqueios ?? []).map(b => b.data)}
       />
     </div>
   );

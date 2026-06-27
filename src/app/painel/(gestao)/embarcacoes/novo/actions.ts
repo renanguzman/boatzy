@@ -32,6 +32,8 @@ export type CriarEmbarcacaoPayload = {
   logradouro: string;
   logradouro_numero: string;
   complemento: string;
+  /** Dias da semana em que a embarcação opera (0=Dom..6=Sáb). Vazio = todos os dias. */
+  disponibilidade_dias_semana: number[];
 };
 
 export type CriarEmbarcacaoResult =
@@ -89,6 +91,8 @@ export async function criarEmbarcacao(
       logradouro: payload.logradouro.trim() || null,
       logradouro_numero: payload.logradouro_numero.trim() || null,
       complemento: payload.complemento.trim() || null,
+      disponibilidade_dias_semana:
+        payload.disponibilidade_dias_semana.length > 0 ? payload.disponibilidade_dias_semana : null,
     })
     .select('id')
     .single();
@@ -179,6 +183,44 @@ export async function criarRegra(
     data_inicio: payload.dataInicio ?? null,
     data_fim: payload.dataFim ?? null,
   });
+
+  if (error) return { ok: false, error: error.message };
+  return { ok: true };
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Action: salvar datas bloqueadas (disponibilidade)
+// ─────────────────────────────────────────────────────────────────────────────
+
+export async function salvarBloqueiosEmbarcacao(
+  embarcacaoId: string,
+  datas: string[],
+): Promise<{ ok: boolean; error?: string }> {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { ok: false, error: 'Não autenticado.' };
+
+  const { data: embarcacao } = await supabaseAdmin
+    .from('embarcacao')
+    .select('id')
+    .eq('id', embarcacaoId)
+    .eq('owner_id', user.id)
+    .single();
+
+  if (!embarcacao) return { ok: false, error: 'Embarcação não encontrada ou sem permissão.' };
+
+  // Substitui o conjunto de bloqueios pelo informado.
+  await supabaseAdmin
+    .from('embarcacao_disponibilidade_bloqueio')
+    .delete()
+    .eq('embarcacao_id', embarcacaoId);
+
+  if (datas.length === 0) return { ok: true };
+
+  const rows = datas.map(data => ({ embarcacao_id: embarcacaoId, data }));
+  const { error } = await supabaseAdmin
+    .from('embarcacao_disponibilidade_bloqueio')
+    .insert(rows);
 
   if (error) return { ok: false, error: error.message };
   return { ok: true };

@@ -15,6 +15,8 @@ type Props = {
   onOpen: () => void;
   onClose: () => void;
   compact?: boolean;
+  /** Datas para as quais retornar `true` ficam desabilitadas (além das datas passadas). */
+  isDateDisabled?: (date: Date) => boolean;
 };
 
 const MESES = [
@@ -69,9 +71,10 @@ type MonthCalendarProps = {
   flexibility: DateValue['flexibility'];
   today: Date;
   onSelect: (date: Date) => void;
+  isDateDisabled?: (date: Date) => boolean;
 };
 
-function MonthCalendar({ year, month, selected, flexibility, today, onSelect }: MonthCalendarProps) {
+function MonthCalendar({ year, month, selected, flexibility, today, onSelect, isDateDisabled }: MonthCalendarProps) {
   const daysInMonth = getDaysInMonth(year, month);
   const firstDay = getFirstDayOfWeek(year, month);
   const cells: (Date | null)[] = [];
@@ -94,6 +97,8 @@ function MonthCalendar({ year, month, selected, flexibility, today, onSelect }: 
           if (!date) return <div key={`e-${i}`} />;
 
           const isPast = date < today && !isSameDay(date, today);
+          const isUnavailable = isDateDisabled ? isDateDisabled(date) : false;
+          const isDisabled = isPast || isUnavailable;
           const isSelected = selected ? isSameDay(date, selected) : false;
           const inRange = selected ? isInRange(date, selected, flexibility) : false;
 
@@ -101,12 +106,15 @@ function MonthCalendar({ year, month, selected, flexibility, today, onSelect }: 
             <button
               key={date.getDate()}
               type="button"
-              disabled={isPast}
-              onClick={() => !isPast && onSelect(date)}
+              disabled={isDisabled}
+              onClick={() => !isDisabled && onSelect(date)}
+              title={isUnavailable && !isPast ? 'Indisponível para este roteiro' : undefined}
               className={[
                 'h-9 w-full rounded-full text-sm transition-colors flex items-center justify-center',
                 isPast
                   ? 'text-slate-300 cursor-default'
+                  : isUnavailable
+                  ? 'text-slate-300 line-through cursor-default'
                   : isSelected
                   ? 'bg-[#0B3D91] text-white font-semibold shadow'
                   : inRange
@@ -123,7 +131,7 @@ function MonthCalendar({ year, month, selected, flexibility, today, onSelect }: 
   );
 }
 
-export default function DatePicker({ value, onChange, isOpen, onOpen, onClose, compact }: Props) {
+export default function DatePicker({ value, onChange, isOpen, onOpen, onClose, compact, isDateDisabled }: Props) {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
 
@@ -245,6 +253,7 @@ export default function DatePicker({ value, onChange, isOpen, onOpen, onClose, c
               flexibility={tempFlex}
               today={today}
               onSelect={handleSelectDay}
+              isDateDisabled={isDateDisabled}
             />
             <div className="w-px bg-slate-100 shrink-0" />
             <MonthCalendar
@@ -254,6 +263,7 @@ export default function DatePicker({ value, onChange, isOpen, onOpen, onClose, c
               flexibility={tempFlex}
               today={today}
               onSelect={handleSelectDay}
+              isDateDisabled={isDateDisabled}
             />
           </div>
 

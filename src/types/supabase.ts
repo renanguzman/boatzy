@@ -170,6 +170,7 @@ export type Database = {
           status: EmbarcacaoStatus;
           modalidade_capitao: ModalidadeCapitao;
           preco_base: number | null;
+          disponibilidade_dias_semana: number[] | null;
           created_at: string;
           updated_at: string;
           data_criacao: string;
@@ -199,6 +200,7 @@ export type Database = {
           status?: EmbarcacaoStatus;
           modalidade_capitao?: ModalidadeCapitao;
           preco_base?: number | null;
+          disponibilidade_dias_semana?: number[] | null;
           created_at?: string;
           updated_at?: string;
           data_criacao?: string;
@@ -228,8 +230,33 @@ export type Database = {
           status?: EmbarcacaoStatus;
           modalidade_capitao?: ModalidadeCapitao;
           preco_base?: number | null;
+          disponibilidade_dias_semana?: number[] | null;
           updated_at?: string;
           data_criacao?: string;
+        };
+        Relationships: [];
+      };
+      embarcacao_disponibilidade_bloqueio: {
+        Row: {
+          id: string;
+          embarcacao_id: string;
+          data: string;
+          motivo: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          embarcacao_id: string;
+          data: string;
+          motivo?: string | null;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          embarcacao_id?: string;
+          data?: string;
+          motivo?: string | null;
+          created_at?: string;
         };
         Relationships: [];
       };
@@ -348,6 +375,7 @@ export type Database = {
           latitude: number | null;
           longitude: number | null;
           preco_base: number | null;
+          disponibilidade_dias_semana: number[] | null;
           created_at: string;
           updated_at: string;
         };
@@ -370,6 +398,7 @@ export type Database = {
           latitude?: number | null;
           longitude?: number | null;
           preco_base?: number | null;
+          disponibilidade_dias_semana?: number[] | null;
           created_at?: string;
           updated_at?: string;
         };
@@ -392,7 +421,32 @@ export type Database = {
           latitude?: number | null;
           longitude?: number | null;
           preco_base?: number | null;
+          disponibilidade_dias_semana?: number[] | null;
           updated_at?: string;
+        };
+        Relationships: [];
+      };
+      roteiro_disponibilidade_bloqueio: {
+        Row: {
+          id: string;
+          roteiro_id: string;
+          data: string;
+          motivo: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          roteiro_id: string;
+          data: string;
+          motivo?: string | null;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          roteiro_id?: string;
+          data?: string;
+          motivo?: string | null;
+          created_at?: string;
         };
         Relationships: [];
       };
@@ -561,7 +615,36 @@ export type Database = {
       };
     };
     Views: Record<string, never>;
-    Functions: Record<string, never>;
+    Functions: {
+      buscar_embarcacoes: {
+        Args: {
+          p_municipio_id?: number | null;
+          p_lat?: number | null;
+          p_lng?: number | null;
+          p_raio_km?: number | null;
+          p_data?: string | null;
+          p_flex?: number | null;
+          p_pessoas?: number | null;
+          p_limit?: number | null;
+          p_offset?: number | null;
+        };
+        Returns: { id: string; distancia_km: number | null; total: number }[];
+      };
+      buscar_roteiros: {
+        Args: {
+          p_municipio_id?: number | null;
+          p_lat?: number | null;
+          p_lng?: number | null;
+          p_raio_km?: number | null;
+          p_data?: string | null;
+          p_flex?: number | null;
+          p_pessoas?: number | null;
+          p_limit?: number | null;
+          p_offset?: number | null;
+        };
+        Returns: { id: string; distancia_km: number | null; total: number }[];
+      };
+    };
     Enums: {
       user_role: UserRole;
       embarcacao_status: EmbarcacaoStatus;

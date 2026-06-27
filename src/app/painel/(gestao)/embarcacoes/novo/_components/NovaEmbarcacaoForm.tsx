@@ -4,7 +4,7 @@ import { useState, useTransition, useRef, useCallback } from 'react';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import {
-  Info, Ruler, DollarSign, MapPin, ImageIcon,
+  Info, Ruler, DollarSign, MapPin, ImageIcon, CalendarDays,
   Upload, X, Star, Loader2, AlertCircle, CheckCircle,
   ChevronRight, Plus, ChevronDown, ChevronUp, Trash2, HelpCircle, Sparkles,
 } from 'lucide-react';
@@ -13,10 +13,12 @@ import {
   criarRegra,
   salvarImagem,
   salvarComodidades,
+  salvarBloqueiosEmbarcacao,
   getMunicipiosByEstado,
   type CriarEmbarcacaoPayload,
 } from '../actions';
 import MapaPicker from './MapaPicker';
+import DisponibilidadePicker from '@/components/painel/DisponibilidadePicker';
 import type { EmbarcacaoStatus, ModalidadeCapitao, PrecoRegraTipo } from '@/types/supabase';
 
 // ─── Constantes ───────────────────────────────────────────────────────────────
@@ -36,6 +38,19 @@ const TIPO_CONFIG: Record<PrecoRegraTipo, { label: string; badgeCls: string; dot
   periodo_anual: { label: 'Período Anual',   badgeCls: 'bg-amber-50 text-amber-700 border-amber-200',  dot: 'bg-amber-500'  },
   data_fixa:     { label: 'Data Específica', badgeCls: 'bg-violet-50 text-violet-700 border-violet-200', dot: 'bg-violet-500' },
 };
+
+// Níveis de precificação em ORDEM DE PRIORIDADE (maior → menor). Esta é a única
+// fonte de verdade da ordem exibida nas instruções — evita inversões visuais.
+const PRECO_NIVEIS = [
+  { nivel: 1, emoji: '📌', titulo: 'Data Específica',  desc: 'Intervalo único, sem repetição. Ex: Réveillon 29/12 → 02/01 = ', exemplo: 'R$ 3.000',
+    cardCls: 'border-violet-200 bg-violet-50/70', tituloCls: 'text-violet-700', descCls: 'text-violet-600', numCls: 'bg-violet-600' },
+  { nivel: 2, emoji: '☀️', titulo: 'Período Anual',   desc: 'Intervalo que repete todo ano. Ex: Verão 01/Dez → 28/Fev = ',    exemplo: 'R$ 2.000',
+    cardCls: 'border-amber-200 bg-amber-50/70',  tituloCls: 'text-amber-700',  descCls: 'text-amber-600',  numCls: 'bg-amber-500' },
+  { nivel: 3, emoji: '🗓', titulo: 'Dias da Semana',   desc: 'Recorrente toda semana. Ex: todo Sábado e Domingo = ',           exemplo: 'R$ 1.500',
+    cardCls: 'border-blue-200 bg-blue-50/70',    tituloCls: 'text-blue-700',   descCls: 'text-blue-600',   numCls: 'bg-blue-500' },
+  { nivel: 4, emoji: '🏷️', titulo: 'Preço Base',       desc: 'Padrão aplicado quando nenhuma regra acima vale para a data.',   exemplo: '',
+    cardCls: 'border-slate-200 bg-white',        tituloCls: 'text-slate-600',  descCls: 'text-slate-400',  numCls: 'bg-slate-400' },
+] as const;
 
 // ─── Tipos ────────────────────────────────────────────────────────────────────
 
@@ -137,7 +152,7 @@ export default function NovaEmbarcacaoForm({ tipos, categorias, estados, comodid
   const numeroInputRef = useRef<HTMLInputElement>(null);
 
   // ── Form base ────────────────────────────────────────────────────────────
-  const [form, setForm] = useState<Omit<CriarEmbarcacaoPayload, 'municipio_id'> & {
+  const [form, setForm] = useState<Omit<CriarEmbarcacaoPayload, 'municipio_id' | 'disponibilidade_dias_semana'> & {
     municipio_id: string; estado_id: string;
   }>({
     nome: '', descricao: '',
@@ -164,6 +179,10 @@ export default function NovaEmbarcacaoForm({ tipos, categorias, estados, comodid
   const [showRegraForm, setShowRegraForm]         = useState(false);
   const [showInstrucoes, setShowInstrucoes]       = useState(false);
   const [rf, setRf]                               = useState(emptyRegra());
+
+  // ── Disponibilidade ──────────────────────────────────────────────────────
+  const [diasOperacao, setDiasOperacao] = useState<number[]>([]);
+  const [bloqueios, setBloqueios]       = useState<string[]>([]);
 
   // ── Comodidades ──────────────────────────────────────────────────────────
   const [comodidadesSelecionadas, setComodidadesSelecionadas] = useState<string[]>([]);
@@ -376,6 +395,7 @@ export default function NovaEmbarcacaoForm({ tipos, categorias, estados, comodid
       latitude: form.latitude, longitude: form.longitude,
       cep: form.cep, bairro: form.bairro, logradouro: form.logradouro,
       logradouro_numero: form.logradouro_numero, complemento: form.complemento,
+      disponibilidade_dias_semana: diasOperacao,
     });
 
     if (!result.ok) {
@@ -385,6 +405,11 @@ export default function NovaEmbarcacaoForm({ tipos, categorias, estados, comodid
     }
 
     const { embarcacaoId } = result;
+
+    // Salvar datas bloqueadas (exceções de disponibilidade)
+    if (bloqueios.length > 0) {
+      await salvarBloqueiosEmbarcacao(embarcacaoId, bloqueios);
+    }
 
     // 2. Criar regras de preço dinâmico
     for (const regra of regras) {
@@ -574,48 +599,27 @@ export default function NovaEmbarcacaoForm({ tipos, categorias, estados, comodid
         </button>
 
         {showInstrucoes && (
-          <div className="mb-6 rounded-xl border border-slate-100 bg-slate-50/60 p-5 space-y-4">
-            {/* Prioridade */}
-            <div>
-              <p className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Ordem de prioridade (maior → menor)</p>
-              <div className="flex items-center gap-2 flex-wrap text-xs font-semibold">
-                <span className="px-2.5 py-1 rounded-full bg-violet-50 text-violet-700 border border-violet-200">Data Específica</span>
-                <ChevronRight className="w-3 h-3 text-slate-400" />
-                <span className="px-2.5 py-1 rounded-full bg-amber-50 text-amber-700 border border-amber-200">Período Anual</span>
-                <ChevronRight className="w-3 h-3 text-slate-400" />
-                <span className="px-2.5 py-1 rounded-full bg-blue-50 text-blue-700 border border-blue-200">Dias da Semana</span>
-                <ChevronRight className="w-3 h-3 text-slate-400" />
-                <span className="px-2.5 py-1 rounded-full bg-slate-100 text-slate-600">Preço Base</span>
-              </div>
-            </div>
-
-            {/* Tipos */}
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-1">
-              <div className="rounded-lg bg-blue-50 border border-blue-100 p-3">
-                <p className="text-xs font-bold text-blue-700 mb-1">🗓 Dias da Semana</p>
-                <p className="text-xs text-blue-600 leading-relaxed">
-                  Recorrente toda semana. Ex: Sábado e Domingo → <strong>R$ 1.500</strong>.
-                  Perfeito para tarifas de fim de semana.
-                </p>
-              </div>
-              <div className="rounded-lg bg-amber-50 border border-amber-100 p-3">
-                <p className="text-xs font-bold text-amber-700 mb-1">☀️ Período Anual</p>
-                <p className="text-xs text-amber-600 leading-relaxed">
-                  Repete todo ano. Ex: 01/Dez → 28/Fev (Verão) → <strong>R$ 2.000</strong>.
-                  Suporta períodos que cruzam o ano.
-                </p>
-              </div>
-              <div className="rounded-lg bg-violet-50 border border-violet-100 p-3">
-                <p className="text-xs font-bold text-violet-700 mb-1">📌 Data Específica</p>
-                <p className="text-xs text-violet-600 leading-relaxed">
-                  Intervalo único. Ex: 29/12 → 02/01 (Réveillon) → <strong>R$ 3.000</strong>.
-                  Tem prioridade máxima sobre as outras regras.
-                </p>
-              </div>
-            </div>
-
-            <p className="text-xs text-slate-400 pt-1">
-              💡 Se uma data se encaixar em mais de uma regra do mesmo tipo, prevalece a de maior prioridade (configurável ao editar a regra depois do cadastro).
+          <div className="mb-6 rounded-xl border border-slate-100 bg-slate-50/60 p-5">
+            <p className="text-sm text-slate-600 leading-relaxed">
+              Para cada data, o sistema aplica <strong>a primeira regra que se encaixa</strong>, seguindo esta ordem — do mais específico (nº&nbsp;1) ao mais geral (nº&nbsp;4):
+            </p>
+            <ol className="mt-4 space-y-2">
+              {PRECO_NIVEIS.map(n => (
+                <li key={n.nivel} className={`flex items-start gap-3 rounded-xl border p-3 ${n.cardCls}`}>
+                  <span className={`flex-shrink-0 w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold text-white ${n.numCls}`}>
+                    {n.nivel}
+                  </span>
+                  <div className="flex-1 min-w-0">
+                    <p className={`text-xs font-bold ${n.tituloCls}`}>{n.emoji} {n.titulo}</p>
+                    <p className={`text-xs leading-relaxed ${n.descCls}`}>
+                      {n.desc}{n.exemplo && <strong>{n.exemplo}</strong>}
+                    </p>
+                  </div>
+                </li>
+              ))}
+            </ol>
+            <p className="mt-4 text-xs text-slate-500 leading-relaxed bg-slate-100/70 rounded-lg p-3">
+              💡 Quando mais de uma regra cai na mesma data, vence a de <strong>menor número</strong>. Ex: 31/12 é domingo, está no verão <em>e</em> é Réveillon — o sistema cobra os <strong>R$ 3.000</strong> da Data Específica (nº&nbsp;1).
             </p>
           </div>
         )}
@@ -667,7 +671,7 @@ export default function NovaEmbarcacaoForm({ tipos, categorias, estados, comodid
 
             {/* Tipo — tabs */}
             <div className="flex gap-1 bg-slate-100 rounded-xl p-1">
-              {(['dia_semana','periodo_anual','data_fixa'] as PrecoRegraTipo[]).map(t => (
+              {(['data_fixa','periodo_anual','dia_semana'] as PrecoRegraTipo[]).map(t => (
                 <button key={t} type="button" onClick={() => setRfField('tipo', t)}
                   className={`flex-1 text-xs font-semibold py-2 rounded-lg transition-all ${
                     rf.tipo === t
@@ -801,7 +805,20 @@ export default function NovaEmbarcacaoForm({ tipos, categorias, estados, comodid
         )}
       </SectionCard>
 
-      {/* ── 4. Localização ──────────────────────────────────────────────── */}
+      {/* ── 4. Disponibilidade ──────────────────────────────────────────── */}
+      <SectionCard icon={CalendarDays} title="Disponibilidade">
+        <p className="text-xs text-slate-400 mb-5">
+          Defina os dias da semana em que a embarcação opera e bloqueie datas específicas em que ela não estará disponível para reserva.
+        </p>
+        <DisponibilidadePicker
+          diasSemana={diasOperacao}
+          onDiasSemanaChange={setDiasOperacao}
+          bloqueios={bloqueios}
+          onBloqueiosChange={setBloqueios}
+        />
+      </SectionCard>
+
+      {/* ── 5. Localização ──────────────────────────────────────────────── */}
       <SectionCard icon={MapPin} title="Localização">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
 

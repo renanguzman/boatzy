@@ -13,11 +13,19 @@ type Props = {
   roteiroId: string;
   preco: number | null;
   capacidade: number | null;
+  /** Dias da semana em que o roteiro opera (0=Dom..6=Sáb). Vazio/null = todos os dias. */
+  diasOperacao?: number[] | null;
+  /** Datas bloqueadas (exceções), em formato ISO 'yyyy-mm-dd'. */
+  datasBloqueadas?: string[];
 };
 
 const SERVICE_FEE_RATE = 0.12;
 
-export default function BookingCard({ roteiroId, preco, capacidade }: Props) {
+function toISO(d: Date): string {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
+export default function BookingCard({ roteiroId, preco, capacidade, diasOperacao, datasBloqueadas }: Props) {
   const [date, setDate] = useState<DateValue | null>(null);
   const [guests, setGuests] = useState(1);
   const [active, setActive] = useState<ActivePanel>(null);
@@ -26,6 +34,14 @@ export default function BookingCard({ roteiroId, preco, capacidade }: Props) {
 
   function open(panel: ActivePanel) {
     setActive((p) => (p === panel ? null : panel));
+  }
+
+  const bloqueadasSet = new Set(datasBloqueadas ?? []);
+  const operaTodos = !diasOperacao || diasOperacao.length === 0;
+
+  function isDateDisabled(d: Date): boolean {
+    if (!operaTodos && !diasOperacao!.includes(d.getDay())) return true;
+    return bloqueadasSet.has(toISO(d));
   }
 
   const subtotal = (preco ?? 0) + totalAdicionais;
@@ -69,6 +85,7 @@ export default function BookingCard({ roteiroId, preco, capacidade }: Props) {
               isOpen={active === 'date'}
               onOpen={() => open('date')}
               onClose={() => setActive(null)}
+              isDateDisabled={isDateDisabled}
             />
           </div>
         </div>
