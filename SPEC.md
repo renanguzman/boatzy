@@ -248,10 +248,15 @@ Helpers em `src/lib/roles.ts` (`server-only`):
 |----------|----------------------|---------------|-----------------------------------|
 | Google   | `google`             | ✅ Configurado | `*.googleusercontent.com`         |
 | Facebook | `facebook`           | ✅ Configurado | `platform-lookaside.fbsbx.com`    |
-| Apple    | `apple`              | ⏳ Pendente    | —                                 |
+| Apple    | `apple`              | ✅ Configurado | —                                 |
 
 Configurados no Supabase Dashboard → Authentication → Providers.  
 Redirect URI obrigatória: `https://SEU_PROJECT.supabase.co/auth/v1/callback`
+
+**Domínio de retorno (produção):** o `redirectTo` dos três provedores é montado a partir de `NEXT_PUBLIC_APP_URL`, e **não** mais de `window.location.origin` — isso evita que o login social retorne ao domínio `*.vercel.app`. Para o domínio final `https://www.boatzy.app` funcionar, três pontos devem estar alinhados:
+- **Vercel** → `NEXT_PUBLIC_APP_URL = https://www.boatzy.app`
+- **Supabase** → Authentication → URL Configuration → **Site URL** = `https://www.boatzy.app`
+- **Supabase** → **Redirect URLs** (allow list): `https://www.boatzy.app/auth/callback` e `https://www.boatzy.app/painel/auth/callback`
 
 **Domínios de imagem (`next.config.ts`):** os avatares dos provedores são renderizados com `next/image`, portanto o host precisa estar em `images.remotePatterns`. Liberados: `*.googleusercontent.com`, `*.fbcdn.net` e `platform-lookaside.fbsbx.com` (Facebook entrega a foto de perfil por este último, não por `*.fbcdn.net`). Alterar `next.config.ts` exige reiniciar o servidor de dev.
 
@@ -271,7 +276,7 @@ order by i.provider;
 ```
 > ⚠️ `public.users.email` é `NOT NULL UNIQUE`. Caso o vínculo automático não ocorra (ex.: e-mail não verificado pelo provedor), o Supabase criaria um segundo `auth.users` com o mesmo e-mail e o insert em `public.users` violaria a unicidade — hoje esse erro não é tratado em `setup-cliente`/`setup-role`. Confirmado em produção que Google + Facebook com e-mail verificado vinculam corretamente.
 
-Os botões de login social são renderizados pelo componente compartilhado `SocialLoginButtons` (`src/components/auth/SocialLoginButtons.tsx`), usado em `/entrar`, `/painel/login` e `/painel/cadastro`. Ele recebe `onProvider(provider)` e gerencia o próprio estado de loading; cada tela monta o `redirectTo` apropriado (site → `/auth/callback`; painel → `/painel/auth/callback`).
+Os botões de login social são renderizados pelo componente compartilhado `SocialLoginButtons` (`src/components/auth/SocialLoginButtons.tsx`), usado em `/entrar`, `/painel/login` e `/painel/cadastro`. Ele recebe `onProvider(provider)` e gerencia o próprio estado de loading; cada tela monta o `redirectTo` apropriado (site → `/auth/callback`; painel → `/painel/auth/callback`). Todas as telas derivam a URL base de `NEXT_PUBLIC_APP_URL` (helper `baseUrl()` em `/entrar`; constante `APP_URL` no painel), com fallback para `window.location.origin` apenas se a env não estiver definida — assim os três provedores sempre retornam ao domínio de produção.
 
 ### Login de Cliente no Site (`/entrar`)
 
@@ -279,7 +284,7 @@ Os botões de login social são renderizados pelo componente compartilhado `Soci
 
 - `redirect_to` (query param) preserva a página de origem.
 - **Email/senha:** `signInWithPassword` / `signUp`, depois `window.location.href = /api/auth/setup-cliente?redirect_to=...`.
-- **OAuth:** `signInWithOAuth({ provider, options: { redirectTo: /auth/callback?next=/api/auth/setup-cliente?redirect_to=... } })`.
+- **OAuth:** `signInWithOAuth({ provider, options: { redirectTo: `${baseUrl()}/auth/callback?next=/api/auth/setup-cliente?redirect_to=...` } })`, onde `baseUrl()` = `NEXT_PUBLIC_APP_URL ?? window.location.origin`.
 - Em qualquer caminho a role resultante é `cliente`.
 
 ### Endpoints de atribuição

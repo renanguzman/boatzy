@@ -69,7 +69,7 @@ function EntrarForm() {
       password,
       options: {
         data: { full_name: name },
-        emailRedirectTo: `${window.location.origin}/auth/callback?next=${encodeURIComponent(
+        emailRedirectTo: `${baseUrl()}/auth/callback?next=${encodeURIComponent(
           `/api/auth/setup-cliente?redirect_to=${encodeURIComponent(redirectTo)}`
         )}`,
       },
@@ -93,7 +93,7 @@ function EntrarForm() {
     const { error: authError } = await supabase.auth.signInWithOAuth({
       provider,
       options: {
-        redirectTo: `${window.location.origin}/auth/callback?next=${encodeURIComponent(next)}`,
+        redirectTo: `${baseUrl()}/auth/callback?next=${encodeURIComponent(next)}`,
       },
     });
 
@@ -294,6 +294,12 @@ export default function EntrarPage() {
       </div>
     </div>
   );
+}
+
+// URL base do app: usa NEXT_PUBLIC_APP_URL (domínio de produção, ex.: https://www.boatzy.app)
+// e cai para window.location.origin apenas em ambientes sem a env configurada.
+function baseUrl(): string {
+  return process.env.NEXT_PUBLIC_APP_URL ?? window.location.origin;
 }
 
 function translateError(message: string): string {
