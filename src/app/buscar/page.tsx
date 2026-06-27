@@ -54,7 +54,7 @@ export default async function BuscarPage({ searchParams }: { searchParams: Promi
   // Resolve filtros (localização/raio + disponibilidade na data + capacidade da
   // embarcação vinculada) e ordenação por proximidade no banco, retornando ids
   // ordenados + total (paginação).
-  const { data: rpcRows } = await supabaseAdmin.rpc('buscar_roteiros', {
+  const { data: rpcRows, error: rpcError } = await supabaseAdmin.rpc('buscar_roteiros', {
     p_municipio_id: municipioId,
     p_lat: lat,
     p_lng: lng,
@@ -65,6 +65,12 @@ export default async function BuscarPage({ searchParams }: { searchParams: Promi
     p_limit: POR_PAGINA,
     p_offset: from,
   });
+
+  // Não silenciar falhas da RPC: um erro aqui deixa a busca vazia sem motivo
+  // aparente. Logamos para diagnóstico em vez de mostrar "nenhum resultado".
+  if (rpcError) {
+    console.error('[buscar_roteiros] falha na RPC:', rpcError);
+  }
 
   const rows = rpcRows ?? [];
   const total = rows.length > 0 ? Number(rows[0].total) : 0;
@@ -89,6 +95,15 @@ export default async function BuscarPage({ searchParams }: { searchParams: Promi
   }
 
   const totalPaginas = Math.max(1, Math.ceil(total / POR_PAGINA));
+
+  // Querystring repassada ao detalhe do roteiro para pré-preencher data/pessoas.
+  const detalheQuery = (() => {
+    const sp = new URLSearchParams();
+    if (params.data) sp.set('data', params.data);
+    if (flex > 0) sp.set('flex', String(flex));
+    if (pessoas > 0) sp.set('pessoas', String(pessoas));
+    return sp.toString();
+  })();
 
   // Resolve municipio name for initial state
   let initialLocation: { id: number; nome: string; uf: string } | null = null;
@@ -213,7 +228,7 @@ export default async function BuscarPage({ searchParams }: { searchParams: Promi
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
             {roteiros.map((r) => (
-              <RoteiroCard key={r.id} roteiro={r} />
+              <RoteiroCard key={r.id} roteiro={r} query={detalheQuery} />
             ))}
           </div>
         )}

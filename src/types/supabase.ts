@@ -3,10 +3,134 @@ export type EmbarcacaoStatus = 'ativo' | 'inativo' | 'em_manutencao';
 export type PrecoRegraTipo = 'dia_semana' | 'periodo_anual' | 'data_fixa';
 export type ModalidadeCapitao = 'sem_capitao' | 'com_capitao' | 'opcional';
 export type CatalogoTipo = 'produto' | 'servico';
+export type ReservaStatus = 'pendente' | 'confirmada' | 'recusada';
+export type ReservaTipo = 'roteiro' | 'embarcacao';
 
 export type Database = {
   public: {
     Tables: {
+      reserva: {
+        Row: {
+          id: string;
+          tipo: ReservaTipo;
+          roteiro_id: string | null;
+          embarcacao_id: string | null;
+          cliente_id: string;
+          owner_id: string;
+          data_reserva: string;
+          flexibilidade: number | null;
+          quantidade_pessoas: number;
+          roteiro_nome: string;
+          preco_base: number | null;
+          total_adicionais: number;
+          taxa_servico: number | null;
+          total_estimado: number | null;
+          status: ReservaStatus;
+          observacao_gestor: string | null;
+          solicitado_em: string;
+          respondido_em: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          tipo?: ReservaTipo;
+          roteiro_id?: string | null;
+          embarcacao_id?: string | null;
+          cliente_id: string;
+          owner_id: string;
+          data_reserva: string;
+          flexibilidade?: number | null;
+          quantidade_pessoas: number;
+          roteiro_nome: string;
+          preco_base?: number | null;
+          total_adicionais?: number;
+          taxa_servico?: number | null;
+          total_estimado?: number | null;
+          status?: ReservaStatus;
+          observacao_gestor?: string | null;
+          solicitado_em?: string;
+          respondido_em?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          tipo?: ReservaTipo;
+          roteiro_id?: string | null;
+          embarcacao_id?: string | null;
+          cliente_id?: string;
+          owner_id?: string;
+          data_reserva?: string;
+          flexibilidade?: number | null;
+          quantidade_pessoas?: number;
+          roteiro_nome?: string;
+          preco_base?: number | null;
+          total_adicionais?: number;
+          taxa_servico?: number | null;
+          total_estimado?: number | null;
+          status?: ReservaStatus;
+          observacao_gestor?: string | null;
+          solicitado_em?: string;
+          respondido_em?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'reserva_roteiro_id_fkey';
+            columns: ['roteiro_id'];
+            isOneToOne: false;
+            referencedRelation: 'roteiro';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'reserva_cliente_id_fkey';
+            columns: ['cliente_id'];
+            isOneToOne: false;
+            referencedRelation: 'users';
+            referencedColumns: ['id'];
+          },
+        ];
+      };
+      reserva_adicional: {
+        Row: {
+          id: string;
+          reserva_id: string;
+          roteiro_catalogo_id: string | null;
+          descricao: string;
+          valor: number;
+          tipo: CatalogoTipo;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          reserva_id: string;
+          roteiro_catalogo_id?: string | null;
+          descricao: string;
+          valor: number;
+          tipo: CatalogoTipo;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          reserva_id?: string;
+          roteiro_catalogo_id?: string | null;
+          descricao?: string;
+          valor?: number;
+          tipo?: CatalogoTipo;
+          created_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'reserva_adicional_reserva_id_fkey';
+            columns: ['reserva_id'];
+            isOneToOne: false;
+            referencedRelation: 'reserva';
+            referencedColumns: ['id'];
+          },
+        ];
+      };
       users: {
         Row: {
           id: string;

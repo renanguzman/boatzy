@@ -16,6 +16,10 @@ type Props = {
   diasOperacao?: number[] | null;
   /** Datas bloqueadas (exceções), em formato ISO 'yyyy-mm-dd'. */
   datasBloqueadas?: string[];
+  /** Pré-preenchimento vindo da busca: data ('yyyy-mm-dd'), flexibilidade e nº de pessoas. */
+  initialData?: string;
+  initialFlex?: number;
+  initialPessoas?: number;
 };
 
 const SERVICE_FEE_RATE = 0.12;
@@ -24,10 +28,31 @@ function toISO(d: Date): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
 
-export default function BookingCard({ roteiroId, preco, diasOperacao, datasBloqueadas }: Props) {
-  const [date, setDate] = useState<DateValue | null>(null);
-  const [guests, setGuests] = useState(1);
+/** Converte 'yyyy-mm-dd' em Date local (meio-dia para evitar deslocamento de fuso). */
+function parseISO(iso?: string): Date | null {
+  if (!iso || !/^\d{4}-\d{2}-\d{2}$/.test(iso)) return null;
+  const [y, m, d] = iso.split('-').map(Number);
+  return new Date(y, m - 1, d, 12, 0, 0);
+}
+
+export default function BookingCard({
+  roteiroId,
+  preco,
+  diasOperacao,
+  datasBloqueadas,
+  initialData,
+  initialFlex,
+  initialPessoas,
+}: Props) {
+  const initialDate = parseISO(initialData);
+  const [date, setDate] = useState<DateValue | null>(
+    initialDate
+      ? { date: initialDate, flexibility: (initialFlex ?? 0) as DateValue['flexibility'] }
+      : null,
+  );
+  const [guests, setGuests] = useState(initialPessoas && initialPessoas > 0 ? initialPessoas : 1);
   const [active, setActive] = useState<ActivePanel>(null);
+  const [error, setError] = useState<string | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const { selectedAddons, totalAdicionais, toggle } = useCart();
 
@@ -48,10 +73,23 @@ export default function BookingCard({ roteiroId, preco, diasOperacao, datasBloqu
   const total = preco && serviceFee !== null ? subtotal + serviceFee : null;
 
   function handleReserve() {
+    // Data e Pessoas são obrigatórios para solicitar a reserva.
+    if (!date) {
+      setError('Selecione a data da reserva.');
+      setActive('date');
+      return;
+    }
+    if (guests < 1) {
+      setError('Informe o número de pessoas.');
+      setActive('guests');
+      return;
+    }
+    setError(null);
+
     const params = new URLSearchParams({ roteiro: roteiroId });
-    if (date) params.set('data', date.date.toISOString().slice(0, 10));
-    if (date?.flexibility) params.set('flex', String(date.flexibility));
-    if (guests > 0) params.set('pessoas', String(guests));
+    params.set('data', toISO(date.date));
+    if (date.flexibility) params.set('flex', String(date.flexibility));
+    params.set('pessoas', String(guests));
     if (selectedAddons.length > 0) params.set('adicionais', selectedAddons.map((a) => a.id).join(','));
     window.location.href = `/reservas/novo?${params.toString()}`;
   }
@@ -80,7 +118,10 @@ export default function BookingCard({ roteiroId, preco, diasOperacao, datasBloqu
           <div className="border border-slate-200 rounded-xl overflow-visible">
             <DatePicker
               value={date}
-              onChange={setDate}
+              onChange={(v) => {
+                setDate(v);
+                if (v) setError(null);
+              }}
               isOpen={active === 'date'}
               onOpen={() => open('date')}
               onClose={() => setActive(null)}
@@ -97,7 +138,10 @@ export default function BookingCard({ roteiroId, preco, diasOperacao, datasBloqu
           <div className="border border-slate-200 rounded-xl overflow-visible">
             <GuestPicker
               value={guests}
-              onChange={(v) => setGuests(Math.max(1, v))}
+              onChange={(v) => {
+                setGuests(Math.max(1, v));
+                setError(null);
+              }}
               isOpen={active === 'guests'}
               onOpen={() => open('guests')}
               onClose={() => setActive(null)}
@@ -167,6 +211,12 @@ export default function BookingCard({ roteiroId, preco, diasOperacao, datasBloqu
         >
           Solicitar Reserva →
         </button>
+
+        {error && (
+          <p className="mt-2 text-xs font-medium text-red-600 text-center" role="alert">
+            {error}
+          </p>
+        )}
 
         {/* Trust badges */}
         <div className="mt-4 space-y-2">

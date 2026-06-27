@@ -168,8 +168,8 @@ Split automático calculado em runtime:
 
 ## 9. Fluxos
 
-Reserva:  
-User → Busca → Seleciona → Paga → Confirma  
+Reserva de roteiro (implementado — ver §20):  
+Cliente → Busca → Detalhe do roteiro (data/pessoas/adicionais) → Login → `/reservas/novo` (confirma) → Reserva **Pendente** → Gestor Confirma/Recusa no painel  
 
 Cadastro:  
 Owner → Cria barco → Upload → Publica  
@@ -229,7 +229,7 @@ Módulo independente do hotsite, acessível apenas por usuários cuja lista de r
 | `/painel/login` | Login de gestores | Pública |
 | `/painel/cadastro` | Cadastro de gestores | Pública |
 | `/painel` | Dashboard | gestor/admin |
-| `/painel/agendamentos` | Listagem de reservas | gestor/admin |
+| `/painel/agendamentos` | Listagem/gestão de reservas (Confirmar/Recusar) — ver §20 | gestor/admin |
 | `/painel/embarcacoes` | CRUD de embarcações | gestor/admin |
 | `/painel/usuarios` | Cadastro e listagem de usuários | gestor/admin |
 
@@ -867,7 +867,9 @@ type Props = {
 | `pessoas` | number | Tamanho do grupo |
 | `pagina` | number | Página atual (padrão: 1) |
 
-**Filtros aplicados (via RPC `buscar_roteiros` — migration 018):**
+**Filtros aplicados (via RPC `buscar_roteiros` — migrations 018/019/020):**
+
+> **Correção (migration 020):** `buscar_roteiros` e `buscar_embarcacoes` retornavam erro `42804` (`double precision` × `numeric` na coluna `distancia_km`), pois a expressão haversine (`acos/cos/sin/radians`) é `double precision` mas a coluna de retorno é `numeric`. A página engolia o erro e exibia "nenhum resultado". A 020 faz cast explícito da distância para `numeric` em ambas as funções. A página passou a logar `rpcError`.
 
 Mesma mecânica de `buscar_embarcacoes` (ver §18.6), com **uma diferença no filtro de pessoas**: a capacidade considerada é a da **embarcação vinculada** ao roteiro (`roteiro.embarcacao_id → embarcacao.capacidade >= pessoas`), **não** o campo `roteiro.quantidade_pessoas` (este segue apenas para exibição no card). Roteiros **sem** embarcação vinculada (ou cuja embarcação não tem `capacidade`) **não aparecem** quando o filtro de pessoas está ativo.
 
@@ -1075,7 +1077,177 @@ type Props = {
 - Notificações  
 - App mobile  
 - Antifraude
-- Página `/reservas/novo` (fluxo de reserva do cliente)
+- Tela do cliente para acompanhar suas reservas (status + observação do gestor) — ver §20
+- Reserva de **embarcação** pelo site (hoje só roteiro — ver §20)
+- Pagamento na reserva (Stripe) — hoje a reserva é apenas solicitação sem cobrança
 - Filtros adicionais na busca (tipo de embarcação, faixa de preço)
 - Visualização em mapa no `/buscar`
 - Avaliações reais em `/roteiros/[id]`
+
+---
+
+## 20. Reservas de Roteiro (solicitação do cliente → painel do gestor)
+
+Migration: `supabase/migrations/021_reservas_roteiro.sql`
+
+Fluxo de **solicitação** de reserva de roteiro feito pelo cliente no site. A reserva nasce
+**`pendente`** e o gestor (owner do roteiro) a **confirma** ou **recusa** no painel, com uma
+observação retornada ao cliente. **Sem etapa de pagamento** neste momento (solicitação apenas).
+
+> Escopo atual: **roteiros**. Reserva de embarcação e tela do cliente para acompanhar status ficam
+> como próximos passos (§19).
+
+### 20.1 Modelo de dados
+
+Enum `reserva_status`: `'pendente' | 'confirmada' | 'recusada'`.
+Enum `reserva_tipo` (migration 022): `'roteiro' | 'embarcacao'`. Constraint `reserva_tipo_alvo_chk`
+garante coerência: tipo `roteiro` exige `roteiro_id`; tipo `embarcacao` exige `embarcacao_id`.
+Reservas existentes são `tipo = 'roteiro'` (default). A criação de reservas de embarcação é um passo
+futuro — a coluna já deixa o modelo e o calendário preparados para diferenciá-las.
+
+#### Tabela `reserva`
+
+```sql
+id                 uuid PK
+tipo               reserva_tipo NOT NULL DEFAULT 'roteiro'        -- 'roteiro' | 'embarcacao' (migration 022)
+roteiro_id         uuid FK → roteiro(id) ON DELETE CASCADE        -- nullable (migration 022): null em reserva de embarcação
+embarcacao_id      uuid FK → embarcacao(id) ON DELETE SET NULL   -- derivado do roteiro / alvo da reserva de embarcação
+cliente_id         uuid FK → users(id) ON DELETE CASCADE          -- quem solicitou (logado)
+owner_id           uuid FK → users(id) ON DELETE CASCADE          -- gestor (roteiro.owner_id)
+-- solicitação
+data_reserva       date NOT NULL
+flexibilidade      smallint                                       -- dias (do filtro de busca)
+quantidade_pessoas integer NOT NULL
+-- snapshot de valores no momento da solicitação
+roteiro_nome       text NOT NULL
+preco_base         numeric(12,2)
+total_adicionais   numeric(12,2) NOT NULL DEFAULT 0
+taxa_servico       numeric(12,2)
+total_estimado     numeric(12,2)
+-- status / resposta do gestor
+status             reserva_status NOT NULL DEFAULT 'pendente'
+observacao_gestor  text
+solicitado_em      timestamptz NOT NULL DEFAULT now()
+respondido_em      timestamptz
+created_at / updated_at  timestamptz (trigger update_reserva_updated_at)
+```
+
+#### Tabela `reserva_adicional` (snapshot dos itens do catálogo escolhidos)
+
+```sql
+id                  uuid PK
+reserva_id          uuid FK → reserva(id) ON DELETE CASCADE
+roteiro_catalogo_id uuid FK → roteiro_catalogo(id) ON DELETE SET NULL  -- referência
+descricao           text NOT NULL          -- snapshot
+valor               numeric(12,2) NOT NULL  -- snapshot
+tipo                catalogo_tipo NOT NULL  -- snapshot ('produto'|'servico')
+created_at          timestamptz
+```
+
+> **Snapshot:** `roteiro_nome`, preços/totais e os itens em `reserva_adicional` são gravados no
+> momento da solicitação. Mudanças posteriores no roteiro ou no catálogo **não** alteram reservas já
+> registradas.
+
+**RLS:**
+- `reserva`: `service_role` total; cliente `SELECT`/`INSERT` onde `cliente_id = auth.uid()`; owner
+  `SELECT`/`UPDATE` onde `owner_id = auth.uid()` (confirmar/recusar).
+- `reserva_adicional`: `service_role` total; `SELECT` para cliente **ou** owner via `EXISTS` na
+  `reserva` pai.
+- As escritas reais rodam via `supabaseAdmin` nas server actions, validando posse no código.
+
+Tipos TS adicionados em `src/types/supabase.ts`: tabelas `reserva`/`reserva_adicional` e
+`export type ReservaStatus`.
+
+### 20.2 Detalhe do roteiro — campos obrigatórios + pré-preenchimento
+
+- `BookingCard` (`src/app/roteiros/[id]/_components/BookingCard.tsx`): **Data** e **Pessoas** são
+  obrigatórios; clicar em "Solicitar Reserva" sem data exibe erro inline e não navega.
+- Novas props `initialData` (`'yyyy-mm-dd'`), `initialFlex`, `initialPessoas` inicializam os campos.
+- A página `/roteiros/[id]` lê `searchParams` (`data`/`flex`/`pessoas`) e repassa ao `BookingCard`.
+- `RoteiroCard` (`src/app/buscar/_components/RoteiroCard.tsx`) recebe prop `query` e monta o href
+  `/roteiros/[id]?data=...&flex=...&pessoas=...`; `/buscar` monta essa querystring a partir dos
+  filtros ativos → o detalhe vem **pré-preenchido** quando o cliente chega pela busca.
+- Ao confirmar, `BookingCard` navega para `/reservas/novo?roteiro=...&data=...&flex=...&pessoas=...&adicionais=id1,id2`.
+
+### 20.3 Página `/reservas/novo` (confirmação + criação)
+
+**Arquivo:** `src/app/reservas/novo/page.tsx` (Server Component).
+
+- **Gate de auth:** `createClient()` SSR + `getUser()`; se não logado, redireciona para
+  `/entrar?redirect_to=<url atual>`. Sem `roteiro` → `/buscar`; faltando `data`/`pessoas` válidos →
+  volta a `/roteiros/[id]`.
+- Carrega o roteiro (ativo) e reconstrói os adicionais a partir dos ids da query; exibe resumo
+  (data, pessoas, adicionais, diária + taxa de serviço 12% + total estimado).
+- Componente client `_components/ConfirmarReserva.tsx`: botão "Confirmar solicitação" → server action
+  `criarReserva`; em sucesso mostra estado de "Solicitação enviada! (Pendente)".
+
+**Server action `criarReserva`** (`src/app/reservas/novo/actions.ts`):
+```ts
+criarReserva(input: { roteiroId, data, flex?, pessoas, adicionaisIds[] })
+  → { ok: true, reservaId } | { ok: false, error }
+```
+Revalida auth, recarrega o roteiro e os adicionais **no servidor** (não confia em valores do client),
+recalcula `preco_base`/`total_adicionais`/`taxa_servico`/`total_estimado`, insere `reserva` (status
+`pendente`, `cliente_id = user.id`, `owner_id`, `embarcacao_id`) + linhas em `reserva_adicional`
+(snapshot). Se o insert dos adicionais falhar, a reserva é revertida (sem registro órfão).
+
+### 20.4 Painel — `/painel/agendamentos` (calendário)
+
+**Arquivos:** `src/app/painel/(gestao)/agendamentos/page.tsx` +
+`_components/AgendamentosCalendar.tsx` + `actions.ts`.
+
+Visão em **calendário** de todas as reservas dos roteiros/embarcações do gestor (`owner_id`).
+
+- A página (Server Component) carrega os eventos: `id, tipo, data_reserva, status, roteiro_nome,
+  quantidade_pessoas` + embed `cliente:users!reserva_cliente_id_fkey ( name )`, ordenados por
+  `data_reserva`. Contador de pendentes no cabeçalho.
+- `AgendamentosCalendar` (`'use client'`, tipo `ReservaEvento`):
+  - **Views:** mês (default) e semana, via segmented control; navegação anterior/hoje/próximo.
+  - **Cores por status:** Pendente = âmbar/laranja, Confirmada = verde, Cancelada (`recusada`) =
+    vermelho. **Ícone por tipo:** roteiro = `MapPin`, embarcação = `Ship`. Legenda no rodapé.
+  - Cada reserva é um *chip* clicável agrupado por `data_reserva`; no mês mostra até 3 + "+N mais".
+    O chip leva a `/painel/agendamentos/[id]`.
+- **Painel lateral de pendentes** (`_components/PendentesList.tsx`): quando há reservas `pendente`, a
+  página divide o espaço em **70% calendário / 30% lista** (`grid xl:grid-cols-10` → `col-span-7` +
+  `col-span-3`), exibindo ao lado apenas as pendentes (cliente, tipo, roteiro, data, pessoas; link
+  para o detalhe; sticky + scroll). Sem pendentes, o calendário ocupa a largura inteira.
+
+### 20.5 Painel — detalhe da reserva `/painel/agendamentos/[id]`
+
+**Arquivos:** `src/app/painel/(gestao)/agendamentos/[id]/page.tsx` +
+`_components/ReservaAcoes.tsx`.
+
+- Server Component: valida auth e **posse** (`owner_id = user.id`); 404 caso contrário. Carrega a
+  reserva completa com `cliente:users!reserva_cliente_id_fkey ( name, email, cpf_cnpj, avatar_url )`,
+  `roteiro ( nome, municipios … )`, `embarcacao ( nome )` e `reserva_adicional`.
+- Exibe: tipo + status, dados do cliente, detalhes do pedido (data, pessoas, embarcação, solicitado
+  em), adicionais, breakdown de valores e a observação já registrada.
+- `ReservaAcoes` (`'use client'`): para reservas **pendentes**, botões **Confirmar** / **Cancelar
+  reserva** abrem um textarea de observação; chamam as server actions e dão `router.refresh()`.
+  Para reservas já resolvidas, mostra aviso de que não há ações pendentes.
+
+**Server actions** (`actions.ts`, reutilizadas pelo detalhe):
+- `confirmarReserva(reservaId, observacao?)` → `status = 'confirmada'`.
+- `recusarReserva(reservaId, observacao?)` → `status = 'recusada'`.
+- Ambas validam auth + role `gestor`/`admin` + posse (`owner_id`), gravam `observacao_gestor` e
+  `respondido_em = now()`, e `revalidatePath('/painel/agendamentos')`.
+
+### 20.6 Cliente — menu do usuário + `/minhas-reservas`
+
+**Menu do usuário (`src/components/layout/UserMenu.tsx`):** o avatar no `Header` vira um *dropdown*
+(click-outside/ESC fecham) com cabeçalho (nome/email) e itens **Minhas reservas**
+(`/minhas-reservas`), **Minha conta** (`/minha-conta`) e **Sair**. No mobile, os mesmos links
+aparecem no menu sanfonado para usuários logados.
+
+**`/minhas-reservas`** (`src/app/minhas-reservas/page.tsx`, Server Component):
+- Gate de auth: sem sessão → `/entrar?redirect_to=/minhas-reservas`.
+- Lista as reservas onde `cliente_id = user.id` (via `supabaseAdmin`), ordenadas por
+  `solicitado_em desc`, com `roteiro ( nome, municipios …, roteiro_imagens )`, `embarcacao ( nome )`
+  e `reserva_adicional`.
+- Cada card mostra tipo, status (rótulos do cliente: Pendente = "Aguardando confirmação",
+  Confirmada, Recusada), data, pessoas, adicionais, total estimado, **a resposta do gestor**
+  (`observacao_gestor` + `respondido_em`) ou uma nota de estado quando ainda não respondida, e link
+  "Ver roteiro".
+
+**`/minha-conta`** (`src/app/minha-conta/page.tsx`): placeholder ("Em breve") com gate de auth —
+edição dos dados da conta fica para um passo futuro.

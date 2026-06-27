@@ -4,9 +4,10 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { usePathname, useRouter } from 'next/navigation';
-import { Menu, X, User, Globe, LogOut, Loader2 } from 'lucide-react';
+import { Menu, X, User, Globe, LogOut, Loader2, CalendarCheck, UserCog } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import type { User as SupabaseUser } from '@supabase/supabase-js';
+import UserMenu from './UserMenu';
 
 export default function Header() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -73,30 +74,12 @@ export default function Header() {
               {authLoading ? (
                 <Loader2 className="w-5 h-5 animate-spin text-slate-300" />
               ) : user ? (
-                <div className="flex items-center gap-2.5">
-                  {avatarUrl ? (
-                    <Image
-                      src={avatarUrl}
-                      alt={displayName}
-                      width={32}
-                      height={32}
-                      className="rounded-full w-8 h-8 object-cover border border-slate-200"
-                    />
-                  ) : (
-                    <div className="w-8 h-8 rounded-full bg-[#0B2447] flex items-center justify-center">
-                      <span className="text-white text-xs font-bold">
-                        {displayName.charAt(0).toUpperCase()}
-                      </span>
-                    </div>
-                  )}
-                  <button
-                    onClick={handleSignOut}
-                    title="Sair"
-                    className="text-slate-400 hover:text-red-500 transition-colors"
-                  >
-                    <LogOut className="w-4 h-4" />
-                  </button>
-                </div>
+                <UserMenu
+                  displayName={displayName}
+                  email={(user.email ?? '') as string}
+                  avatarUrl={avatarUrl}
+                  onSignOut={handleSignOut}
+                />
               ) : (
                 <Link
                   href={entrarUrl}
@@ -144,13 +127,31 @@ export default function Header() {
                 </Link>
               )}
               {!authLoading && user && (
-                <button
-                  onClick={() => { handleSignOut(); setMobileMenuOpen(false); }}
-                  className="flex items-center gap-2 px-3 py-2.5 text-sm font-medium text-red-500 w-full text-left"
-                >
-                  <LogOut className="w-4 h-4" />
-                  Sair
-                </button>
+                <>
+                  <Link
+                    href="/minhas-reservas"
+                    onClick={() => setMobileMenuOpen(false)}
+                    className="flex items-center gap-2 px-3 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-50 rounded-lg"
+                  >
+                    <CalendarCheck className="h-4 w-4 text-slate-400" />
+                    Minhas reservas
+                  </Link>
+                  <Link
+                    href="/minha-conta"
+                    onClick={() => setMobileMenuOpen(false)}
+                    className="flex items-center gap-2 px-3 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-50 rounded-lg"
+                  >
+                    <UserCog className="h-4 w-4 text-slate-400" />
+                    Minha conta
+                  </Link>
+                  <button
+                    onClick={() => { handleSignOut(); setMobileMenuOpen(false); }}
+                    className="flex items-center gap-2 px-3 py-2.5 text-sm font-medium text-red-500 w-full text-left"
+                  >
+                    <LogOut className="w-4 h-4" />
+                    Sair
+                  </button>
+                </>
               )}
             </nav>
           </div>

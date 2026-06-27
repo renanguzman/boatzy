@@ -57,8 +57,15 @@ type RoteiroDetalhe = {
   roteiro_disponibilidade_bloqueio: { data: string }[];
 };
 
-export default async function RoteiroDetalhePage({ params }: { params: Promise<{ id: string }> }) {
+export default async function RoteiroDetalhePage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ id: string }>;
+  searchParams: Promise<{ data?: string; flex?: string; pessoas?: string }>;
+}) {
   const { id } = await params;
+  const sp = await searchParams;
 
   const { data, error } = await supabaseAdmin
     .from('roteiro')
@@ -366,6 +373,9 @@ export default async function RoteiroDetalhePage({ params }: { params: Promise<{
                 preco={roteiro.preco_base}
                 diasOperacao={roteiro.disponibilidade_dias_semana}
                 datasBloqueadas={roteiro.roteiro_disponibilidade_bloqueio?.map((b) => b.data) ?? []}
+                initialData={sp.data}
+                initialFlex={sp.flex ? parseInt(sp.flex) : undefined}
+                initialPessoas={sp.pessoas ? parseInt(sp.pessoas) : undefined}
               />
             </div>
           </div>

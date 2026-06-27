@@ -23,7 +23,14 @@ function formatPrice(value: number): string {
   return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 }).format(value);
 }
 
-export default function RoteiroCard({ roteiro }: { roteiro: RoteiroCardData }) {
+export default function RoteiroCard({
+  roteiro,
+  query,
+}: {
+  roteiro: RoteiroCardData;
+  /** Querystring (sem '?') com os filtros da busca (data/flex/pessoas) para pré-preencher o detalhe. */
+  query?: string;
+}) {
   const img = getPrimaryImage(roteiro.roteiro_imagens);
   const localidade = roteiro.municipios
     ? roteiro.municipios.estados
@@ -31,9 +38,11 @@ export default function RoteiroCard({ roteiro }: { roteiro: RoteiroCardData }) {
       : roteiro.municipios.nome
     : null;
 
+  const href = query ? `/roteiros/${roteiro.id}?${query}` : `/roteiros/${roteiro.id}`;
+
   return (
     <Link
-      href={`/roteiros/${roteiro.id}`}
+      href={href}
       className="group block rounded-2xl overflow-hidden bg-white border border-slate-100 hover:border-slate-200 hover:shadow-xl transition-all duration-300"
     >
       {/* Image */}

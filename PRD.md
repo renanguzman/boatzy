@@ -67,7 +67,7 @@ Validar um marketplace de aluguel de embarcações, garantindo:
 - ✅ Cadastro de embarcação com seleção de comodidades (tabelas `comodidade` e `embarcacao_comodidades`, migration 007)
 - Upload de imagens (em desenvolvimento)
 - Definição de preço (em desenvolvimento)
-- Gerenciamento de reservas (em desenvolvimento)
+- ✅ Gerenciamento de reservas de roteiro em `/painel/agendamentos` (Confirmar/Recusar com observação — ver 6.5)
 
 ---
 
@@ -204,6 +204,44 @@ Status:
 - Pendente
 - Confirmada
 - Cancelada
+
+#### ✅ Implementado — Solicitação de reserva de **roteiro** (cliente → gestor)
+
+Fluxo de **solicitação** (sem pagamento nesta etapa). Detalhes técnicos: SPEC §20.
+
+- No detalhe do roteiro (`BookingCard`), **Data** e **Pessoas** são **obrigatórios**; se o cliente
+  chegou pela busca, os campos vêm **pré-preenchidos** com os filtros (data/flex/pessoas).
+- Os **adicionais** (produtos/serviços do catálogo) selecionados são registrados na solicitação.
+- "Solicitar Reserva" leva a `/reservas/novo`, que **exige login** e mostra um resumo; ao confirmar,
+  cria a reserva como **Pendente** com `cliente_id`, data/hora da solicitação e **snapshot** dos
+  valores e adicionais.
+- No painel (`/painel/agendamentos`), o gestor vê as solicitações dos seus roteiros (Pendentes em
+  destaque) e pode **Confirmar** ou **Recusar**, escrevendo uma **observação** retornada ao cliente.
+
+**Status da reserva:** `pendente` → `confirmada` | `recusada`.
+
+#### ✅ Implementado — Calendário de agendamentos no painel (gestor)
+
+`/painel/agendamentos` exibe um **calendário** com todas as reservas das embarcações/roteiros do
+gestor. Detalhes técnicos: SPEC §20.4–20.5.
+
+- Visualização **Mês** (default) e **Semana**, com navegação anterior/hoje/próximo.
+- Dias com reserva são sinalizados por **cores de status**: Pendente = laranja, Confirmada = verde,
+  Cancelada = vermelho. **Diferenciação por tipo** (roteiro vs embarcação) com ícone próprio. Legenda.
+- Clicar em uma reserva abre `/painel/agendamentos/[id]` com **todos os dados do cliente e do
+  pedido**, valores e a opção de **Confirmar** ou **Cancelar**, com observação ao cliente.
+- Coluna `reserva.tipo` (`roteiro`|`embarcacao`, migration 022) prepara o calendário para reservas
+  de embarcação.
+
+#### ✅ Implementado — Menu do cliente + "Minhas reservas"
+
+- O avatar do cliente no `Header` abre um menu com **Minhas reservas**, **Minha conta** e **Sair**.
+- `/minhas-reservas`: o cliente vê todas as reservas que solicitou com status, dados do pedido,
+  adicionais, total e a **resposta do gestor** (observação + data). Detalhes: SPEC §20.6.
+- `/minha-conta`: placeholder ("Em breve") — edição de dados fica para depois.
+
+**Próximos passos:** criação de reserva de **embarcação** pelo site; tela "Minha conta" (edição de
+dados); refinamentos do calendário (filtros por tipo/status); pagamento (Stripe).
 
 ---
 
