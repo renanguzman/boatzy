@@ -7,16 +7,27 @@ import { supabaseAdmin } from '@/lib/supabase';
 const SERVICE_FEE_RATE = 0.12;
 
 export type CriarReservaInput = {
-  roteiroId: string;
+  tipo: 'roteiro' | 'embarcacao';
+  roteiroId?: string;
+  embarcacaoId?: string;
   data: string; // 'yyyy-mm-dd'
   flex?: number;
   pessoas: number;
-  adicionaisIds: string[]; // ids de roteiro_catalogo
+  adicionaisIds: string[]; // ids de roteiro_catalogo (apenas roteiro)
 };
 
 export type CriarReservaResult = { ok: true; reservaId: string } | { ok: false; error: string };
 
 const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
+
+/** Dados resolvidos no servidor para montar a reserva, comuns aos dois tipos. */
+type AlvoResolvido = {
+  nome: string;
+  precoBase: number | null;
+  ownerId: string;
+  roteiroId: string | null;
+  embarcacaoId: string | null;
+};
 
 export async function criarReserva(input: CriarReservaInput): Promise<CriarReservaResult> {
   // Cliente deve estar logado.
@@ -27,45 +38,72 @@ export async function criarReserva(input: CriarReservaInput): Promise<CriarReser
   if (!user) return { ok: false, error: 'Você precisa estar logado para solicitar uma reserva.' };
 
   // Validação dos campos obrigatórios.
-  if (!input.roteiroId) return { ok: false, error: 'Roteiro inválido.' };
   if (!input.data || !ISO_DATE.test(input.data)) return { ok: false, error: 'Data inválida.' };
   if (!input.pessoas || input.pessoas < 1) return { ok: false, error: 'Informe o número de pessoas.' };
 
-  // Carrega o roteiro no servidor (fonte da verdade de preço/owner/embarcação).
-  const { data: roteiro, error: roteiroErr } = await supabaseAdmin
-    .from('roteiro')
-    .select('id, nome, preco_base, owner_id, embarcacao_id, ativo')
-    .eq('id', input.roteiroId)
-    .eq('ativo', true)
-    .single();
-
-  if (roteiroErr || !roteiro) return { ok: false, error: 'Roteiro não encontrado ou indisponível.' };
-
-  // Reconstrói os adicionais selecionados a partir dos ids (snapshot dos valores atuais).
+  // Resolve o alvo (roteiro ou embarcação) no servidor — fonte da verdade de preço/owner.
+  let alvo: AlvoResolvido;
+  // Adicionais só existem para roteiro.
   let adicionais: { roteiro_catalogo_id: string; descricao: string; valor: number; tipo: 'produto' | 'servico' }[] = [];
-  const ids = [...new Set(input.adicionaisIds)].filter(Boolean);
-  if (ids.length > 0) {
-    const { data: itens } = await supabaseAdmin
-      .from('roteiro_catalogo')
-      .select('id, valor_customizado, roteiro_id, catalogo ( descricao, valor, tipo )')
-      .eq('roteiro_id', roteiro.id)
-      .in('id', ids);
 
-    adicionais = (itens ?? [])
-      .filter((it) => it.catalogo)
-      .map((it) => {
-        const cat = it.catalogo as unknown as { descricao: string; valor: number; tipo: 'produto' | 'servico' };
-        return {
-          roteiro_catalogo_id: it.id,
-          descricao: cat.descricao,
-          valor: it.valor_customizado ?? cat.valor,
-          tipo: cat.tipo,
-        };
-      });
+  if (input.tipo === 'embarcacao') {
+    if (!input.embarcacaoId) return { ok: false, error: 'Embarcação inválida.' };
+    const { data: emb, error: embErr } = await supabaseAdmin
+      .from('embarcacao')
+      .select('id, nome, preco_base, owner_id, status')
+      .eq('id', input.embarcacaoId)
+      .eq('status', 'ativo')
+      .single();
+    if (embErr || !emb) return { ok: false, error: 'Embarcação não encontrada ou indisponível.' };
+    alvo = {
+      nome: emb.nome,
+      precoBase: emb.preco_base != null ? Number(emb.preco_base) : null,
+      ownerId: emb.owner_id,
+      roteiroId: null,
+      embarcacaoId: emb.id,
+    };
+  } else {
+    if (!input.roteiroId) return { ok: false, error: 'Roteiro inválido.' };
+    const { data: roteiro, error: roteiroErr } = await supabaseAdmin
+      .from('roteiro')
+      .select('id, nome, preco_base, owner_id, embarcacao_id, ativo')
+      .eq('id', input.roteiroId)
+      .eq('ativo', true)
+      .single();
+    if (roteiroErr || !roteiro) return { ok: false, error: 'Roteiro não encontrado ou indisponível.' };
+    alvo = {
+      nome: roteiro.nome,
+      precoBase: roteiro.preco_base != null ? Number(roteiro.preco_base) : null,
+      ownerId: roteiro.owner_id,
+      roteiroId: roteiro.id,
+      embarcacaoId: roteiro.embarcacao_id,
+    };
+
+    // Reconstrói os adicionais selecionados a partir dos ids (snapshot dos valores atuais).
+    const ids = [...new Set(input.adicionaisIds)].filter(Boolean);
+    if (ids.length > 0) {
+      const { data: itens } = await supabaseAdmin
+        .from('roteiro_catalogo')
+        .select('id, valor_customizado, roteiro_id, catalogo ( descricao, valor, tipo )')
+        .eq('roteiro_id', roteiro.id)
+        .in('id', ids);
+
+      adicionais = (itens ?? [])
+        .filter((it) => it.catalogo)
+        .map((it) => {
+          const cat = it.catalogo as unknown as { descricao: string; valor: number; tipo: 'produto' | 'servico' };
+          return {
+            roteiro_catalogo_id: it.id,
+            descricao: cat.descricao,
+            valor: it.valor_customizado ?? cat.valor,
+            tipo: cat.tipo,
+          };
+        });
+    }
   }
 
   // Cálculo (servidor) — mesma fórmula do resumo/BookingCard.
-  const precoBase = roteiro.preco_base != null ? Number(roteiro.preco_base) : null;
+  const precoBase = alvo.precoBase;
   const totalAdicionais = adicionais.reduce((sum, a) => sum + Number(a.valor), 0);
   const subtotal = (precoBase ?? 0) + totalAdicionais;
   const taxaServico = precoBase != null ? Math.round(subtotal * SERVICE_FEE_RATE) : null;
@@ -75,14 +113,15 @@ export async function criarReserva(input: CriarReservaInput): Promise<CriarReser
   const { data: reserva, error: insertErr } = await supabaseAdmin
     .from('reserva')
     .insert({
-      roteiro_id: roteiro.id,
-      embarcacao_id: roteiro.embarcacao_id,
+      tipo: input.tipo,
+      roteiro_id: alvo.roteiroId,
+      embarcacao_id: alvo.embarcacaoId,
       cliente_id: user.id,
-      owner_id: roteiro.owner_id,
+      owner_id: alvo.ownerId,
       data_reserva: input.data,
       flexibilidade: input.flex && input.flex > 0 ? input.flex : null,
       quantidade_pessoas: input.pessoas,
-      roteiro_nome: roteiro.nome,
+      item_nome: alvo.nome,
       preco_base: precoBase,
       total_adicionais: totalAdicionais,
       taxa_servico: taxaServico,
@@ -96,7 +135,7 @@ export async function criarReserva(input: CriarReservaInput): Promise<CriarReser
     return { ok: false, error: insertErr?.message ?? 'Não foi possível criar a reserva.' };
   }
 
-  // Snapshot dos adicionais.
+  // Snapshot dos adicionais (apenas roteiro).
   if (adicionais.length > 0) {
     const { error: addErr } = await supabaseAdmin.from('reserva_adicional').insert(
       adicionais.map((a) => ({

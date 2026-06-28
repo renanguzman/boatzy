@@ -15,7 +15,7 @@ type ReservaDetalhe = {
   data_reserva: string;
   flexibilidade: number | null;
   quantidade_pessoas: number;
-  roteiro_nome: string;
+  item_nome: string;
   preco_base: number | null;
   total_adicionais: number;
   taxa_servico: number | null;
@@ -64,7 +64,7 @@ export default async function ReservaDetalhePage({ params }: { params: Promise<{
   const { data } = await supabaseAdmin
     .from('reserva')
     .select(
-      `id, tipo, data_reserva, flexibilidade, quantidade_pessoas, roteiro_nome,
+      `id, tipo, data_reserva, flexibilidade, quantidade_pessoas, item_nome,
        preco_base, total_adicionais, taxa_servico, total_estimado,
        status, observacao_gestor, solicitado_em, respondido_em,
        cliente:users!reserva_cliente_id_fkey ( name, email, cpf_cnpj, avatar_url ),
@@ -104,7 +104,7 @@ export default async function ReservaDetalhePage({ params }: { params: Promise<{
             <TipoIcon className="h-3.5 w-3.5" />
             {r.tipo === 'embarcacao' ? 'Reserva de embarcação' : 'Reserva de roteiro'}
           </div>
-          <h1 className="mt-1 text-2xl font-bold text-[#0B2447]">{r.roteiro?.nome ?? r.roteiro_nome}</h1>
+          <h1 className="mt-1 text-2xl font-bold text-[#0B2447]">{r.roteiro?.nome ?? r.item_nome}</h1>
           {localidade && (
             <div className="mt-1 flex items-center gap-1.5 text-sm text-slate-500">
               <MapPin className="h-4 w-4" /> {localidade}

@@ -1,6 +1,6 @@
 import { redirect } from 'next/navigation';
 import Link from 'next/link';
-import { MapPin, Users, CalendarDays, ShoppingCart } from 'lucide-react';
+import { MapPin, Ship, Users, CalendarDays, ShoppingCart } from 'lucide-react';
 import Header from '@/components/layout/Header';
 import Footer from '@/components/layout/Footer';
 import { createClient } from '@/lib/supabase/server';
@@ -13,6 +13,7 @@ const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
 
 type SearchParams = {
   roteiro?: string;
+  embarcacao?: string;
   data?: string;
   flex?: string;
   pessoas?: string;
@@ -35,9 +36,15 @@ export default async function NovaReservaPage({
 }) {
   const sp = await searchParams;
 
+  const isEmbarcacao = !!sp.embarcacao && !sp.roteiro;
+  const tipo: 'roteiro' | 'embarcacao' = isEmbarcacao ? 'embarcacao' : 'roteiro';
+  const alvoId = isEmbarcacao ? sp.embarcacao! : sp.roteiro;
+  const voltarHref = isEmbarcacao ? `/embarcacoes/${alvoId}` : `/roteiros/${alvoId}`;
+
   // Monta a URL atual para preservar a intenção após o login.
   const qs = new URLSearchParams();
   if (sp.roteiro) qs.set('roteiro', sp.roteiro);
+  if (sp.embarcacao) qs.set('embarcacao', sp.embarcacao);
   if (sp.data) qs.set('data', sp.data);
   if (sp.flex) qs.set('flex', sp.flex);
   if (sp.pessoas) qs.set('pessoas', sp.pessoas);
@@ -45,15 +52,14 @@ export default async function NovaReservaPage({
   const selfUrl = `/reservas/novo?${qs.toString()}`;
 
   // Parâmetros obrigatórios.
-  const roteiroId = sp.roteiro;
   const data = sp.data;
   const flex = sp.flex ? Math.max(0, parseInt(sp.flex)) : 0;
   const pessoas = sp.pessoas ? parseInt(sp.pessoas) : 0;
 
-  if (!roteiroId) redirect('/buscar');
+  if (!alvoId) redirect(isEmbarcacao ? '/embarcacoes' : '/buscar');
   if (!data || !ISO_DATE.test(data) || pessoas < 1) {
-    // Faltam dados obrigatórios — volta ao detalhe do roteiro para preenchê-los.
-    redirect(`/roteiros/${roteiroId}`);
+    // Faltam dados obrigatórios — volta ao detalhe para preenchê-los.
+    redirect(voltarHref);
   }
 
   // Cliente deve estar logado.
@@ -65,73 +71,96 @@ export default async function NovaReservaPage({
     redirect(`/entrar?redirect_to=${encodeURIComponent(selfUrl)}`);
   }
 
-  // Carrega o roteiro (deve estar ativo).
-  const { data: roteiroRaw } = await supabaseAdmin
-    .from('roteiro')
-    .select(
-      `id, nome, preco_base, duracao,
-       municipios ( nome, estados ( uf ) )`,
-    )
-    .eq('id', roteiroId)
-    .eq('ativo', true)
-    .single();
+  // Carrega o alvo (roteiro ou embarcação) — deve estar ativo.
+  let nome: string;
+  let preco: number | null;
+  let localidade: string | null = null;
 
-  if (!roteiroRaw) redirect('/buscar');
-
-  const roteiro = roteiroRaw as unknown as {
-    id: string;
-    nome: string;
-    preco_base: number | null;
-    duracao: string | null;
-    municipios: { nome: string; estados: { uf: string } | null } | null;
-  };
-
-  // Reconstrói os adicionais selecionados a partir dos ids da query.
+  // Adicionais só existem para roteiro.
+  let adicionais: { id: string; descricao: string; valor: number; tipo: string }[] = [];
   const adicionalIds = (sp.adicionais ?? '')
     .split(',')
     .map((s) => s.trim())
     .filter(Boolean);
 
-  let adicionais: { id: string; descricao: string; valor: number; tipo: string }[] = [];
-  if (adicionalIds.length > 0) {
-    const { data: itens } = await supabaseAdmin
-      .from('roteiro_catalogo')
-      .select('id, valor_customizado, catalogo ( descricao, valor, tipo )')
-      .eq('roteiro_id', roteiro.id)
-      .in('id', adicionalIds);
+  if (isEmbarcacao) {
+    const { data: embRaw } = await supabaseAdmin
+      .from('embarcacao')
+      .select(`id, nome, preco_base, municipios ( nome, estados ( uf ) )`)
+      .eq('id', alvoId)
+      .eq('status', 'ativo')
+      .single();
 
-    adicionais = (itens ?? [])
-      .filter((it) => it.catalogo)
-      .map((it) => {
-        const cat = it.catalogo as unknown as { descricao: string; valor: number; tipo: string };
-        return {
-          id: it.id,
-          descricao: cat.descricao,
-          valor: it.valor_customizado ?? cat.valor,
-          tipo: cat.tipo,
-        };
-      });
+    if (!embRaw) redirect('/embarcacoes');
+    const emb = embRaw as unknown as {
+      nome: string;
+      preco_base: number | null;
+      municipios: { nome: string; estados: { uf: string } | null } | null;
+    };
+    nome = emb.nome;
+    preco = emb.preco_base != null ? Number(emb.preco_base) : null;
+    localidade = emb.municipios
+      ? emb.municipios.estados
+        ? `${emb.municipios.nome}, ${emb.municipios.estados.uf}`
+        : emb.municipios.nome
+      : null;
+  } else {
+    const { data: roteiroRaw } = await supabaseAdmin
+      .from('roteiro')
+      .select(`id, nome, preco_base, municipios ( nome, estados ( uf ) )`)
+      .eq('id', alvoId)
+      .eq('ativo', true)
+      .single();
+
+    if (!roteiroRaw) redirect('/buscar');
+    const roteiro = roteiroRaw as unknown as {
+      id: string;
+      nome: string;
+      preco_base: number | null;
+      municipios: { nome: string; estados: { uf: string } | null } | null;
+    };
+    nome = roteiro.nome;
+    preco = roteiro.preco_base != null ? Number(roteiro.preco_base) : null;
+    localidade = roteiro.municipios
+      ? roteiro.municipios.estados
+        ? `${roteiro.municipios.nome}, ${roteiro.municipios.estados.uf}`
+        : roteiro.municipios.nome
+      : null;
+
+    // Reconstrói os adicionais selecionados a partir dos ids da query.
+    if (adicionalIds.length > 0) {
+      const { data: itens } = await supabaseAdmin
+        .from('roteiro_catalogo')
+        .select('id, valor_customizado, catalogo ( descricao, valor, tipo )')
+        .eq('roteiro_id', roteiro.id)
+        .in('id', adicionalIds);
+
+      adicionais = (itens ?? [])
+        .filter((it) => it.catalogo)
+        .map((it) => {
+          const cat = it.catalogo as unknown as { descricao: string; valor: number; tipo: string };
+          return {
+            id: it.id,
+            descricao: cat.descricao,
+            valor: it.valor_customizado ?? cat.valor,
+            tipo: cat.tipo,
+          };
+        });
+    }
   }
 
-  const preco = roteiro.preco_base != null ? Number(roteiro.preco_base) : null;
   const totalAdicionais = adicionais.reduce((sum, a) => sum + Number(a.valor), 0);
   const subtotal = (preco ?? 0) + totalAdicionais;
   const taxaServico = preco != null ? Math.round(subtotal * SERVICE_FEE_RATE) : null;
   const total = preco != null && taxaServico != null ? subtotal + taxaServico : null;
-
-  const localidade = roteiro.municipios
-    ? roteiro.municipios.estados
-      ? `${roteiro.municipios.nome}, ${roteiro.municipios.estados.uf}`
-      : roteiro.municipios.nome
-    : null;
 
   return (
     <div className="min-h-screen flex flex-col bg-slate-50">
       <Header />
 
       <main className="flex-1 max-w-3xl w-full mx-auto px-4 py-10">
-        <Link href={`/roteiros/${roteiro.id}`} className="text-sm text-slate-500 hover:text-slate-700">
-          ← Voltar ao roteiro
+        <Link href={voltarHref} className="text-sm text-slate-500 hover:text-slate-700">
+          ← Voltar {isEmbarcacao ? 'à embarcação' : 'ao roteiro'}
         </Link>
 
         <h1 className="mt-3 text-2xl font-bold text-[#0B2447]">Confirmar solicitação de reserva</h1>
@@ -140,9 +169,13 @@ export default async function NovaReservaPage({
         </p>
 
         <div className="mt-6 rounded-2xl border border-slate-200 bg-white shadow-sm overflow-hidden">
-          {/* Roteiro */}
+          {/* Alvo */}
           <div className="p-5 border-b border-slate-100">
-            <h2 className="text-base font-bold text-[#0B2447]">{roteiro.nome}</h2>
+            <div className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-slate-400 mb-1">
+              {isEmbarcacao ? <Ship className="h-3 w-3" /> : <MapPin className="h-3 w-3" />}
+              {isEmbarcacao ? 'Embarcação' : 'Roteiro'}
+            </div>
+            <h2 className="text-base font-bold text-[#0B2447]">{nome}</h2>
             {localidade && (
               <div className="mt-1 flex items-center gap-1.5 text-sm text-slate-500">
                 <MapPin className="h-4 w-4 shrink-0" />
@@ -175,7 +208,7 @@ export default async function NovaReservaPage({
             </div>
           </div>
 
-          {/* Adicionais */}
+          {/* Adicionais (apenas roteiro) */}
           {adicionais.length > 0 && (
             <div className="p-5 border-b border-slate-100">
               <div className="flex items-center gap-1.5 mb-3">
@@ -228,7 +261,9 @@ export default async function NovaReservaPage({
         </div>
 
         <ConfirmarReserva
-          roteiroId={roteiro.id}
+          tipo={tipo}
+          roteiroId={isEmbarcacao ? undefined : alvoId}
+          embarcacaoId={isEmbarcacao ? alvoId : undefined}
           data={data}
           flex={flex}
           pessoas={pessoas}

@@ -6,14 +6,16 @@ import { CheckCircle2, Loader2 } from 'lucide-react';
 import { criarReserva } from '../actions';
 
 type Props = {
-  roteiroId: string;
+  tipo: 'roteiro' | 'embarcacao';
+  roteiroId?: string;
+  embarcacaoId?: string;
   data: string;
   flex: number;
   pessoas: number;
   adicionaisIds: string[];
 };
 
-export default function ConfirmarReserva({ roteiroId, data, flex, pessoas, adicionaisIds }: Props) {
+export default function ConfirmarReserva({ tipo, roteiroId, embarcacaoId, data, flex, pessoas, adicionaisIds }: Props) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [enviada, setEnviada] = useState(false);
@@ -21,7 +23,7 @@ export default function ConfirmarReserva({ roteiroId, data, flex, pessoas, adici
   async function handleConfirm() {
     setLoading(true);
     setError(null);
-    const result = await criarReserva({ roteiroId, data, flex, pessoas, adicionaisIds });
+    const result = await criarReserva({ tipo, roteiroId, embarcacaoId, data, flex, pessoas, adicionaisIds });
     setLoading(false);
     if (result.ok) {
       setEnviada(true);

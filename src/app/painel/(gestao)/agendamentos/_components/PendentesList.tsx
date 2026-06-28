@@ -42,7 +42,7 @@ export default function PendentesList({ pendentes }: { pendentes: ReservaEvento[
                   </p>
                   <div className="mt-0.5 flex items-center gap-1.5 text-xs text-slate-500">
                     <Icon className="h-3 w-3 shrink-0" />
-                    <span className="truncate">{p.roteiro_nome}</span>
+                    <span className="truncate">{p.item_nome}</span>
                   </div>
                   <div className="mt-1.5 flex items-center gap-3 text-[11px] text-slate-400">
                     <span className="flex items-center gap-1">

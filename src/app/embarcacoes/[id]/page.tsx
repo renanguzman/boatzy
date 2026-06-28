@@ -1,5 +1,4 @@
 import { notFound } from 'next/navigation';
-import Link from 'next/link';
 import {
   MapPin,
   Users,
@@ -17,6 +16,7 @@ import Header from '@/components/layout/Header';
 import Footer from '@/components/layout/Footer';
 import GaleriaRoteiro from '../../roteiros/[id]/_components/GaleriaRoteiro';
 import LocalizacaoMap from '../../roteiros/[id]/_components/LocalizacaoMap';
+import EmbarcacaoBookingCard from './_components/EmbarcacaoBookingCard';
 import { supabaseAdmin } from '@/lib/supabase';
 
 type EmbarcacaoDetalhe = {
@@ -32,6 +32,7 @@ type EmbarcacaoDetalhe = {
   tripulacao: number | null;
   modalidade_capitao: string;
   preco_base: number | null;
+  disponibilidade_dias_semana: number[] | null;
   latitude: number | null;
   longitude: number | null;
   cep: string | null;
@@ -44,11 +45,8 @@ type EmbarcacaoDetalhe = {
   municipios: { nome: string; estados: { uf: string; nome: string } | null } | null;
   embarcacao_comodidades: { comodidade: { nome: string } | null }[];
   embarcacao_imagens: { id: string; url_imagem: string; titulo: string | null; principal: boolean }[];
+  embarcacao_disponibilidade_bloqueio: { data: string }[];
 };
-
-function formatPrice(value: number): string {
-  return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 }).format(value);
-}
 
 const modalidadeLabel: Record<string, string> = {
   com_capitao: 'Com Capitão',
@@ -56,20 +54,28 @@ const modalidadeLabel: Record<string, string> = {
   opcional: 'Capitão Opcional',
 };
 
-export default async function EmbarcacaoDetalhePage({ params }: { params: Promise<{ id: string }> }) {
+export default async function EmbarcacaoDetalhePage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ id: string }>;
+  searchParams: Promise<{ data?: string; flex?: string; pessoas?: string }>;
+}) {
   const { id } = await params;
+  const sp = await searchParams;
 
   const { data, error } = await supabaseAdmin
     .from('embarcacao')
     .select(`
       id, nome, descricao, capacidade, comprimento, cabines, quartos, suites, banheiros,
-      tripulacao, modalidade_capitao, preco_base,
+      tripulacao, modalidade_capitao, preco_base, disponibilidade_dias_semana,
       latitude, longitude, cep, bairro, logradouro, logradouro_numero, complemento,
       embarcacao_tipo ( nome ),
       embarcacao_categoria ( nome ),
       municipios ( nome, estados ( uf, nome ) ),
       embarcacao_comodidades ( comodidade ( nome ) ),
-      embarcacao_imagens ( id, url_imagem, titulo, principal )
+      embarcacao_imagens ( id, url_imagem, titulo, principal ),
+      embarcacao_disponibilidade_bloqueio ( data )
     `)
     .eq('id', id)
     .eq('status', 'ativo')
@@ -231,32 +237,16 @@ export default async function EmbarcacaoDetalhePage({ params }: { params: Promis
 
             {/* ── Right sidebar ── */}
             <div className="lg:col-span-1">
-              <div className="sticky top-24 rounded-2xl border border-slate-200 shadow-lg p-6">
-                <div className="flex items-end gap-1 mb-1">
-                  {embarcacao.preco_base ? (
-                    <>
-                      <span className="text-2xl font-bold text-[#0B2447]">{formatPrice(embarcacao.preco_base)}</span>
-                      <span className="text-sm text-slate-400 mb-0.5">/dia</span>
-                    </>
-                  ) : (
-                    <span className="text-lg font-semibold text-slate-500">Consulte o preço</span>
-                  )}
-                </div>
-                <p className="text-xs text-slate-400 mb-5">
-                  {modalidadeLabel[embarcacao.modalidade_capitao] ?? embarcacao.modalidade_capitao}
-                </p>
-
-                <Link
-                  href={`/entrar?redirect_to=${encodeURIComponent(`/embarcacoes/${embarcacao.id}`)}`}
-                  className="block w-full text-center bg-[#0B3D91] hover:bg-[#0B2447] text-white font-semibold py-3.5 rounded-xl transition-colors"
-                >
-                  Solicitar reserva
-                </Link>
-
-                <p className="text-center text-xs text-slate-400 mt-3">
-                  Você ainda não será cobrado.
-                </p>
-              </div>
+              <EmbarcacaoBookingCard
+                embarcacaoId={embarcacao.id}
+                preco={embarcacao.preco_base}
+                modalidadeLabel={modalidadeLabel[embarcacao.modalidade_capitao] ?? embarcacao.modalidade_capitao}
+                diasOperacao={embarcacao.disponibilidade_dias_semana}
+                datasBloqueadas={embarcacao.embarcacao_disponibilidade_bloqueio?.map((b) => b.data) ?? []}
+                initialData={sp.data}
+                initialFlex={sp.flex ? parseInt(sp.flex) : undefined}
+                initialPessoas={sp.pessoas ? parseInt(sp.pessoas) : undefined}
+              />
             </div>
           </div>
         </div>

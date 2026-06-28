@@ -12,7 +12,7 @@ export type ReservaEvento = {
   tipo: 'roteiro' | 'embarcacao';
   data_reserva: string; // 'yyyy-mm-dd'
   status: 'pendente' | 'confirmada' | 'recusada';
-  roteiro_nome: string;
+  item_nome: string;
   quantidade_pessoas: number;
   cliente: { name: string } | null;
 };
@@ -66,7 +66,7 @@ function EventoChip({ evento, dense }: { evento: ReservaEvento; dense?: boolean 
     >
       <Icon className="h-3 w-3 shrink-0 opacity-70" />
       <span className="truncate text-[11px] font-medium leading-tight">
-        {evento.cliente?.name ?? evento.roteiro_nome}
+        {evento.cliente?.name ?? evento.item_nome}
       </span>
     </Link>
   );
@@ -261,7 +261,7 @@ export default function AgendamentosCalendar({ eventos }: { eventos: ReservaEven
                             {e.cliente?.name ?? '—'}
                           </span>
                         </div>
-                        <p className="mt-0.5 truncate text-[10px] opacity-80">{e.roteiro_nome}</p>
+                        <p className="mt-0.5 truncate text-[10px] opacity-80">{e.item_nome}</p>
                         <div className="mt-1 flex items-center gap-1 text-[10px] opacity-70">
                           <Users className="h-2.5 w-2.5" />
                           {e.quantidade_pessoas}

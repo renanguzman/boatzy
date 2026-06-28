@@ -18,7 +18,7 @@ type ReservaCliente = {
   flexibilidade: number | null;
   quantidade_pessoas: number;
   roteiro_id: string | null;
-  roteiro_nome: string;
+  item_nome: string;
   preco_base: number | null;
   total_adicionais: number;
   taxa_servico: number | null;
@@ -91,7 +91,7 @@ export default async function MinhasReservasPage() {
   const { data } = await supabaseAdmin
     .from('reserva')
     .select(
-      `id, tipo, data_reserva, flexibilidade, quantidade_pessoas, roteiro_id, roteiro_nome,
+      `id, tipo, data_reserva, flexibilidade, quantidade_pessoas, roteiro_id, item_nome,
        preco_base, total_adicionais, taxa_servico, total_estimado,
        status, observacao_gestor, solicitado_em, respondido_em,
        roteiro ( nome, municipios ( nome, estados ( uf ) ), roteiro_imagens ( url_imagem, principal ) ),
@@ -147,7 +147,7 @@ export default async function MinhasReservasPage() {
                   <div className="flex items-stretch gap-4 p-4 border-b border-slate-100">
                     <div className="relative h-20 w-28 shrink-0 rounded-xl overflow-hidden bg-slate-100 hidden sm:block">
                       {img ? (
-                        <Image src={img} alt={r.roteiro_nome} fill className="object-cover" sizes="112px" />
+                        <Image src={img} alt={r.item_nome} fill className="object-cover" sizes="112px" />
                       ) : (
                         <div className="w-full h-full flex items-center justify-center">
                           <TipoIcon className="h-6 w-6 text-slate-300" />
@@ -162,7 +162,7 @@ export default async function MinhasReservasPage() {
                             {r.tipo === 'embarcacao' ? 'Embarcação' : 'Roteiro'}
                           </div>
                           <h2 className="mt-0.5 text-base font-bold text-[#0B2447] truncate">
-                            {r.roteiro?.nome ?? r.roteiro_nome}
+                            {r.roteiro?.nome ?? r.item_nome}
                           </h2>
                           {localidade && (
                             <div className="mt-0.5 flex items-center gap-1 text-xs text-slate-500">

@@ -20,7 +20,7 @@ export type Database = {
           data_reserva: string;
           flexibilidade: number | null;
           quantidade_pessoas: number;
-          roteiro_nome: string;
+          item_nome: string;
           preco_base: number | null;
           total_adicionais: number;
           taxa_servico: number | null;
@@ -42,7 +42,7 @@ export type Database = {
           data_reserva: string;
           flexibilidade?: number | null;
           quantidade_pessoas: number;
-          roteiro_nome: string;
+          item_nome: string;
           preco_base?: number | null;
           total_adicionais?: number;
           taxa_servico?: number | null;
@@ -64,7 +64,7 @@ export type Database = {
           data_reserva?: string;
           flexibilidade?: number | null;
           quantidade_pessoas?: number;
-          roteiro_nome?: string;
+          item_nome?: string;
           preco_base?: number | null;
           total_adicionais?: number;
           taxa_servico?: number | null;

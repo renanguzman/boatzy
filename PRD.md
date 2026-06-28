@@ -240,8 +240,17 @@ gestor. Detalhes técnicos: SPEC §20.4–20.5.
   adicionais, total e a **resposta do gestor** (observação + data). Detalhes: SPEC §20.6.
 - `/minha-conta`: placeholder ("Em breve") — edição de dados fica para depois.
 
-**Próximos passos:** criação de reserva de **embarcação** pelo site; tela "Minha conta" (edição de
-dados); refinamentos do calendário (filtros por tipo/status); pagamento (Stripe).
+#### ✅ Implementado — Reserva de **embarcação** pelo site
+
+- A página `/embarcacoes/[id]` ganhou a sidebar `EmbarcacaoBookingCard` (data/pessoas obrigatórios,
+  disponibilidade, preço/dia + taxa) — mesmo fluxo do roteiro, **sem adicionais**.
+- Pré-preenchimento via busca (`EmbarcacaoCard` carrega data/pessoas). Confirmação compartilha
+  `/reservas/novo` (agora `?roteiro=` ou `?embarcacao=`) e a action `criarReserva` (multi-tipo).
+- Reservas de embarcação aparecem no calendário do gestor, no detalhe `/painel/agendamentos/[id]` e
+  em "Minhas reservas", com o ícone/diferenciação de tipo. Detalhes: SPEC §20.7.
+
+**Próximos passos:** tela "Minha conta" (edição de dados); refinamentos do calendário (filtros por
+tipo/status); pagamento (Stripe).
 
 ---
 

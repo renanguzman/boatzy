@@ -16,7 +16,7 @@ export default async function AgendamentosPage() {
   const { data } = await supabaseAdmin
     .from('reserva')
     .select(
-      `id, tipo, data_reserva, status, roteiro_nome, quantidade_pessoas,
+      `id, tipo, data_reserva, status, item_nome, quantidade_pessoas,
        cliente:users!reserva_cliente_id_fkey ( name )`,
     )
     .eq('owner_id', user.id)

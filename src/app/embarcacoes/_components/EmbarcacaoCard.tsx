@@ -24,7 +24,14 @@ function formatPrice(value: number): string {
   return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 }).format(value);
 }
 
-export default function EmbarcacaoCard({ embarcacao }: { embarcacao: EmbarcacaoCardData }) {
+export default function EmbarcacaoCard({
+  embarcacao,
+  query,
+}: {
+  embarcacao: EmbarcacaoCardData;
+  /** Querystring (sem '?') com os filtros da busca (data/flex/pessoas) para pré-preencher o detalhe. */
+  query?: string;
+}) {
   const img = getPrimaryImage(embarcacao.embarcacao_imagens);
   const localidade = embarcacao.municipios
     ? embarcacao.municipios.estados
@@ -32,9 +39,11 @@ export default function EmbarcacaoCard({ embarcacao }: { embarcacao: EmbarcacaoC
       : embarcacao.municipios.nome
     : null;
 
+  const href = query ? `/embarcacoes/${embarcacao.id}?${query}` : `/embarcacoes/${embarcacao.id}`;
+
   return (
     <Link
-      href={`/embarcacoes/${embarcacao.id}`}
+      href={href}
       className="group block rounded-2xl overflow-hidden bg-white border border-slate-100 hover:border-slate-200 hover:shadow-xl transition-all duration-300"
     >
       {/* Image */}

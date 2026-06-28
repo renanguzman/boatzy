@@ -1017,7 +1017,9 @@ Link para `/embarcacoes/[id]`.
 
 Carrega a embarcação com tipo, categoria, município, comodidades e imagens. Reutiliza `GaleriaRoteiro` (com prop `voltarHref="/embarcacoes"`) e `LocalizacaoMap` de `roteiros/[id]/_components`.
 
-Seções: badges (tipo/categoria), título + localidade, descrição, grid de specs (capacidade, comprimento, cabines, suítes, banheiros, tripulação), comodidades, mapa + endereço, placeholder de avaliações, sidebar com preço/dia + CTA "Solicitar reserva" (link para `/entrar?redirect_to=/embarcacoes/[id]`).
+Seções: badges (tipo/categoria), título + localidade, descrição, grid de specs (capacidade, comprimento, cabines, suítes, banheiros, tripulação), comodidades, mapa + endereço, placeholder de avaliações, e a sidebar de reserva `EmbarcacaoBookingCard` (data/pessoas obrigatórios, disponibilidade, preço/dia + taxa de serviço → `/reservas/novo?embarcacao=...`). Ver §20.7.
+
+> A query lê `searchParams` (`data`/`flex`/`pessoas`) para pré-preencher o `EmbarcacaoBookingCard` quando o cliente chega pela busca, e inclui `disponibilidade_dias_semana` + `embarcacao_disponibilidade_bloqueio ( data )`.
 
 > `GaleriaRoteiro` ganhou prop `voltarHref?: string` (padrão `/buscar`) para o botão "voltar".
 
@@ -1094,16 +1096,16 @@ Fluxo de **solicitação** de reserva de roteiro feito pelo cliente no site. A r
 **`pendente`** e o gestor (owner do roteiro) a **confirma** ou **recusa** no painel, com uma
 observação retornada ao cliente. **Sem etapa de pagamento** neste momento (solicitação apenas).
 
-> Escopo atual: **roteiros**. Reserva de embarcação e tela do cliente para acompanhar status ficam
-> como próximos passos (§19).
+> Escopo: reserva de **roteiro** (§20.2–20.3) e de **embarcação** (§20.7). O fluxo, o resumo
+> (`/reservas/novo`) e a action `criarReserva` são compartilhados pelos dois tipos.
 
 ### 20.1 Modelo de dados
 
 Enum `reserva_status`: `'pendente' | 'confirmada' | 'recusada'`.
 Enum `reserva_tipo` (migration 022): `'roteiro' | 'embarcacao'`. Constraint `reserva_tipo_alvo_chk`
 garante coerência: tipo `roteiro` exige `roteiro_id`; tipo `embarcacao` exige `embarcacao_id`.
-Reservas existentes são `tipo = 'roteiro'` (default). A criação de reservas de embarcação é um passo
-futuro — a coluna já deixa o modelo e o calendário preparados para diferenciá-las.
+Em reservas de embarcação, `item_nome` guarda o **nome da embarcação** (título-snapshot) e não há
+`reserva_adicional` (adicionais só existem para roteiro, via `roteiro_catalogo`).
 
 #### Tabela `reserva`
 
@@ -1119,7 +1121,7 @@ data_reserva       date NOT NULL
 flexibilidade      smallint                                       -- dias (do filtro de busca)
 quantidade_pessoas integer NOT NULL
 -- snapshot de valores no momento da solicitação
-roteiro_nome       text NOT NULL
+item_nome          text NOT NULL                                  -- nome-snapshot do alvo (roteiro ou embarcação); renomeado de roteiro_nome na migration 023
 preco_base         numeric(12,2)
 total_adicionais   numeric(12,2) NOT NULL DEFAULT 0
 taxa_servico       numeric(12,2)
@@ -1144,7 +1146,7 @@ tipo                catalogo_tipo NOT NULL  -- snapshot ('produto'|'servico')
 created_at          timestamptz
 ```
 
-> **Snapshot:** `roteiro_nome`, preços/totais e os itens em `reserva_adicional` são gravados no
+> **Snapshot:** `item_nome`, preços/totais e os itens em `reserva_adicional` são gravados no
 > momento da solicitação. Mudanças posteriores no roteiro ou no catálogo **não** alteram reservas já
 > registradas.
 
@@ -1169,27 +1171,34 @@ Tipos TS adicionados em `src/types/supabase.ts`: tabelas `reserva`/`reserva_adic
   filtros ativos → o detalhe vem **pré-preenchido** quando o cliente chega pela busca.
 - Ao confirmar, `BookingCard` navega para `/reservas/novo?roteiro=...&data=...&flex=...&pessoas=...&adicionais=id1,id2`.
 
-### 20.3 Página `/reservas/novo` (confirmação + criação)
+### 20.3 Página `/reservas/novo` (confirmação + criação) — roteiro **ou** embarcação
 
-**Arquivo:** `src/app/reservas/novo/page.tsx` (Server Component).
+**Arquivo:** `src/app/reservas/novo/page.tsx` (Server Component). Atende os dois tipos pelo
+query param: `?roteiro=<id>` ou `?embarcacao=<id>` (presença de `embarcacao` define
+`tipo = 'embarcacao'`).
 
 - **Gate de auth:** `createClient()` SSR + `getUser()`; se não logado, redireciona para
-  `/entrar?redirect_to=<url atual>`. Sem `roteiro` → `/buscar`; faltando `data`/`pessoas` válidos →
-  volta a `/roteiros/[id]`.
-- Carrega o roteiro (ativo) e reconstrói os adicionais a partir dos ids da query; exibe resumo
-  (data, pessoas, adicionais, diária + taxa de serviço 12% + total estimado).
-- Componente client `_components/ConfirmarReserva.tsx`: botão "Confirmar solicitação" → server action
-  `criarReserva`; em sucesso mostra estado de "Solicitação enviada! (Pendente)".
+  `/entrar?redirect_to=<url atual>`. Sem alvo → `/buscar` (roteiro) ou `/embarcacoes` (embarcação);
+  faltando `data`/`pessoas` válidos → volta ao detalhe do alvo.
+- Carrega o alvo (ativo). Para **roteiro**, reconstrói os adicionais a partir dos ids da query; para
+  **embarcação**, não há adicionais. Exibe resumo (tipo, nome, localidade, data, pessoas, adicionais
+  quando houver, diária + taxa de serviço 12% + total estimado).
+- Componente client `_components/ConfirmarReserva.tsx` (props `tipo`, `roteiroId?`, `embarcacaoId?`,
+  …): botão "Confirmar solicitação" → server action `criarReserva`; em sucesso mostra
+  "Solicitação enviada! (Pendente)".
 
 **Server action `criarReserva`** (`src/app/reservas/novo/actions.ts`):
 ```ts
-criarReserva(input: { roteiroId, data, flex?, pessoas, adicionaisIds[] })
-  → { ok: true, reservaId } | { ok: false, error }
+criarReserva(input: {
+  tipo: 'roteiro' | 'embarcacao',
+  roteiroId?, embarcacaoId?, data, flex?, pessoas, adicionaisIds[]
+}) → { ok: true, reservaId } | { ok: false, error }
 ```
-Revalida auth, recarrega o roteiro e os adicionais **no servidor** (não confia em valores do client),
-recalcula `preco_base`/`total_adicionais`/`taxa_servico`/`total_estimado`, insere `reserva` (status
-`pendente`, `cliente_id = user.id`, `owner_id`, `embarcacao_id`) + linhas em `reserva_adicional`
-(snapshot). Se o insert dos adicionais falhar, a reserva é revertida (sem registro órfão).
+Revalida auth e recarrega o alvo **no servidor** (não confia em valores do client). Para roteiro,
+recarrega os adicionais; para embarcação, carrega `embarcacao` ativa (preço/owner). Recalcula
+`preco_base`/`total_adicionais`/`taxa_servico`/`total_estimado`, insere `reserva` (status `pendente`,
+`tipo`, `cliente_id = user.id`, `owner_id`, `roteiro_id`/`embarcacao_id` conforme o tipo) + (roteiro)
+linhas em `reserva_adicional` (snapshot). Se o insert dos adicionais falhar, a reserva é revertida.
 
 ### 20.4 Painel — `/painel/agendamentos` (calendário)
 
@@ -1198,7 +1207,7 @@ recalcula `preco_base`/`total_adicionais`/`taxa_servico`/`total_estimado`, inser
 
 Visão em **calendário** de todas as reservas dos roteiros/embarcações do gestor (`owner_id`).
 
-- A página (Server Component) carrega os eventos: `id, tipo, data_reserva, status, roteiro_nome,
+- A página (Server Component) carrega os eventos: `id, tipo, data_reserva, status, item_nome,
   quantidade_pessoas` + embed `cliente:users!reserva_cliente_id_fkey ( name )`, ordenados por
   `data_reserva`. Contador de pendentes no cabeçalho.
 - `AgendamentosCalendar` (`'use client'`, tipo `ReservaEvento`):
@@ -1251,3 +1260,19 @@ aparecem no menu sanfonado para usuários logados.
 
 **`/minha-conta`** (`src/app/minha-conta/page.tsx`): placeholder ("Em breve") com gate de auth —
 edição dos dados da conta fica para um passo futuro.
+
+### 20.7 Reserva de embarcação (cliente)
+
+Espelha o fluxo de roteiro (§20.2–20.3), **sem adicionais** (não existe `embarcacao_catalogo`).
+
+- **`EmbarcacaoBookingCard`** (`src/app/embarcacoes/[id]/_components/EmbarcacaoBookingCard.tsx`,
+  `'use client'`): sidebar da página `/embarcacoes/[id]` com **Data** e **Pessoas** obrigatórios,
+  calendário respeitando `disponibilidade_dias_semana` + `embarcacao_disponibilidade_bloqueio`, e
+  breakdown (diária + taxa de serviço 12% + total). Aceita `initialData`/`initialFlex`/`initialPessoas`
+  (pré-preenchimento). Ao confirmar, navega para
+  `/reservas/novo?embarcacao=...&data=...&flex=...&pessoas=...`.
+- **`EmbarcacaoCard`** (`src/app/embarcacoes/_components/EmbarcacaoCard.tsx`) recebe prop `query` e
+  monta o href `/embarcacoes/[id]?data=...&flex=...&pessoas=...`; `/embarcacoes` monta essa
+  querystring a partir dos filtros ativos → o detalhe vem **pré-preenchido** ao chegar pela busca.
+- O restante (confirmação em `/reservas/novo`, criação via `criarReserva`, calendário do painel,
+  detalhe `/painel/agendamentos/[id]`, "Minhas reservas") já trata `tipo = 'embarcacao'`.

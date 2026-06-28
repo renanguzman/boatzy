@@ -90,6 +90,15 @@ export default async function EmbarcacoesPage({ searchParams }: { searchParams: 
 
   const totalPaginas = Math.max(1, Math.ceil(total / POR_PAGINA));
 
+  // Querystring repassada ao detalhe da embarcação para pré-preencher data/pessoas.
+  const detalheQuery = (() => {
+    const qsp = new URLSearchParams();
+    if (params.data) qsp.set('data', params.data);
+    if (flex > 0) qsp.set('flex', String(flex));
+    if (pessoas > 0) qsp.set('pessoas', String(pessoas));
+    return qsp.toString();
+  })();
+
   // Resolve municipio name for initial state
   let initialLocation: { id: number; nome: string; uf: string } | null = null;
   if (municipioId && params.local) {
@@ -214,7 +223,7 @@ export default async function EmbarcacoesPage({ searchParams }: { searchParams: 
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
             {embarcacoes.map((e) => (
-              <EmbarcacaoCard key={e.id} embarcacao={e} />
+              <EmbarcacaoCard key={e.id} embarcacao={e} query={detalheQuery} />
             ))}
           </div>
         )}
