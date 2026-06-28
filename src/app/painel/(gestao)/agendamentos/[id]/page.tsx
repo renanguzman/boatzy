@@ -8,6 +8,7 @@ import { createClient } from '@/lib/supabase/server';
 import { supabaseAdmin } from '@/lib/supabase';
 import { formatCurrency } from '@/lib/utils';
 import ReservaAcoes from './_components/ReservaAcoes';
+import AdicionarAoCalendario from './_components/AdicionarAoCalendario';
 
 type ReservaDetalhe = {
   id: string;
@@ -86,6 +87,24 @@ export default async function ReservaDetalhePage({ params }: { params: Promise<{
       ? `${r.roteiro.municipios.nome}, ${r.roteiro.municipios.estados.uf}`
       : r.roteiro.municipios.nome
     : null;
+
+  // Dados para o lembrete no Google Calendar (evento de dia inteiro).
+  const itemNome = r.roteiro?.nome ?? r.item_nome;
+  const clienteNome = r.cliente?.name ?? 'Cliente';
+  const tituloEvento = `${itemNome} — ${clienteNome}`;
+  const detalhesEvento = [
+    r.tipo === 'embarcacao' ? 'Reserva de embarcação · Boatzy' : 'Reserva de roteiro · Boatzy',
+    '',
+    `Cliente: ${clienteNome}${r.cliente?.email ? ` (${r.cliente.email})` : ''}`,
+    `Pessoas: ${r.quantidade_pessoas}`,
+    r.embarcacao ? `Embarcação: ${r.embarcacao.nome}` : null,
+    r.reserva_adicional.length > 0
+      ? `Adicionais: ${r.reserva_adicional.map((a) => a.descricao).join(', ')}`
+      : null,
+    r.total_estimado != null ? `Total estimado: ${formatCurrency(r.total_estimado)}` : null,
+  ]
+    .filter((l) => l !== null)
+    .join('\n');
 
   return (
     <div className="p-8 max-w-4xl">
@@ -246,6 +265,13 @@ export default async function ReservaDetalhePage({ params }: { params: Promise<{
           </section>
 
           <ReservaAcoes reservaId={r.id} status={r.status} />
+
+          <AdicionarAoCalendario
+            titulo={tituloEvento}
+            dataReserva={r.data_reserva}
+            detalhes={detalhesEvento}
+            local={localidade}
+          />
         </div>
       </div>
     </div>

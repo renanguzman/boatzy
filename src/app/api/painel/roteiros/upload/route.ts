@@ -5,9 +5,9 @@ import { createClient } from '@/lib/supabase/server';
 import { PutObjectCommand } from '@aws-sdk/client-s3';
 import { r2, R2_BUCKET, buildPublicUrl } from '@/lib/r2';
 import { supabaseAdmin } from '@/lib/supabase';
+import { MAX_IMAGE_SIZE_BYTES, MAX_IMAGE_SIZE_ERROR } from '@/lib/upload';
 
 const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
-const MAX_SIZE_BYTES = 10 * 1024 * 1024; // 10 MB
 
 export async function POST(req: NextRequest) {
   const supabase = await createClient();
@@ -33,8 +33,8 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Tipo de arquivo não permitido.' }, { status: 400 });
   }
 
-  if (file.size > MAX_SIZE_BYTES) {
-    return NextResponse.json({ error: 'Arquivo excede o limite de 10 MB.' }, { status: 400 });
+  if (file.size > MAX_IMAGE_SIZE_BYTES) {
+    return NextResponse.json({ error: MAX_IMAGE_SIZE_ERROR }, { status: 400 });
   }
 
   const { data: roteiro } = await supabaseAdmin

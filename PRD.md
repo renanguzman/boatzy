@@ -65,7 +65,7 @@ Validar um marketplace de aluguel de embarcações, garantindo:
 - ✅ Menu com Agendamentos e Embarcações
 - ✅ Estrutura do banco de dados para embarcações (migration 002)
 - ✅ Cadastro de embarcação com seleção de comodidades (tabelas `comodidade` e `embarcacao_comodidades`, migration 007)
-- Upload de imagens (em desenvolvimento)
+- Upload de imagens (em desenvolvimento) — limite de **20 MB por arquivo** no cadastro/edição de embarcação e roteiro; arquivos acima do limite são bloqueados com a mensagem "O arquivo não pode ser maior que 20 MB." (validação no client e no servidor; ver SPEC § 13 → Upload de imagens).
 - Definição de preço (em desenvolvimento)
 - ✅ Gerenciamento de reservas de roteiro em `/painel/agendamentos` (Confirmar/Recusar com observação — ver 6.5)
 

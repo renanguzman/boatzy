@@ -8,6 +8,7 @@ import {
   Loader2, AlertCircle, CheckCircle, ChevronRight, CalendarDays,
   Plus, ChevronDown, ChevronUp, Trash2, HelpCircle, BookOpen,
 } from 'lucide-react';
+import { MAX_IMAGE_SIZE_BYTES, MAX_IMAGE_SIZE_ERROR } from '@/lib/upload';
 import {
   criarRoteiro,
   criarRegraRoteiro,
@@ -289,7 +290,12 @@ export default function NovoRoteiroForm({ estados, embarcacoes, catalogo }: Prop
   // ─── Imagens ──────────────────────────────────────────────────────────────
 
   function addFiles(files: FileList | File[]) {
-    const arr = Array.from(files).filter(f => f.type.startsWith('image/'));
+    const imageFiles = Array.from(files).filter(f => f.type.startsWith('image/'));
+    const arr = imageFiles.filter(f => f.size <= MAX_IMAGE_SIZE_BYTES);
+    if (arr.length < imageFiles.length) {
+      setFeedback({ type: 'error', msg: MAX_IMAGE_SIZE_ERROR });
+    }
+    if (arr.length === 0) return;
     setImages(prev => [
       ...prev,
       ...arr.map((file, i) => ({
@@ -776,7 +782,7 @@ export default function NovoRoteiroForm({ estados, embarcacoes, catalogo }: Prop
             <p className="text-sm font-medium text-slate-600">
               Arraste as imagens ou <span className="text-[#0B3D91] underline">clique para selecionar</span>
             </p>
-            <p className="text-xs text-slate-400 mt-1">JPG, PNG ou WEBP • Máximo 10 MB por arquivo</p>
+            <p className="text-xs text-slate-400 mt-1">JPG, PNG ou WEBP • Máximo 20 MB por arquivo</p>
           </div>
           <input ref={fileInputRef} type="file" accept="image/jpeg,image/png,image/webp"
             multiple className="hidden"

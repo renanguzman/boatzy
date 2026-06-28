@@ -432,6 +432,22 @@ RLS:
 
 > `data_criacao` foi adicionado também à tabela `embarcacao` (migration 003).
 
+### Upload de imagens (embarcações e roteiros)
+
+As imagens são enviadas ao Cloudflare R2 pelas rotas:
+- `POST /api/painel/embarcacoes/upload` e `POST /api/painel/embarcacoes/presigned-url`
+- `POST /api/painel/roteiros/upload`
+
+**Limites de arquivo** centralizados em `src/lib/upload.ts` (módulo neutro, importado tanto pelas rotas de API quanto pelos formulários no client):
+- `MAX_IMAGE_SIZE_MB = 20` / `MAX_IMAGE_SIZE_BYTES = 20 * 1024 * 1024` — tamanho máximo por arquivo: **20 MB**.
+- `MAX_IMAGE_SIZE_ERROR` — mensagem exibida ao usuário quando o arquivo excede o limite (`"O arquivo não pode ser maior que 20 MB."`).
+
+Validação em duas camadas:
+- **Client** (`addFiles` nos formulários de cadastro/edição de embarcação e roteiro): arquivos acima do limite são descartados antes do upload e a mensagem `MAX_IMAGE_SIZE_ERROR` é exibida no banner de feedback do formulário.
+- **Servidor** (rotas acima): rejeitam com `400` e a mesma mensagem caso o `size`/`file.size` exceda `MAX_IMAGE_SIZE_BYTES`.
+
+Tipos permitidos: `image/jpeg`, `image/png`, `image/webp` (a rota de presigned-url também aceita `image/gif`).
+
 ---
 
 ## 14. Taxas da Plataforma
@@ -1234,6 +1250,11 @@ Visão em **calendário** de todas as reservas dos roteiros/embarcações do ges
 - `ReservaAcoes` (`'use client'`): para reservas **pendentes**, botões **Confirmar** / **Cancelar
   reserva** abrem um textarea de observação; chamam as server actions e dão `router.refresh()`.
   Para reservas já resolvidas, mostra aviso de que não há ações pendentes.
+- `AdicionarAoCalendario` (`'use client'`): botão **"Adicionar ao Google Calendar"** que abre o
+  template `https://calendar.google.com/calendar/render?action=TEMPLATE&...` em nova aba, com o
+  evento de **dia inteiro** já preenchido — `text` = `"<item> — <cliente>"`, `dates` = data da
+  reserva (fim exclusivo no dia seguinte), `location` = localidade e `details` com cliente, pessoas,
+  embarcação, adicionais e total. (A reserva é de granularidade diária — sem horário específico.)
 
 **Server actions** (`actions.ts`, reutilizadas pelo detalhe):
 - `confirmarReserva(reservaId, observacao?)` → `status = 'confirmada'`.

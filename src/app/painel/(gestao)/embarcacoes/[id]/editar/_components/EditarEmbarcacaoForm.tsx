@@ -8,6 +8,7 @@ import {
   Upload, X, Star, Loader2, AlertCircle, CheckCircle,
   ChevronRight, Plus, ChevronDown, ChevronUp, Trash2, HelpCircle,
 } from 'lucide-react';
+import { MAX_IMAGE_SIZE_BYTES, MAX_IMAGE_SIZE_ERROR } from '@/lib/upload';
 import {
   atualizarEmbarcacao,
   atualizarComodidades,
@@ -383,7 +384,12 @@ export default function EditarEmbarcacaoForm({
   // ─── Novas imagens ─────────────────────────────────────────────────────────
 
   function addFiles(files: FileList | File[]) {
-    const arr = Array.from(files).filter(f => f.type.startsWith('image/'));
+    const imageFiles = Array.from(files).filter(f => f.type.startsWith('image/'));
+    const arr = imageFiles.filter(f => f.size <= MAX_IMAGE_SIZE_BYTES);
+    if (arr.length < imageFiles.length) {
+      setFeedback({ type: 'error', msg: MAX_IMAGE_SIZE_ERROR });
+    }
+    if (arr.length === 0) return;
     const hasExistingPrincipal = existingImages.some(i => i.principal && !i.markedForDelete);
     setNewImages(prev => [
       ...prev,
@@ -1056,7 +1062,7 @@ export default function EditarEmbarcacaoForm({
               Adicionar mais fotos —{' '}
               <span className="text-[#0B3D91] underline">clique ou arraste</span>
             </p>
-            <p className="text-xs text-slate-400 mt-1">JPG, PNG ou WEBP • Máximo 10 MB por arquivo</p>
+            <p className="text-xs text-slate-400 mt-1">JPG, PNG ou WEBP • Máximo 20 MB por arquivo</p>
           </div>
           <input ref={fileInputRef} type="file" accept="image/jpeg,image/png,image/webp"
             multiple className="hidden"
