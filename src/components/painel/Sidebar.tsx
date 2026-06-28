@@ -1,5 +1,6 @@
 'use client';
 
+import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { usePathname, useRouter } from 'next/navigation';
@@ -28,13 +29,39 @@ const navItems = [
   { href: '/painel/receitas', label: 'RECEITAS', icon: DollarSign, exact: false },
 ];
 
-export default function Sidebar() {
+export default function Sidebar({ naoLidas = 0 }: { naoLidas?: number }) {
   const pathname = usePathname();
   const router = useRouter();
-  const supabase = createClient();
+  const supabaseRef = useRef(createClient());
+
+  // Total de mensagens não lidas: começa com o valor do servidor e é mantido
+  // ao vivo via Realtime (eventos em `mensagem`).
+  const [totalNaoLidas, setTotalNaoLidas] = useState(naoLidas);
+
+  useEffect(() => {
+    const supabase = supabaseRef.current;
+
+    async function refetch() {
+      const { data } = await supabase.rpc('chat_total_nao_lidas');
+      setTotalNaoLidas(Number(data ?? 0));
+    }
+
+    // Qualquer mudança em `mensagem` que a RLS entregue (conversas deste gestor)
+    // dispara um refetch do total.
+    const channel = supabase
+      .channel('sidebar:nao-lidas')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'mensagem' }, () => {
+        void refetch();
+      })
+      .subscribe();
+
+    return () => {
+      void supabase.removeChannel(channel);
+    };
+  }, []);
 
   async function handleSignOut() {
-    await supabase.auth.signOut();
+    await supabaseRef.current.auth.signOut();
     router.push('/painel/login');
   }
 
@@ -52,6 +79,7 @@ export default function Sidebar() {
       <nav className="flex-1 px-4 space-y-0.5">
         {navItems.map(({ href, label, icon: Icon, exact }) => {
           const active = exact ? pathname === href : pathname.startsWith(href);
+          const showBadge = href === '/painel/clientes' && totalNaoLidas > 0;
           return (
             <Link
               key={href}
@@ -64,7 +92,12 @@ export default function Sidebar() {
               )}
             >
               <Icon className="w-4 h-4 flex-shrink-0" />
-              {label}
+              <span className="flex-1">{label}</span>
+              {showBadge && (
+                <span className="min-w-[18px] h-[18px] px-1 flex items-center justify-center rounded-full bg-red-500 text-white text-[10px] font-bold leading-none">
+                  {totalNaoLidas > 99 ? '99+' : totalNaoLidas}
+                </span>
+              )}
             </Link>
           );
         })}

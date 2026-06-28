@@ -283,6 +283,20 @@ tipo/status); pagamento (Stripe).
 - Ver reservas
 - Acompanhar ganhos
 
+#### ✅ Implementado — Menu **Clientes** (`/painel/clientes`)
+
+- Lista todos os clientes que **já efetuaram pelo menos uma reserva** (de embarcação ou roteiro) com o gestor logado. Cada cliente aparece **uma única vez**.
+- Exibe os dados do cliente: avatar + nome, "cliente desde" (data de cadastro), e-mail, CPF/CNPJ, total de reservas e data da última reserva.
+- Apenas **busca** (nome, e-mail ou CPF/CNPJ), **ordenação por coluna** e **paginação** (10 por página), seguindo o padrão visual do grid de embarcações; a única ação por linha é abrir o **chat** (abaixo).
+- Os clientes surgem automaticamente conforme fazem reservas; não há cadastro manual.
+
+#### ✅ Implementado — Chat em tempo real Gestor ↔ Cliente (dois lados)
+
+- **Chat em tempo real** estilo WhatsApp, só por dentro do site, usando **Supabase Realtime**. **Somente texto**, com status lida/não lida (as não lidas zeram ao abrir a conversa). A conversa é simétrica e única por par gestor↔cliente.
+- **Lado gestor (painel):** a partir da lista de Clientes, o gestor abre o chat (`/painel/clientes/[id]/chat`). Cada linha tem ícone de chat com **badge de não lidas**; há um **badge com o total geral** no item `CLIENTES` da sidebar, ao vivo.
+- **Lado cliente (site):** em **Minhas reservas**, cada reserva tem o botão **"Conversar com o gestor"** (`/minhas-reservas/[id]/chat`) com **badge de não lidas** por reserva. O **menu do usuário (dropdown)** exibe um **badge de aviso** quando há qualquer conversa não lida (no avatar e ao lado de "Minhas reservas"), atualizado ao vivo.
+- Detalhes técnicos em `SPEC.md` §21.
+
 #### ✅ Implementado — Precificação dinâmica (UI) — roteiros e embarcações
 
 - Seção "Preço" nos forms de cadastro/edição (roteiro **e** embarcação) com preço base + regras (Dias da Semana, Período Anual, Data Específica).

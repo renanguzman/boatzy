@@ -3,7 +3,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 import {
   MapPin, Ship, Users, CalendarDays, ShoppingCart, Clock, MessageSquare,
-  Hourglass, CheckCircle2, XCircle, Compass,
+  MessageCircle, Hourglass, CheckCircle2, XCircle, Compass,
 } from 'lucide-react';
 import Header from '@/components/layout/Header';
 import Footer from '@/components/layout/Footer';
@@ -13,6 +13,7 @@ import { formatCurrency } from '@/lib/utils';
 
 type ReservaCliente = {
   id: string;
+  owner_id: string;
   tipo: 'roteiro' | 'embarcacao';
   data_reserva: string;
   flexibilidade: number | null;
@@ -91,7 +92,7 @@ export default async function MinhasReservasPage() {
   const { data } = await supabaseAdmin
     .from('reserva')
     .select(
-      `id, tipo, data_reserva, flexibilidade, quantidade_pessoas, roteiro_id, item_nome,
+      `id, owner_id, tipo, data_reserva, flexibilidade, quantidade_pessoas, roteiro_id, item_nome,
        preco_base, total_adicionais, taxa_servico, total_estimado,
        status, observacao_gestor, solicitado_em, respondido_em,
        roteiro ( nome, municipios ( nome, estados ( uf ) ), roteiro_imagens ( url_imagem, principal ) ),
@@ -102,6 +103,14 @@ export default async function MinhasReservasPage() {
     .order('solicitado_em', { ascending: false });
 
   const reservas = (data ?? []) as unknown as ReservaCliente[];
+
+  // Mensagens de chat não lidas por gestor (enviadas pelo gestor ao cliente).
+  const { data: naoLidasRows } = await supabaseAdmin.rpc('chat_nao_lidas_por_gestor', {
+    p_cliente: user.id,
+  });
+  const naoLidasPorGestor = new Map<string, number>(
+    (naoLidasRows ?? []).map((r) => [r.gestor_id, Number(r.total)]),
+  );
 
   return (
     <div className="min-h-screen flex flex-col bg-slate-50">
@@ -140,6 +149,7 @@ export default async function MinhasReservasPage() {
                   : r.roteiro.municipios.nome
                 : null;
               const img = thumb(r);
+              const naoLidas = naoLidasPorGestor.get(r.owner_id) ?? 0;
 
               return (
                 <article key={r.id} className="rounded-2xl border border-slate-200 bg-white shadow-sm overflow-hidden">
@@ -240,17 +250,31 @@ export default async function MinhasReservasPage() {
                     )}
                   </div>
 
-                  {/* Ação: ver roteiro */}
-                  {r.roteiro_id && (
-                    <div className="border-t border-slate-100 px-4 py-3">
+                  {/* Ações: conversar com o gestor + ver roteiro */}
+                  <div className="border-t border-slate-100 px-4 py-3 flex items-center justify-between gap-3">
+                    <Link
+                      href={`/minhas-reservas/${r.id}/chat`}
+                      className="inline-flex items-center gap-2 text-sm font-medium text-[#0B3D91] hover:text-[#0B2447] transition-colors"
+                    >
+                      <span className="relative inline-flex">
+                        <MessageCircle className="h-4 w-4" />
+                        {naoLidas > 0 && (
+                          <span className="absolute -top-1.5 -right-1.5 min-w-[16px] h-[16px] px-1 flex items-center justify-center rounded-full bg-red-500 text-white text-[9px] font-bold leading-none">
+                            {naoLidas > 99 ? '99+' : naoLidas}
+                          </span>
+                        )}
+                      </span>
+                      Conversar com o gestor
+                    </Link>
+                    {r.roteiro_id && (
                       <Link
                         href={`/roteiros/${r.roteiro_id}`}
                         className="text-sm font-medium text-[#0B3D91] hover:text-[#0B2447] transition-colors"
                       >
                         Ver roteiro →
                       </Link>
-                    </div>
-                  )}
+                    )}
+                  </div>
                 </article>
               );
             })}

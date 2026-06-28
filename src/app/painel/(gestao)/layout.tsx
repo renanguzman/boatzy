@@ -23,6 +23,13 @@ export default async function GestaoLayout({ children }: { children: React.React
 
   const canAccess = roles.includes('gestor') || roles.includes('admin');
 
+  // Total de mensagens de chat não lidas (para o badge da sidebar).
+  let naoLidas = 0;
+  if (user && canAccess) {
+    const { data } = await supabaseAdmin.rpc('chat_total_nao_lidas', { p_gestor: user.id });
+    naoLidas = Number(data ?? 0);
+  }
+
   if (!canAccess) {
     return (
       <div className="min-h-screen bg-[#F8F9FB] flex flex-col items-center justify-center p-4">
@@ -57,7 +64,7 @@ export default async function GestaoLayout({ children }: { children: React.React
 
   return (
     <div className="flex h-screen overflow-hidden bg-[#F8F9FB]">
-      <Sidebar />
+      <Sidebar naoLidas={naoLidas} />
       <div className="flex-1 flex flex-col overflow-auto">
         <Header />
         <main className="flex-1 overflow-auto">{children}</main>

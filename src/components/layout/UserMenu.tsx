@@ -9,10 +9,11 @@ type Props = {
   displayName: string;
   email: string;
   avatarUrl?: string;
+  naoLidas?: number;
   onSignOut: () => void;
 };
 
-export default function UserMenu({ displayName, email, avatarUrl, onSignOut }: Props) {
+export default function UserMenu({ displayName, email, avatarUrl, naoLidas = 0, onSignOut }: Props) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
 
@@ -39,7 +40,7 @@ export default function UserMenu({ displayName, email, avatarUrl, onSignOut }: P
         onClick={() => setOpen((o) => !o)}
         aria-haspopup="menu"
         aria-expanded={open}
-        className="flex items-center gap-1.5 rounded-full border border-slate-200 p-0.5 pr-2 hover:border-[#0B3D91]/40 hover:shadow-sm transition-all"
+        className="relative flex items-center gap-1.5 rounded-full border border-slate-200 p-0.5 pr-2 hover:border-[#0B3D91]/40 hover:shadow-sm transition-all"
       >
         {avatarUrl ? (
           <Image
@@ -55,6 +56,14 @@ export default function UserMenu({ displayName, email, avatarUrl, onSignOut }: P
           </div>
         )}
         <ChevronDown className={`h-3.5 w-3.5 text-slate-400 transition-transform ${open ? 'rotate-180' : ''}`} />
+        {naoLidas > 0 && (
+          <span
+            className="absolute -top-0.5 -left-0.5 min-w-[16px] h-[16px] px-1 flex items-center justify-center rounded-full bg-red-500 text-white text-[9px] font-bold leading-none ring-2 ring-white"
+            title={`${naoLidas} mensagem(ns) não lida(s)`}
+          >
+            {naoLidas > 99 ? '99+' : naoLidas}
+          </span>
+        )}
       </button>
 
       {open && (
@@ -77,6 +86,11 @@ export default function UserMenu({ displayName, email, avatarUrl, onSignOut }: P
             >
               <CalendarCheck className="h-4 w-4 text-slate-400" />
               Minhas reservas
+              {naoLidas > 0 && (
+                <span className="ml-auto min-w-[18px] h-[18px] px-1 flex items-center justify-center rounded-full bg-red-500 text-white text-[10px] font-bold leading-none">
+                  {naoLidas > 99 ? '99+' : naoLidas}
+                </span>
+              )}
             </Link>
             <Link
               href="/minha-conta"

@@ -1091,7 +1091,7 @@ type Props = {
 
 ## 19. Futuro
 
-- Chat  
+- Chat — **implementado nos dois lados** (gestor e cliente), em tempo real (ver §21)
 - Notificações  
 - App mobile  
 - Antifraude
@@ -1262,6 +1262,25 @@ Visão em **calendário** de todas as reservas dos roteiros/embarcações do ges
 - Ambas validam auth + role `gestor`/`admin` + posse (`owner_id`), gravam `observacao_gestor` e
   `respondido_em = now()`, e `revalidatePath('/painel/agendamentos')`.
 
+### 20.5b Painel — Clientes `/painel/clientes`
+
+**Arquivos:** `src/app/painel/(gestao)/clientes/page.tsx` +
+`_components/ClientesGrid.tsx`.
+
+- **Server Component:** valida auth (sem sessão → `/painel/login`). Via `supabaseAdmin`, consulta
+  `reserva` filtrando `owner_id = user.id`, selecionando `solicitado_em` +
+  `cliente:users!reserva_cliente_id_fkey ( id, name, email, cpf_cnpj, avatar_url, created_at )`.
+- **Agregação em memória:** as linhas de reserva são agrupadas por `cliente.id` num `Map`, de modo
+  que cada cliente aparece **uma única vez**, acumulando `total_reservas` (contagem) e
+  `ultima_reserva` (maior `solicitado_em`). `cliente_desde` = `users.created_at`. Resultado tipado
+  como `ClienteListItem[]`.
+- `ClientesGrid` (`'use client'`): **lista somente leitura, sem ações**. Colunas: Cliente
+  (avatar + nome + "cliente desde"), E-mail, CPF/CNPJ, Reservas, Última reserva. Suporta **busca**
+  (nome, e-mail ou CPF/CNPJ), **ordenação por coluna** (`nome`, `email`, `cpf`, `total_reservas`,
+  `ultima_reserva`) e **paginação** client-side (`PAGE_SIZE = 10`). Ordenação inicial:
+  `ultima_reserva desc`. Mesmo padrão visual de `EmbarcacoesGrid`. Avatares dependem dos
+  `images.remotePatterns` já liberados (Google/Facebook) em `next.config.ts` (ver §13).
+
 ### 20.6 Cliente — menu do usuário + `/minhas-reservas`
 
 **Menu do usuário (`src/components/layout/UserMenu.tsx`):** o avatar no `Header` vira um *dropdown*
@@ -1297,3 +1316,113 @@ Espelha o fluxo de roteiro (§20.2–20.3), **sem adicionais** (não existe `emb
   querystring a partir dos filtros ativos → o detalhe vem **pré-preenchido** ao chegar pela busca.
 - O restante (confirmação em `/reservas/novo`, criação via `criarReserva`, calendário do painel,
   detalhe `/painel/agendamentos/[id]`, "Minhas reservas") já trata `tipo = 'embarcacao'`.
+
+---
+
+## 21. Chat em tempo real (Gestor ↔ Cliente)
+
+Migrations: `supabase/migrations/20260627_chat.sql` (núcleo + RPCs do gestor) e
+`20260628_chat_cliente.sql` (RPCs do cliente). **Os dois lados estão implementados** — painel do
+gestor (§21.3–21.4) e site do cliente (§21.5). A conversa é simétrica (mesmas tabelas).
+
+### 21.1 Modelo de dados
+
+**`conversa`** — uma por par gestor↔cliente:
+```sql
+id          uuid pk default gen_random_uuid()
+gestor_id   uuid not null FK → users(id) ON DELETE CASCADE
+cliente_id  uuid not null FK → users(id) ON DELETE CASCADE
+created_at  timestamptz default now()
+updated_at  timestamptz default now()
+UNIQUE (gestor_id, cliente_id)
+```
+
+**`mensagem`**:
+```sql
+id           uuid pk
+conversa_id  uuid not null FK → conversa(id) ON DELETE CASCADE
+remetente_id uuid not null FK → users(id) ON DELETE CASCADE
+conteudo     text not null CHECK (char_length 1..4000)
+lida_em      timestamptz        -- null = não lida; preenchida quando o destinatário lê
+created_at   timestamptz default now()
+```
+Trigger `mensagem_bump_conversa` (AFTER INSERT) atualiza `conversa.updated_at`. Índices:
+`mensagem (conversa_id, created_at)` e parcial `(conversa_id) WHERE lida_em IS NULL`.
+
+**RLS** (`users.id == auth.uid()`): em ambas as tabelas, `service_role_all`. `conversa`:
+SELECT/INSERT para participantes (`gestor_id = auth.uid() OR cliente_id = auth.uid()`). `mensagem`:
+SELECT/INSERT/UPDATE só para participantes da conversa (subquery); INSERT exige
+`remetente_id = auth.uid()`.
+
+**Realtime:** `mensagem` tem `REPLICA IDENTITY FULL` e está em `supabase_realtime`. A entrega ao
+browser é filtrada pela RLS de SELECT (cada usuário só recebe as conversas das quais participa).
+
+**RPCs** (`security definer`, `p_gestor uuid DEFAULT auth.uid()`):
+- `chat_nao_lidas_por_cliente(p_gestor)` → `(cliente_id, total)`: mensagens do cliente ainda não
+  lidas, por cliente.
+- `chat_total_nao_lidas(p_gestor)` → `bigint`: total geral (badge da sidebar).
+
+Tipos correspondentes adicionados à mão em `src/types/supabase.ts` (`conversa`, `mensagem` e as
+duas funções).
+
+### 21.2 Server actions — `src/app/painel/(gestao)/clientes/actions.ts`
+
+- `abrirConversa(clienteId)` (em `clientes/actions.ts`): valida sessão + role `gestor`/`admin`;
+  `upsert` em `conversa` por `(gestor_id, cliente_id)`; retorna `conversaId` (idempotente).
+
+**Actions genéricas compartilhadas** — `src/lib/chat-actions.ts` (`'use server'`, usadas pelos dois
+lados):
+- `enviarMensagem(conversaId, conteudo)`: valida participação; insere `mensagem` com
+  `remetente_id = user.id`; revalida `/painel/clientes` e `/minhas-reservas`.
+- `marcarConversaComoLida(conversaId)`: `lida_em = now()` nas mensagens da **outra** parte ainda não
+  lidas. (Usada pelo ChatBox no client; nas páginas de chat o "marcar lida" é feito inline via
+  `supabaseAdmin` para não revalidar durante o render do Server Component.)
+
+### 21.3 Página de chat do gestor — `/painel/clientes/[id]/chat`
+
+`page.tsx` (Server Component, protegido pelo layout `(gestao)`): carrega o cliente, garante a
+conversa (`abrirConversa`), marca as recebidas como lidas (inline) e carrega as mensagens em ordem
+cronológica. Renderiza `ChatBox`.
+
+**`src/components/chat/ChatBox.tsx`** (`'use client'`, **compartilhado** gestor/cliente): estilo
+WhatsApp (bolhas à direita = minhas, à esquerda = interlocutor, separadores por dia, auto-scroll).
+Props: `conversaId`, `meId`, `interlocutor {name,email,avatar_url}`, `voltarHref`, `voltarLabel`,
+`mensagensIniciais`. Assina Realtime `channel('conversa:'+id).on('postgres_changes',
+{ event:'INSERT', table:'mensagem', filter:'conversa_id=eq.'+id })` com **dedupe por `id`**; ao
+receber mensagem da outra parte chama `marcarConversaComoLida`. Envio via `enviarMensagem` (a bolha
+aparece pelo eco do Realtime). Enter envia, Shift+Enter quebra linha.
+
+### 21.4 Badges de não lidas
+
+- **Lista de Clientes** (`clientes/page.tsx` + `_components/ClientesGrid.tsx`): a página chama
+  `chat_nao_lidas_por_cliente` e injeta `nao_lidas` em cada `ClienteListItem`; o grid ganhou a coluna
+  **Chat** com `MessageCircle` linkando para `/painel/clientes/[id]/chat` e badge vermelho quando
+  `nao_lidas > 0`.
+- **Sidebar** (`src/components/painel/Sidebar.tsx`): recebe `naoLidas` inicial do layout
+  (`chat_total_nao_lidas`) e mantém o total **ao vivo** — assina `postgres_changes` em `mensagem`
+  (qualquer evento; a RLS limita às conversas do gestor) e rechama `chat_total_nao_lidas()` a cada
+  evento, exibindo badge no item `CLIENTES`.
+
+### 21.5 Lado do cliente (site público)
+
+Migration `20260628_chat_cliente.sql` — RPCs espelhadas na direção do cliente (contam mensagens
+enviadas pelo **gestor**, `remetente_id = conversa.gestor_id`, não lidas):
+- `chat_nao_lidas_por_gestor(p_cliente)` → `(gestor_id, total)`.
+- `chat_total_nao_lidas_cliente(p_cliente)` → `bigint`.
+
+**Página de chat** — `/minhas-reservas/[id]/chat` (`src/app/minhas-reservas/[id]/chat/page.tsx`,
+Server Component): gate de auth (`/entrar?redirect_to=…`); carrega a `reserva` por `[id]` **exigindo
+`cliente_id = user.id`** (autorização), obtém o gestor (`owner_id` → `users`), garante a conversa
+(`upsert` inline), marca as recebidas como lidas (inline) e carrega as mensagens. Renderiza o
+`ChatBox` compartilhado com `interlocutor` = gestor e `voltarHref="/minhas-reservas"`, dentro de um
+shell `h-screen` (Header + área de chat com scroll interno).
+
+**Lista "Minhas reservas"** (`src/app/minhas-reservas/page.tsx`): o `select` passou a incluir
+`owner_id`; a página chama `chat_nao_lidas_por_gestor` e, no rodapé de cada reserva, adiciona o link
+**"Conversar com o gestor"** (`MessageCircle` → `/minhas-reservas/[id]/chat`) com badge vermelho
+quando há não lidas daquele gestor.
+
+**Header / UserMenu** (`src/components/layout/Header.tsx` + `UserMenu.tsx`): para usuários logados, o
+`Header` busca `chat_total_nao_lidas_cliente()` e mantém o total **ao vivo** (assina `postgres_changes`
+em `mensagem`, refetch a cada evento). Passa `naoLidas` ao `UserMenu`, que exibe um badge no gatilho
+do dropdown (sobre o avatar) e ao lado de **"Minhas reservas"** (também no menu mobile do Header).

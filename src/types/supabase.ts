@@ -740,6 +740,87 @@ export type Database = {
           },
         ];
       };
+      conversa: {
+        Row: {
+          id: string;
+          gestor_id: string;
+          cliente_id: string;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          gestor_id: string;
+          cliente_id: string;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          gestor_id?: string;
+          cliente_id?: string;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'conversa_gestor_id_fkey';
+            columns: ['gestor_id'];
+            isOneToOne: false;
+            referencedRelation: 'users';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'conversa_cliente_id_fkey';
+            columns: ['cliente_id'];
+            isOneToOne: false;
+            referencedRelation: 'users';
+            referencedColumns: ['id'];
+          },
+        ];
+      };
+      mensagem: {
+        Row: {
+          id: string;
+          conversa_id: string;
+          remetente_id: string;
+          conteudo: string;
+          lida_em: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          conversa_id: string;
+          remetente_id: string;
+          conteudo: string;
+          lida_em?: string | null;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          conversa_id?: string;
+          remetente_id?: string;
+          conteudo?: string;
+          lida_em?: string | null;
+          created_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'mensagem_conversa_id_fkey';
+            columns: ['conversa_id'];
+            isOneToOne: false;
+            referencedRelation: 'conversa';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'mensagem_remetente_id_fkey';
+            columns: ['remetente_id'];
+            isOneToOne: false;
+            referencedRelation: 'users';
+            referencedColumns: ['id'];
+          },
+        ];
+      };
     };
     Views: Record<string, never>;
     Functions: {
@@ -770,6 +851,22 @@ export type Database = {
           p_offset?: number | null;
         };
         Returns: { id: string; distancia_km: number | null; total: number }[];
+      };
+      chat_nao_lidas_por_cliente: {
+        Args: { p_gestor?: string };
+        Returns: { cliente_id: string; total: number }[];
+      };
+      chat_total_nao_lidas: {
+        Args: { p_gestor?: string };
+        Returns: number;
+      };
+      chat_nao_lidas_por_gestor: {
+        Args: { p_cliente?: string };
+        Returns: { gestor_id: string; total: number }[];
+      };
+      chat_total_nao_lidas_cliente: {
+        Args: { p_cliente?: string };
+        Returns: number;
       };
     };
     Enums: {

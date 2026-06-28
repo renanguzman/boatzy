@@ -13,6 +13,7 @@ export default function Header() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [user, setUser] = useState<SupabaseUser | null>(null);
   const [authLoading, setAuthLoading] = useState(true);
+  const [naoLidas, setNaoLidas] = useState(0);
   const pathname = usePathname();
   const router = useRouter();
   const supabase = createClient();
@@ -30,6 +31,28 @@ export default function Header() {
     return () => subscription.unsubscribe();
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Total de mensagens de chat não lidas (cliente), mantido ao vivo via Realtime.
+  useEffect(() => {
+    if (!user) return;
+    let active = true;
+    async function refetch() {
+      const { data } = await supabase.rpc('chat_total_nao_lidas_cliente');
+      if (active) setNaoLidas(Number(data ?? 0));
+    }
+    refetch();
+    const channel = supabase
+      .channel('header:nao-lidas-cliente')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'mensagem' }, () => {
+        void refetch();
+      })
+      .subscribe();
+    return () => {
+      active = false;
+      void supabase.removeChannel(channel);
+    };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user]);
 
   async function handleSignOut() {
     await supabase.auth.signOut();
@@ -78,6 +101,7 @@ export default function Header() {
                   displayName={displayName}
                   email={(user.email ?? '') as string}
                   avatarUrl={avatarUrl}
+                  naoLidas={naoLidas}
                   onSignOut={handleSignOut}
                 />
               ) : (
@@ -135,6 +159,11 @@ export default function Header() {
                   >
                     <CalendarCheck className="h-4 w-4 text-slate-400" />
                     Minhas reservas
+                    {naoLidas > 0 && (
+                      <span className="ml-auto min-w-[18px] h-[18px] px-1 flex items-center justify-center rounded-full bg-red-500 text-white text-[10px] font-bold leading-none">
+                        {naoLidas > 99 ? '99+' : naoLidas}
+                      </span>
+                    )}
                   </Link>
                   <Link
                     href="/minha-conta"
