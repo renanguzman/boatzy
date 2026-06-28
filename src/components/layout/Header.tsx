@@ -6,7 +6,8 @@ import Image from 'next/image';
 import { usePathname, useRouter } from 'next/navigation';
 import { Menu, X, User, Globe, LogOut, Loader2, CalendarCheck, UserCog } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
-import type { User as SupabaseUser } from '@supabase/supabase-js';
+import { authorizeRealtime } from '@/lib/supabase/realtime';
+import type { User as SupabaseUser, RealtimeChannel } from '@supabase/supabase-js';
 import UserMenu from './UserMenu';
 
 export default function Header() {
@@ -36,20 +37,25 @@ export default function Header() {
   useEffect(() => {
     if (!user) return;
     let active = true;
+    let channel: RealtimeChannel | undefined;
     async function refetch() {
       const { data } = await supabase.rpc('chat_total_nao_lidas_cliente');
       if (active) setNaoLidas(Number(data ?? 0));
     }
-    refetch();
-    const channel = supabase
-      .channel('header:nao-lidas-cliente')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'mensagem' }, () => {
-        void refetch();
-      })
-      .subscribe();
+    (async () => {
+      await authorizeRealtime(supabase);
+      if (!active) return;
+      await refetch();
+      channel = supabase
+        .channel('header:nao-lidas-cliente')
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'mensagem' }, () => {
+          void refetch();
+        })
+        .subscribe();
+    })();
     return () => {
       active = false;
-      void supabase.removeChannel(channel);
+      if (channel) void supabase.removeChannel(channel);
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user]);

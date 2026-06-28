@@ -4,7 +4,9 @@ import { useState, useEffect, useRef, useTransition, useCallback } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { ArrowLeft, Send, User, Loader2 } from 'lucide-react';
+import type { RealtimeChannel } from '@supabase/supabase-js';
 import { createClient } from '@/lib/supabase/client';
+import { authorizeRealtime } from '@/lib/supabase/realtime';
 import { enviarMensagem, marcarConversaComoLida } from '@/lib/chat-actions';
 
 export type Mensagem = {
@@ -62,29 +64,37 @@ export default function ChatBox({
   // Realtime: novas mensagens desta conversa.
   useEffect(() => {
     const supabase = supabaseRef.current;
-    const channel = supabase
-      .channel(`conversa:${conversaId}`)
-      .on(
-        'postgres_changes',
-        {
-          event: 'INSERT',
-          schema: 'public',
-          table: 'mensagem',
-          filter: `conversa_id=eq.${conversaId}`,
-        },
-        (payload) => {
-          const nova = payload.new as Mensagem;
-          setMensagens((prev) => (prev.some((m) => m.id === nova.id) ? prev : [...prev, nova]));
-          // Mensagem recebida da outra parte → marca como lida.
-          if (nova.remetente_id !== meId) {
-            void marcarConversaComoLida(conversaId);
-          }
-        },
-      )
-      .subscribe();
+    let channel: RealtimeChannel | undefined;
+    let cancelled = false;
+
+    (async () => {
+      await authorizeRealtime(supabase);
+      if (cancelled) return;
+      channel = supabase
+        .channel(`conversa:${conversaId}`)
+        .on(
+          'postgres_changes',
+          {
+            event: 'INSERT',
+            schema: 'public',
+            table: 'mensagem',
+            filter: `conversa_id=eq.${conversaId}`,
+          },
+          (payload) => {
+            const nova = payload.new as Mensagem;
+            setMensagens((prev) => (prev.some((m) => m.id === nova.id) ? prev : [...prev, nova]));
+            // Mensagem recebida da outra parte → marca como lida.
+            if (nova.remetente_id !== meId) {
+              void marcarConversaComoLida(conversaId);
+            }
+          },
+        )
+        .subscribe();
+    })();
 
     return () => {
-      void supabase.removeChannel(channel);
+      cancelled = true;
+      if (channel) void supabase.removeChannel(channel);
     };
   }, [conversaId, meId]);
 

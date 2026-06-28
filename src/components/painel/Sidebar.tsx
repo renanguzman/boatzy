@@ -4,7 +4,9 @@ import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { usePathname, useRouter } from 'next/navigation';
+import type { RealtimeChannel } from '@supabase/supabase-js';
 import { createClient } from '@/lib/supabase/client';
+import { authorizeRealtime } from '@/lib/supabase/realtime';
 import {
   LayoutDashboard,
   Ship,
@@ -40,23 +42,32 @@ export default function Sidebar({ naoLidas = 0 }: { naoLidas?: number }) {
 
   useEffect(() => {
     const supabase = supabaseRef.current;
+    let channel: RealtimeChannel | undefined;
+    let cancelled = false;
 
     async function refetch() {
       const { data } = await supabase.rpc('chat_total_nao_lidas');
-      setTotalNaoLidas(Number(data ?? 0));
+      if (!cancelled) setTotalNaoLidas(Number(data ?? 0));
     }
 
-    // Qualquer mudança em `mensagem` que a RLS entregue (conversas deste gestor)
-    // dispara um refetch do total.
-    const channel = supabase
-      .channel('sidebar:nao-lidas')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'mensagem' }, () => {
-        void refetch();
-      })
-      .subscribe();
+    (async () => {
+      await authorizeRealtime(supabase);
+      if (cancelled) return;
+      // Valor autoritativo do client (sessão autenticada) + assinatura ao vivo.
+      await refetch();
+      // Qualquer mudança em `mensagem` que a RLS entregue (conversas deste gestor)
+      // dispara um refetch do total.
+      channel = supabase
+        .channel('sidebar:nao-lidas')
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'mensagem' }, () => {
+          void refetch();
+        })
+        .subscribe();
+    })();
 
     return () => {
-      void supabase.removeChannel(channel);
+      cancelled = true;
+      if (channel) void supabase.removeChannel(channel);
     };
   }, []);
 

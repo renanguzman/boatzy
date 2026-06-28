@@ -1357,6 +1357,12 @@ SELECT/INSERT/UPDATE só para participantes da conversa (subquery); INSERT exige
 **Realtime:** `mensagem` tem `REPLICA IDENTITY FULL` e está em `supabase_realtime`. A entrega ao
 browser é filtrada pela RLS de SELECT (cada usuário só recebe as conversas das quais participa).
 
+> ⚠️ **Autorização do Realtime no browser:** como a sessão vem por cookie (`@supabase/ssr`), o socket
+> do Realtime conecta como `anon` por padrão e a RLS descarta todos os eventos. Antes de qualquer
+> `.subscribe()` é obrigatório chamar `authorizeRealtime(supabase)` (`src/lib/supabase/realtime.ts`),
+> que faz `supabase.realtime.setAuth(session.access_token)`. Usado por `ChatBox`, `Sidebar`
+> (gestor) e `Header` (cliente).
+
 **RPCs** (`security definer`, `p_gestor uuid DEFAULT auth.uid()`):
 - `chat_nao_lidas_por_cliente(p_gestor)` → `(cliente_id, total)`: mensagens do cliente ainda não
   lidas, por cliente.

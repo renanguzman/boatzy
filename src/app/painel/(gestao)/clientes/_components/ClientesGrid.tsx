@@ -1,8 +1,9 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect, useRef } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
+import type { RealtimeChannel } from '@supabase/supabase-js';
 import {
   Search,
   ChevronUp,
@@ -15,6 +16,8 @@ import {
   ChevronLeft,
   ChevronRight,
 } from 'lucide-react';
+import { createClient } from '@/lib/supabase/client';
+import { authorizeRealtime } from '@/lib/supabase/realtime';
 
 const PAGE_SIZE = 10;
 
@@ -93,6 +96,42 @@ export default function ClientesGrid({ clientes }: { clientes: ClienteListItem[]
   const [sortKey, setSortKey] = useState<SortKey>('ultima_reserva');
   const [sortDir, setSortDir] = useState<SortDir>('desc');
   const [page, setPage]       = useState(1);
+
+  // Não lidas por cliente, mantidas ao vivo via Realtime (sobrepõem o valor
+  // inicial vindo do servidor em cada `ClienteListItem.nao_lidas`).
+  const [naoLidasMap, setNaoLidasMap] = useState<Map<string, number>>(
+    () => new Map(clientes.map((c) => [c.id, c.nao_lidas])),
+  );
+  const supabaseRef = useRef(createClient());
+
+  useEffect(() => {
+    const supabase = supabaseRef.current;
+    let channel: RealtimeChannel | undefined;
+    let cancelled = false;
+
+    async function refetch() {
+      const { data } = await supabase.rpc('chat_nao_lidas_por_cliente');
+      if (cancelled) return;
+      setNaoLidasMap(new Map((data ?? []).map((r) => [r.cliente_id, Number(r.total)])));
+    }
+
+    (async () => {
+      await authorizeRealtime(supabase);
+      if (cancelled) return;
+      await refetch();
+      channel = supabase
+        .channel('clientes:nao-lidas')
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'mensagem' }, () => {
+          void refetch();
+        })
+        .subscribe();
+    })();
+
+    return () => {
+      cancelled = true;
+      if (channel) void supabase.removeChannel(channel);
+    };
+  }, []);
 
   function handleSort(key: SortKey) {
     if (sortKey === key) {
@@ -234,18 +273,23 @@ export default function ClientesGrid({ clientes }: { clientes: ClienteListItem[]
                     {/* Chat */}
                     <td className="py-4 px-4 pr-6">
                       <div className="flex items-center justify-end">
-                        <Link
-                          href={`/painel/clientes/${c.id}/chat`}
-                          title={c.nao_lidas > 0 ? `${c.nao_lidas} mensagem(ns) não lida(s)` : 'Abrir chat'}
-                          className="relative w-9 h-9 flex items-center justify-center rounded-lg text-slate-400 hover:text-[#0B2447] hover:bg-slate-100 transition-colors"
-                        >
-                          <MessageCircle className="w-5 h-5" />
-                          {c.nao_lidas > 0 && (
-                            <span className="absolute -top-0.5 -right-0.5 min-w-[18px] h-[18px] px-1 flex items-center justify-center rounded-full bg-red-500 text-white text-[10px] font-bold leading-none">
-                              {c.nao_lidas > 99 ? '99+' : c.nao_lidas}
-                            </span>
-                          )}
-                        </Link>
+                        {(() => {
+                          const naoLidas = naoLidasMap.get(c.id) ?? 0;
+                          return (
+                            <Link
+                              href={`/painel/clientes/${c.id}/chat`}
+                              title={naoLidas > 0 ? `${naoLidas} mensagem(ns) não lida(s)` : 'Abrir chat'}
+                              className="relative w-9 h-9 flex items-center justify-center rounded-lg text-slate-400 hover:text-[#0B2447] hover:bg-slate-100 transition-colors"
+                            >
+                              <MessageCircle className="w-5 h-5" />
+                              {naoLidas > 0 && (
+                                <span className="absolute -top-0.5 -right-0.5 min-w-[18px] h-[18px] px-1 flex items-center justify-center rounded-full bg-red-500 text-white text-[10px] font-bold leading-none">
+                                  {naoLidas > 99 ? '99+' : naoLidas}
+                                </span>
+                              )}
+                            </Link>
+                          );
+                        })()}
                       </div>
                     </td>
                   </tr>
