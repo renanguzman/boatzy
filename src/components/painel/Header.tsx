@@ -1,10 +1,11 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Bell, Settings, Search } from 'lucide-react';
+import { Settings, Search } from 'lucide-react';
 import Image from 'next/image';
 import { createClient } from '@/lib/supabase/client';
 import type { User } from '@supabase/supabase-js';
+import NotificacoesBell from './NotificacoesBell';
 
 interface HeaderProps {
   title?: string;
@@ -39,10 +40,7 @@ export default function Header({ title = 'Overview' }: HeaderProps) {
           />
         </div>
 
-        <button className="relative p-2 rounded-lg hover:bg-slate-50 transition-colors text-slate-500 hover:text-[#0B2447]">
-          <Bell className="w-5 h-5" />
-          <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-red-500 rounded-full" />
-        </button>
+        <NotificacoesBell />
 
         <button className="p-2 rounded-lg hover:bg-slate-50 transition-colors text-slate-500 hover:text-[#0B2447]">
           <Settings className="w-5 h-5" />

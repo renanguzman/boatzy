@@ -944,6 +944,18 @@ export type Database = {
         Args: { p_gestor?: string };
         Returns: { cliente_id: string; total: number }[];
       };
+      chat_conversas_nao_lidas: {
+        Args: { p_gestor?: string };
+        Returns: {
+          conversa_id: string;
+          cliente_id: string;
+          cliente_nome: string;
+          cliente_avatar: string | null;
+          total: number;
+          ultima_mensagem: string;
+          ultima_em: string;
+        }[];
+      };
       chat_total_nao_lidas: {
         Args: { p_gestor?: string };
         Returns: number;

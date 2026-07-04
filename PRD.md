@@ -296,6 +296,16 @@ tipo/status); pagamento (Stripe).
 - Ver reservas
 - Acompanhar ganhos
 
+#### ✅ Implementado — Dashboard com dados reais (`/painel`)
+
+Todos os números são do **gestor logado** (`owner_id`):
+
+- **Cards (clicáveis, linkam para a seção):** Agendamentos pendentes de validação (com total geral), Embarcações (com nº de ativas), Roteiros (com nº de ativos) e Clientes (distintos, com pelo menos 1 reserva).
+- **Gráfico "Reservas solicitadas":** barras com a quantidade de solicitações recebidas por mês nos **últimos 6 meses** (mês com mais reservas em destaque).
+- **Card "Destaque do período":** roteiro/embarcação com mais solicitações na janela de 6 meses (% do total e contagem); estado vazio com CTA quando não há reservas.
+- **"Últimas solicitações de reserva":** as 6 mais recentes com item + tipo (badge), cliente, data do passeio, pessoas, total estimado, status (5 status com cores) e data da solicitação; ação "Detalhes" → `/painel/agendamentos/[id]` e "Ver todas" → calendário.
+- A página roda a transição lazy `confirmada → concluída` antes de contar/exibir.
+
 #### ✅ Implementado — Menu **Clientes** (`/painel/clientes`)
 
 - Lista todos os clientes que **já efetuaram pelo menos uma reserva** (de embarcação ou roteiro) com o gestor logado. Cada cliente aparece **uma única vez**.
@@ -307,6 +317,7 @@ tipo/status); pagamento (Stripe).
 
 - **Chat em tempo real** estilo WhatsApp, só por dentro do site, usando **Supabase Realtime**. **Somente texto**, com status lida/não lida (as não lidas zeram ao abrir a conversa). A conversa é simétrica e única por par gestor↔cliente.
 - **Lado gestor (painel):** a partir da lista de Clientes, o gestor abre o chat (`/painel/clientes/[id]/chat`). Cada linha tem ícone de chat com **badge de não lidas**; há um **badge com o total geral** no item `CLIENTES` da sidebar, ao vivo.
+- ✅ **Sino de notificações (topbar do painel):** exibe badge com o total de mensagens não lidas dos clientes, ao vivo. Ao clicar, abre um dropdown com a lista de conversas (avatar, nome, prévia da última mensagem, tempo relativo, contagem por conversa) e atalho direto para cada chat; footer leva a Clientes. Estado vazio quando não há não lidas. **Futuramente o sino agregará outros tipos de notificação** (ex.: novas solicitações de reserva). Detalhes: SPEC §21.4b.
 - **Lado cliente (site):** em **Minhas reservas**, cada reserva tem o botão **"Conversar com o gestor"** (`/minhas-reservas/[id]/chat`) com **badge de não lidas** por reserva. O **menu do usuário (dropdown)** exibe um **badge de aviso** quando há qualquer conversa não lida (no avatar e ao lado de "Minhas reservas"), atualizado ao vivo.
 - Detalhes técnicos em `SPEC.md` §21.
 

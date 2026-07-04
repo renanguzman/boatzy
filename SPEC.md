@@ -228,10 +228,33 @@ Módulo independente do hotsite, acessível apenas por usuários cuja lista de r
 |------|-----------|------|
 | `/painel/login` | Login de gestores | Pública |
 | `/painel/cadastro` | Cadastro de gestores | Pública |
-| `/painel` | Dashboard | gestor/admin |
+| `/painel` | Dashboard com dados reais do gestor (ver "Dashboard" abaixo) | gestor/admin |
 | `/painel/agendamentos` | Listagem/gestão de reservas (Confirmar/Recusar) — ver §20 | gestor/admin |
 | `/painel/embarcacoes` | CRUD de embarcações | gestor/admin |
 | `/painel/usuarios` | Cadastro e listagem de usuários | gestor/admin |
+
+### Dashboard (`/painel`)
+
+`src/app/painel/(gestao)/page.tsx` — Server Component (era template mock `'use client'`; reescrito
+com dados reais). Valida sessão (`redirect /painel/login`), chama `concluirReservasVencidas()` e
+carrega em paralelo (`Promise.all`, via `supabaseAdmin`, tudo filtrado por `owner_id = user.id`):
+`embarcacao (id, status)`, `roteiro (id, ativo)` e `reserva` completa (com embed
+`cliente:users!reserva_cliente_id_fkey ( name )`, `order solicitado_em desc`).
+
+- **Cards** (grid 4, cada um é `<Link>` para a seção): Agendamentos pendentes (valor =
+  `status='pendente'`; sub = total; alerta âmbar quando > 0), Embarcações (sub = ativas), Roteiros
+  (sub = ativos), Clientes (`Set` de `cliente_id`).
+- **Gráfico de barras** (HTML/CSS, sem lib): solicitações por mês nos últimos 6 meses — buckets
+  montados a partir do mês corrente (`MESES_CURTOS` pt-BR), agregação em memória por
+  `solicitado_em`; barra do maior mês em navy (`#0B2447`), demais em slate; contagem acima da barra.
+- **Destaque do período:** agrupa reservas da janela por alvo (`tipo:roteiro_id|embarcacao_id`),
+  exibe o mais solicitado (nome, % do total da janela, contagem, tipo) com link para
+  `/painel/agendamentos`; fallback sem reservas → CTA "Gerenciar roteiros".
+- **Últimas solicitações:** tabela com as 6 reservas mais recentes — item + badge de tipo
+  (roteiro/embarcação), cliente, data do passeio, pessoas, total estimado (`formatCurrency`),
+  status (mapa dos 5 status com cores), solicitada em, link "Detalhes" →
+  `/painel/agendamentos/[id]`; header com "Ver todas". Estado vazio com borda tracejada.
+- Ícone `Map` do lucide importado como `MapIcon` (evita sombrear o construtor global `Map`).
 
 ### Modelo multi-role
 
@@ -1455,6 +1478,28 @@ aparece pelo eco do Realtime). Enter envia, Shift+Enter quebra linha.
   (`chat_total_nao_lidas`) e mantém o total **ao vivo** — assina `postgres_changes` em `mensagem`
   (qualquer evento; a RLS limita às conversas do gestor) e rechama `chat_total_nao_lidas()` a cada
   evento, exibindo badge no item `CLIENTES`.
+
+### 21.4b Sino de notificações do painel (`NotificacoesBell`)
+
+Migration `028_chat_conversas_nao_lidas.sql` — RPC `chat_conversas_nao_lidas(p_gestor DEFAULT
+auth.uid())` (`security definer`, `GRANT` a `authenticated`/`service_role`, mesmo padrão das demais
+RPCs de chat): retorna, por conversa com mensagens do **cliente** ainda não lidas —
+`(conversa_id, cliente_id, cliente_nome, cliente_avatar, total, ultima_mensagem, ultima_em)`,
+ordenado pela mensagem mais recente. Necessária porque a RLS de `users` impede o browser de ler
+nome/avatar de terceiros.
+
+`src/components/painel/NotificacoesBell.tsx` (`'use client'`), renderizado pelo `Header` do painel
+(substituiu o sino estático do template):
+
+- **Badge:** contagem total de não lidas sobre o sino (99+), some quando zero.
+- **Dados ao vivo:** `authorizeRealtime` + fetch inicial da RPC + assinatura `postgres_changes` em
+  `mensagem` com refetch a cada evento (mesmo padrão da `Sidebar`).
+- **Dropdown** (click-outside/ESC fecham): lista de conversas com avatar (fallback inicial), nome,
+  preview da última mensagem, tempo relativo ("há 5 min"/"há 2 h"/data) e badge por conversa; item
+  → `/painel/clientes/[id]/chat`. Estado vazio ("Nenhuma notificação nova") e footer "Ver todos os
+  clientes" → `/painel/clientes`.
+- Escopo atual: apenas chat. O componente é o ponto de agregação para **futuras notificações**
+  (novas solicitações de reserva etc.).
 
 ### 21.5 Lado do cliente (site público)
 
