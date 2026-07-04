@@ -848,7 +848,7 @@ type Props = {
 - Calendário de 2 meses, navegação por mês, datas passadas desabilitadas.
 - Botões de flexibilidade: 0 (Data exata), 1, 2, 3, 7 (dias).
 - Display: "15 de jun." ou "15 de jun. ±2 dias".
-- Clicar em um dia aplica a seleção imediatamente (`onChange` no clique), preenchendo o campo; o botão "Confirmar" apenas fecha o dropdown.
+- Clicar em um dia aplica a seleção imediatamente (`onChange` no clique), preenche o campo e **fecha o dropdown** — não há botão "Confirmar". Para ajustar a flexibilidade depois, reabre-se o calendário: clicar num chip de flexibilidade aplica na hora (`onChange`) e mantém o dropdown aberto.
 
 #### `GuestPicker`
 
@@ -882,8 +882,11 @@ type Props = {
 | `flex` | number | Flexibilidade em dias |
 | `pessoas` | number | Tamanho do grupo |
 | `pagina` | number | Página atual (padrão: 1) |
+| `tipo` | `'embarcacao'` | Aba ativa da busca (exibe o seletor de tipo na barra compacta) |
+| `tipo_embarcacao` | uuid | Filtro pelo tipo da **embarcação vinculada** ao roteiro (`embarcacao_tipo.id`) |
+| `tipo_nome` | string | Rótulo do tipo para chip/título (evita query extra) |
 
-**Filtros aplicados (via RPC `buscar_roteiros` — migrations 018/019/020):**
+**Filtros aplicados (via RPC `buscar_roteiros` — migrations 018/019/020/024):**
 
 > **Correção (migration 020):** `buscar_roteiros` e `buscar_embarcacoes` retornavam erro `42804` (`double precision` × `numeric` na coluna `distancia_km`), pois a expressão haversine (`acos/cos/sin/radians`) é `double precision` mas a coluna de retorno é `numeric`. A página engolia o erro e exibia "nenhum resultado". A 020 faz cast explícito da distância para `numeric` em ambas as funções. A página passou a logar `rpcError`.
 
@@ -891,12 +894,17 @@ Mesma mecânica de `buscar_embarcacoes` (ver §18.6), com **uma diferença no fi
 
 - **Localização:** município exato OU ≤ 50 km do centro (haversine), usando `roteiro.latitude/longitude`.
 - **Data:** disponibilidade via `roteiro.disponibilidade_dias_semana` + `roteiro_disponibilidade_bloqueio`; com `flex`, basta um dia livre na janela.
+- **Tipo de embarcação (migration 024):** parâmetro `p_tipo_id uuid DEFAULT NULL` — quando informado, o roteiro só aparece se a **embarcação vinculada** tiver `embarcacao_tipo_id = p_tipo_id`. Roteiros sem embarcação vinculada não aparecem com o filtro ativo (mesma regra do filtro de pessoas). `NULL` = sem filtro (aba Roteiros intocada). A 024 dá `DROP` na assinatura de 9 parâmetros (020) antes do `CREATE` para evitar overload ambíguo no PostgREST.
 - **Ordenação:** por distância quando há centro; senão `created_at` desc. A página chama a RPC (ids + total) e busca os detalhes com `.in('id', ids)` preservando a ordem.
 - `GRANT EXECUTE` para `anon, authenticated, service_role`.
 
+**Busca orientada a roteiro (aba Embarcações):** a aba "Embarcações" do `SearchTypeToggle` não navega mais para `/embarcacoes` — ela adiciona `tipo=embarcacao` (+ `tipo_embarcacao`/`tipo_nome` quando um tipo é escolhido) e o destino é sempre `/buscar`. A página exibe chip removível "Tipo: \<nome\>" (a remoção preserva `tipo=embarcacao`), título contextualizado ("Roteiros com \<tipo\> em …") e, no estado vazio com filtro de tipo, o botão "Limpar filtro de tipo".
+
+**Helper `getTiposEmbarcacaoComRoteiro()`** (`src/lib/tipos-embarcacao.ts`, `server-only`): retorna `{ id, nome }[]` dos tipos com pelo menos um roteiro **ativo** com embarcação vinculada daquele tipo (dedupe em memória, ordenado por nome). Usado pela home (`HeroSection`) e por `/buscar` (`SearchBarCompact`) via props.
+
 **Componentes:**
-- `src/app/buscar/_components/SearchBarCompact.tsx` — barra compacta (`'use client'`), reutiliza pickers com `compact` prop, navega via `router.push()`. Aceita prop `tipo?: 'roteiro' | 'embarcacao'` (padrão `'roteiro'`) e renderiza o `SearchTypeToggle`; alternar a aba preserva os filtros e navega para `/buscar` ou `/embarcacoes`.
-- `src/app/buscar/_components/RoteiroCard.tsx` — card de roteiro (`'use client'`), imagem, localidade, specs, preço.
+- `src/app/buscar/_components/SearchBarCompact.tsx` — barra compacta (`'use client'`), reutiliza pickers com `compact` prop, navega via `router.push()`. Props: `tipo?: 'roteiro' | 'embarcacao'` (padrão `'roteiro'`), `tiposEmbarcacao?: TipoEmbarcacaoValue[]` e `initialTipoEmbarcacao?`. Renderiza o `SearchTypeToggle`; na aba Embarcações exibe o `TipoEmbarcacaoPicker` como primeiro campo. Alternar a aba preserva local/data/pessoas e navega sempre para `/buscar` (a aba Embarcações acrescenta `tipo=embarcacao`).
+- `src/app/buscar/_components/RoteiroCard.tsx` — card de roteiro (`'use client'`), imagem, localidade, specs (inclui badge com o tipo da embarcação vinculada, ícone `Ship`), preço.
 
 #### `SearchTypeToggle` (`src/components/home/search/SearchTypeToggle.tsx`)
 
@@ -905,7 +913,24 @@ type SearchType = 'roteiro' | 'embarcacao';
 type Props = { value: SearchType; onChange: (v: SearchType) => void; variant?: 'dark' | 'light' };
 ```
 
-Segmented control (Roteiros / Embarcações) usado na Hero Section (`variant="dark"`) e no `SearchBarCompact` (`variant="light"`). A Hero monta o destino em `handleSearch` (`/buscar` ou `/embarcacoes`).
+Segmented control (Roteiros / Embarcações) usado na Hero Section (`variant="dark"`) e no `SearchBarCompact` (`variant="light"`). As duas abas resultam em **roteiros** em `/buscar`; a aba Embarcações apenas acrescenta o filtro por tipo da embarcação vinculada.
+
+#### `TipoEmbarcacaoPicker` (`src/components/home/search/TipoEmbarcacaoPicker.tsx`)
+
+```ts
+type TipoEmbarcacaoValue = { id: string; nome: string };
+type Props = {
+  options: TipoEmbarcacaoValue[];   // tipos com roteiro ativo vinculado (carregados no servidor)
+  value: TipoEmbarcacaoValue | null;
+  onChange: (v: TipoEmbarcacaoValue | null) => void;
+  isOpen: boolean;
+  onOpen: () => void;
+  onClose: () => void;
+  compact?: boolean;
+};
+```
+
+Dropdown no padrão dos demais pickers (trigger com rótulo "Embarcação", lista com ícone `Ship`, clique seleciona/desmarca e fecha). Exibido na Hero e na barra compacta **apenas** quando a aba Embarcações está ativa; seleção opcional (sem tipo, a busca equivale à aba Roteiros). A `HeroSection` passou a receber `tiposEmbarcacao` por props (a home `src/app/page.tsx` virou async e chama `getTiposEmbarcacaoComRoteiro()`).
 
 **Tipo `RoteiroCardData`:**
 ```ts
@@ -918,6 +943,7 @@ type RoteiroCardData = {
   duracao: string | null;
   municipios: { nome: string; estados: { uf: string } | null } | null;
   roteiro_imagens: { url_imagem: string; principal: boolean }[];
+  embarcacao: { embarcacao_tipo: { nome: string } | null } | null;
 };
 ```
 
@@ -984,13 +1010,18 @@ type RoteiroDetalhe = {
 
 ---
 
-### 18.6 Busca de Embarcações `/embarcacoes`
+### 18.6 Busca de Embarcações `/embarcacoes` — **substituída por redirect**
 
-**Arquivo:** `src/app/embarcacoes/page.tsx` (Server Component) — espelha `/buscar`.
+**Arquivo:** `src/app/embarcacoes/page.tsx` (Server Component).
 
-Query params idênticos a `/buscar` (`municipio`, `local`, `lat`, `lng`, `data`, `flex`, `pessoas`, `pagina`).
+> ⚠️ **Descontinuada como listagem** (busca orientada a roteiro — ver §18.3): a rota agora apenas
+> **redireciona** (`redirect()`) para `/buscar?tipo=embarcacao`, preservando os params compatíveis
+> (`municipio`, `local`, `lat`, `lng`, `data`, `flex`, `pessoas`, `pagina`). O componente
+> `_components/EmbarcacaoCard.tsx` ficou sem uso (mantido no repositório). O detalhe
+> `/embarcacoes/[id]` (§18.7) e a reserva direta de embarcação (§20.7) **seguem ativos**, acessíveis
+> por link direto.
 
-**Filtros aplicados (via RPC `buscar_embarcacoes` — migration 017):**
+**Filtros da RPC `buscar_embarcacoes` (migration 017/020) — mantida no banco, sem consumidor público:**
 
 A página delega os filtros à função SQL `public.buscar_embarcacoes(...)`, que resolve tudo em uma chamada e retorna os **ids ordenados + total** (para paginação). A página então busca os detalhes (joins) com `.in('id', ids)`, **preservando a ordem** retornada.
 
@@ -1117,7 +1148,15 @@ observação retornada ao cliente. **Sem etapa de pagamento** neste momento (sol
 
 ### 20.1 Modelo de dados
 
-Enum `reserva_status`: `'pendente' | 'confirmada' | 'recusada'`.
+Enum `reserva_status`: `'pendente' | 'confirmada' | 'recusada' | 'cancelada' | 'concluida'`
+(os dois últimos: migration 025).
+
+- `recusada` = negativa do **gestor**; `cancelada` = cancelamento do **cliente** (grava
+  `reserva.cancelada_em timestamptz`, migration 025), permitido em `pendente`/`confirmada`.
+- `concluida` = `confirmada` com `data_reserva` no passado. Transição **lazy** via
+  `concluirReservasVencidas()` (`src/lib/reservas.ts`, `server-only`): `UPDATE` global
+  (`status='confirmada' AND data_reserva < hoje` no fuso `America/Sao_Paulo`), chamado no início de
+  `/minhas-reservas` e `/painel/agendamentos`. Sem cron. `concluida` habilita a avaliação (§22).
 Enum `reserva_tipo` (migration 022): `'roteiro' | 'embarcacao'`. Constraint `reserva_tipo_alvo_chk`
 garante coerência: tipo `roteiro` exige `roteiro_id`; tipo `embarcacao` exige `embarcacao_id`.
 Em reservas de embarcação, `item_nome` guarda o **nome da embarcação** (título-snapshot) e não há
@@ -1228,8 +1267,9 @@ Visão em **calendário** de todas as reservas dos roteiros/embarcações do ges
   `data_reserva`. Contador de pendentes no cabeçalho.
 - `AgendamentosCalendar` (`'use client'`, tipo `ReservaEvento`):
   - **Views:** mês (default) e semana, via segmented control; navegação anterior/hoje/próximo.
-  - **Cores por status:** Pendente = âmbar/laranja, Confirmada = verde, Cancelada (`recusada`) =
-    vermelho. **Ícone por tipo:** roteiro = `MapPin`, embarcação = `Ship`. Legenda no rodapé.
+  - **Cores por status:** Pendente = âmbar/laranja, Confirmada = verde, Recusada = vermelho,
+    Cancelada pelo cliente = cinza, Concluída = azul (sky). **Ícone por tipo:** roteiro = `MapPin`,
+    embarcação = `Ship`. Legenda no rodapé (derivada do mapa `STATUS`).
   - Cada reserva é um *chip* clicável agrupado por `data_reserva`; no mês mostra até 3 + "+N mais".
     O chip leva a `/painel/agendamentos/[id]`.
 - **Painel lateral de pendentes** (`_components/PendentesList.tsx`): quando há reservas `pendente`, a
@@ -1293,10 +1333,17 @@ aparecem no menu sanfonado para usuários logados.
 - Lista as reservas onde `cliente_id = user.id` (via `supabaseAdmin`), ordenadas por
   `solicitado_em desc`, com `roteiro ( nome, municipios …, roteiro_imagens )`, `embarcacao ( nome )`
   e `reserva_adicional`.
+- A página chama `concluirReservasVencidas()` antes de listar (transição lazy → `concluida`).
 - Cada card mostra tipo, status (rótulos do cliente: Pendente = "Aguardando confirmação",
-  Confirmada, Recusada), data, pessoas, adicionais, total estimado, **a resposta do gestor**
-  (`observacao_gestor` + `respondido_em`) ou uma nota de estado quando ainda não respondida, e link
-  "Ver roteiro".
+  Confirmada, Recusada, Cancelada, Concluída), data, pessoas, adicionais, total estimado, **a
+  resposta do gestor** (`observacao_gestor` + `respondido_em`) ou uma nota de estado quando ainda
+  não respondida, e link "Ver roteiro".
+- **Cancelar reserva** (`_components/CancelarReservaButton.tsx`, `'use client'`): visível em
+  `pendente`/`confirmada`; confirmação inline ("Cancelar esta reserva?" → Sim/Voltar) e chama a
+  server action `cancelarReserva(reservaId)` (`src/app/minhas-reservas/actions.ts`): valida sessão +
+  posse (`cliente_id`) + status permitido, grava `status='cancelada'` + `cancelada_em=now()`,
+  revalida `/minhas-reservas` e `/painel/agendamentos`.
+- **Avaliar** (reserva `concluida`): ver §22.
 
 **`/minha-conta`** (`src/app/minha-conta/page.tsx`): placeholder ("Em breve") com gate de auth —
 edição dos dados da conta fica para um passo futuro.
@@ -1432,3 +1479,151 @@ quando há não lidas daquele gestor.
 `Header` busca `chat_total_nao_lidas_cliente()` e mantém o total **ao vivo** (assina `postgres_changes`
 em `mensagem`, refetch a cada evento). Passa `naoLidas` ao `UserMenu`, que exibe um badge no gatilho
 do dropdown (sobre o avatar) e ao lado de **"Minhas reservas"** (também no menu mobile do Header).
+
+---
+
+## 22. Avaliações (cliente → roteiro/embarcação)
+
+Migration: `supabase/migrations/026_avaliacoes.sql`. Regra (PRD §6.7/§8): apenas o cliente de uma
+reserva **`concluida`** avalia — nota 1–5 obrigatória + comentário opcional; **uma avaliação por
+reserva**, sem edição.
+
+### 22.1 Modelo de dados
+
+#### Tabela `avaliacao`
+
+```sql
+id            uuid PK
+reserva_id    uuid NOT NULL UNIQUE FK → reserva(id) ON DELETE CASCADE   -- 1 avaliação por reserva
+cliente_id    uuid NOT NULL FK → users(id) ON DELETE CASCADE
+roteiro_id    uuid FK → roteiro(id) ON DELETE CASCADE       -- copiado da reserva no insert
+embarcacao_id uuid FK → embarcacao(id) ON DELETE SET NULL  -- copiado da reserva no insert
+nota          smallint NOT NULL CHECK (nota BETWEEN 1 AND 5)
+comentario    text CHECK (<= 2000 chars)
+created_at    timestamptz
+```
+
+Índices parciais por `roteiro_id` e `embarcacao_id`. `roteiro_id`/`embarcacao_id` são **snapshot da
+reserva** para consulta direta nas páginas públicas: o roteiro lista por `roteiro_id`; a embarcação
+por `embarcacao_id` — o que inclui avaliações de **roteiros feitos naquela embarcação** (a reserva de
+roteiro carrega `embarcacao_id` derivado).
+
+**RLS:** `service_role_all`; `public_read` (SELECT liberado — média/lista no hotsite);
+`cliente_insert` (INSERT `authenticated` exige `cliente_id = auth.uid()` **e** `EXISTS` reserva do
+próprio cliente com `status = 'concluida'`). As escritas reais rodam via `supabaseAdmin` na server
+action, que revalida tudo.
+
+Tipos TS: tabela `avaliacao` adicionada em `src/types/supabase.ts`; `ReservaStatus` ampliado.
+
+### 22.2 Server action — `criarAvaliacao`
+
+`src/app/minhas-reservas/actions.ts`:
+
+```ts
+criarAvaliacao(reservaId, nota, comentario) → { ok: true } | { ok: false, error }
+```
+
+Valida sessão; `nota` inteira 1–5; `comentario.trim()` ≤ 2000 (vazio → `null`); recarrega a reserva
+no servidor e exige `cliente_id = user.id` e `status = 'concluida'`; insere copiando
+`roteiro_id`/`embarcacao_id` da reserva. Violação do UNIQUE (`23505`) → "Você já avaliou esta
+reserva.". Revalida `/minhas-reservas`, `/roteiros/[id]` e `/embarcacoes/[id]`.
+
+### 22.3 UI — cliente (`/minhas-reservas`)
+
+`_components/AvaliacaoReserva.tsx` (`'use client'`), renderizado apenas em reservas `concluida`
+(o select da página embeda `avaliacao ( nota, comentario, created_at )`; o embed 1:1 pode vir como
+objeto ou array — a página normaliza):
+
+- **Sem avaliação:** botão "Avaliar experiência" → form inline com 5 estrelas (hover + clique),
+  textarea opcional (maxLength 2000) e "Enviar avaliação" / "Agora não".
+- **Com avaliação:** bloco somente leitura ("Sua avaliação" + estrelas + comentário + data).
+
+### 22.4 UI — exibição pública
+
+`src/components/avaliacoes/AvaliacoesSection.tsx` (Server Component compartilhado): recebe
+`avaliacoes: AvaliacaoPublica[]` + `emptyLabel`. Header com média (estrelas + nota 1 decimal
+pt-BR) e contagem; lista com avatar (fallback inicial do nome), nome, data, estrelas e comentário;
+estado vazio com borda tracejada. Não há formulário nas páginas públicas — avaliação só via reserva
+concluída.
+
+Consumo: `/roteiros/[id]` busca por `roteiro_id`; `/embarcacoes/[id]` por `embarcacao_id` (ambas via
+`supabaseAdmin`, `order created_at desc`, embed `cliente:users!avaliacao_cliente_id_fkey`).
+
+### 22.5 Média no card da busca (`RoteiroCard`)
+
+Helper `getAvaliacoesResumoPorRoteiro(roteiroIds)` (`src/lib/avaliacoes.ts`, `server-only`): uma
+query em lote (`avaliacao.select('roteiro_id, nota').in(...)`) agregada em memória →
+`Map<roteiroId, { media, total }>`. Usado por `/buscar` e `/favoritos`, que passam
+`avaliacaoResumo` a cada `RoteiroCard`. No card (linha do preço): com avaliações, exibe
+`★ 4,8 (12)` (estrela âmbar, média 1 decimal pt-BR, total no `title`) **no lugar** do badge
+"Novo"; sem avaliações, mantém o badge "Novo".
+
+---
+
+## 23. Favoritos e Compartilhamento (roteiro)
+
+Migration: `supabase/migrations/027_favoritos.sql`.
+
+### 23.1 Modelo de dados
+
+#### Tabela `favorito`
+
+```sql
+id         uuid PK
+user_id    uuid NOT NULL FK → users(id) ON DELETE CASCADE
+roteiro_id uuid NOT NULL FK → roteiro(id) ON DELETE CASCADE
+created_at timestamptz
+UNIQUE (user_id, roteiro_id)
+```
+
+Índice `(user_id, created_at DESC)`. **RLS:** `service_role_all`; SELECT/INSERT/DELETE apenas do
+próprio usuário (`user_id = auth.uid()`). Tipos TS em `src/types/supabase.ts`.
+
+### 23.2 Server action — `alternarFavorito`
+
+`src/lib/favoritos-actions.ts` (`'use server'`, compartilhada):
+
+```ts
+alternarFavorito(roteiroId) → { ok: true, favorito: boolean } | { ok: false, error: 'nao_autenticado' | 'erro' }
+```
+
+Toggle idempotente (insere se não existe, remove se existe; corrida `23505` tratada como já
+favoritado). `'nao_autenticado'` sinaliza ao client o redirect para `/entrar`. Revalida `/favoritos`
+e `/roteiros/[id]`.
+
+### 23.3 UI — detalhe do roteiro (`RoteiroAcoes`)
+
+`src/app/roteiros/[id]/_components/RoteiroAcoes.tsx` (`'use client'`), renderizado pelo
+`BookingCard` (novas props `roteiroNome` e `initialFavorito`; a página resolve o estado inicial via
+sessão SSR + `favorito.maybeSingle()`):
+
+- **Favoritar:** toggle otimista (alterna na hora, reverte se a action falhar); deslogado →
+  `router.push('/entrar?redirect_to=<pathname>')`. Estado ativo: coração preenchido + "Favoritado".
+- **Compartilhar:** dropdown (click-outside fecha) com:
+  - **WhatsApp** — `https://wa.me/?text=<texto + url>`;
+  - **Facebook** — `https://www.facebook.com/sharer/sharer.php?u=<url>` (popup);
+  - **Instagram** — não há endpoint web de share por URL: copia o link (`navigator.clipboard`) e
+    abre `instagram.com` (hint "copia o link para o story/direct");
+  - **Copiar link** — clipboard com feedback "Link copiado!" (2,5s).
+  - URL = `window.location.href`; texto = `Confira o roteiro "<nome>" no Boatzy!`. Ícones de marca
+    (Facebook/Instagram) são SVGs inline — a `lucide-react` atual não exporta brand icons.
+
+### 23.3b Coração no card da busca (`RoteiroCard`)
+
+`RoteiroCard` ganhou a prop `initialFavorito?: boolean` e o coração do card virou toggle funcional:
+`preventDefault/stopPropagation` (o botão fica dentro do `<Link>` do card), toggle otimista via
+`alternarFavorito`, e deslogado → `/entrar?redirect_to=<pathname+search>` (preserva os filtros da
+busca no retorno). Estado ativo: coração vermelho preenchido. A página `/buscar` resolve o estado
+inicial em lote: sessão SSR + `favorito.select('roteiro_id').in('roteiro_id', ids)` → `Set` passado
+aos cards. Em `/favoritos`, os cards recebem `initialFavorito` fixo (`true`).
+
+### 23.4 Página `/favoritos` + menu
+
+- **Menu:** item **Favoritos** (ícone `Heart`) no `UserMenu` (dropdown) e no menu mobile do
+  `Header`, entre "Minhas reservas" e "Minha conta".
+- **`/favoritos`** (`src/app/favoritos/page.tsx`, Server Component): gate de auth
+  (`/entrar?redirect_to=/favoritos`); consulta `favorito` do usuário (`order created_at desc`) com
+  embed do `roteiro` (campos do card + `ativo`); filtra `roteiro.ativo = true` em memória (roteiro
+  desativado some, favorito permanece no banco). Grid reutiliza `RoteiroCard` +
+  `_components/RemoverFavoritoButton.tsx` (`'use client'`: chama `alternarFavorito` +
+  `router.refresh()`). Estado vazio com CTA "Explorar roteiros".

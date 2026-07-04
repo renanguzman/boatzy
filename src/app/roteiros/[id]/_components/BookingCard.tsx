@@ -1,17 +1,22 @@
 'use client';
 
 import { useRef, useState } from 'react';
-import { Headphones, ShieldCheck, Heart, Share2, ShoppingCart, X } from 'lucide-react';
+import { Headphones, ShieldCheck, ShoppingCart, X } from 'lucide-react';
 import DatePicker, { type DateValue } from '@/components/home/search/DatePicker';
 import GuestPicker from '@/components/home/search/GuestPicker';
 import { formatCurrency } from '@/lib/utils';
 import { useCart } from './CartContext';
+import RoteiroAcoes from './RoteiroAcoes';
 
 type ActivePanel = 'date' | 'guests' | null;
 
 type Props = {
   roteiroId: string;
+  /** Nome do roteiro (texto do compartilhamento). */
+  roteiroNome: string;
   preco: number | null;
+  /** Se o usuário logado já favoritou este roteiro (false quando deslogado). */
+  initialFavorito?: boolean;
   /** Dias da semana em que o roteiro opera (0=Dom..6=Sáb). Vazio/null = todos os dias. */
   diasOperacao?: number[] | null;
   /** Datas bloqueadas (exceções), em formato ISO 'yyyy-mm-dd'. */
@@ -37,7 +42,9 @@ function parseISO(iso?: string): Date | null {
 
 export default function BookingCard({
   roteiroId,
+  roteiroNome,
   preco,
+  initialFavorito = false,
   diasOperacao,
   datasBloqueadas,
   initialData,
@@ -250,17 +257,8 @@ export default function BookingCard({
         </div>
       </div>
 
-      {/* Action buttons */}
-      <div className="flex gap-3">
-        <button className="flex-1 flex items-center justify-center gap-2 py-3 rounded-xl border border-slate-200 text-sm font-medium text-slate-700 hover:bg-slate-50 transition-colors">
-          <Heart className="h-4 w-4" />
-          Favoritar
-        </button>
-        <button className="flex-1 flex items-center justify-center gap-2 py-3 rounded-xl border border-slate-200 text-sm font-medium text-slate-700 hover:bg-slate-50 transition-colors">
-          <Share2 className="h-4 w-4" />
-          Compartilhar
-        </button>
-      </div>
+      {/* Favoritar + Compartilhar */}
+      <RoteiroAcoes roteiroId={roteiroId} roteiroNome={roteiroNome} initialFavorito={initialFavorito} />
     </div>
   );
 }

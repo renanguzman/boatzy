@@ -21,7 +21,7 @@ type ReservaDetalhe = {
   total_adicionais: number;
   taxa_servico: number | null;
   total_estimado: number | null;
-  status: 'pendente' | 'confirmada' | 'recusada';
+  status: 'pendente' | 'confirmada' | 'recusada' | 'cancelada' | 'concluida';
   observacao_gestor: string | null;
   solicitado_em: string;
   respondido_em: string | null;
@@ -34,7 +34,9 @@ type ReservaDetalhe = {
 const STATUS = {
   pendente: { label: 'Pendente', badge: 'bg-amber-100 text-amber-700' },
   confirmada: { label: 'Confirmada', badge: 'bg-emerald-100 text-emerald-700' },
-  recusada: { label: 'Cancelada', badge: 'bg-red-100 text-red-600' },
+  recusada: { label: 'Recusada', badge: 'bg-red-100 text-red-600' },
+  cancelada: { label: 'Cancelada pelo cliente', badge: 'bg-slate-200 text-slate-600' },
+  concluida: { label: 'Concluída', badge: 'bg-sky-100 text-sky-700' },
 } as const;
 
 function formatData(iso: string, flex: number | null): string {

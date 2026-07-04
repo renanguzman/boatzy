@@ -7,7 +7,14 @@ import { confirmarReserva, recusarReserva } from '../../actions';
 
 type Props = {
   reservaId: string;
-  status: 'pendente' | 'confirmada' | 'recusada';
+  status: 'pendente' | 'confirmada' | 'recusada' | 'cancelada' | 'concluida';
+};
+
+const RESOLVIDA_LABEL: Record<Exclude<Props['status'], 'pendente'>, string> = {
+  confirmada: 'Esta reserva já foi confirmada.',
+  recusada: 'Esta reserva foi recusada.',
+  cancelada: 'Esta reserva foi cancelada pelo cliente.',
+  concluida: 'Esta reserva foi concluída (a data já passou).',
 };
 
 export default function ReservaAcoes({ reservaId, status }: Props) {
@@ -21,7 +28,7 @@ export default function ReservaAcoes({ reservaId, status }: Props) {
     return (
       <section className="rounded-2xl border border-slate-200 bg-white shadow-sm p-5">
         <p className="text-sm text-slate-500">
-          Esta reserva já foi {status === 'confirmada' ? 'confirmada' : 'cancelada'}. Não há ações pendentes.
+          {RESOLVIDA_LABEL[status]} Não há ações pendentes.
         </p>
       </section>
     );

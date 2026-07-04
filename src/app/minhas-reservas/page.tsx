@@ -3,13 +3,19 @@ import Link from 'next/link';
 import Image from 'next/image';
 import {
   MapPin, Ship, Users, CalendarDays, ShoppingCart, Clock, MessageSquare,
-  MessageCircle, Hourglass, CheckCircle2, XCircle, Compass,
+  MessageCircle, Hourglass, CheckCircle2, XCircle, Compass, Ban, Flag,
 } from 'lucide-react';
 import Header from '@/components/layout/Header';
 import Footer from '@/components/layout/Footer';
 import { createClient } from '@/lib/supabase/server';
 import { supabaseAdmin } from '@/lib/supabase';
+import { concluirReservasVencidas } from '@/lib/reservas';
 import { formatCurrency } from '@/lib/utils';
+import type { ReservaStatus } from '@/types/supabase';
+import CancelarReservaButton from './_components/CancelarReservaButton';
+import AvaliacaoReserva from './_components/AvaliacaoReserva';
+
+type AvaliacaoResumo = { nota: number; comentario: string | null; created_at: string };
 
 type ReservaCliente = {
   id: string;
@@ -24,10 +30,11 @@ type ReservaCliente = {
   total_adicionais: number;
   taxa_servico: number | null;
   total_estimado: number | null;
-  status: 'pendente' | 'confirmada' | 'recusada';
+  status: ReservaStatus;
   observacao_gestor: string | null;
   solicitado_em: string;
   respondido_em: string | null;
+  cancelada_em: string | null;
   roteiro: {
     nome: string;
     municipios: { nome: string; estados: { uf: string } | null } | null;
@@ -35,6 +42,7 @@ type ReservaCliente = {
   } | null;
   embarcacao: { nome: string } | null;
   reserva_adicional: { id: string; descricao: string; valor: number; tipo: string }[];
+  avaliacao: AvaliacaoResumo | AvaliacaoResumo[] | null;
 };
 
 const STATUS = {
@@ -58,6 +66,20 @@ const STATUS = {
     Icon: XCircle,
     note: 'Esta solicitação foi recusada pelo gestor.',
     noteClass: 'bg-red-50 border-red-100 text-red-600',
+  },
+  cancelada: {
+    label: 'Cancelada',
+    badge: 'bg-slate-200 text-slate-600',
+    Icon: Ban,
+    note: 'Você cancelou esta reserva.',
+    noteClass: 'bg-slate-50 border-slate-200 text-slate-500',
+  },
+  concluida: {
+    label: 'Concluída',
+    badge: 'bg-sky-100 text-sky-700',
+    Icon: Flag,
+    note: 'Experiência realizada. Conte como foi — sua avaliação ajuda outros clientes!',
+    noteClass: 'bg-sky-50 border-sky-100 text-sky-700',
   },
 } as const;
 
@@ -89,15 +111,19 @@ export default async function MinhasReservasPage() {
   } = await supabase.auth.getUser();
   if (!user) redirect('/entrar?redirect_to=/minhas-reservas');
 
+  // Transição lazy confirmada → concluída (data já passou) antes de listar.
+  await concluirReservasVencidas();
+
   const { data } = await supabaseAdmin
     .from('reserva')
     .select(
       `id, owner_id, tipo, data_reserva, flexibilidade, quantidade_pessoas, roteiro_id, item_nome,
        preco_base, total_adicionais, taxa_servico, total_estimado,
-       status, observacao_gestor, solicitado_em, respondido_em,
+       status, observacao_gestor, solicitado_em, respondido_em, cancelada_em,
        roteiro ( nome, municipios ( nome, estados ( uf ) ), roteiro_imagens ( url_imagem, principal ) ),
        embarcacao ( nome ),
-       reserva_adicional ( id, descricao, valor, tipo )`,
+       reserva_adicional ( id, descricao, valor, tipo ),
+       avaliacao ( nota, comentario, created_at )`,
     )
     .eq('cliente_id', user.id)
     .order('solicitado_em', { ascending: false });
@@ -150,6 +176,9 @@ export default async function MinhasReservasPage() {
                 : null;
               const img = thumb(r);
               const naoLidas = naoLidasPorGestor.get(r.owner_id) ?? 0;
+              // Embed 1:1 pode vir como objeto ou array conforme a detecção do PostgREST.
+              const avaliacao = Array.isArray(r.avaliacao) ? (r.avaliacao[0] ?? null) : r.avaliacao;
+              const podeCancelar = r.status === 'pendente' || r.status === 'confirmada';
 
               return (
                 <article key={r.id} className="rounded-2xl border border-slate-200 bg-white shadow-sm overflow-hidden">
@@ -250,8 +279,15 @@ export default async function MinhasReservasPage() {
                     )}
                   </div>
 
-                  {/* Ações: conversar com o gestor + ver roteiro */}
-                  <div className="border-t border-slate-100 px-4 py-3 flex items-center justify-between gap-3">
+                  {/* Avaliação (reserva concluída) */}
+                  {r.status === 'concluida' && (
+                    <div className="px-4 pb-4">
+                      <AvaliacaoReserva reservaId={r.id} avaliacao={avaliacao} />
+                    </div>
+                  )}
+
+                  {/* Ações: conversar com o gestor + cancelar + ver roteiro */}
+                  <div className="border-t border-slate-100 px-4 py-3 flex items-center justify-between gap-3 flex-wrap">
                     <Link
                       href={`/minhas-reservas/${r.id}/chat`}
                       className="inline-flex items-center gap-2 text-sm font-medium text-[#0B3D91] hover:text-[#0B2447] transition-colors"
@@ -266,14 +302,17 @@ export default async function MinhasReservasPage() {
                       </span>
                       Conversar com o gestor
                     </Link>
-                    {r.roteiro_id && (
-                      <Link
-                        href={`/roteiros/${r.roteiro_id}`}
-                        className="text-sm font-medium text-[#0B3D91] hover:text-[#0B2447] transition-colors"
-                      >
-                        Ver roteiro →
-                      </Link>
-                    )}
+                    <div className="flex items-center gap-4">
+                      {podeCancelar && <CancelarReservaButton reservaId={r.id} />}
+                      {r.roteiro_id && (
+                        <Link
+                          href={`/roteiros/${r.roteiro_id}`}
+                          className="text-sm font-medium text-[#0B3D91] hover:text-[#0B2447] transition-colors"
+                        >
+                          Ver roteiro →
+                        </Link>
+                      )}
+                    </div>
                   </div>
                 </article>
               );

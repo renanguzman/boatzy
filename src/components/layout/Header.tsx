@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { usePathname, useRouter } from 'next/navigation';
-import { Menu, X, User, Globe, LogOut, Loader2, CalendarCheck, UserCog } from 'lucide-react';
+import { Menu, X, User, Globe, LogOut, Loader2, CalendarCheck, UserCog, Heart } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { authorizeRealtime } from '@/lib/supabase/realtime';
 import type { User as SupabaseUser, RealtimeChannel } from '@supabase/supabase-js';
@@ -170,6 +170,14 @@ export default function Header() {
                         {naoLidas > 99 ? '99+' : naoLidas}
                       </span>
                     )}
+                  </Link>
+                  <Link
+                    href="/favoritos"
+                    onClick={() => setMobileMenuOpen(false)}
+                    className="flex items-center gap-2 px-3 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-50 rounded-lg"
+                  >
+                    <Heart className="h-4 w-4 text-slate-400" />
+                    Favoritos
                   </Link>
                   <Link
                     href="/minha-conta"

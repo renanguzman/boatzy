@@ -17,6 +17,7 @@ import Footer from '@/components/layout/Footer';
 import GaleriaRoteiro from '../../roteiros/[id]/_components/GaleriaRoteiro';
 import LocalizacaoMap from '../../roteiros/[id]/_components/LocalizacaoMap';
 import EmbarcacaoBookingCard from './_components/EmbarcacaoBookingCard';
+import AvaliacoesSection, { type AvaliacaoPublica } from '@/components/avaliacoes/AvaliacoesSection';
 import { supabaseAdmin } from '@/lib/supabase';
 
 type EmbarcacaoDetalhe = {
@@ -84,6 +85,14 @@ export default async function EmbarcacaoDetalhePage({
   if (error || !data) notFound();
 
   const embarcacao = data as unknown as EmbarcacaoDetalhe;
+
+  // Avaliações da embarcação (inclui reservas de roteiros feitos nela).
+  const { data: avaliacoesData } = await supabaseAdmin
+    .from('avaliacao')
+    .select('id, nota, comentario, created_at, cliente:users!avaliacao_cliente_id_fkey ( name, avatar_url )')
+    .eq('embarcacao_id', id)
+    .order('created_at', { ascending: false });
+  const avaliacoes = (avaliacoesData ?? []) as unknown as AvaliacaoPublica[];
 
   const images = [...embarcacao.embarcacao_imagens].sort((a, b) =>
     a.principal === b.principal ? 0 : a.principal ? -1 : 1,
@@ -223,16 +232,11 @@ export default async function EmbarcacaoDetalhePage({
                 </div>
               )}
 
-              {/* Reviews placeholder */}
-              <div>
-                <div className="flex items-center justify-between mb-6">
-                  <h2 className="text-xl font-bold text-[#0B2447]">Avaliações</h2>
-                </div>
-                <div className="rounded-2xl border border-dashed border-slate-200 p-10 flex flex-col items-center text-center">
-                  <p className="text-sm text-slate-400 font-medium">Ainda não há avaliações para esta embarcação.</p>
-                  <p className="text-xs text-slate-300 mt-1">Seja o primeiro a avaliar!</p>
-                </div>
-              </div>
+              {/* Avaliações */}
+              <AvaliacoesSection
+                avaliacoes={avaliacoes}
+                emptyLabel="Ainda não há avaliações para esta embarcação."
+              />
             </div>
 
             {/* ── Right sidebar ── */}

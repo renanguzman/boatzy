@@ -1,8 +1,13 @@
 'use client';
 
+import { useState, useTransition } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
-import { MapPin, Users, Clock } from 'lucide-react';
+import { useRouter } from 'next/navigation';
+import { MapPin, Users, Clock, Ship, Star } from 'lucide-react';
+import { alternarFavorito } from '@/lib/favoritos-actions';
+
+export type AvaliacaoResumoCard = { media: number; total: number };
 
 export type RoteiroCardData = {
   id: string;
@@ -13,6 +18,7 @@ export type RoteiroCardData = {
   duracao: string | null;
   municipios: { nome: string; estados: { uf: string } | null } | null;
   roteiro_imagens: { url_imagem: string; principal: boolean }[];
+  embarcacao: { embarcacao_tipo: { nome: string } | null } | null;
 };
 
 function getPrimaryImage(imgs: RoteiroCardData['roteiro_imagens']): string | null {
@@ -26,11 +32,42 @@ function formatPrice(value: number): string {
 export default function RoteiroCard({
   roteiro,
   query,
+  initialFavorito = false,
+  avaliacaoResumo = null,
 }: {
   roteiro: RoteiroCardData;
   /** Querystring (sem '?') com os filtros da busca (data/flex/pessoas) para pré-preencher o detalhe. */
   query?: string;
+  /** Se o usuário logado já favoritou este roteiro (false quando deslogado). */
+  initialFavorito?: boolean;
+  /** Média/total de avaliações do roteiro; null = sem avaliações (exibe o badge "Novo"). */
+  avaliacaoResumo?: AvaliacaoResumoCard | null;
 }) {
+  const router = useRouter();
+  const [, startTransition] = useTransition();
+  const [favorito, setFavorito] = useState(initialFavorito);
+
+  function handleFavoritar(e: React.MouseEvent) {
+    // O coração fica dentro do <Link> do card — não navegar ao clicar.
+    e.preventDefault();
+    e.stopPropagation();
+    const anterior = favorito;
+    setFavorito(!anterior);
+    startTransition(async () => {
+      const res = await alternarFavorito(roteiro.id);
+      if (!res.ok) {
+        setFavorito(anterior);
+        if (res.error === 'nao_autenticado') {
+          router.push(
+            `/entrar?redirect_to=${encodeURIComponent(window.location.pathname + window.location.search)}`,
+          );
+        }
+      } else {
+        setFavorito(res.favorito);
+      }
+    });
+  }
+
   const img = getPrimaryImage(roteiro.roteiro_imagens);
   const localidade = roteiro.municipios
     ? roteiro.municipios.estados
@@ -76,11 +113,18 @@ export default function RoteiroCard({
         {/* Favorite */}
         <button
           type="button"
-          onClick={(e) => e.preventDefault()}
-          aria-label="Favoritar"
+          onClick={handleFavoritar}
+          aria-label={favorito ? 'Remover dos favoritos' : 'Favoritar'}
+          aria-pressed={favorito}
           className="absolute top-3 right-3 h-8 w-8 rounded-full bg-white/80 backdrop-blur-sm flex items-center justify-center hover:bg-white hover:scale-110 transition-all"
         >
-          <svg className="h-4 w-4 text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+          <svg
+            className={`h-4 w-4 transition-colors ${favorito ? 'text-red-500' : 'text-slate-500'}`}
+            fill={favorito ? 'currentColor' : 'none'}
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+            strokeWidth={2}
+          >
             <path strokeLinecap="round" strokeLinejoin="round" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
           </svg>
         </button>
@@ -90,6 +134,12 @@ export default function RoteiroCard({
       <div className="p-4">
         {/* Meta row */}
         <div className="flex items-center gap-3 mb-2 text-xs text-slate-500">
+          {roteiro.embarcacao?.embarcacao_tipo && (
+            <span className="flex items-center gap-1">
+              <Ship className="h-3 w-3" />
+              {roteiro.embarcacao.embarcacao_tipo.nome}
+            </span>
+          )}
           {roteiro.quantidade_pessoas && (
             <span className="flex items-center gap-1">
               <Users className="h-3 w-3" />
@@ -120,9 +170,23 @@ export default function RoteiroCard({
           ) : (
             <span className="text-xs text-slate-400 italic">Consulte o preço</span>
           )}
-          <span className="inline-flex items-center gap-1 text-[10px] font-semibold bg-cyan-50 text-cyan-700 px-2 py-1 rounded-full">
-            Novo
-          </span>
+          {avaliacaoResumo ? (
+            <span
+              className="inline-flex items-center gap-1 text-xs font-semibold text-[#0B2447]"
+              title={`${avaliacaoResumo.total} ${avaliacaoResumo.total === 1 ? 'avaliação' : 'avaliações'}`}
+            >
+              <Star className="h-3.5 w-3.5 fill-amber-400 text-amber-400" />
+              {avaliacaoResumo.media.toLocaleString('pt-BR', {
+                minimumFractionDigits: 1,
+                maximumFractionDigits: 1,
+              })}
+              <span className="font-normal text-slate-400">({avaliacaoResumo.total})</span>
+            </span>
+          ) : (
+            <span className="inline-flex items-center gap-1 text-[10px] font-semibold bg-cyan-50 text-cyan-700 px-2 py-1 rounded-full">
+              Novo
+            </span>
+          )}
         </div>
       </div>
     </Link>

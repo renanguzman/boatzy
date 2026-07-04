@@ -149,6 +149,8 @@ export default function DatePicker({ value, onChange, isOpen, onOpen, onClose, c
   function handleSelectDay(date: Date) {
     setTempDate(date);
     onChange({ date, flexibility: tempFlex });
+    // Clicar na data já preenche o campo e fecha o calendário (sem "Confirmar").
+    onClose();
   }
 
   function handleFlexChange(flex: DateValue['flexibility']) {
@@ -156,13 +158,6 @@ export default function DatePicker({ value, onChange, isOpen, onOpen, onClose, c
     if (tempDate) {
       onChange({ date: tempDate, flexibility: flex });
     }
-  }
-
-  function handleConfirm() {
-    if (tempDate) {
-      onChange({ date: tempDate, flexibility: tempFlex });
-    }
-    onClose();
   }
 
   function handleClear() {
@@ -292,19 +287,6 @@ export default function DatePicker({ value, onChange, isOpen, onOpen, onClose, c
               Limpar datas
             </button>
           </div>
-
-          {/* Confirm button */}
-          {tempDate && (
-            <div className="mt-3 flex justify-end">
-              <button
-                type="button"
-                onClick={handleConfirm}
-                className="px-5 py-2 bg-[#0B3D91] hover:bg-[#092E6E] text-white rounded-xl text-sm font-medium transition-colors"
-              >
-                Confirmar
-              </button>
-            </div>
-          )}
         </div>
       )}
     </div>

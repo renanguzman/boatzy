@@ -123,8 +123,10 @@ Visualização:
 
 #### ✅ Implementado — Alternância de Tipo de Busca (Roteiros / Embarcações)
 
-- Toggle `SearchTypeToggle` na Hero Section e na barra compacta (`/buscar` e `/embarcacoes`) permite escolher entre buscar **Roteiros** (padrão) ou **Embarcações**.
-- Roteiros → resultados em `/buscar`; Embarcações → resultados em `/embarcacoes`. Os filtros (local, data, pessoas) são preservados ao alternar.
+- A busca do site é **orientada a roteiro**: as duas abas do toggle `SearchTypeToggle` (Hero Section e barra compacta de `/buscar`) retornam **roteiros** em `/buscar` — no fim, o usuário sempre seleciona um roteiro.
+- **Roteiros** (padrão): permanece como sempre foi (local, data, pessoas).
+- **Embarcações**: exibe o seletor adicional **Tipo de embarcação** (`TipoEmbarcacaoPicker`) — o usuário escolhe o tipo (Lancha, Iate, Jet Ski, …) dentre os que têm roteiro ativo vinculado, mais localização, data e pessoas; o resultado lista os **roteiros vinculados a embarcações daquele tipo**.
+- Os filtros (local, data, pessoas) são preservados ao alternar entre as abas (o tipo de embarcação é descartado ao voltar para Roteiros).
 
 #### ✅ Implementado — Barra de Busca Inteligente (Hero Section)
 
@@ -133,16 +135,13 @@ Visualização:
 - `GuestPicker`: contador +/− com mínimo 0, dropdown.
 - Navegação para `/buscar?municipio=&data=&flex=&pessoas=` ao submeter.
 
-#### ✅ Implementado — Página de Resultados de Embarcações `/embarcacoes`
+#### ✅ Implementado — Busca por tipo de embarcação (resultados em roteiros)
 
-- Espelha a estrutura de `/buscar`, listando embarcações com `status = 'ativo'`.
-- ✅ **Filtros inteligentes via RPC `buscar_embarcacoes`:**
-  - **Localização:** município exato **ou** dentro de um raio de **50 km** do centro escolhido (município ou ponto "perto de mim"), por distância real (haversine).
-  - **Data:** considera o **calendário de disponibilidade** da embarcação (dias da semana de operação + bloqueios). Com flexibilidade (±N dias), basta um dia livre na janela.
-  - **Pessoas:** `capacidade >= pessoas`.
-  - **Ordenação:** mais próximas primeiro quando há localização; senão, mais recentes. Paginação server-side.
-- `EmbarcacaoCard`: imagem principal, badge de tipo e localidade, capacidade, comprimento, preço base.
-- Detalhe em `/embarcacoes/[id]` (galeria, specs, comodidades, mapa, sidebar de reserva).
+- A aba **Embarcações** deixou de listar embarcações: ela filtra **roteiros** pelo **tipo da embarcação vinculada**, via novo parâmetro `p_tipo_id` da RPC `buscar_roteiros` (migration 024). Roteiros sem embarcação vinculada não aparecem quando o filtro de tipo está ativo (mesma regra do filtro de pessoas).
+- O seletor `TipoEmbarcacaoPicker` lista apenas tipos com pelo menos um roteiro ativo vinculado (mesma filosofia do autocomplete de locais).
+- Em `/buscar`: chip removível "Tipo: \<nome\>", título contextualizado ("Roteiros com Lancha em …"), badge do tipo da embarcação no `RoteiroCard` e estado vazio com ação "Limpar filtro de tipo".
+- A rota `/embarcacoes` (listagem) agora **redireciona** para `/buscar?tipo=embarcacao` preservando os filtros compatíveis. O detalhe `/embarcacoes/[id]` e o fluxo de reserva direta de embarcação **permanecem ativos** (acessíveis por link direto), apenas sem entrada pela busca.
+- A RPC `buscar_embarcacoes` (migration 017/020) permanece no banco, mas não é mais consumida pela busca pública.
 
 #### ✅ Implementado — Página de Resultados `/buscar`
 
@@ -218,7 +217,15 @@ Fluxo de **solicitação** (sem pagamento nesta etapa). Detalhes técnicos: SPEC
 - No painel (`/painel/agendamentos`), o gestor vê as solicitações dos seus roteiros (Pendentes em
   destaque) e pode **Confirmar** ou **Recusar**, escrevendo uma **observação** retornada ao cliente.
 
-**Status da reserva:** `pendente` → `confirmada` | `recusada`.
+**Status da reserva:** `pendente` → `confirmada` | `recusada` (gestor) | `cancelada` (cliente);
+`confirmada` → `concluida` (automático, quando a data passa) | `cancelada` (cliente).
+
+#### ✅ Implementado — Novos status: `cancelada` e `concluida` (migration 025)
+
+- **`cancelada`** — cancelamento feito pelo **cliente** (botão "Cancelar reserva" em `/minhas-reservas`, com confirmação), permitido enquanto a reserva está `pendente` ou `confirmada`. Difere de `recusada`, que é a negativa do gestor. Grava `cancelada_em`.
+- **`concluida`** — reserva `confirmada` cuja data já passou. Transição **automática (lazy)**: roda ao abrir `/minhas-reservas` e `/painel/agendamentos` (sem cron). É o gatilho para a avaliação do cliente (ver 6.7).
+- Painel: calendário e detalhe exibem os 5 status (Pendente = laranja, Confirmada = verde, Recusada = vermelho, Cancelada pelo cliente = cinza, Concluída = azul), com legenda atualizada.
+- Política formal de cancelamento (prazos/reembolso) fica para quando houver pagamento.
 
 #### ✅ Implementado — Calendário de agendamentos no painel (gestor)
 
@@ -244,8 +251,11 @@ gestor. Detalhes técnicos: SPEC §20.4–20.5.
 
 - A página `/embarcacoes/[id]` ganhou a sidebar `EmbarcacaoBookingCard` (data/pessoas obrigatórios,
   disponibilidade, preço/dia + taxa) — mesmo fluxo do roteiro, **sem adicionais**.
-- Pré-preenchimento via busca (`EmbarcacaoCard` carrega data/pessoas). Confirmação compartilha
-  `/reservas/novo` (agora `?roteiro=` ou `?embarcacao=`) e a action `criarReserva` (multi-tipo).
+- Confirmação compartilha `/reservas/novo` (agora `?roteiro=` ou `?embarcacao=`) e a action
+  `criarReserva` (multi-tipo).
+- ⚠️ Desde a busca orientada a roteiro (ver 6.3), a listagem `/embarcacoes` redireciona para
+  `/buscar` — o detalhe da embarcação e este fluxo de reserva seguem ativos, mas acessíveis apenas
+  por **link direto** (sem entrada pela busca).
 - Reservas de embarcação aparecem no calendário do gestor, no detalhe `/painel/agendamentos/[id]` e
   em "Minhas reservas", com o ícone/diferenciação de tipo. Detalhes: SPEC §20.7.
 
@@ -265,14 +275,17 @@ tipo/status); pagamento (Stripe).
 
 ### 6.7 Avaliações (Reviews)
 
-#### Usuário pode:
-- Avaliar após reserva concluída
-- Dar nota (1 a 5 estrelas)
-- Escrever comentário
+#### ✅ Implementado — Avaliação pelo cliente (migration 026)
 
-#### Sistema exibe:
-- Média de avaliações
-- Lista de comentários
+- Em `/minhas-reservas`, reservas **concluídas** exibem o botão "Avaliar experiência": nota de **1 a 5 estrelas** (obrigatória) + comentário opcional (máx. 2000 caracteres), enviados inline no card.
+- **Uma avaliação por reserva** (única, sem edição); após enviar, o card mostra a avaliação feita.
+- Regra do PRD §8 garantida em três camadas: UI (botão só em concluída), server action (`criarAvaliacao` valida posse + status) e RLS (INSERT exige reserva concluída do próprio cliente).
+
+#### ✅ Implementado — Exibição pública
+
+- `/roteiros/[id]` e `/embarcacoes/[id]`: seção "Avaliações" real (substituiu o placeholder) com **média** (estrelas + nota com 1 decimal), **contagem** e **lista de comentários** (avatar, nome, data, nota).
+- A página da **embarcação** agrega também as avaliações de reservas de **roteiros** feitos naquela embarcação.
+- **Card da busca** (`/buscar` e `/favoritos`): roteiros com avaliação exibem `★ média (total)` na linha do preço, no lugar do badge "Novo"; sem avaliação, nada é exibido (o badge "Novo" permanece).
 
 ---
 
@@ -326,6 +339,18 @@ tipo/status); pagamento (Stripe).
 - Dados pessoais
 - Histórico de reservas
 - Avaliações feitas
+
+#### ✅ Implementado — Favoritos (migration 027)
+
+- No detalhe do roteiro (`/roteiros/[id]`), o botão **Favoritar** salva/remove o roteiro dos favoritos do usuário logado (estado visual: coração preenchido + "Favoritado"). Deslogado, o clique leva a `/entrar` com retorno à página.
+- O **coração no card** dos resultados da busca (`/buscar`) também favorita/desfavorita, com o mesmo comportamento (toggle otimista; deslogado → `/entrar` com retorno à busca com filtros). O estado inicial vem preenchido para roteiros já favoritados.
+- **Menu do usuário** (dropdown do avatar e menu mobile) ganhou o item **Favoritos** → `/favoritos`: grade com os roteiros salvos (mesmo card da busca) e botão "Remover dos favoritos". Roteiros desativados depois de favoritados não aparecem (mesma regra da busca).
+- Um favorito por par usuário↔roteiro. Detalhes técnicos: SPEC §23.
+
+#### ✅ Implementado — Compartilhar roteiro
+
+- O botão **Compartilhar** no detalhe do roteiro abre um menu com **WhatsApp**, **Facebook**, **Instagram** e **Copiar link**.
+- WhatsApp e Facebook usam os endpoints web oficiais de compartilhamento (`wa.me` e `facebook.com/sharer`). O Instagram **não possui** endpoint web de compartilhamento por URL: a opção copia o link (para colar no story/direct) e abre o Instagram.
 
 ### 6.10 Páginas Institucionais / Legais
 
@@ -486,6 +511,7 @@ A taxa padrão configurada inicialmente é **10%**. Admins podem alterá-la a qu
 
 ## 12. Roadmap Pós-MVP
 
+- Multi-idioma no site (pt-BR principal, en-US, es) — planejado em 03/07/2026, em backlog: next-intl com cookie (sem prefixo de URL), seletor no Header, UI traduzida + dicionário de catálogos fixos; conteúdo do gestor, páginas legais e painel fora do escopo. Detalhes no board do ClickUp (módulo "13 - Internacionalização").
 - Chat entre usuário e dono
 - Sistema de favoritos
 - Experiências personalizadas

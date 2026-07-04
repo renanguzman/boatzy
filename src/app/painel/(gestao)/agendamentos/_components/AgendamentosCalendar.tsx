@@ -11,7 +11,7 @@ export type ReservaEvento = {
   id: string;
   tipo: 'roteiro' | 'embarcacao';
   data_reserva: string; // 'yyyy-mm-dd'
-  status: 'pendente' | 'confirmada' | 'recusada';
+  status: 'pendente' | 'confirmada' | 'recusada' | 'cancelada' | 'concluida';
   item_nome: string;
   quantidade_pessoas: number;
   cliente: { name: string } | null;
@@ -22,7 +22,9 @@ type ViewMode = 'month' | 'week';
 const STATUS = {
   pendente: { label: 'Pendente', dot: 'bg-amber-500', chip: 'bg-amber-50 text-amber-800 border-amber-200', bar: 'bg-amber-500' },
   confirmada: { label: 'Confirmada', dot: 'bg-emerald-500', chip: 'bg-emerald-50 text-emerald-800 border-emerald-200', bar: 'bg-emerald-500' },
-  recusada: { label: 'Cancelada', dot: 'bg-red-500', chip: 'bg-red-50 text-red-700 border-red-200', bar: 'bg-red-500' },
+  recusada: { label: 'Recusada', dot: 'bg-red-500', chip: 'bg-red-50 text-red-700 border-red-200', bar: 'bg-red-500' },
+  cancelada: { label: 'Cancelada pelo cliente', dot: 'bg-slate-400', chip: 'bg-slate-50 text-slate-500 border-slate-200', bar: 'bg-slate-400' },
+  concluida: { label: 'Concluída', dot: 'bg-sky-500', chip: 'bg-sky-50 text-sky-800 border-sky-200', bar: 'bg-sky-500' },
 } as const;
 
 const TIPO = {

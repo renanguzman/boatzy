@@ -7,17 +7,27 @@ import LocationPicker, { type LocationValue } from '@/components/home/search/Loc
 import DatePicker, { type DateValue } from '@/components/home/search/DatePicker';
 import GuestPicker from '@/components/home/search/GuestPicker';
 import SearchTypeToggle, { type SearchType } from '@/components/home/search/SearchTypeToggle';
+import TipoEmbarcacaoPicker, { type TipoEmbarcacaoValue } from '@/components/home/search/TipoEmbarcacaoPicker';
 
-type ActivePanel = 'location' | 'date' | 'guests' | null;
+type ActivePanel = 'location' | 'date' | 'guests' | 'tipo' | null;
 
 type Props = {
   initialLocation?: { id: number; nome: string; uf: string } | null;
   initialDate?: { date: string; flex: number } | null;
   initialGuests?: number;
   tipo?: SearchType;
+  tiposEmbarcacao?: TipoEmbarcacaoValue[];
+  initialTipoEmbarcacao?: TipoEmbarcacaoValue | null;
 };
 
-export default function SearchBarCompact({ initialLocation, initialDate, initialGuests = 0, tipo = 'roteiro' }: Props) {
+export default function SearchBarCompact({
+  initialLocation,
+  initialDate,
+  initialGuests = 0,
+  tipo = 'roteiro',
+  tiposEmbarcacao = [],
+  initialTipoEmbarcacao = null,
+}: Props) {
   const router = useRouter();
 
   const [location, setLocation] = useState<LocationValue | null>(
@@ -29,6 +39,7 @@ export default function SearchBarCompact({ initialLocation, initialDate, initial
       : null,
   );
   const [guests, setGuests] = useState(initialGuests);
+  const [tipoEmbarcacao, setTipoEmbarcacao] = useState<TipoEmbarcacaoValue | null>(initialTipoEmbarcacao);
   const [searchType, setSearchType] = useState<SearchType>(tipo);
   const [active, setActive] = useState<ActivePanel>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -49,6 +60,15 @@ export default function SearchBarCompact({ initialLocation, initialDate, initial
 
   function runSearch(type: SearchType) {
     const params = new URLSearchParams();
+    // Busca orientada a roteiro: a aba "Embarcações" filtra roteiros pelo tipo
+    // da embarcação vinculada; o destino é sempre /buscar.
+    if (type === 'embarcacao') {
+      params.set('tipo', 'embarcacao');
+      if (tipoEmbarcacao) {
+        params.set('tipo_embarcacao', tipoEmbarcacao.id);
+        params.set('tipo_nome', tipoEmbarcacao.nome);
+      }
+    }
     if (location) {
       if (location.type === 'place') {
         params.set('municipio', String(location.id));
@@ -64,8 +84,7 @@ export default function SearchBarCompact({ initialLocation, initialDate, initial
     }
     if (guests > 0) params.set('pessoas', String(guests));
 
-    const base = type === 'embarcacao' ? '/embarcacoes' : '/buscar';
-    router.push(`${base}?${params.toString()}`);
+    router.push(`/buscar?${params.toString()}`);
     setActive(null);
   }
 
@@ -87,6 +106,34 @@ export default function SearchBarCompact({ initialLocation, initialDate, initial
         ref={containerRef}
         className="bg-white border border-slate-200 rounded-2xl shadow-sm px-1 py-1 flex items-center gap-1 w-full"
       >
+      {/* Tipo de embarcação (apenas na busca por embarcação) */}
+      {searchType === 'embarcacao' && (
+        <>
+          <div className="flex-1 relative min-w-0">
+            <TipoEmbarcacaoPicker
+              options={tiposEmbarcacao}
+              value={tipoEmbarcacao}
+              onChange={setTipoEmbarcacao}
+              isOpen={active === 'tipo'}
+              onOpen={() => open('tipo')}
+              onClose={() => setActive(null)}
+              compact
+            />
+            {tipoEmbarcacao && (
+              <button
+                type="button"
+                onClick={() => setTipoEmbarcacao(null)}
+                className="absolute right-1 top-1/2 -translate-y-1/2 h-5 w-5 rounded-full bg-slate-100 hover:bg-slate-200 flex items-center justify-center transition-colors"
+              >
+                <X className="h-3 w-3 text-slate-500" />
+              </button>
+            )}
+          </div>
+
+          <div className="w-px h-6 bg-slate-200 shrink-0" />
+        </>
+      )}
+
       {/* Location */}
       <div className="flex-1 relative min-w-0">
         {location ? (

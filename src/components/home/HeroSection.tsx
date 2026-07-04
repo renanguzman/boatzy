@@ -7,15 +7,21 @@ import LocationPicker, { type LocationValue } from './search/LocationPicker';
 import DatePicker, { type DateValue } from './search/DatePicker';
 import GuestPicker from './search/GuestPicker';
 import SearchTypeToggle, { type SearchType } from './search/SearchTypeToggle';
+import TipoEmbarcacaoPicker, { type TipoEmbarcacaoValue } from './search/TipoEmbarcacaoPicker';
 
-type ActivePanel = 'location' | 'date' | 'guests' | null;
+type ActivePanel = 'location' | 'date' | 'guests' | 'tipo' | null;
 
 const HERO_VIDEOS = ['/videos/hero01.mp4', '/videos/hero02.mp4', '/videos/hero03.mp4', '/videos/hero04.mp4'];
 
-export default function HeroSection() {
+type Props = {
+  tiposEmbarcacao: TipoEmbarcacaoValue[];
+};
+
+export default function HeroSection({ tiposEmbarcacao }: Props) {
   const [location, setLocation] = useState<LocationValue | null>(null);
   const [date, setDate] = useState<DateValue | null>(null);
   const [guests, setGuests] = useState(0);
+  const [tipoEmbarcacao, setTipoEmbarcacao] = useState<TipoEmbarcacaoValue | null>(null);
   const [searchType, setSearchType] = useState<SearchType>('roteiro');
   const [active, setActive] = useState<ActivePanel>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -55,6 +61,15 @@ export default function HeroSection() {
 
   function handleSearch() {
     const params = new URLSearchParams();
+    // A busca é orientada a roteiro: a aba "Embarcações" filtra roteiros pelo
+    // tipo da embarcação vinculada, e o resultado é sempre em /buscar.
+    if (searchType === 'embarcacao') {
+      params.set('tipo', 'embarcacao');
+      if (tipoEmbarcacao) {
+        params.set('tipo_embarcacao', tipoEmbarcacao.id);
+        params.set('tipo_nome', tipoEmbarcacao.nome);
+      }
+    }
     if (location) {
       if (location.type === 'place') {
         params.set('municipio', String(location.id));
@@ -70,8 +85,7 @@ export default function HeroSection() {
     }
     if (guests > 0) params.set('pessoas', String(guests));
 
-    const base = searchType === 'embarcacao' ? '/embarcacoes' : '/buscar';
-    window.location.href = `${base}?${params.toString()}`;
+    window.location.href = `/buscar?${params.toString()}`;
   }
 
   return (
@@ -129,6 +143,34 @@ export default function HeroSection() {
           id="search-bar"
         >
           <div className="flex flex-col md:flex-row items-stretch gap-1">
+            {/* Tipo de embarcação (apenas na busca por embarcação) */}
+            {searchType === 'embarcacao' && (
+              <>
+                <div className="flex-1 relative min-w-0">
+                  <TipoEmbarcacaoPicker
+                    options={tiposEmbarcacao}
+                    value={tipoEmbarcacao}
+                    onChange={setTipoEmbarcacao}
+                    isOpen={active === 'tipo'}
+                    onOpen={() => open('tipo')}
+                    onClose={() => setActive(null)}
+                  />
+                  {tipoEmbarcacao && (
+                    <button
+                      type="button"
+                      onClick={() => setTipoEmbarcacao(null)}
+                      className="absolute right-2 top-1/2 -translate-y-1/2 h-6 w-6 rounded-full bg-slate-100 hover:bg-slate-200 flex items-center justify-center transition-colors"
+                    >
+                      <X className="h-3.5 w-3.5 text-slate-500" />
+                    </button>
+                  )}
+                </div>
+
+                {/* Divider */}
+                <div className="hidden md:block w-px bg-slate-200 my-2 shrink-0" />
+              </>
+            )}
+
             {/* Location */}
             <div className="flex-1 relative min-w-0">
               {location ? (

@@ -3,7 +3,7 @@ export type EmbarcacaoStatus = 'ativo' | 'inativo' | 'em_manutencao';
 export type PrecoRegraTipo = 'dia_semana' | 'periodo_anual' | 'data_fixa';
 export type ModalidadeCapitao = 'sem_capitao' | 'com_capitao' | 'opcional';
 export type CatalogoTipo = 'produto' | 'servico';
-export type ReservaStatus = 'pendente' | 'confirmada' | 'recusada';
+export type ReservaStatus = 'pendente' | 'confirmada' | 'recusada' | 'cancelada' | 'concluida';
 export type ReservaTipo = 'roteiro' | 'embarcacao';
 
 export type Database = {
@@ -29,6 +29,7 @@ export type Database = {
           observacao_gestor: string | null;
           solicitado_em: string;
           respondido_em: string | null;
+          cancelada_em: string | null;
           created_at: string;
           updated_at: string;
         };
@@ -51,6 +52,7 @@ export type Database = {
           observacao_gestor?: string | null;
           solicitado_em?: string;
           respondido_em?: string | null;
+          cancelada_em?: string | null;
           created_at?: string;
           updated_at?: string;
         };
@@ -73,6 +75,7 @@ export type Database = {
           observacao_gestor?: string | null;
           solicitado_em?: string;
           respondido_em?: string | null;
+          cancelada_em?: string | null;
           created_at?: string;
           updated_at?: string;
         };
@@ -127,6 +130,90 @@ export type Database = {
             columns: ['reserva_id'];
             isOneToOne: false;
             referencedRelation: 'reserva';
+            referencedColumns: ['id'];
+          },
+        ];
+      };
+      favorito: {
+        Row: {
+          id: string;
+          user_id: string;
+          roteiro_id: string;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          roteiro_id: string;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          user_id?: string;
+          roteiro_id?: string;
+          created_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'favorito_user_id_fkey';
+            columns: ['user_id'];
+            isOneToOne: false;
+            referencedRelation: 'users';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'favorito_roteiro_id_fkey';
+            columns: ['roteiro_id'];
+            isOneToOne: false;
+            referencedRelation: 'roteiro';
+            referencedColumns: ['id'];
+          },
+        ];
+      };
+      avaliacao: {
+        Row: {
+          id: string;
+          reserva_id: string;
+          cliente_id: string;
+          roteiro_id: string | null;
+          embarcacao_id: string | null;
+          nota: number;
+          comentario: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          reserva_id: string;
+          cliente_id: string;
+          roteiro_id?: string | null;
+          embarcacao_id?: string | null;
+          nota: number;
+          comentario?: string | null;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          reserva_id?: string;
+          cliente_id?: string;
+          roteiro_id?: string | null;
+          embarcacao_id?: string | null;
+          nota?: number;
+          comentario?: string | null;
+          created_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'avaliacao_reserva_id_fkey';
+            columns: ['reserva_id'];
+            isOneToOne: true;
+            referencedRelation: 'reserva';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'avaliacao_cliente_id_fkey';
+            columns: ['cliente_id'];
+            isOneToOne: false;
+            referencedRelation: 'users';
             referencedColumns: ['id'];
           },
         ];
@@ -849,6 +936,7 @@ export type Database = {
           p_pessoas?: number | null;
           p_limit?: number | null;
           p_offset?: number | null;
+          p_tipo_id?: string | null;
         };
         Returns: { id: string; distancia_km: number | null; total: number }[];
       };

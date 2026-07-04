@@ -1,6 +1,9 @@
 import Header from '@/components/layout/Header';
 import Footer from '@/components/layout/Footer';
 import { supabaseAdmin } from '@/lib/supabase';
+import { createClient } from '@/lib/supabase/server';
+import { getTiposEmbarcacaoComRoteiro } from '@/lib/tipos-embarcacao';
+import { getAvaliacoesResumoPorRoteiro } from '@/lib/avaliacoes';
 import SearchBarCompact from './_components/SearchBarCompact';
 import RoteiroCard, { type RoteiroCardData } from './_components/RoteiroCard';
 import Link from 'next/link';
@@ -17,6 +20,12 @@ type SearchParams = {
   flex?: string;
   pessoas?: string;
   pagina?: string;
+  /** Aba ativa da busca ('embarcacao' exibe o seletor de tipo). */
+  tipo?: string;
+  /** Filtro por tipo da embarcação vinculada ao roteiro (uuid de embarcacao_tipo). */
+  tipo_embarcacao?: string;
+  /** Rótulo do tipo para chip/título (evita query extra). */
+  tipo_nome?: string;
 };
 
 function buildPageUrl(current: SearchParams, overrides: Partial<SearchParams & { pagina: string }>) {
@@ -50,6 +59,11 @@ export default async function BuscarPage({ searchParams }: { searchParams: Promi
   const pagina = params.pagina ? Math.max(1, parseInt(params.pagina)) : 1;
   const flex = params.flex ? parseInt(params.flex) : 0;
   const from = (pagina - 1) * POR_PAGINA;
+  const tipoEmbarcacaoId = params.tipo_embarcacao || null;
+  const abaEmbarcacao = params.tipo === 'embarcacao' || tipoEmbarcacaoId != null;
+
+  // Tipos com roteiro ativo vinculado — alimentam o seletor da aba "Embarcações".
+  const tiposEmbarcacao = await getTiposEmbarcacaoComRoteiro();
 
   // Resolve filtros (localização/raio + disponibilidade na data + capacidade da
   // embarcação vinculada) e ordenação por proximidade no banco, retornando ids
@@ -64,6 +78,7 @@ export default async function BuscarPage({ searchParams }: { searchParams: Promi
     p_pessoas: pessoas,
     p_limit: POR_PAGINA,
     p_offset: from,
+    p_tipo_id: tipoEmbarcacaoId,
   });
 
   // Não silenciar falhas da RPC: um erro aqui deixa a busca vazia sem motivo
@@ -84,7 +99,8 @@ export default async function BuscarPage({ searchParams }: { searchParams: Promi
       .select(
         `id, nome, descricao, quantidade_pessoas, preco_base, duracao,
          municipios ( nome, estados ( uf ) ),
-         roteiro_imagens ( url_imagem, principal )`,
+         roteiro_imagens ( url_imagem, principal ),
+         embarcacao ( embarcacao_tipo ( nome ) )`,
       )
       .in('id', ids);
 
@@ -95,6 +111,24 @@ export default async function BuscarPage({ searchParams }: { searchParams: Promi
   }
 
   const totalPaginas = Math.max(1, Math.ceil(total / POR_PAGINA));
+
+  // Média/total de avaliações por roteiro listado (exibida no card quando houver).
+  const avaliacoesResumo = await getAvaliacoesResumoPorRoteiro(ids);
+
+  // Favoritos do usuário logado entre os resultados (coração preenchido no card).
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  let favoritosSet = new Set<string>();
+  if (user && ids.length > 0) {
+    const { data: favs } = await supabaseAdmin
+      .from('favorito')
+      .select('roteiro_id')
+      .eq('user_id', user.id)
+      .in('roteiro_id', ids);
+    favoritosSet = new Set((favs ?? []).map((f) => f.roteiro_id));
+  }
 
   // Querystring repassada ao detalhe do roteiro para pré-preencher data/pessoas.
   const detalheQuery = (() => {
@@ -113,15 +147,20 @@ export default async function BuscarPage({ searchParams }: { searchParams: Promi
   }
 
   // Build page title
-  let titulo = 'Roteiros disponíveis';
+  const tipoNome = tipoEmbarcacaoId ? params.tipo_nome : undefined;
+  const sujeito = tipoNome ? `Roteiros com ${tipoNome}` : 'Roteiros';
+  let titulo = `${sujeito} disponíveis`;
   if (params.local) {
-    titulo = `Roteiros em ${params.local}`;
+    titulo = `${sujeito} em ${params.local}`;
   } else if (params.lat && params.lng) {
-    titulo = 'Roteiros próximos a você';
+    titulo = `${sujeito} próximos a você`;
   }
 
   // Active filter chips
   const chips: { label: string; removeKey: string }[] = [];
+  if (tipoNome) {
+    chips.push({ label: `Tipo: ${tipoNome}`, removeKey: 'tipo_embarcacao' });
+  }
   if (params.local && params.municipio) {
     chips.push({ label: params.local, removeKey: 'local_municipio' });
   }
@@ -144,6 +183,11 @@ export default async function BuscarPage({ searchParams }: { searchParams: Promi
             initialLocation={initialLocation}
             initialDate={params.data ? { date: params.data, flex } : null}
             initialGuests={pessoas}
+            tipo={abaEmbarcacao ? 'embarcacao' : 'roteiro'}
+            tiposEmbarcacao={tiposEmbarcacao}
+            initialTipoEmbarcacao={
+              tipoEmbarcacaoId && tipoNome ? { id: tipoEmbarcacaoId, nome: tipoNome } : null
+            }
           />
         </div>
       </div>
@@ -174,6 +218,8 @@ export default async function BuscarPage({ searchParams }: { searchParams: Promi
               } else {
                 delete removeParams[chip.removeKey as keyof SearchParams];
                 if (chip.removeKey === 'data') delete removeParams.flex;
+                // Remover o tipo mantém a aba "Embarcações" ativa (param tipo).
+                if (chip.removeKey === 'tipo_embarcacao') delete removeParams.tipo_nome;
               }
               delete removeParams.pagina;
               const removeHref = buildPageUrl(removeParams, {});
@@ -214,21 +260,50 @@ export default async function BuscarPage({ searchParams }: { searchParams: Promi
             <div className="h-16 w-16 rounded-2xl bg-slate-100 flex items-center justify-center mb-4">
               <SlidersHorizontal className="h-8 w-8 text-slate-300" />
             </div>
-            <h2 className="text-lg font-semibold text-slate-700 mb-2">Nenhum roteiro encontrado</h2>
+            <h2 className="text-lg font-semibold text-slate-700 mb-2">
+              {tipoNome ? `Nenhum roteiro com ${tipoNome} encontrado` : 'Nenhum roteiro encontrado'}
+            </h2>
             <p className="text-sm text-slate-400 max-w-sm">
-              Tente ajustar os filtros ou explorar outros destinos.
+              {tipoNome
+                ? 'Tente outro tipo de embarcação, ajustar os filtros ou explorar outros destinos.'
+                : 'Tente ajustar os filtros ou explorar outros destinos.'}
             </p>
-            <Link
-              href="/buscar"
-              className="mt-6 px-5 py-2.5 bg-[#0B3D91] hover:bg-[#0B2447] text-white text-sm font-semibold rounded-xl transition-colors"
-            >
-              Ver todos os roteiros
-            </Link>
+            <div className="mt-6 flex items-center gap-3">
+              {tipoNome && (
+                <Link
+                  href={buildPageUrl(
+                    (() => {
+                      const semTipo = { ...params };
+                      delete semTipo.tipo_embarcacao;
+                      delete semTipo.tipo_nome;
+                      delete semTipo.pagina;
+                      return semTipo;
+                    })(),
+                    {},
+                  )}
+                  className="px-5 py-2.5 border border-slate-300 text-slate-700 hover:bg-white text-sm font-semibold rounded-xl transition-colors"
+                >
+                  Limpar filtro de tipo
+                </Link>
+              )}
+              <Link
+                href="/buscar"
+                className="px-5 py-2.5 bg-[#0B3D91] hover:bg-[#0B2447] text-white text-sm font-semibold rounded-xl transition-colors"
+              >
+                Ver todos os roteiros
+              </Link>
+            </div>
           </div>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
             {roteiros.map((r) => (
-              <RoteiroCard key={r.id} roteiro={r} query={detalheQuery} />
+              <RoteiroCard
+                key={r.id}
+                roteiro={r}
+                query={detalheQuery}
+                initialFavorito={favoritosSet.has(r.id)}
+                avaliacaoResumo={avaliacoesResumo.get(r.id) ?? null}
+              />
             ))}
           </div>
         )}

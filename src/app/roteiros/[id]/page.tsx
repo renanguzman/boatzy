@@ -17,7 +17,9 @@ import AddonsSection from './_components/AddonsSection';
 import { CartProvider } from './_components/CartContext';
 import LocalizacaoMap from './_components/LocalizacaoMap';
 import GaleriaRoteiro from './_components/GaleriaRoteiro';
+import AvaliacoesSection, { type AvaliacaoPublica } from '@/components/avaliacoes/AvaliacoesSection';
 import { supabaseAdmin } from '@/lib/supabase';
+import { createClient } from '@/lib/supabase/server';
 
 type RoteiroDetalhe = {
   id: string;
@@ -93,6 +95,30 @@ export default async function RoteiroDetalhePage({
   if (error || !data) notFound();
 
   const roteiro = data as unknown as RoteiroDetalhe;
+
+  // Avaliações de reservas concluídas deste roteiro (mais recentes primeiro).
+  const { data: avaliacoesData } = await supabaseAdmin
+    .from('avaliacao')
+    .select('id, nota, comentario, created_at, cliente:users!avaliacao_cliente_id_fkey ( name, avatar_url )')
+    .eq('roteiro_id', id)
+    .order('created_at', { ascending: false });
+  const avaliacoes = (avaliacoesData ?? []) as unknown as AvaliacaoPublica[];
+
+  // Estado inicial do favorito (false quando deslogado).
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  let isFavorito = false;
+  if (user) {
+    const { data: fav } = await supabaseAdmin
+      .from('favorito')
+      .select('id')
+      .eq('user_id', user.id)
+      .eq('roteiro_id', id)
+      .maybeSingle();
+    isFavorito = fav != null;
+  }
 
   // Sort images: principal first
   const images = [...roteiro.roteiro_imagens].sort((a, b) =>
@@ -351,25 +377,19 @@ export default async function RoteiroDetalhePage({
                 </div>
               )}
 
-              {/* Reviews placeholder */}
-              <div>
-                <div className="flex items-center justify-between mb-6">
-                  <h2 className="text-xl font-bold text-[#0B2447]">Avaliações</h2>
-                  <button className="text-sm font-medium text-[#0B3D91] border border-[#0B3D91]/20 px-4 py-2 rounded-lg hover:bg-[#0B3D91]/5 transition-colors">
-                    Escrever avaliação
-                  </button>
-                </div>
-                <div className="rounded-2xl border border-dashed border-slate-200 p-10 flex flex-col items-center text-center">
-                  <p className="text-sm text-slate-400 font-medium">Ainda não há avaliações para este roteiro.</p>
-                  <p className="text-xs text-slate-300 mt-1">Seja o primeiro a avaliar esta experiência!</p>
-                </div>
-              </div>
+              {/* Avaliações */}
+              <AvaliacoesSection
+                avaliacoes={avaliacoes}
+                emptyLabel="Ainda não há avaliações para este roteiro."
+              />
             </div>
 
             {/* ── Right sidebar ── */}
             <div className="lg:col-span-1">
               <BookingCard
                 roteiroId={roteiro.id}
+                roteiroNome={roteiro.nome}
+                initialFavorito={isFavorito}
                 preco={roteiro.preco_base}
                 diasOperacao={roteiro.disponibilidade_dias_semana}
                 datasBloqueadas={roteiro.roteiro_disponibilidade_bloqueio?.map((b) => b.data) ?? []}

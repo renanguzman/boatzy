@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
-import { CalendarCheck, UserCog, LogOut, ChevronDown } from 'lucide-react';
+import { CalendarCheck, UserCog, LogOut, ChevronDown, Heart } from 'lucide-react';
 
 type Props = {
   displayName: string;
@@ -91,6 +91,15 @@ export default function UserMenu({ displayName, email, avatarUrl, naoLidas = 0, 
                   {naoLidas > 99 ? '99+' : naoLidas}
                 </span>
               )}
+            </Link>
+            <Link
+              href="/favoritos"
+              onClick={() => setOpen(false)}
+              role="menuitem"
+              className="flex items-center gap-3 px-4 py-2.5 text-sm text-slate-700 hover:bg-slate-50 hover:text-[#0B3D91] transition-colors"
+            >
+              <Heart className="h-4 w-4 text-slate-400" />
+              Favoritos
             </Link>
             <Link
               href="/minha-conta"
