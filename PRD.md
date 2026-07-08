@@ -391,6 +391,30 @@ Todos os números são do **gestor logado** (`owner_id`):
 - Versão atual é uma minuta provisória (v1) com aviso de status; revisão jurídica pendente para o lançamento oficial.
 - Fonte do texto: `Boatzy_Termos_Uso.md` (raiz do projeto).
 
+### 6.11 Área Administrativa (`/administrator`)
+
+Área de gestão geral da plataforma Boatzy, exclusiva para usuários com a role `admin`.
+
+**Segurança (regra central):**
+- A role `admin` **só pode ser concedida via SQL direto no banco** (tabela `user_roles`). Nenhum fluxo da aplicação (endpoint, server action, tela) atribui essa role — por decisão de segurança.
+- Acesso validado em duas camadas: middleware (autenticação) + layout Server Component (role no banco, fonte da verdade).
+- Login próprio em `/administrator/login` com e-mail + senha, **sem** login social, cadastro ou recuperação de senha.
+
+#### ✅ Implementado — Estrutura, login, guard e dashboard
+
+- Layout inspirado no `/painel` (sidebar + header), com dashboard de métricas globais do sistema (usuários, gestores, embarcações, roteiros, reservas, avaliações e taxa vigente) e cards de acesso rápido aos módulos.
+- Menu com os módulos previstos (páginas placeholder, a implementar individualmente):
+  - **Avaliações** — gestão de todas as avaliações do sistema (com exclusão)
+  - **Embarcações** — gestão de todas as embarcações da plataforma
+  - **Publicidade** — gestão de espaços de publicidade
+  - **Taxas** — taxas gerais do sistema (percentual da plataforma × repasse ao gestor)
+  - **Categorias** — cadastro de categorias
+  - **Configurações** — parâmetros gerais da plataforma
+
+#### 🔜 A implementar
+
+- Conteúdo de cada módulo listado acima (cada página será implementada em separado).
+
 ---
 
 ## 7. Modelagem de Dados (Simplificada)

@@ -1788,3 +1788,82 @@ contra fundo branco. Ink dos textos permanece `#0B2447`.
   trunca para ~16 caracteres com reticências — o nome completo continua no tooltip (hover).
 - Status da variação % (KPI) usa a paleta de status fixa do skill (`#0ca30c` bom / `#d03b3b`
   crítico), sempre com ícone (`TrendingUp`/`TrendingDown`) + texto — nunca cor isolada.
+
+---
+
+## 25. Área Administrativa (`/administrator`)
+
+Área de gestão geral da plataforma, acessível somente a usuários com a role `admin`.
+
+### 25.1 Segurança e controle de acesso
+
+- **Role `admin`**: existe no enum `user_role` e na tabela `user_roles` desde a migration 001.
+  **Nenhum código da aplicação concede essa role** — não há endpoint, server action ou tela de
+  auto-atribuição (diferente do `gestor`, que tem o `/api/painel/setup-role`). A concessão é feita
+  exclusivamente via SQL direto no banco:
+
+  ```sql
+  INSERT INTO public.user_roles (user_id, role) VALUES ('<auth.users.id>', 'admin');
+  ```
+
+- **Camada 1 — middleware (`src/proxy.ts`)**: toda rota `/administrator/*` exige usuário
+  autenticado; não autenticado → redirect `/administrator/login` (única rota pública da área).
+- **Camada 2 — layout do grupo `(admin)`** (`src/app/administrator/(admin)/layout.tsx`, Server
+  Component): consulta a role no banco via `checkRoleInDb(user.id, ['admin'])` (`src/lib/roles.ts`,
+  usa `supabaseAdmin` — fonte da verdade). Sem a role → tela "Acesso Restrito" (sem botão de
+  auto-atribuição), apenas com "Voltar ao Site" e sign out.
+- **Login** (`/administrator/login`, Client Component): apenas `signInWithPassword` (e-mail +
+  senha). Sem login social, sem cadastro, sem recuperação de senha. O login **não** atribui role
+  nem faz upsert de usuário — só autentica; a validação da role acontece no layout.
+
+### 25.2 Estrutura de arquivos
+
+```
+src/app/administrator/
+  layout.tsx                  → passthrough (isola a árvore do root layout do site)
+  login/page.tsx              → login e-mail/senha (estático)
+  (admin)/
+    layout.tsx                → guard admin + AdminSidebar + AdminHeader
+    page.tsx                  → dashboard (métricas globais)
+    avaliacoes/page.tsx       → placeholder (ModuloEmConstrucao)
+    embarcacoes/page.tsx      → placeholder
+    publicidade/page.tsx      → placeholder
+    taxas/page.tsx            → placeholder
+    categorias/page.tsx       → placeholder
+    configuracoes/page.tsx    → placeholder
+src/components/administrator/
+  AdminSidebar.tsx            → menu (Client Component), sign out → /administrator/login
+  AdminHeader.tsx             → header com badge "Admin", nome e avatar do usuário
+  ModuloEmConstrucao.tsx      → placeholder padrão dos módulos ainda não implementados
+```
+
+Layout visual clonado do padrão do `/painel` (sidebar 260px branca, header 16, fundo `#F8F9FB`,
+navy `#0B2447`/`#0B3D91`).
+
+### 25.3 Dashboard (`/administrator`)
+
+Server Component; carrega em paralelo (`Promise.all`, via `supabaseAdmin`, **sem filtro de dono**
+— visão global):
+
+- Contagens (`count: exact, head: true`): `users`, `user_roles` (role `gestor`), `embarcacao`,
+  `roteiro`, `reserva` (total e `status = pendente`), `avaliacao`.
+- Taxa geral vigente: `taxa_plataforma.taxa_percent` (`singleton = true`).
+
+Renderiza 6 stat cards + grid de cards de acesso rápido aos 6 módulos.
+
+### 25.4 Menu (AdminSidebar)
+
+| Rota | Item | Status |
+|---|---|---|
+| `/administrator` | Dashboard | ✅ implementado |
+| `/administrator/avaliacoes` | Avaliações | 🔜 placeholder |
+| `/administrator/embarcacoes` | Embarcações | 🔜 placeholder |
+| `/administrator/publicidade` | Publicidade | 🔜 placeholder |
+| `/administrator/taxas` | Taxas | 🔜 placeholder |
+| `/administrator/categorias` | Categorias | 🔜 placeholder |
+| `/administrator/configuracoes` | Configurações | 🔜 placeholder |
+
+### 25.5 Tipos
+
+- `taxa_plataforma` adicionada ao `Database` em `src/types/supabase.ts` (Row/Insert/Update),
+  refletindo a migration 004.

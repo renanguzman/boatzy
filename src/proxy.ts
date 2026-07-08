@@ -14,6 +14,14 @@ function isPainelPublic(pathname: string) {
   return painelPublicRoutes.some((re) => re.test(pathname));
 }
 
+// Área administrativa (/administrator) — única rota pública é o login.
+// A validação da role `admin` acontece no layout do grupo (admin), via banco.
+const administratorPublicRoutes = [/^\/administrator\/login(\/|$)/];
+
+function isAdministratorPublic(pathname: string) {
+  return administratorPublicRoutes.some((re) => re.test(pathname));
+}
+
 export async function proxy(request: NextRequest) {
   // Cria a resposta base e o cliente Supabase SSR que lê/escreve cookies.
   let supabaseResponse = NextResponse.next({ request });
@@ -56,6 +64,17 @@ export async function proxy(request: NextRequest) {
   ) {
     const loginUrl = request.nextUrl.clone();
     loginUrl.pathname = '/painel/login';
+    return NextResponse.redirect(loginUrl);
+  }
+
+  // Protege a área administrativa — redireciona para o login do admin se não autenticado.
+  if (
+    pathname.startsWith('/administrator') &&
+    !isAdministratorPublic(pathname) &&
+    !user
+  ) {
+    const loginUrl = request.nextUrl.clone();
+    loginUrl.pathname = '/administrator/login';
     return NextResponse.redirect(loginUrl);
   }
 

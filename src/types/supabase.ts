@@ -280,6 +280,33 @@ export type Database = {
           },
         ];
       };
+      taxa_plataforma: {
+        Row: {
+          id: string;
+          taxa_percent: number;
+          descricao: string | null;
+          singleton: boolean;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          taxa_percent: number;
+          descricao?: string | null;
+          singleton?: boolean;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          taxa_percent?: number;
+          descricao?: string | null;
+          singleton?: boolean;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
       estados: {
         Row: {
           id: number;
