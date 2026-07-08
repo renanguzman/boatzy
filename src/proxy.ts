@@ -5,6 +5,8 @@ const painelPublicRoutes = [
   /^\/painel\/login(\/|$)/,
   /^\/painel\/cadastro(\/|$)/,
   /^\/painel\/auth(\/|$)/,
+  /^\/painel\/recuperar-senha(\/|$)/,
+  /^\/painel\/redefinir-senha(\/|$)/,
   /^\/api\/painel\/setup-role(\/|$)/,
 ];
 

@@ -279,7 +279,7 @@ Redirect URI obrigatória: `https://SEU_PROJECT.supabase.co/auth/v1/callback`
 **Domínio de retorno (produção):** o `redirectTo` dos três provedores é montado a partir de `NEXT_PUBLIC_APP_URL`, e **não** mais de `window.location.origin` — isso evita que o login social retorne ao domínio `*.vercel.app`. Para o domínio final `https://www.boatzy.app` funcionar, três pontos devem estar alinhados:
 - **Vercel** → `NEXT_PUBLIC_APP_URL = https://www.boatzy.app`
 - **Supabase** → Authentication → URL Configuration → **Site URL** = `https://www.boatzy.app`
-- **Supabase** → **Redirect URLs** (allow list): `https://www.boatzy.app/auth/callback` e `https://www.boatzy.app/painel/auth/callback`
+- **Supabase** → **Redirect URLs** (allow list): `https://www.boatzy.app/auth/callback`, `https://www.boatzy.app/painel/auth/callback`, `https://www.boatzy.app/auth/confirm`, `https://www.boatzy.app/painel/auth/confirm`, `http://localhost:3000/auth/confirm` e `http://localhost:3000/painel/auth/confirm` (dev — recuperação de senha do site e do painel)
 
 **Domínios de imagem (`next.config.ts`):** os avatares dos provedores são renderizados com `next/image`, portanto o host precisa estar em `images.remotePatterns`. Liberados: `*.googleusercontent.com`, `*.fbcdn.net` e `platform-lookaside.fbsbx.com` (Facebook entrega a foto de perfil por este último, não por `*.fbcdn.net`). Alterar `next.config.ts` exige reiniciar o servidor de dev.
 
@@ -309,6 +309,42 @@ Os botões de login social são renderizados pelo componente compartilhado `Soci
 - **Email/senha:** `signInWithPassword` / `signUp`, depois `window.location.href = /api/auth/setup-cliente?redirect_to=...`.
 - **OAuth:** `signInWithOAuth({ provider, options: { redirectTo: `${baseUrl()}/auth/callback?next=/api/auth/setup-cliente?redirect_to=...` } })`, onde `baseUrl()` = `NEXT_PUBLIC_APP_URL ?? window.location.origin`.
 - Em qualquer caminho a role resultante é `cliente`.
+
+### Recuperação de senha (site e painel)
+
+Duas superfícies, cada uma com seu próprio trio de rotas (todas públicas — ver `painelPublicRoutes` em `src/proxy.ts` para as do painel; as do site não são protegidas pelo proxy):
+
+| | Site (cliente) | Painel (gestor) |
+|---|---|---|
+| Solicitar | `/recuperar-senha` | `/painel/recuperar-senha` |
+| Confirmar token | `GET /auth/confirm` | `GET /painel/auth/confirm` |
+| Definir nova senha | `/redefinir-senha` | `/painel/redefinir-senha` |
+
+Mesmo padrão já usado no OAuth (`/auth/callback` vs `/painel/auth/callback`): **rotas de confirmação separadas por superfície, cada uma com destino fixo** (não um `next` dinâmico por query) — evita que a URL do `redirectTo` (comparada por inteiro contra a allow list do Supabase) varie e quebre a validação.
+
+1. **`/recuperar-senha`** / **`/painel/recuperar-senha`** (`'use client'`) — form de e-mail que chama `resetPasswordForEmail` com `redirectTo` apontando para a rota de confirmação da própria superfície (sem query string). O card de sucesso é **genérico** ("Se existir uma conta para…") mesmo para e-mail inexistente — anti-enumeração de contas (o Supabase também não revela). A versão do site lê `?error=link-invalido` via `useSearchParams` (exige o wrapper `<Suspense>`, mesmo padrão de `/entrar`); a do painel idem. Não redireciona usuário já logado — pessoa logada pode legitimamente redefinir a senha.
+2. **`GET /auth/confirm`** / **`GET /painel/auth/confirm`** (`src/app/auth/confirm/route.ts` e `src/app/painel/auth/confirm/route.ts`) — valida o token do e-mail via `verifyOtp({ type, token_hash })` (client SSR compartilhado de `@/lib/supabase/server`), grava a sessão nos cookies e redireciona para o destino fixo da sua superfície (`/redefinir-senha` ou `/painel/redefinir-senha`). Qualquer falha → volta para a tela de solicitação da mesma superfície com `?error=link-invalido`. A versão do site ainda aceita um `next` opcional por query (aceita **apenas caminhos relativos** — guarda anti-open-redirect), mas nada no app o utiliza hoje além do default.
+3. **`/redefinir-senha`** / **`/painel/redefinir-senha`** (`'use client'`) — máquina de estados `checking | no-session | form | success`. No mount, `getUser()`: sem sessão → card "Link inválido ou expirado" com CTA para a tela de solicitação da mesma superfície. Com sessão → form nova senha + confirmação (`minLength=6`, validação local de igualdade) → `supabase.auth.updateUser({ password })` → card "Senha redefinida!". Erro de sessão no submit (`session_expired`/`session_not_found`) rebaixa para `no-session`. **Diferença entre as duas:** no site o botão de sucesso leva para `/`; no painel, o botão ("Entrar no Painel") aponta para `GET /api/painel/setup-role` — mesmo endpoint usado após login/cadastro do gestor — garantindo (upsert idempotente) que a conta tenha a role `gestor` antes de entrar em `/painel`, já que a recuperação de senha em si não atribui roles.
+
+**Client dedicado com `flowType: 'implicit'` só para `resetPasswordForEmail`** (`src/lib/supabase/reset-password-client.ts`, usado pelas duas telas de solicitação). Os clients padrão (`@/lib/supabase/client` e `server`) usam `@supabase/ssr`, que força `flowType: 'pkce'` (não é configurável — `createBrowserClient.js`/`createServerClient.js` sobrescrevem qualquer `flowType` passado nas options). Se as telas de solicitação usassem esse client compartilhado, o `resetPasswordForEmail` enviaria um `code_challenge` ao Supabase e guardaria o `code_verifier` correspondente em cookie — o token do e-mail viria prefixado com `pkce_` e só poderia virar sessão **no mesmo navegador/perfil** que fez o pedido (via `exchangeCodeForSession`, que lê esse cookie). Isso quebra o caso comum de abrir o e-mail de recuperação em outro navegador, app de e-mail ou dispositivo.
+
+O client dedicado usa `@supabase/supabase-js` puro (não `@supabase/ssr`) com `{ flowType: 'implicit', persistSession: false, autoRefreshToken: false, detectSessionInUrl: false }` — sem tocar no client/sessão principal do app. Sem `code_challenge`, o Supabase gera um `token_hash` "puro", validável via `verifyOtp` independentemente de cookies locais, então o link funciona em qualquer navegador ou dispositivo.
+
+Ambas as rotas de confirmação mantêm um fallback defensivo: se algum token chegar prefixado com `pkce_` (não deveria acontecer no fluxo atual), usam `exchangeCodeForSession(token_hash)` em vez de `verifyOtp` — mas nesse caso só funciona no mesmo navegador que originou o pedido.
+
+**Template de e-mail "Reset Password"** (Dashboard → Authentication → Emails → Templates), único e global, com o href:
+```html
+{{ .RedirectTo }}?token_hash={{ .TokenHash }}&type=recovery&next=/redefinir-senha
+```
+`{{ .RedirectTo }}` (e não `{{ .SiteURL }}`) resolve para a URL que a tela de solicitação passou em `redirectTo` — o mesmo template serve as duas superfícies sem alteração (o `&next=/redefinir-senha` fixo é ignorado por `/painel/auth/confirm`, que sempre redireciona para `/painel/redefinir-senha` independente da query). **A URL do `redirectTo` precisa estar na allow list** (ver "Domínio de retorno" acima, agora com 4 entradas de confirmação); caso contrário o Supabase a substitui silenciosamente pelo Site URL — verificado em teste (`generate_link` com uma URL fora da allow list devolveu o Site URL em vez do `redirect_to` enviado).
+
+**Erros traduzidos** (helpers locais por página, via `error.code` com fallback em mensagem): `over_email_send_rate_limit`/`over_request_rate_limit`, `email_address_invalid`, `same_password`, `weak_password`, `otp_expired` (via redirect de erro das rotas de confirmação).
+
+**Notas de comportamento:**
+- A sessão criada pelo recovery é uma sessão completa — após redefinir, o usuário está logado.
+- No site, o fluxo não passa por `/api/auth/setup-cliente`; irrelevante para quem já tem conta (role já existe). No painel, o botão de sucesso passa por `/api/painel/setup-role` de propósito, para cobrir o caso de a role `gestor` ainda não existir.
+- Scanners de e-mail corporativos podem consumir o link via GET antes do usuário (limitação aceita do fluxo GET, adotado pela própria doc do Supabase; mitigação futura: página intermediária com botão de confirmação).
+- `src/proxy.ts` inclui `/painel/recuperar-senha` e `/painel/redefinir-senha` em `painelPublicRoutes` (e `/painel/auth/**` já cobria `/painel/auth/confirm`) — sem isso, quem não está logado (o público-alvo da recuperação de senha) seria barrado antes mesmo de ver o formulário.
 
 ### Endpoints de atribuição
 
@@ -1405,7 +1441,18 @@ cliente_id  uuid not null FK → users(id) ON DELETE CASCADE
 created_at  timestamptz default now()
 updated_at  timestamptz default now()
 UNIQUE (gestor_id, cliente_id)
+CHECK (gestor_id <> cliente_id)  -- migration 20260707_conversa_bloqueia_self_chat.sql
 ```
+
+> ⚠️ **Conversa consigo mesmo:** como uma mesma conta pode acumular as roles `cliente` e
+> `gestor` (§6.1), é possível — sem a guarda abaixo — abrir uma conversa em que
+> `gestor_id = cliente_id`. Isso já aconteceu em produção: o sino de notificações
+> (§21.4) contava normalmente as mensagens não lidas, mas o link sempre caía em 404,
+> pois `abrirConversa` (`src/app/painel/(gestao)/clientes/actions.ts`) recusa reabrir
+> conversa consigo mesmo. A migration `20260707_conversa_bloqueia_self_chat.sql` limpou
+> a conversa órfã existente, adicionou a CHECK constraint acima e reforçou as três RPCs
+> de contagem (`chat_nao_lidas_por_cliente`, `chat_total_nao_lidas`,
+> `chat_conversas_nao_lidas`) com `gestor_id <> cliente_id`, como defesa em profundidade.
 
 **`mensagem`**:
 ```sql
@@ -1672,3 +1719,72 @@ aos cards. Em `/favoritos`, os cards recebem `initialFavorito` fixo (`true`).
   desativado some, favorito permanece no banco). Grid reutiliza `RoteiroCard` +
   `_components/RemoverFavoritoButton.tsx` (`'use client'`: chama `alternarFavorito` +
   `router.refresh()`). Estado vazio com CTA "Explorar roteiros".
+
+## 24. Receitas do gestor (`/painel/receitas`)
+
+Tela financeira do painel — filtros por período/embarcação/roteiro/cliente/status, KPIs, gráficos
+e um grid exportável (Excel/PDF). Não há Stripe integrado (ver `PRD.md` §5.1); todo o dado
+financeiro vem do snapshot já existente em `reserva.total_estimado`.
+
+**Definição de receita:** soma de `total_estimado` das reservas com `status IN ('confirmada',
+'concluida')` — é o default do filtro de Status na tela, mas o gestor pode ampliar (ex.: incluir
+`pendente`) e, nesse caso, os KPIs/gráficos refletem literalmente o que estiver selecionado (um
+único filtro unificado alimenta KPIs, gráficos e grid — sem lógica dupla "receita real vs. exibida").
+
+### 24.1 Arquitetura
+
+Segue o padrão já usado em `clientes/page.tsx` + `ClientesGrid.tsx`: Server Component busca **todas**
+as reservas do gestor (sem filtro de servidor) via `supabaseAdmin`, Client Component filtra/agrega/
+pagina tudo em memória (`useMemo`). Sem RPC de agregação — volume de um único gestor não justifica.
+
+- **`src/app/painel/(gestao)/receitas/page.tsx`** — chama `concluirReservasVencidas()` (mesma
+  transição lazy do dashboard/agendamentos) e busca:
+  ```ts
+  supabaseAdmin.from('reserva').select(`
+    id, tipo, data_reserva, item_nome, quantidade_pessoas,
+    preco_base, total_adicionais, taxa_servico, total_estimado, status, solicitado_em,
+    cliente:users!reserva_cliente_id_fkey ( id, name ),
+    roteiro ( id, nome ), embarcacao ( id, nome )
+  `).eq('owner_id', user.id)
+  ```
+- **`_lib/types.ts`** — `ReservaReceita` (shape da query acima) e `Filtros` (`de`, `ate`,
+  `embarcacaoId`, `roteiroId`, `clienteId`, `status: ReservaStatus[]`).
+- **`_lib/constants.ts`** — `STATUS_LABEL`/`STATUS_BADGE`/`TIPO_LABEL` (mapas de exibição) e
+  `STATUS_RECEITA = ['confirmada', 'concluida']` (default do filtro de status).
+- **`_lib/periodo.ts`** — presets de período (`presetEsteMes`, `presetUltimos30Dias`,
+  `presetUltimos6Meses`, `presetEsteAno`) e `periodoAnterior(de, ate)` (janela imediatamente
+  anterior, mesma duração — usada na comparação % dos KPIs) via `Intl.DateTimeFormat('en-CA', {
+  timeZone: 'America/Sao_Paulo' })`, mesmo padrão de `hojeBrasil()` em `src/lib/reservas.ts`.
+- **`_lib/export.ts`** — `exportReceitasExcel` (lib `xlsx`, instalada a partir do CDN oficial da
+  SheetJS — `https://cdn.sheetjs.com/xlsx-0.20.3/xlsx-0.20.3.tgz` — porque a versão publicada no
+  registro público do npm, 0.18.5, tem vulnerabilidades altas sem correção disponível ali) e
+  `exportReceitasPdf` (`jspdf` + `jspdf-autotable`), ambas operando sobre o array filtrado+ordenado
+  (não paginado) do grid.
+- **`_components/ReceitasView.tsx`** — orquestrador: guarda o estado de `Filtros` (default:
+  período = mês atual, status = `STATUS_RECEITA`), deriva as opções dos selects (embarcação/
+  roteiro/cliente únicos presentes nas reservas do gestor, não uma query separada), aplica o
+  filtro unificado, e calcula via `useMemo`: KPIs, tendência mensal (preenche todos os meses do
+  período, mesmo com valor zero, para o gráfico não ter buracos), ranking por embarcação/roteiro
+  (top 8) e top clientes (top 8).
+- **`_components/FiltrosReceitas.tsx`** — período (`<input type="date">` + atalhos de preset),
+  `<select>` nativo para embarcação/roteiro/cliente, pills toggle para status.
+- **`_components/ReceitasInsights.tsx`** — KPI tiles (receita, variação % vs. período anterior,
+  ticket médio, reservas confirmadas, valor pendente informativo) + gráficos `recharts` (ver §24.2).
+- **`_components/ReceitasGrid.tsx`** — clone do padrão `ClientesGrid` (`ThSortable`, `PAGE_SIZE=10`,
+  paginação idêntica), com os botões Exportar Excel/PDF no header.
+
+### 24.2 Gráficos (`recharts`)
+
+Desenhados com o skill `dataviz` do projeto. Cor de marca única para todas as barras: `#1857C4`
+— o navy/azul originais do app (`#0B2447`/`#0B3D91`) são bons para texto mas escuros/pouco
+saturados demais como cor de mark de gráfico (falham lightness band e chroma floor no validador
+do skill); `#1857C4` é uma variação mais clara da mesma família que passa em todos os checks
+contra fundo branco. Ink dos textos permanece `#0B2447`.
+
+- **Receita por mês** — barra vertical, uma série (sem legenda — regra do skill: série única não
+  precisa de legend box).
+- **Receita por embarcação / por roteiro** — barra horizontal, top 8. Nomes de embarcação/roteiro
+  costumam ser títulos longos; o tick do eixo Y usa um renderer customizado (`TickTruncado`) que
+  trunca para ~16 caracteres com reticências — o nome completo continua no tooltip (hover).
+- Status da variação % (KPI) usa a paleta de status fixa do skill (`#0ca30c` bom / `#d03b3b`
+  crítico), sempre com ícone (`TrendingUp`/`TrendingDown`) + texto — nunca cor isolada.

@@ -85,6 +85,8 @@ Validar um marketplace de aluguel de embarcações, garantindo:
 - ✅ Login com provedores diferentes (Google/Facebook) usando o mesmo e-mail referencia **a mesma conta** — o Supabase faz vínculo automático de identidades por e-mail verificado (verificado em produção). Detalhes técnicos no `SPEC.md`.
 - ✅ Roles são armazenadas em `user_roles` (Supabase, fonte da verdade). Lidas diretamente do banco nos Server Components.
 - ✅ Cliente que tenta acessar `/painel` vê a opção "Tornar-me gestor", que adiciona a role sem destruir o vínculo de cliente.
+- ✅ Recuperação de senha do cliente: `/recuperar-senha` (solicita e-mail) → e-mail com link → `/auth/confirm` (valida token e cria sessão) → `/redefinir-senha` (define nova senha). Mensagem de envio é genérica (anti-enumeração de contas) e o link funciona em qualquer navegador/dispositivo (client dedicado com `flowType: 'implicit'`, evitando a exigência de PKCE do client principal). Detalhes no `SPEC.md`.
+- ✅ Recuperação de senha do gestor: mesmo fluxo, rotas espelhadas (`/painel/recuperar-senha` → `/painel/auth/confirm` → `/painel/redefinir-senha`). Ao concluir, passa por `/api/painel/setup-role` (garante a role `gestor`, idempotente) antes de entrar em `/painel` — a recuperação de senha em si não atribui roles. Detalhes no `SPEC.md`.
 - Separação de perfis:
   - Cliente — acessa o hotsite (`/`), autenticado via social/email com role `cliente`
   - Gestor (Owner) — acessa o painel (`/painel`), com role `gestor`
@@ -305,6 +307,15 @@ Todos os números são do **gestor logado** (`owner_id`):
 - **Card "Destaque do período":** roteiro/embarcação com mais solicitações na janela de 6 meses (% do total e contagem); estado vazio com CTA quando não há reservas.
 - **"Últimas solicitações de reserva":** as 6 mais recentes com item + tipo (badge), cliente, data do passeio, pessoas, total estimado, status (5 status com cores) e data da solicitação; ação "Detalhes" → `/painel/agendamentos/[id]` e "Ver todas" → calendário.
 - A página roda a transição lazy `confirmada → concluída` antes de contar/exibir.
+
+#### ✅ Implementado — Menu **Receitas** (`/painel/receitas`)
+
+- Tela financeira do gestor: filtros por **período** (com atalhos: Este mês, Últimos 30 dias, Últimos 6 meses, Este ano), **embarcação**, **roteiro**, **cliente** e **status** (default: Confirmada + Concluída — é a base da receita, já que não há Stripe integrado; o gestor pode ampliar para ver pendentes/canceladas).
+- **KPIs:** receita no período, variação % vs. período anterior (mesma duração, imediatamente anterior), ticket médio, nº de reservas confirmadas, valor pendente (informativo).
+- **Gráficos:** receita por mês (tendência), receita por embarcação (top 8) e por roteiro (top 8), top clientes por receita.
+- **Grid de reservas** do período filtrado: ordenável por qualquer coluna, paginado (10/página), com exportação para **Excel** e **PDF** (refletindo o filtro e a ordenação atuais).
+- Todos os filtros, KPIs, gráficos e grid reagem em conjunto ao mesmo estado de filtro — nunca mostram números divergentes entre si.
+- Detalhes técnicos em `SPEC.md` §24.
 
 #### ✅ Implementado — Menu **Clientes** (`/painel/clientes`)
 
