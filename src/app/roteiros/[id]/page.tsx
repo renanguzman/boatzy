@@ -101,6 +101,7 @@ export default async function RoteiroDetalhePage({
     .from('avaliacao')
     .select('id, nota, comentario, created_at, cliente:users!avaliacao_cliente_id_fkey ( name, avatar_url )')
     .eq('roteiro_id', id)
+    .eq('status', 'aprovada')
     .order('created_at', { ascending: false });
   const avaliacoes = (avaliacoesData ?? []) as unknown as AvaliacaoPublica[];
 

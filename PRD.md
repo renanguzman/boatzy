@@ -288,6 +288,11 @@ tipo/status); pagamento (Stripe).
 - `/roteiros/[id]` e `/embarcacoes/[id]`: seção "Avaliações" real (substituiu o placeholder) com **média** (estrelas + nota com 1 decimal), **contagem** e **lista de comentários** (avatar, nome, data, nota).
 - A página da **embarcação** agrega também as avaliações de reservas de **roteiros** feitos naquela embarcação.
 - **Card da busca** (`/buscar` e `/favoritos`): roteiros com avaliação exibem `★ média (total)` na linha do preço, no lugar do badge "Novo"; sem avaliação, nada é exibido (o badge "Novo" permanece).
+- Só avaliações **aprovadas pelo admin** aparecem nesses pontos (ver 6.11) — uma avaliação recém-enviada fica com o selo "Aguardando aprovação" em `/minhas-reservas` até a moderação.
+
+#### ✅ Implementado — Moderação pelo admin
+
+- Toda avaliação nasce com status `pendente` e só é exibida publicamente depois de **aprovada** em `/administrator/avaliacoes`. Detalhes em 6.11.
 
 ---
 
@@ -403,17 +408,27 @@ Todos os números são do **gestor logado** (`owner_id`):
 #### ✅ Implementado — Estrutura, login, guard e dashboard
 
 - Layout inspirado no `/painel` (sidebar + header), com dashboard de métricas globais do sistema (usuários, gestores, embarcações, roteiros, reservas, avaliações e taxa vigente) e cards de acesso rápido aos módulos.
-- Menu com os módulos previstos (páginas placeholder, a implementar individualmente):
-  - **Avaliações** — gestão de todas as avaliações do sistema (com exclusão)
-  - **Embarcações** — gestão de todas as embarcações da plataforma
-  - **Publicidade** — gestão de espaços de publicidade
-  - **Taxas** — taxas gerais do sistema (percentual da plataforma × repasse ao gestor)
-  - **Categorias** — cadastro de categorias
-  - **Configurações** — parâmetros gerais da plataforma
+- Menu com os módulos previstos:
+  - **Avaliações** — ✅ implementado (ver abaixo)
+  - **Embarcações** — 🔜 gestão de todas as embarcações da plataforma (placeholder)
+  - **Publicidade** — 🔜 gestão de espaços de publicidade (placeholder)
+  - **Taxas** — 🔜 taxas gerais do sistema (percentual da plataforma × repasse ao gestor) (placeholder)
+  - **Categorias** — 🔜 cadastro de categorias (placeholder)
+  - **Configurações** — 🔜 parâmetros gerais da plataforma (placeholder)
+
+#### ✅ Implementado — Gestão de Avaliações (`/administrator/avaliacoes`)
+
+- Lista geral de **todas** as avaliações da plataforma (qualquer cliente, roteiro ou embarcação), com busca, ordenação por coluna e paginação (10/25/50/100 registros por página, padrão 25).
+- Cada linha mostra: data, cliente (nome + e-mail), vínculo (roteiro ou embarcação avaliado, com o nome), nota em estrelas, comentário e status (Pendente/Aprovada).
+- Ações por avaliação:
+  - **Aprovar** — só quando pendente; passa a aparecer nas páginas públicas do roteiro/embarcação e no card da busca.
+  - **Editar** — altera nota e/ou comentário.
+  - **Excluir** — remove definitivamente (é também a forma de "reprovar": não existe estado separado de reprovada).
+- Toda avaliação enviada pelo cliente nasce **pendente**; só fica pública depois de aprovada aqui. Não há SLA nem notificação de moderação — decisão de escopo desta primeira versão.
 
 #### 🔜 A implementar
 
-- Conteúdo de cada módulo listado acima (cada página será implementada em separado).
+- Conteúdo dos demais módulos (Embarcações, Publicidade, Taxas, Categorias, Configurações), cada um em separado.
 
 ---
 

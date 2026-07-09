@@ -38,7 +38,7 @@ export default async function AdministratorDashboardPage() {
     supabaseAdmin.from('roteiro').select('id', { count: 'exact', head: true }),
     supabaseAdmin.from('reserva').select('id', { count: 'exact', head: true }),
     supabaseAdmin.from('reserva').select('id', { count: 'exact', head: true }).eq('status', 'pendente'),
-    supabaseAdmin.from('avaliacao').select('id', { count: 'exact', head: true }),
+    supabaseAdmin.from('avaliacao').select('id', { count: 'exact', head: true }).eq('status', 'aprovada'),
     supabaseAdmin.from('taxa_plataforma').select('taxa_percent').eq('singleton', true).maybeSingle(),
   ]);
 

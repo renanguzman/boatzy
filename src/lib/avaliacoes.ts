@@ -18,7 +18,8 @@ export async function getAvaliacoesResumoPorRoteiro(
   const { data, error } = await supabaseAdmin
     .from('avaliacao')
     .select('roteiro_id, nota')
-    .in('roteiro_id', roteiroIds);
+    .in('roteiro_id', roteiroIds)
+    .eq('status', 'aprovada');
 
   if (error) {
     console.error('[avaliacoes] falha ao agregar resumo:', error);

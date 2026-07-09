@@ -5,7 +5,12 @@ import { useRouter } from 'next/navigation';
 import { Loader2, Star } from 'lucide-react';
 import { criarAvaliacao } from '../actions';
 
-type AvaliacaoExistente = { nota: number; comentario: string | null; created_at: string };
+type AvaliacaoExistente = {
+  nota: number;
+  comentario: string | null;
+  created_at: string;
+  status: 'pendente' | 'aprovada';
+};
 
 type Props = {
   reservaId: string;
@@ -41,9 +46,14 @@ export default function AvaliacaoReserva({ reservaId, avaliacao }: Props) {
   if (avaliacao) {
     return (
       <div className="rounded-xl border border-amber-100 bg-amber-50/60 p-3.5">
-        <div className="flex items-center gap-2 mb-1">
+        <div className="flex items-center gap-2 mb-1 flex-wrap">
           <span className="text-sm font-semibold text-amber-700">Sua avaliação</span>
           <Estrelas nota={avaliacao.nota} />
+          {avaliacao.status === 'pendente' && (
+            <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-slate-200 text-slate-600">
+              Aguardando aprovação
+            </span>
+          )}
         </div>
         {avaliacao.comentario && <p className="text-sm text-slate-600">{avaliacao.comentario}</p>}
         <p className="mt-1.5 text-xs text-slate-400">

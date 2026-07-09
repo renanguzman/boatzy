@@ -5,6 +5,7 @@ export type ModalidadeCapitao = 'sem_capitao' | 'com_capitao' | 'opcional';
 export type CatalogoTipo = 'produto' | 'servico';
 export type ReservaStatus = 'pendente' | 'confirmada' | 'recusada' | 'cancelada' | 'concluida';
 export type ReservaTipo = 'roteiro' | 'embarcacao';
+export type AvaliacaoStatus = 'pendente' | 'aprovada';
 
 export type Database = {
   public: {
@@ -179,6 +180,7 @@ export type Database = {
           embarcacao_id: string | null;
           nota: number;
           comentario: string | null;
+          status: AvaliacaoStatus;
           created_at: string;
         };
         Insert: {
@@ -189,6 +191,7 @@ export type Database = {
           embarcacao_id?: string | null;
           nota: number;
           comentario?: string | null;
+          status?: AvaliacaoStatus;
           created_at?: string;
         };
         Update: {
@@ -199,6 +202,7 @@ export type Database = {
           embarcacao_id?: string | null;
           nota?: number;
           comentario?: string | null;
+          status?: AvaliacaoStatus;
           created_at?: string;
         };
         Relationships: [
@@ -1002,6 +1006,7 @@ export type Database = {
       preco_regra_tipo: PrecoRegraTipo;
       modalidade_capitao: ModalidadeCapitao;
       catalogo_tipo: CatalogoTipo;
+      avaliacao_status: AvaliacaoStatus;
     };
     CompositeTypes: Record<string, never>;
   };

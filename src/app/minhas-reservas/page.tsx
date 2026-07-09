@@ -11,11 +11,11 @@ import { createClient } from '@/lib/supabase/server';
 import { supabaseAdmin } from '@/lib/supabase';
 import { concluirReservasVencidas } from '@/lib/reservas';
 import { formatCurrency } from '@/lib/utils';
-import type { ReservaStatus } from '@/types/supabase';
+import type { ReservaStatus, AvaliacaoStatus } from '@/types/supabase';
 import CancelarReservaButton from './_components/CancelarReservaButton';
 import AvaliacaoReserva from './_components/AvaliacaoReserva';
 
-type AvaliacaoResumo = { nota: number; comentario: string | null; created_at: string };
+type AvaliacaoResumo = { nota: number; comentario: string | null; created_at: string; status: AvaliacaoStatus };
 
 type ReservaCliente = {
   id: string;
@@ -123,7 +123,7 @@ export default async function MinhasReservasPage() {
        roteiro ( nome, municipios ( nome, estados ( uf ) ), roteiro_imagens ( url_imagem, principal ) ),
        embarcacao ( nome ),
        reserva_adicional ( id, descricao, valor, tipo ),
-       avaliacao ( nota, comentario, created_at )`,
+       avaliacao ( nota, comentario, created_at, status )`,
     )
     .eq('cliente_id', user.id)
     .order('solicitado_em', { ascending: false });
