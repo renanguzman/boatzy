@@ -2113,3 +2113,126 @@ As demais actions reutilizadas (`atualizarRoteiro`, `atualizarCatalogoRoteiro`,
 `excluirImagemRoteiro`, `definirPrincipalRoteiro`, `excluirRegraRoteiro`,
 `salvarBloqueiosRoteiro`) já passam por `getAuthorizedUser`; `criarRegraRoteiro` exige apenas
 sessão (comportamento pré-existente).
+
+---
+
+## 26. Cadastro rápido de item de catálogo no formulário de roteiro
+
+### 26.1 UI — `CatalogoSelector`
+
+`painel/(gestao)/roteiros/_components/CatalogoSelector.tsx` (usado por `NovoRoteiroForm` e
+`EditarRoteiroForm`, incluindo a edição via `/administrator/roteiros/[id]/editar`) ganha um botão
+**"Cadastrar novo item"** que abre um modal (`NovoItemModal`, no mesmo arquivo) com os campos
+`descricao`, `tipo` (`produto` | `servico`) e `valor`.
+
+O modal é renderizado **dentro** do `<form>` do roteiro, então não usa um `<form>` aninhado: o
+submit é um `<button type="button">` com `onClick`, evitando disparar o submit do roteiro.
+
+Novo prop obrigatório:
+
+```ts
+onCatalogoCriado: (item: CatalogoItem) => void;
+```
+
+### 26.2 Fluxo
+
+1. O modal chama a server action existente `criarCatalogo` (`painel/(gestao)/catalogo/novo/actions.ts`),
+   que persiste o item (`owner_id = user.id`) e retorna `{ ok: true, catalogoId }`.
+2. O `CatalogoSelector` monta o `CatalogoItem` localmente (id retornado + valores do formulário),
+   chama `onCatalogoCriado(item)` e **já marca o item como selecionado** no roteiro, com
+   `valorCustomizado` igual ao valor padrão.
+3. `NovoRoteiroForm` / `EditarRoteiroForm` mantêm o catálogo em estado
+   (`const [catalogo, setCatalogo] = useState(catalogoInicial)`) e apenas fazem `[...c, item]`.
+
+Não há `router.refresh()` nem navegação: o restante do formulário do roteiro (fotos, regras de
+preço, disponibilidade, campos já preenchidos) permanece intacto. A persistência do vínculo
+`roteiro_catalogo` continua acontecendo só no submit do roteiro
+(`salvarCatalogoRoteiro` / `atualizarCatalogoRoteiro`).
+
+### 26.3 Estado vazio
+
+Quando o gestor ainda não tem itens de catálogo, o seletor deixa de mostrar apenas o link para
+`/painel/catalogo` e passa a exibir o mesmo botão de cadastro rápido.
+
+---
+
+## 27. Capacidade do roteiro herdada da embarcação vinculada
+
+Ao trocar o select **"Embarcação vinculada"** em `NovoRoteiroForm` e `EditarRoteiroForm`, o campo
+**"Capacidade máxima"** (`quantidade_pessoas`) é preenchido com `embarcacao.capacidade`.
+
+As três páginas que alimentam esses formulários passaram a incluir `capacidade` no select da
+embarcação (`painel/(gestao)/roteiros/novo/page.tsx`,
+`painel/(gestao)/roteiros/[id]/editar/page.tsx`,
+`administrator/(admin)/roteiros/[id]/editar/page.tsx`), e o tipo local virou:
+
+```ts
+type Embarcacao = { id: string; nome: string; capacidade: number | null };
+```
+
+Regras do handler `setEmbarcacao(embarcacaoId)`:
+
+- `capacidade` preenchida → sobrescreve `quantidade_pessoas`, inclusive se o campo já tinha valor.
+- `capacidade` nula (coluna é `integer NULL`) ou opção **"Sem vínculo"** → mantém o valor atual do
+  campo, em vez de limpá-lo.
+- O disparo é **apenas no `onChange`** do select: abrir a edição de um roteiro existente não
+  reescreve a capacidade já salva, e o gestor pode ajustar o número manualmente depois de escolher
+  a embarcação.
+
+---
+
+## 28. Tutorial guiado do painel (`/painel`)
+
+Onboarding em overlay que apresenta o dashboard, o menu lateral e induz o gestor a cadastrar uma
+embarcação e depois criar um roteiro.
+
+### 28.1 Arquivos
+
+| Arquivo | Papel |
+| --- | --- |
+| `src/components/painel/TutorialPainel.tsx` | `TutorialProvider`, `useTutorial()`, `TutorialButton` e o overlay (`TutorialOverlay`) |
+| `src/app/painel/(gestao)/layout.tsx` | Envolve o painel com `<TutorialProvider>`; `<main data-tour="dashboard-content">` |
+| `src/components/painel/Sidebar.tsx` | `data-tour` em cada item do menu + no botão "Nova Embarcação" |
+| `src/components/painel/Header.tsx` | Renderiza `<TutorialButton />` ao lado do `NotificacoesBell` |
+
+### 28.2 Contrato dos componentes
+
+```ts
+export function TutorialProvider(props: { children: React.ReactNode }): JSX.Element;
+export function useTutorial(): { abrir: () => void };
+export function TutorialButton(): JSX.Element; // ícone GraduationCap + tooltip "Ver tutorial"
+
+type Passo = {
+  alvo: string | null;   // seletor CSS; null = card centralizado, sem spotlight
+  titulo: string;
+  descricao: string;
+  acao?: { label: string; href: string }; // botão que fecha o tutorial e navega
+};
+```
+
+### 28.3 Passos (12)
+
+1. Boas-vindas (sem alvo) · 2. `dashboard-content` · 3–9. itens do menu (`nav-dashboard`,
+`nav-agendamentos`, `nav-embarcacoes`, `nav-roteiros`, `nav-catalogo`, `nav-clientes`,
+`nav-receitas`) · 10. `nova-embarcacao` (ação → `/painel/embarcacoes/novo`) ·
+11. `nav-roteiros` (ação → `/painel/roteiros/novo`) · 12. `btn-tutorial`.
+
+### 28.4 Marcadores `data-tour`
+
+`dashboard-content`, `nav-dashboard`, `nav-agendamentos`, `nav-embarcacoes`, `nav-roteiros`,
+`nav-catalogo`, `nav-clientes`, `nav-receitas`, `nova-embarcacao`, `btn-tutorial`.
+
+### 28.5 Mecânica
+
+- **Spotlight:** um `div` posicionado sobre o `getBoundingClientRect()` do alvo (padding 8px) com
+  `box-shadow: 0 0 0 9999px rgba(11,36,71,.72)` — escurece todo o resto sem cobrir o alvo. Passo sem
+  alvo usa overlay cheio (`bg-[#0B2447]/75`). Uma camada `inset-0` bloqueia interação com a página.
+- **Medição:** `useLayoutEffect` + `requestAnimationFrame`, com listeners de `resize` e `scroll`
+  (capture). O retângulo é guardado como `{ alvo, rect }` e só é usado se `alvo` for o do passo atual.
+- **Posicionamento do card:** ao lado do alvo quando ele é estreito (`width < 50vw`, caso do menu),
+  abaixo/acima quando é largo (conteúdo), sempre com clamp nas bordas do viewport.
+- **Controles:** "Passo X de N" + barra de progresso, "Voltar", "Próximo"/"Concluir",
+  "Pular tutorial", `X` de fechar; teclado `Esc`, `←`, `→`.
+- **Persistência:** `localStorage['boatzy:tutorial-painel:v1'] = 'concluido'`. Abre sozinho (após
+  600ms) apenas em `/painel` quando a chave não existe; qualquer forma de encerrar grava a chave.
+  Acesso ao `localStorage` é protegido por `try/catch` (modo privado).

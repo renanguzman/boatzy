@@ -22,13 +22,13 @@ import {
 import clsx from 'clsx';
 
 const navItems = [
-  { href: '/painel', label: 'DASHBOARD', icon: LayoutDashboard, exact: true },
-  { href: '/painel/agendamentos', label: 'AGENDAMENTOS', icon: CalendarDays, exact: false },
-  { href: '/painel/embarcacoes', label: 'EMBARCAÇÕES', icon: Ship, exact: false },
-  { href: '/painel/roteiros', label: 'ROTEIROS', icon: MapPin, exact: false },
-  { href: '/painel/catalogo', label: 'CATÁLOGO', icon: BookOpen, exact: false },
-  { href: '/painel/clientes', label: 'CLIENTES', icon: Users, exact: false },
-  { href: '/painel/receitas', label: 'RECEITAS', icon: DollarSign, exact: false },
+  { href: '/painel', label: 'DASHBOARD', icon: LayoutDashboard, exact: true, tour: 'nav-dashboard' },
+  { href: '/painel/agendamentos', label: 'AGENDAMENTOS', icon: CalendarDays, exact: false, tour: 'nav-agendamentos' },
+  { href: '/painel/embarcacoes', label: 'EMBARCAÇÕES', icon: Ship, exact: false, tour: 'nav-embarcacoes' },
+  { href: '/painel/roteiros', label: 'ROTEIROS', icon: MapPin, exact: false, tour: 'nav-roteiros' },
+  { href: '/painel/catalogo', label: 'CATÁLOGO', icon: BookOpen, exact: false, tour: 'nav-catalogo' },
+  { href: '/painel/clientes', label: 'CLIENTES', icon: Users, exact: false, tour: 'nav-clientes' },
+  { href: '/painel/receitas', label: 'RECEITAS', icon: DollarSign, exact: false, tour: 'nav-receitas' },
 ];
 
 export default function Sidebar({ naoLidas = 0 }: { naoLidas?: number }) {
@@ -88,13 +88,14 @@ export default function Sidebar({ naoLidas = 0 }: { naoLidas?: number }) {
       </div>
 
       <nav className="flex-1 px-4 space-y-0.5">
-        {navItems.map(({ href, label, icon: Icon, exact }) => {
+        {navItems.map(({ href, label, icon: Icon, exact, tour }) => {
           const active = exact ? pathname === href : pathname.startsWith(href);
           const showBadge = href === '/painel/clientes' && totalNaoLidas > 0;
           return (
             <Link
               key={href}
               href={href}
+              data-tour={tour}
               className={clsx(
                 'flex items-center gap-3 px-3 py-2.5 rounded-lg text-xs font-semibold tracking-wide transition-all duration-150',
                 active
@@ -116,6 +117,7 @@ export default function Sidebar({ naoLidas = 0 }: { naoLidas?: number }) {
         <div className="pt-4">
           <Link
             href="/painel/embarcacoes/novo"
+            data-tour="nova-embarcacao"
             className="flex items-center justify-center gap-2 w-full bg-[#0B3D91] hover:bg-[#0B2447] text-white font-semibold text-xs py-3 rounded-xl transition-all duration-200 shadow-lg shadow-[#0B3D91]/20"
           >
             <Plus className="w-4 h-4" />

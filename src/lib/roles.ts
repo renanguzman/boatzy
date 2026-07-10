@@ -30,12 +30,14 @@ export async function addRole(userId: string, role: UserRole): Promise<void> {
  * Usa o banco como fonte da verdade.
  */
 export async function checkRoleInDb(userId: string, roles: UserRole[]): Promise<boolean> {
+  // Sem `.single()`/`.maybeSingle()`: o usuário pode ter mais de uma das roles
+  // procuradas (ex.: gestor + admin), e mais de uma linha faria a query falhar.
   const { data } = await supabaseAdmin
     .from('user_roles')
     .select('role')
     .eq('user_id', userId)
     .in('role', roles)
-    .maybeSingle();
+    .limit(1);
 
-  return !!data;
+  return (data?.length ?? 0) > 0;
 }

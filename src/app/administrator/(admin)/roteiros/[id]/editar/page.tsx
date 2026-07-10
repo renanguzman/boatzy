@@ -46,7 +46,7 @@ export default async function AdminEditarRoteiroPage({
     supabaseAdmin.from('estados').select('id, uf, nome').order('nome'),
     supabaseAdmin
       .from('embarcacao')
-      .select('id, nome')
+      .select('id, nome, capacidade')
       .eq('owner_id', roteiro.owner_id)
       .eq('status', 'ativo')
       .order('nome'),

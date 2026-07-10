@@ -1,6 +1,8 @@
 'use client';
 
-import { ShoppingBag, Wrench, Check } from 'lucide-react';
+import { useState } from 'react';
+import { ShoppingBag, Wrench, Check, Plus, X, Loader2, AlertCircle } from 'lucide-react';
+import { criarCatalogo } from '../../catalogo/novo/actions';
 import type { CatalogoTipo } from '@/types/supabase';
 
 export type CatalogoItem = {
@@ -59,21 +61,183 @@ type Props = {
   catalogo: CatalogoItem[];
   selecionados: ItemSelecionado[];
   onChange: (selecionados: ItemSelecionado[]) => void;
+  /** Chamado quando um novo item é criado pelo modal, para o form incluí-lo na listagem. */
+  onCatalogoCriado: (item: CatalogoItem) => void;
 };
 
-export default function CatalogoSelector({ catalogo, selecionados, onChange }: Props) {
+/** Modal de cadastro rápido de item de catálogo, sem sair da página do roteiro. */
+function NovoItemModal({ onClose, onCriado }: {
+  onClose: () => void;
+  onCriado: (item: CatalogoItem) => void;
+}) {
+  const [descricao, setDescricao] = useState('');
+  const [valor, setValor] = useState('');
+  const [tipo, setTipo] = useState<CatalogoTipo>('produto');
+  const [erro, setErro] = useState<string | null>(null);
+  const [submitting, setSubmitting] = useState(false);
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    if (submitting) return;
+    setErro(null);
+    setSubmitting(true);
+
+    const result = await criarCatalogo({ descricao, valor, tipo });
+
+    if (!result.ok) {
+      setErro(result.error);
+      setSubmitting(false);
+      return;
+    }
+
+    onCriado({
+      id: result.catalogoId,
+      descricao: descricao.trim(),
+      valor: parseFloat(valor),
+      tipo,
+    });
+    onClose();
+  }
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-4"
+      onClick={onClose}
+    >
+      <div
+        className="w-full max-w-md rounded-2xl bg-white shadow-xl overflow-hidden"
+        onClick={e => e.stopPropagation()}
+      >
+        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 bg-slate-50/50">
+          <h3 className="text-sm font-bold text-[#0B2447] tracking-wide uppercase">
+            Novo item de catálogo
+          </h3>
+          <button
+            type="button"
+            onClick={onClose}
+            className="text-slate-400 hover:text-slate-600 transition"
+          >
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+
+        {/* Não usamos <form> aninhado: este modal é renderizado dentro do form do roteiro. */}
+        <div className="p-6 space-y-5">
+          <div>
+            <label className="block text-sm font-medium text-slate-700 mb-1.5">
+              Descrição<span className="text-red-500 ml-0.5">*</span>
+            </label>
+            <input
+              autoFocus
+              className={inputCls}
+              placeholder="ex: Locação de equipamento de mergulho"
+              value={descricao}
+              onChange={e => setDescricao(e.target.value)}
+            />
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-1.5">
+                Tipo<span className="text-red-500 ml-0.5">*</span>
+              </label>
+              <select
+                className={`${inputCls} appearance-none cursor-pointer`}
+                value={tipo}
+                onChange={e => setTipo(e.target.value as CatalogoTipo)}
+              >
+                <option value="produto">Produto</option>
+                <option value="servico">Serviço</option>
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-1.5">
+                Valor (R$)<span className="text-red-500 ml-0.5">*</span>
+              </label>
+              <div className="relative">
+                <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-sm text-slate-400 font-medium">R$</span>
+                <input
+                  className={`${inputCls} pl-10`}
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  placeholder="0,00"
+                  value={valor}
+                  onChange={e => setValor(e.target.value)}
+                />
+              </div>
+            </div>
+          </div>
+
+          {erro && (
+            <div className="flex items-center gap-2 rounded-xl px-4 py-3 text-sm bg-red-50 border border-red-200 text-red-700">
+              <AlertCircle className="w-4 h-4 shrink-0" />
+              {erro}
+            </div>
+          )}
+
+          <div className="flex items-center justify-end gap-3">
+            <button
+              type="button"
+              onClick={onClose}
+              disabled={submitting}
+              className="px-5 py-2.5 rounded-xl border border-slate-200 text-sm font-semibold text-slate-600 hover:bg-slate-50 transition disabled:opacity-50"
+            >
+              Cancelar
+            </button>
+            <button
+              type="button"
+              onClick={handleSubmit}
+              disabled={submitting || !descricao.trim() || !valor}
+              className="flex items-center gap-2 px-6 py-2.5 rounded-xl bg-[#0B2447] hover:bg-[#0B3D91] text-white text-sm font-semibold transition shadow-md shadow-[#0B2447]/10 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {submitting
+                ? <><Loader2 className="w-4 h-4 animate-spin" /> Salvando...</>
+                : <><Plus className="w-4 h-4" /> Salvar item</>}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+export default function CatalogoSelector({ catalogo, selecionados, onChange, onCatalogoCriado }: Props) {
+  const [modalAberto, setModalAberto] = useState(false);
+
   const produtos = catalogo.filter(c => c.tipo === 'produto');
   const servicos = catalogo.filter(c => c.tipo === 'servico');
 
+  /** Cria o item e já o deixa marcado no roteiro com o valor padrão. */
+  function handleCriado(item: CatalogoItem) {
+    onCatalogoCriado(item);
+    onChange([...selecionados, { catalogoId: item.id, valorCustomizado: String(item.valor) }]);
+  }
+
+  const botaoNovo = (
+    <button
+      type="button"
+      onClick={() => setModalAberto(true)}
+      className="flex items-center gap-2 px-4 py-2 rounded-xl border border-dashed border-slate-300 text-sm font-semibold text-slate-600 hover:border-[#0B2447] hover:text-[#0B2447] transition"
+    >
+      <Plus className="w-4 h-4" /> Cadastrar novo item
+    </button>
+  );
+
+  const modal = modalAberto && (
+    <NovoItemModal onClose={() => setModalAberto(false)} onCriado={handleCriado} />
+  );
+
   if (catalogo.length === 0) {
     return (
-      <p className="text-sm text-slate-400 italic">
-        Nenhum item cadastrado no catálogo. Crie itens em{' '}
-        <a href="/painel/catalogo" target="_blank" className="text-[#0B3D91] underline hover:text-[#0B2447]">
-          Catálogo
-        </a>{' '}
-        para vinculá-los aqui.
-      </p>
+      <div className="space-y-4">
+        <p className="text-sm text-slate-400 italic">
+          Nenhum item cadastrado no catálogo. Cadastre um item abaixo para vinculá-lo a este roteiro.
+        </p>
+        {botaoNovo}
+        {modal}
+      </div>
     );
   }
 
@@ -197,6 +361,9 @@ export default function CatalogoSelector({ catalogo, selecionados, onChange }: P
     <div className="space-y-6">
       {renderGroup(produtos, 'produto')}
       {renderGroup(servicos, 'servico')}
+
+      {botaoNovo}
+      {modal}
 
       {selecionados.length > 0 && (
         <p className="text-xs text-slate-400 pt-1">

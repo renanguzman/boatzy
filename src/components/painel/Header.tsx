@@ -1,11 +1,11 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Settings, Search } from 'lucide-react';
 import Image from 'next/image';
 import { createClient } from '@/lib/supabase/client';
 import type { User } from '@supabase/supabase-js';
 import NotificacoesBell from './NotificacoesBell';
+import { TutorialButton } from './TutorialPainel';
 
 interface HeaderProps {
   title?: string;
@@ -31,20 +31,9 @@ export default function Header({ title = 'Overview' }: HeaderProps) {
       </div>
 
       <div className="flex items-center gap-4">
-        <div className="relative hidden md:block">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-          <input
-            type="text"
-            placeholder="Buscar frota ou reservas..."
-            className="pl-9 pr-4 py-2 w-64 rounded-lg border border-slate-200 bg-slate-50/50 text-sm text-slate-700 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-[#0B3D91]/20 focus:border-[#0B3D91] transition-all"
-          />
-        </div>
-
         <NotificacoesBell />
 
-        <button className="p-2 rounded-lg hover:bg-slate-50 transition-colors text-slate-500 hover:text-[#0B2447]">
-          <Settings className="w-5 h-5" />
-        </button>
+        <TutorialButton />
 
         <div className="pl-2 border-l border-slate-200 flex items-center">
           {avatarUrl ? (

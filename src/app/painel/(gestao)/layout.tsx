@@ -1,6 +1,7 @@
 import Sidebar from '@/components/painel/Sidebar';
 import Header from '@/components/painel/Header';
 import SignOutLink from '@/components/painel/SignOutLink';
+import { TutorialProvider } from '@/components/painel/TutorialPainel';
 import { createClient } from '@/lib/supabase/server';
 import { supabaseAdmin } from '@/lib/supabase';
 import { Ship } from 'lucide-react';
@@ -63,12 +64,16 @@ export default async function GestaoLayout({ children }: { children: React.React
   }
 
   return (
-    <div className="flex h-screen overflow-hidden bg-[#F8F9FB]">
-      <Sidebar naoLidas={naoLidas} />
-      <div className="flex-1 flex flex-col overflow-auto">
-        <Header />
-        <main className="flex-1 overflow-auto">{children}</main>
+    <TutorialProvider>
+      <div className="flex h-screen overflow-hidden bg-[#F8F9FB]">
+        <Sidebar naoLidas={naoLidas} />
+        <div className="flex-1 flex flex-col overflow-auto">
+          <Header />
+          <main className="flex-1 overflow-auto" data-tour="dashboard-content">
+            {children}
+          </main>
+        </div>
       </div>
-    </div>
+    </TutorialProvider>
   );
 }

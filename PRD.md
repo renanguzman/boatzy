@@ -377,6 +377,22 @@ Todos os números são do **gestor logado** (`owner_id`):
 - **Roteiro:** a disponibilidade é refletida no calendário público de reserva (`BookingCard`).
 - **Embarcação:** disponibilidade cadastrada e persistida; o reflexo público fica como gancho (a página `/embarcacoes/[id]` ainda não tem calendário de reserva). Detalhes técnicos em `SPEC.md` §15-B.
 
+#### ✅ Implementado — Tutorial guiado do painel
+
+- Na **primeira entrada** do gestor em `/painel`, um tutorial guiado abre automaticamente em overlay
+  escurecido, destacando um elemento por vez (spotlight).
+- Sequência de 12 passos: boas-vindas → **destaque da área de conteúdo do Dashboard** (quais
+  informações ele encontra ali) → **cada item do menu lateral** com uma breve descrição
+  (Dashboard, Agendamentos, Embarcações, Roteiros, Catálogo, Clientes, Receitas) → indução ao
+  caminho inicial: **1) cadastrar uma embarcação** (botão que leva a `/painel/embarcacoes/novo`),
+  **2) criar um roteiro** (botão que leva a `/painel/roteiros/novo`) → onde reabrir o tutorial.
+- Cada passo mostra **"Passo X de N"** com barra de progresso e os botões **Próximo/Concluir**,
+  **Voltar** e **Pular tutorial** (além do `X` e da tecla `Esc`).
+- Um ícone (capelo) no **header, ao lado do sino de notificações**, reabre o tutorial a qualquer momento e
+  exibe o tooltip **"Ver tutorial"** ao passar o mouse.
+- O tutorial só abre sozinho uma vez: a conclusão/pulo é registrada no `localStorage` do navegador.
+  Detalhes técnicos em `SPEC.md` §28.
+
 ---
 
 ### 6.9 Perfil do Usuário
@@ -403,6 +419,22 @@ Todos os números são do **gestor logado** (`owner_id`):
 
 - O botão **Compartilhar** no detalhe do roteiro abre um menu com **WhatsApp**, **Facebook**, **Instagram** e **Copiar link**.
 - WhatsApp e Facebook usam os endpoints web oficiais de compartilhamento (`wa.me` e `facebook.com/sharer`). O Instagram **não possui** endpoint web de compartilhamento por URL: a opção copia o link (para colar no story/direct) e abre o Instagram.
+
+#### ✅ Implementado — Cadastro rápido de item de catálogo dentro do formulário de roteiro
+
+- Na seção **Catálogo** do cadastro (`/painel/roteiros/novo`) e da edição (`/painel/roteiros/[id]/editar`, também usada em `/administrator/roteiros/[id]/editar`), o gestor tem um botão **"Cadastrar novo item"**.
+- O botão abre um modal na própria página com descrição, tipo (produto/serviço) e valor. Ao salvar, o item é criado no catálogo do gestor e **aparece imediatamente na listagem, já selecionado** para o roteiro.
+- O gestor **não sai da página nem precisa dar refresh**: nenhuma informação já preenchida do roteiro (fotos, regras de preço, disponibilidade, endereço) é perdida.
+- O botão também aparece no estado vazio (gestor sem nenhum item de catálogo), substituindo o antigo link para `/painel/catalogo`.
+- Detalhes técnicos: SPEC §26.
+
+#### ✅ Implementado — Capacidade do roteiro herdada da embarcação
+
+- No cadastro e na edição de roteiro, ao selecionar a **Embarcação vinculada**, o campo **Capacidade máxima** é preenchido automaticamente com a capacidade cadastrada naquela embarcação.
+- O valor continua editável: o gestor pode ajustá-lo manualmente depois (ex.: roteiro que opera abaixo da lotação da embarcação).
+- Se a embarcação não tem capacidade cadastrada, ou se o gestor escolhe "Sem vínculo", o campo mantém o valor atual em vez de ser limpo.
+- Abrir a edição de um roteiro existente **não** sobrescreve a capacidade já salva — o preenchimento só ocorre quando o gestor troca a embarcação.
+- Detalhes técnicos: SPEC §27.
 
 ### 6.10 Páginas Institucionais / Legais
 

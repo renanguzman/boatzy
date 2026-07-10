@@ -57,7 +57,7 @@ const PRECO_NIVEIS = [
 
 type Estado     = { id: number; uf: string; nome: string };
 type Municipio  = { id: number; nome: string };
-type Embarcacao = { id: string; nome: string };
+type Embarcacao = { id: string; nome: string; capacidade: number | null };
 
 type ImagePreview = {
   file: File; previewUrl: string; principal: boolean;
@@ -144,7 +144,7 @@ const emptyRegra = (): Omit<RegraLocal, 'localId'> => ({
 
 // ─── Componente principal ─────────────────────────────────────────────────────
 
-export default function NovoRoteiroForm({ estados, embarcacoes, catalogo }: Props) {
+export default function NovoRoteiroForm({ estados, embarcacoes, catalogo: catalogoInicial }: Props) {
   const router = useRouter();
   const [, startTransition] = useTransition();
   const fileInputRef   = useRef<HTMLInputElement>(null);
@@ -183,9 +183,20 @@ export default function NovoRoteiroForm({ estados, embarcacoes, catalogo }: Prop
   const [feedback, setFeedback] = useState<{ type: 'error' | 'success'; msg: string } | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [itensCatalogo, setItensCatalogo] = useState<ItemSelecionado[]>([]);
+  const [catalogo, setCatalogo] = useState<CatalogoItem[]>(catalogoInicial);
 
   function setField<K extends keyof typeof form>(k: K, v: typeof form[K]) {
     setForm(f => ({ ...f, [k]: v }));
+  }
+
+  /** Ao vincular uma embarcação, herda a capacidade dela como capacidade do roteiro. */
+  function setEmbarcacao(embarcacaoId: string) {
+    const capacidade = embarcacoes.find(e => e.id === embarcacaoId)?.capacidade;
+    setForm(f => ({
+      ...f,
+      embarcacao_id: embarcacaoId,
+      quantidade_pessoas: capacidade != null ? String(capacidade) : f.quantidade_pessoas,
+    }));
   }
 
   async function carregarMunicipios(estadoId: number): Promise<Municipio[]> {
@@ -442,7 +453,7 @@ export default function NovoRoteiroForm({ estados, embarcacoes, catalogo }: Prop
           </div>
           <Field label="Embarcação vinculada" hint="Opcional — associe este roteiro a uma de suas embarcações.">
             <select className={selectCls} value={form.embarcacao_id}
-              onChange={e => setField('embarcacao_id', e.target.value)}>
+              onChange={e => setEmbarcacao(e.target.value)}>
               <option value="">Sem vínculo</option>
               {embarcacoes.map(e => <option key={e.id} value={e.id}>{e.nome}</option>)}
             </select>
@@ -451,7 +462,7 @@ export default function NovoRoteiroForm({ estados, embarcacoes, catalogo }: Prop
             <input className={inputCls} placeholder="ex: 4 horas"
               value={form.duracao} onChange={e => setField('duracao', e.target.value)} />
           </Field>
-          <Field label="Capacidade máxima" hint="Número de pessoas">
+          <Field label="Capacidade máxima" hint="Número de pessoas — preenchida com a capacidade da embarcação vinculada.">
             <input className={inputCls} type="number" min="1" placeholder="ex: 12"
               value={form.quantidade_pessoas}
               onChange={e => setField('quantidade_pessoas', e.target.value)} />
@@ -690,6 +701,7 @@ export default function NovoRoteiroForm({ estados, embarcacoes, catalogo }: Prop
           catalogo={catalogo}
           selecionados={itensCatalogo}
           onChange={setItensCatalogo}
+          onCatalogoCriado={item => setCatalogo(c => [...c, item])}
         />
       </SectionCard>
 
