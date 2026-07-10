@@ -139,19 +139,22 @@ export type Database = {
         Row: {
           id: string;
           user_id: string;
-          roteiro_id: string;
+          roteiro_id: string | null;
+          embarcacao_id: string | null;
           created_at: string;
         };
         Insert: {
           id?: string;
           user_id: string;
-          roteiro_id: string;
+          roteiro_id?: string | null;
+          embarcacao_id?: string | null;
           created_at?: string;
         };
         Update: {
           id?: string;
           user_id?: string;
-          roteiro_id?: string;
+          roteiro_id?: string | null;
+          embarcacao_id?: string | null;
           created_at?: string;
         };
         Relationships: [
@@ -167,6 +170,13 @@ export type Database = {
             columns: ['roteiro_id'];
             isOneToOne: false;
             referencedRelation: 'roteiro';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'favorito_embarcacao_id_fkey';
+            columns: ['embarcacao_id'];
+            isOneToOne: false;
+            referencedRelation: 'embarcacao';
             referencedColumns: ['id'];
           },
         ];
@@ -955,6 +965,24 @@ export type Database = {
           p_offset?: number | null;
         };
         Returns: { id: string; distancia_km: number | null; total: number }[];
+      };
+      roteiros_top_avaliados: {
+        Args: {
+          p_lat?: number | null;
+          p_lng?: number | null;
+          p_raio_km?: number | null;
+          p_limit?: number | null;
+        };
+        Returns: { id: string; media: number; total: number; score: number }[];
+      };
+      embarcacoes_top_avaliadas: {
+        Args: {
+          p_lat?: number | null;
+          p_lng?: number | null;
+          p_raio_km?: number | null;
+          p_limit?: number | null;
+        };
+        Returns: { id: string; media: number; total: number; score: number }[];
       };
       buscar_roteiros: {
         Args: {

@@ -47,13 +47,16 @@ async function getAuthorizedUser(embarcacaoId: string) {
   const autorizado = await checkRoleInDb(user.id, ['gestor', 'admin']);
   if (!autorizado) return { error: 'Acesso não autorizado.' };
 
-  const { data: emb } = await supabaseAdmin
+  // Admin pode editar qualquer embarcação; gestor apenas as próprias.
+  const isAdmin = await checkRoleInDb(user.id, ['admin']);
+
+  let query = supabaseAdmin
     .from('embarcacao')
     .select('id')
-    .eq('id', embarcacaoId)
-    .eq('owner_id', user.id)
-    .single();
+    .eq('id', embarcacaoId);
+  if (!isAdmin) query = query.eq('owner_id', user.id);
 
+  const { data: emb } = await query.single();
   if (!emb) return { error: 'Embarcação não encontrada ou sem permissão.' };
 
   return { userId: user.id, ok: true as const };

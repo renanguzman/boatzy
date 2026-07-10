@@ -120,6 +120,8 @@ type Props = {
   comodidades: Comodidade[];
   comodidadesIniciais: string[];
   bloqueiosIniciais: string[];
+  /** Rota de retorno após salvar/cancelar (o admin reutiliza o form com outra rota). */
+  voltarHref?: string;
 };
 
 // ─── Helpers de UI ────────────────────────────────────────────────────────────
@@ -200,6 +202,7 @@ const emptyNewRegra = (): Omit<NewRegra, 'localId'> => ({
 export default function EditarEmbarcacaoForm({
   embarcacao, tipos, categorias, estados, municipiosIniciais,
   comodidades, comodidadesIniciais, bloqueiosIniciais,
+  voltarHref = '/painel/embarcacoes',
 }: Props) {
   const router = useRouter();
   const [, startTransition] = useTransition();
@@ -545,7 +548,7 @@ export default function EditarEmbarcacaoForm({
 
     setFeedback({ type: 'success', msg: 'Embarcação atualizada com sucesso!' });
     setSubmitting(false);
-    setTimeout(() => router.push('/painel/embarcacoes'), 1200);
+    setTimeout(() => router.push(voltarHref), 1200);
   }
 
   // ─── Render ────────────────────────────────────────────────────────────────
@@ -1131,7 +1134,7 @@ export default function EditarEmbarcacaoForm({
 
       {/* ── Ações ─────────────────────────────────────────────────────────── */}
       <div className="flex items-center justify-end gap-3 pb-4">
-        <button type="button" onClick={() => router.push('/painel/embarcacoes')}
+        <button type="button" onClick={() => router.push(voltarHref)}
           disabled={submitting}
           className="px-5 py-2.5 rounded-xl border border-slate-200 text-sm font-semibold text-slate-600 hover:bg-slate-50 transition disabled:opacity-50">
           Cancelar

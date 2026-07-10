@@ -52,3 +52,48 @@ export async function alternarFavorito(roteiroId: string): Promise<AlternarFavor
   revalidatePath(`/roteiros/${roteiroId}`);
   return { ok: true, favorito: true };
 }
+
+/**
+ * Alterna o favorito do usuário logado para uma embarcação (mesma semântica
+ * de alternarFavorito). Usada pelos cards de embarcação (home "Mais Bem
+ * Avaliadas") e pela página /favoritos.
+ */
+export async function alternarFavoritoEmbarcacao(
+  embarcacaoId: string,
+): Promise<AlternarFavoritoResult> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { ok: false, error: 'nao_autenticado' };
+
+  const { data: existente } = await supabaseAdmin
+    .from('favorito')
+    .select('id')
+    .eq('user_id', user.id)
+    .eq('embarcacao_id', embarcacaoId)
+    .maybeSingle();
+
+  if (existente) {
+    const { error } = await supabaseAdmin.from('favorito').delete().eq('id', existente.id);
+    if (error) {
+      console.error('[alternarFavoritoEmbarcacao] falha ao remover:', error);
+      return { ok: false, error: 'erro' };
+    }
+    revalidatePath('/favoritos');
+    return { ok: true, favorito: false };
+  }
+
+  const { error } = await supabaseAdmin
+    .from('favorito')
+    .insert({ user_id: user.id, embarcacao_id: embarcacaoId });
+  if (error) {
+    // 23505 = corrida com outro insert do mesmo par — já está favoritado.
+    if (error.code === '23505') return { ok: true, favorito: true };
+    console.error('[alternarFavoritoEmbarcacao] falha ao inserir:', error);
+    return { ok: false, error: 'erro' };
+  }
+
+  revalidatePath('/favoritos');
+  return { ok: true, favorito: true };
+}

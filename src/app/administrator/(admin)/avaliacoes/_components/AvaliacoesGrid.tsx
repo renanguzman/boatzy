@@ -1,7 +1,7 @@
 'use client';
 
-import { useState, useMemo, useTransition } from 'react';
-import { useRouter } from 'next/navigation';
+import { useState, useEffect, useTransition, useCallback } from 'react';
+import { useRouter, usePathname, useSearchParams } from 'next/navigation';
 import {
   Search,
   ChevronUp,
@@ -18,8 +18,7 @@ import {
 } from 'lucide-react';
 import { aprovarAvaliacao, editarAvaliacao, excluirAvaliacao } from '../actions';
 
-const PAGE_SIZE_OPTIONS = [10, 25, 50, 100] as const;
-const DEFAULT_PAGE_SIZE = 25;
+const PAGE_SIZES = [10, 25, 50] as const;
 
 export type AvaliacaoListItem = {
   id: string;
@@ -32,20 +31,19 @@ export type AvaliacaoListItem = {
   embarcacao: { id: string; nome: string } | null;
 };
 
-type SortKey = 'data' | 'cliente' | 'nota' | 'status';
+// Colunas ordenáveis no servidor (colunas diretas da tabela avaliacao).
+type SortKey = 'data' | 'nota' | 'status';
 type SortDir = 'asc' | 'desc';
+
+type Props = {
+  avaliacoes: AvaliacaoListItem[];
+  total: number;
+  page: number;
+  perPage: number;
+};
 
 function vinculoNome(a: AvaliacaoListItem): string {
   return a.roteiro?.nome ?? a.embarcacao?.nome ?? '';
-}
-
-function getSortValue(item: AvaliacaoListItem, key: SortKey): string | number {
-  switch (key) {
-    case 'data':    return item.created_at;
-    case 'cliente': return (item.cliente?.name ?? '').toLowerCase();
-    case 'nota':    return item.nota;
-    case 'status':  return item.status;
-  }
 }
 
 function formatDate(iso: string): string {
@@ -106,32 +104,54 @@ function ThSortable({ col, label, className = '', sortKey, sortDir, onSort }: {
   );
 }
 
-export default function AvaliacoesGrid({ avaliacoes }: { avaliacoes: AvaliacaoListItem[] }) {
+export default function AvaliacoesGrid({ avaliacoes, total, page, perPage }: Props) {
   const router = useRouter();
-  const [search, setSearch]     = useState('');
-  const [sortKey, setSortKey]   = useState<SortKey>('data');
-  const [sortDir, setSortDir]   = useState<SortDir>('desc');
-  const [page, setPage]         = useState(1);
-  const [pageSize, setPageSize] = useState<number>(DEFAULT_PAGE_SIZE);
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+
+  const sortKey = (searchParams.get('sort') ?? 'data') as SortKey;
+  const sortDir: SortDir = searchParams.get('dir') === 'asc' ? 'asc' : 'desc';
+
+  const [search, setSearch] = useState(searchParams.get('q') ?? '');
+  const [isNavigating, startNavigation] = useTransition();
 
   const [pendingId, setPendingId]   = useState<string | null>(null);
   const [editing, setEditing]       = useState<AvaliacaoListItem | null>(null);
   const [deleting, setDeleting]     = useState<AvaliacaoListItem | null>(null);
   const [, startTransition]         = useTransition();
 
+  const setParams = useCallback(
+    (updates: Record<string, string | null>) => {
+      const params = new URLSearchParams(searchParams.toString());
+      for (const [key, value] of Object.entries(updates)) {
+        if (value === null || value === '') params.delete(key);
+        else params.set(key, value);
+      }
+      startNavigation(() => {
+        router.replace(`${pathname}?${params.toString()}`, { scroll: false });
+      });
+    },
+    [router, pathname, searchParams],
+  );
+
+  // Busca com debounce: só consulta o servidor após 400ms sem digitação.
+  useEffect(() => {
+    const current = searchParams.get('q') ?? '';
+    if (search === current) return;
+    const t = setTimeout(() => setParams({ q: search, page: null }), 400);
+    return () => clearTimeout(t);
+  }, [search, searchParams, setParams]);
+
   function handleSort(key: SortKey) {
     if (sortKey === key) {
-      setSortDir((d) => (d === 'asc' ? 'desc' : 'asc'));
+      setParams({ dir: sortDir === 'asc' ? 'desc' : 'asc', page: null });
     } else {
-      setSortKey(key);
-      setSortDir('asc');
+      setParams({ sort: key, dir: 'asc', page: null });
     }
-    setPage(1);
   }
 
-  function handlePageSize(size: number) {
-    setPageSize(size);
-    setPage(1);
+  function goToPage(n: number) {
+    setParams({ page: n <= 1 ? null : String(n) });
   }
 
   function handleAprovar(id: string) {
@@ -156,42 +176,23 @@ export default function AvaliacoesGrid({ avaliacoes }: { avaliacoes: AvaliacaoLi
     });
   }
 
-  const filtered = useMemo(() => {
-    const q = search.toLowerCase().trim();
-    if (!q) return avaliacoes;
-    return avaliacoes.filter(
-      (a) =>
-        (a.cliente?.name ?? '').toLowerCase().includes(q) ||
-        (a.cliente?.email ?? '').toLowerCase().includes(q) ||
-        vinculoNome(a).toLowerCase().includes(q) ||
-        (a.comentario ?? '').toLowerCase().includes(q),
-    );
-  }, [avaliacoes, search]);
-
-  const sorted = useMemo(() => {
-    return [...filtered].sort((a, b) => {
-      const av = getSortValue(a, sortKey);
-      const bv = getSortValue(b, sortKey);
-      if (av < bv) return sortDir === 'asc' ? -1 : 1;
-      if (av > bv) return sortDir === 'asc' ? 1 : -1;
-      return 0;
-    });
-  }, [filtered, sortKey, sortDir]);
-
-  const totalPages = Math.max(1, Math.ceil(sorted.length / pageSize));
-  const paged = sorted.slice((page - 1) * pageSize, page * pageSize);
+  const totalPages = Math.max(1, Math.ceil(total / perPage));
 
   return (
     <div>
       {/* Search bar + tamanho da página */}
       <div className="flex flex-col sm:flex-row gap-3 mb-5">
         <div className="relative flex-1">
-          <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
+          {isNavigating ? (
+            <Loader2 className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 animate-spin pointer-events-none" />
+          ) : (
+            <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
+          )}
           <input
             type="text"
             placeholder="Buscar por cliente, e-mail, roteiro, embarcação ou comentário..."
             value={search}
-            onChange={(e) => { setSearch(e.target.value); setPage(1); }}
+            onChange={(e) => setSearch(e.target.value)}
             className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-200 bg-white text-sm text-slate-700 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-[#0B2447]/20 focus:border-[#0B2447]/40 transition"
           />
         </div>
@@ -201,11 +202,11 @@ export default function AvaliacoesGrid({ avaliacoes }: { avaliacoes: AvaliacaoLi
           </label>
           <select
             id="page-size"
-            value={pageSize}
-            onChange={(e) => handlePageSize(Number(e.target.value))}
+            value={perPage}
+            onChange={(e) => setParams({ per: e.target.value === '10' ? null : e.target.value, page: null })}
             className="pl-3 pr-8 py-2.5 rounded-xl border border-slate-200 bg-white text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-[#0B2447]/20 focus:border-[#0B2447]/40 transition"
           >
-            {PAGE_SIZE_OPTIONS.map((n) => (
+            {PAGE_SIZES.map((n) => (
               <option key={n} value={n}>{n}</option>
             ))}
           </select>
@@ -213,7 +214,7 @@ export default function AvaliacoesGrid({ avaliacoes }: { avaliacoes: AvaliacaoLi
       </div>
 
       <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
-        {paged.length === 0 ? (
+        {avaliacoes.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-20 text-center">
             <Star className="w-12 h-12 text-slate-200 mb-4" />
             <p className="text-sm font-medium text-slate-500">
@@ -231,7 +232,9 @@ export default function AvaliacoesGrid({ avaliacoes }: { avaliacoes: AvaliacaoLi
               <thead>
                 <tr className="border-b border-slate-100">
                   <ThSortable col="data"    label="Data"     className="pl-6" sortKey={sortKey} sortDir={sortDir} onSort={handleSort} />
-                  <ThSortable col="cliente" label="Cliente"  sortKey={sortKey} sortDir={sortDir} onSort={handleSort} />
+                  <th className="pb-3 px-4 text-[10px] font-bold text-slate-400 tracking-wider uppercase whitespace-nowrap">
+                    Cliente
+                  </th>
                   <th className="pb-3 px-4 text-[10px] font-bold text-slate-400 tracking-wider uppercase whitespace-nowrap">
                     Vínculo
                   </th>
@@ -246,7 +249,7 @@ export default function AvaliacoesGrid({ avaliacoes }: { avaliacoes: AvaliacaoLi
                 </tr>
               </thead>
               <tbody>
-                {paged.map((a) => {
+                {avaliacoes.map((a) => {
                   const isAprovada = a.status === 'aprovada';
                   const isPending  = pendingId === a.id;
                   const vinculo    = vinculoNome(a);
@@ -357,22 +360,22 @@ export default function AvaliacoesGrid({ avaliacoes }: { avaliacoes: AvaliacaoLi
         )}
 
         {/* Footer: count + pagination */}
-        {sorted.length > 0 && (
+        {total > 0 && (
           <div className="px-6 py-4 border-t border-slate-100 flex flex-col sm:flex-row items-center justify-between gap-3">
             <p className="text-xs text-slate-400">
               Mostrando{' '}
               <span className="font-semibold text-slate-600">
-                {(page - 1) * pageSize + 1}–{Math.min(page * pageSize, sorted.length)}
+                {(page - 1) * perPage + 1}–{Math.min(page * perPage, total)}
               </span>{' '}
               de{' '}
-              <span className="font-semibold text-slate-600">{sorted.length}</span>{' '}
-              avaliaç{sorted.length !== 1 ? 'ões' : 'ão'}
+              <span className="font-semibold text-slate-600">{total}</span>{' '}
+              avaliaç{total !== 1 ? 'ões' : 'ão'}
             </p>
 
             {totalPages > 1 && (
               <div className="flex items-center gap-1">
                 <button
-                  onClick={() => setPage((p) => Math.max(1, p - 1))}
+                  onClick={() => goToPage(Math.max(1, page - 1))}
                   disabled={page === 1}
                   title="Página anterior"
                   className="w-7 h-7 flex items-center justify-center rounded-lg text-slate-400 hover:bg-slate-100 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
@@ -388,7 +391,7 @@ export default function AvaliacoesGrid({ avaliacoes }: { avaliacoes: AvaliacaoLi
                   ) : (
                     <button
                       key={n}
-                      onClick={() => setPage(n)}
+                      onClick={() => goToPage(n)}
                       className={`w-7 h-7 rounded-lg text-xs font-semibold transition-colors ${
                         n === page
                           ? 'bg-[#0B2447] text-white shadow-sm'
@@ -401,7 +404,7 @@ export default function AvaliacoesGrid({ avaliacoes }: { avaliacoes: AvaliacaoLi
                 )}
 
                 <button
-                  onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                  onClick={() => goToPage(Math.min(totalPages, page + 1))}
                   disabled={page === totalPages}
                   title="Próxima página"
                   className="w-7 h-7 flex items-center justify-center rounded-lg text-slate-400 hover:bg-slate-100 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"

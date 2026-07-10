@@ -111,13 +111,16 @@ export async function salvarImagemRoteiro(
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return { ok: false, error: 'Não autenticado.' };
 
-  const { data: roteiro } = await supabaseAdmin
+  // Admin pode gerenciar imagens de qualquer roteiro; gestor apenas os próprios.
+  const isAdmin = await checkRoleInDb(user.id, ['admin']);
+
+  let query = supabaseAdmin
     .from('roteiro')
     .select('id')
-    .eq('id', payload.roteiroId)
-    .eq('owner_id', user.id)
-    .single();
+    .eq('id', payload.roteiroId);
+  if (!isAdmin) query = query.eq('owner_id', user.id);
 
+  const { data: roteiro } = await query.single();
   if (!roteiro) return { ok: false, error: 'Roteiro não encontrado ou sem permissão.' };
 
   if (payload.principal) {

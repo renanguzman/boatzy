@@ -1179,6 +1179,82 @@ type Props = {
 
 ---
 
+## 18.9 Home — seções "Mais Bem Avaliados" (embarcações e roteiros)
+
+Migrations: `supabase/migrations/20260709b_embarcacoes_top_avaliadas.sql` e
+`supabase/migrations/20260709c_roteiros_top_avaliados.sql`.
+
+As seções "Embarcações Mais Bem Avaliadas" (`TopRatedSection`, 4 cards) e "Roteiros Mais Bem
+Avaliados" (`FeaturedChartersSection`, ex-"Featured Charters", 3 cards) da home deixaram de usar
+mock e passaram a ser 100% dinâmicas (dados do banco), com a mesma mecânica.
+
+### RPCs `embarcacoes_top_avaliadas` / `roteiros_top_avaliados`
+
+```sql
+embarcacoes_top_avaliadas(p_lat numeric, p_lng numeric, p_raio_km numeric = 100, p_limit int = 4)
+roteiros_top_avaliados   (p_lat numeric, p_lng numeric, p_raio_km numeric = 100, p_limit int = 3)
+  → TABLE (id uuid, media numeric, total bigint, score numeric)
+```
+
+- As avaliações são de **roteiros** (§22): `roteiros_top_avaliados` agrega por
+  `avaliacao.roteiro_id` (só roteiros `ativo = true`); `embarcacoes_top_avaliadas` agrega pelo
+  `embarcacao_id` copiado da reserva (só embarcações `status = 'ativo'`). Ambas consideram apenas
+  avaliações `aprovada`.
+- **Ranking** por média bayesiana (fórmula IMDb): `score = (v/(v+m))·R + (m/(v+m))·C`, com
+  `R` = média do item, `v` = nº de avaliações, `C` = média global da plataforma e `m = 5`.
+  Assim, "mais avaliações + maior nota" vence uma única nota 5. Desempate: `total`, depois `media`.
+- Com `p_lat`/`p_lng`, considera apenas itens num raio de `p_raio_km` (haversine sobre as
+  coordenadas da embarcação/do roteiro, mesmo cálculo das buscas 017/018); sem centro, plataforma
+  inteira. `GRANT EXECUTE` para `anon/authenticated/service_role`.
+
+### Server helper — `src/lib/embarcacoes-top.ts`
+
+- `getEmbarcacoesTopAvaliadas({ lat?, lng?, limit = 4 })` → `EmbarcacaoTopCard[]` (`id`, `nome`,
+  `preco_base`, `capacidade`, `tipo`, `localidade`, `imagem` principal, `media`, `total`). Chama a
+  RPC e busca os detalhes (`embarcacao` + joins) preservando a ordem do ranking. **Fallback:** com
+  localização e menos resultados que o limite na região (raio 100 km), completa com o topo global
+  (sem duplicatas).
+- `getFavoritosEmbarcacaoSet(userId, ids)` → `Set` com as embarcações já favoritadas (coração
+  preenchido nos cards).
+
+### Server helper — `src/lib/roteiros-top.ts`
+
+Espelho do anterior para roteiros: `getRoteirosTopAvaliados({ lat?, lng?, limit = 3 })` →
+`RoteiroTopCard[]` (`RoteiroCardData` do card da busca + `media`/`total`), com o mesmo fallback
+regional→global; e `getFavoritosRoteiroSet(userId, ids)`.
+
+### APIs — `GET /api/embarcacoes/top-avaliadas` e `GET /api/roteiros/top-avaliados` (`?lat=&lng=`)
+
+`src/app/api/embarcacoes/top-avaliadas/route.ts` e `src/app/api/roteiros/top-avaliados/route.ts`:
+validam `lat`/`lng` (400 se ausentes) e retornam `{ items: (…TopCard & { favorito: boolean })[] }`
+(favorito resolvido pela sessão do cookie, `false` deslogado). Usadas pelos clients da home para
+trocar a lista global pela localizada.
+
+### Componentes
+
+- **`TopRatedSection`** (`src/components/home/TopRatedSection.tsx`, Server Component `async`):
+  busca o top 4 **global** de embarcações (SSR) + favoritos do usuário logado e renderiza o header
+  da seção. Sem nenhuma embarcação avaliada na plataforma, a seção não é renderizada
+  (`return null`). Link **"Ver Todas"** (desktop e CTA mobile) → `/buscar?tipo=embarcacao` (busca
+  com a aba Embarcações selecionada).
+- **`FeaturedChartersSection`** (`src/components/home/FeaturedChartersSection.tsx`, Server
+  Component `async`): mesmo padrão para o top 3 **global** de roteiros. Textos: eyebrow "Roteiros
+  Selecionados", título "Roteiros Mais Bem Avaliados". Link **"Ver Mais"** (desktop e CTA mobile)
+  → `/buscar`. Sem roteiro avaliado, `return null`.
+- **`TopRatedBoats`** / **`FeaturedRoteiros`** (`src/components/home/…`, `'use client'`): renderizam
+  os grids. No mount, se a permissão de geolocalização **já estiver concedida**
+  (`navigator.permissions.query({ name: 'geolocation' })` → `granted`), obtêm a posição e trocam a
+  lista pela resposta da API correspondente. **Não disparam** o prompt de permissão na home; sem
+  permissão, permanece a lista global (regra do PRD: com localização → mais bem avaliados perto do
+  usuário; sem → plataforma inteira).
+- **`EmbarcacaoCard`** (`src/components/ui/EmbarcacaoCard.tsx`, `'use client'`): card de embarcação
+  (imagem principal, badge do tipo, nome, localidade, `★ média (total)` ou badge "Novo",
+  `preco_base`/dia, "até N pessoas"), link para `/embarcacoes/[id]`, coração favoritável (ver
+  §23.5). Os roteiros reutilizam o **`RoteiroCard`** da busca (favoritar já existente). O antigo
+  `BoatCard` (mock) ficou órfão e foi removido.
+
+---
+
 ## 19. Futuro
 
 - Chat — **implementado nos dois lados** (gestor e cliente), em tempo real (ver §21)
@@ -1654,24 +1730,29 @@ query em lote (`avaliacao.select('roteiro_id, nota').in(...)`) agregada em memó
 
 ---
 
-## 23. Favoritos e Compartilhamento (roteiro)
+## 23. Favoritos e Compartilhamento (roteiro e embarcação)
 
-Migration: `supabase/migrations/027_favoritos.sql`.
+Migrations: `supabase/migrations/027_favoritos.sql` e
+`supabase/migrations/20260709_favoritos_embarcacao.sql`.
 
 ### 23.1 Modelo de dados
 
 #### Tabela `favorito`
 
 ```sql
-id         uuid PK
-user_id    uuid NOT NULL FK → users(id) ON DELETE CASCADE
-roteiro_id uuid NOT NULL FK → roteiro(id) ON DELETE CASCADE
-created_at timestamptz
+id            uuid PK
+user_id       uuid NOT NULL FK → users(id) ON DELETE CASCADE
+roteiro_id    uuid FK → roteiro(id) ON DELETE CASCADE        -- nullable desde 20260709
+embarcacao_id uuid FK → embarcacao(id) ON DELETE CASCADE     -- adicionada em 20260709
+created_at    timestamptz
 UNIQUE (user_id, roteiro_id)
+UNIQUE parcial (user_id, embarcacao_id) WHERE embarcacao_id IS NOT NULL
+CHECK num_nonnulls(roteiro_id, embarcacao_id) = 1            -- exatamente um alvo
 ```
 
-Índice `(user_id, created_at DESC)`. **RLS:** `service_role_all`; SELECT/INSERT/DELETE apenas do
-próprio usuário (`user_id = auth.uid()`). Tipos TS em `src/types/supabase.ts`.
+Índices `(user_id, created_at DESC)` e parcial em `embarcacao_id`. **RLS:** `service_role_all`;
+SELECT/INSERT/DELETE apenas do próprio usuário (`user_id = auth.uid()`). Tipos TS em
+`src/types/supabase.ts`.
 
 ### 23.2 Server action — `alternarFavorito`
 
@@ -1717,10 +1798,25 @@ aos cards. Em `/favoritos`, os cards recebem `initialFavorito` fixo (`true`).
   `Header`, entre "Minhas reservas" e "Minha conta".
 - **`/favoritos`** (`src/app/favoritos/page.tsx`, Server Component): gate de auth
   (`/entrar?redirect_to=/favoritos`); consulta `favorito` do usuário (`order created_at desc`) com
-  embed do `roteiro` (campos do card + `ativo`); filtra `roteiro.ativo = true` em memória (roteiro
-  desativado some, favorito permanece no banco). Grid reutiliza `RoteiroCard` +
-  `_components/RemoverFavoritoButton.tsx` (`'use client'`: chama `alternarFavorito` +
-  `router.refresh()`). Estado vazio com CTA "Explorar roteiros".
+  embed do `roteiro` (campos do card + `ativo`) **e** da `embarcacao` (campos do card + `status`);
+  filtra `roteiro.ativo = true` / `embarcacao.status = 'ativo'` em memória (item desativado some,
+  favorito permanece no banco). Exibe duas grades — **Roteiros** (`RoteiroCard`) e **Embarcações**
+  (`EmbarcacaoCard`) — com cabeçalhos apenas quando os dois tipos existem; cada card acompanha
+  `_components/RemoverFavoritoButton.tsx` (`'use client'`: aceita `roteiroId` OU `embarcacaoId`,
+  chama a action correspondente + `router.refresh()`). Estado vazio com CTA "Explorar roteiros".
+
+### 23.5 Favoritar embarcação
+
+- **Server action** `alternarFavoritoEmbarcacao(embarcacaoId)` (`src/lib/favoritos-actions.ts`):
+  mesma semântica/retorno de `alternarFavorito`, gravando em `favorito.embarcacao_id`. Revalida
+  `/favoritos`.
+- **`EmbarcacaoCard`** (`src/components/ui/EmbarcacaoCard.tsx`): coração com toggle otimista;
+  deslogado → `/entrar?redirect_to=<pathname+search com fav_emb=<id>>`.
+- **Auto-favorito pós-login:** ao voltar do login, o card detecta `fav_emb=<seu id>` na URL,
+  remove o parâmetro (`history.replaceState`) e conclui o favorito automaticamente — cumpre o
+  fluxo "deslogado → login → favoritado" sem novo clique.
+- Estado inicial resolvido no servidor (home §18.9 e `/favoritos`) via
+  `getFavoritosEmbarcacaoSet`.
 
 ## 24. Receitas do gestor (`/painel/receitas`)
 
@@ -1831,7 +1927,16 @@ src/app/administrator/
       page.tsx                → gestão de avaliações (lista + moderação)
       actions.ts               → aprovarAvaliacao, editarAvaliacao, excluirAvaliacao
       _components/AvaliacoesGrid.tsx → tabela client (busca, ordenação, paginação, modais)
-    embarcacoes/page.tsx      → placeholder
+    embarcacoes/
+      page.tsx                → gestão de todas as embarcações (lista + gestor)
+      actions.ts              → alternarStatusEmbarcacaoAdmin
+      _components/AdminEmbarcacoesGrid.tsx → tabela client (busca, ordenação, paginação, toggle)
+      [id]/editar/page.tsx    → edição admin (reutiliza EditarEmbarcacaoForm do painel)
+    roteiros/
+      page.tsx                → gestão de todos os roteiros (lista + gestor)
+      actions.ts              → alternarStatusRoteiroAdmin
+      _components/AdminRoteirosGrid.tsx → tabela client (busca, ordenação, paginação, toggle)
+      [id]/editar/page.tsx    → edição admin (reutiliza EditarRoteiroForm do painel)
     publicidade/page.tsx      → placeholder
     taxas/page.tsx            → placeholder
     categorias/page.tsx       → placeholder
@@ -1863,7 +1968,8 @@ Renderiza 6 stat cards + grid de cards de acesso rápido aos 6 módulos.
 |---|---|---|
 | `/administrator` | Dashboard | ✅ implementado |
 | `/administrator/avaliacoes` | Avaliações | ✅ implementado |
-| `/administrator/embarcacoes` | Embarcações | 🔜 placeholder |
+| `/administrator/embarcacoes` | Embarcações | ✅ implementado |
+| `/administrator/roteiros` | Roteiros | ✅ implementado |
 | `/administrator/publicidade` | Publicidade | 🔜 placeholder |
 | `/administrator/taxas` | Taxas | 🔜 placeholder |
 | `/administrator/categorias` | Categorias | 🔜 placeholder |
@@ -1891,15 +1997,21 @@ cliente continua vendo a própria avaliação assim que envia (query via `supaba
 de status) — `AvaliacaoReserva.tsx` exibe o selo "Aguardando aprovação" enquanto `status =
 'pendente'`.
 
-**`page.tsx`** (Server Component): busca todas as avaliações via `supabaseAdmin`, com embed de
-`cliente:users!avaliacao_cliente_id_fkey ( name, email )`, `roteiro ( id, nome )` e
-`embarcacao ( id, nome )`, `order created_at desc`. Repassa a lista pronta para `AvaliacoesGrid`
-(sem paginação no servidor — mesmo padrão client-side dos demais grids do `/painel`).
+**`page.tsx`** (Server Component): **paginação, busca e ordenação server-side** com o mesmo
+esquema de query string dos módulos Embarcações/Roteiros (25.7/25.8): `q`, `page`,
+`per` ∈ {10, 25, 50} (padrão 10), `sort`, `dir`; `.range()` + `{ count: 'exact' }`; desempate por
+`id`. Detalhes:
+- Colunas ordenáveis: `data` → `created_at`, `nota`, `status` (colunas diretas da tabela;
+  Cliente e Vínculo, que vêm de embeds, não são ordenáveis).
+- Busca: `or(comentario.ilike, cliente_id.in.(...), roteiro_id.in.(...), embarcacao_id.in.(...))`
+  — os ids são resolvidos antes por três queries paralelas (`users` por name/email ilike,
+  `roteiro` e `embarcacao` por nome ilike, limit 100 cada). Termo sanitizado (remove `,()"`).
+- Embeds da página atual: `cliente:users!avaliacao_cliente_id_fkey ( name, email )`,
+  `roteiro ( id, nome )` e `embarcacao ( id, nome )`.
 
-**`AvaliacoesGrid.tsx`** (Client Component): tabela com busca (cliente, e-mail, vínculo,
-comentário), ordenação por coluna (data, cliente, nota, status) e paginação. Diferente dos grids
-existentes, o tamanho de página é configurável pelo usuário — seletor com `10 / 25 / 50 / 100`,
-padrão **25** — em vez de um `PAGE_SIZE` fixo. Colunas: Data, Cliente (nome + e-mail), Vínculo
+**`AvaliacoesGrid.tsx`** (Client Component): controlado por URL, como em 25.7 (busca com
+debounce de 400ms, ordenação, página e tamanho de página via search params; `useTransition`
+mostra spinner no campo de busca). Colunas: Data, Cliente (nome + e-mail), Vínculo
 (badge "Roteiro: nome" ou "Embarcação: nome"), Nota (estrelas), Comentário (truncado, `title` com
 o texto completo), Status (Pendente/Aprovada) e Ações:
 - **Aprovar** (ícone check, só quando `status = 'pendente'`) → `aprovarAvaliacao`.
@@ -1912,3 +2024,92 @@ Não há estado "reprovada": reprovar uma avaliação pendente é simplesmente e
 **`actions.ts`**: `aprovarAvaliacao(id)`, `editarAvaliacao(id, { nota, comentario })` (valida nota
 inteira 1–5 e comentário ≤ 2000 chars) e `excluirAvaliacao(id)`. Todas exigem sessão + role `admin`
 (`checkRoleInDb`) e operam via `supabaseAdmin`; revalidam `/administrator/avaliacoes`.
+
+### 25.7 Módulo — Embarcações (`/administrator/embarcacoes`)
+
+Gestão de todas as embarcações da plataforma, clonando o padrão da lista do
+`/painel/embarcacoes` com a adição da coluna **Gestor**.
+
+**`page.tsx`** (Server Component): **paginação, busca e ordenação server-side**, dirigidas por
+query string (`q`, `page`, `per`, `sort`, `dir`) — apenas a página atual vem do banco, via
+`.range()` + `{ count: 'exact' }`. Detalhes:
+- `per` ∈ {10, 25, 50} (padrão 10); `page` ≥ 1; desempate por `id` no `order` para paginação
+  estável quando a coluna ordenada repete valores.
+- Colunas ordenáveis: apenas colunas diretas da tabela (`nome`, `status`, `capacidade`,
+  `created_at`) — colunas de embeds (gestor, tipo, categoria, localização) não são ordenáveis.
+- Busca: `or(nome.ilike.%q%, owner_id.in.(...))`, onde os `owner_ids` são resolvidos antes por
+  uma query em `users` (`name`/`email` ilike, limit 100) — assim a busca cobre o gestor sem FK
+  declarada no PostgREST. O termo é sanitizado (remove `,()"`) para não quebrar a sintaxe do
+  `or()`.
+- Embeds da página atual: `embarcacao_tipo`, `embarcacao_categoria`, `municipios ( estados )`,
+  `embarcacao_imagens` e `roteiro`. Gestores resolvidos em segunda query apenas para os
+  `owner_ids` da página e associados em memória (`gestor: { name, email } | null`).
+
+**`AdminEmbarcacoesGrid.tsx`** (Client Component): controlado por URL — busca (debounce de
+400ms), ordenação, página e tamanho de página (`10/25/50`) atualizam os search params via
+`router.replace` (`useTransition` mostra spinner no campo de busca durante a navegação). Mantém
+o toggle de status com modal de confirmação ao desativar (lista os roteiros vinculados). Ações:
+apenas **Editar** → `/administrator/embarcacoes/[id]/editar`. Toggle chama
+`alternarStatusEmbarcacaoAdmin`.
+
+**`actions.ts`**: `alternarStatusEmbarcacaoAdmin(id, 'ativo' | 'inativo')` — exige sessão + role
+`admin` (`checkRoleInDb`), atualiza `embarcacao.status` **sem checagem de posse** e replica o
+cascade do painel (`roteiro.ativo` acompanha o status); revalida `/administrator/embarcacoes`.
+
+**`[id]/editar/page.tsx`** (Server Component): mesma carga de dados da página de edição do painel
+(embarcação sem filtro de `owner_id`, imagens, regras de preço, tipos, categorias, estados,
+comodidades, bloqueios de disponibilidade), mais o gestor responsável (exibido no subtítulo).
+Reutiliza `EditarEmbarcacaoForm` do painel via import direto, passando o novo prop opcional
+`voltarHref="/administrator/embarcacoes"` (default `/painel/embarcacoes`), usado no botão
+Cancelar e no redirect pós-salvamento.
+
+**Autorização compartilhada (mudança nas actions do painel):** o admin edita qualquer embarcação
+pelas mesmas server actions do gestor. Em
+`painel/(gestao)/embarcacoes/[id]/editar/actions.ts` (`getAuthorizedUser`) e em
+`painel/(gestao)/embarcacoes/novo/actions.ts` (`salvarImagem`), a checagem de posse
+(`owner_id = user.id`) passa a ser aplicada **apenas quando o usuário não tem a role `admin`**;
+gestores seguem restritos às próprias embarcações. As demais actions reutilizadas
+(`atualizarEmbarcacao`, `atualizarComodidades`, `excluirImagem`, `excluirRegra`,
+`definirPrincipal`, `salvarBloqueiosEmbarcacao`) já passam por `getAuthorizedUser`; `criarRegra`
+exige apenas sessão (comportamento pré-existente).
+
+### 25.8 Módulo — Roteiros (`/administrator/roteiros`)
+
+Mesma arquitetura do módulo Embarcações (25.7), adaptada a roteiros. Novo item **ROTEIROS**
+(ícone `MapPin`) no `AdminSidebar`, entre Embarcações e Publicidade.
+
+**`page.tsx`** (Server Component): **paginação, busca e ordenação server-side** com o mesmo
+esquema de query string de 25.7 (`q`, `page`, `per` ∈ {10, 25, 50}, `sort`, `dir`;
+`.range()` + `{ count: 'exact' }`; desempate por `id`). Diferenças:
+- Colunas ordenáveis: `nome`, `duracao`, `pessoas` → `quantidade_pessoas`, `status` → `ativo`,
+  `created_at`.
+- Busca: `or(nome.ilike, origem.ilike, destino.ilike, owner_id.in.(...))` — owner_ids do gestor
+  resolvidos antes em `users`, como em 25.7.
+- Embeds da página atual: `embarcacao ( nome )`, `municipios ( estados )` e `roteiro_imagens`.
+  Gestores resolvidos em segunda query apenas para os `owner_ids` da página.
+
+**`AdminRoteirosGrid.tsx`** (Client Component): controlado por URL, como em 25.7 (busca com
+debounce de 400ms, ordenação, página e tamanho de página via search params). Toggle de status
+direto, sem modal (roteiro é folha, sem cascata). Ações: apenas **Editar** →
+`/administrator/roteiros/[id]/editar`. Toggle chama `alternarStatusRoteiroAdmin`.
+
+**`actions.ts`**: `alternarStatusRoteiroAdmin(id, ativo)` — exige sessão + role `admin`
+(`checkRoleInDb`), atualiza `roteiro.ativo` **sem checagem de posse**; revalida
+`/administrator/roteiros`.
+
+**`[id]/editar/page.tsx`** (Server Component): busca o roteiro primeiro (sem filtro de
+`owner_id`) porque os selects de **embarcação** e **catálogo** do formulário devem listar os
+itens do gestor dono do roteiro (`owner_id = roteiro.owner_id`), não do admin. Demais cargas
+(imagens, regras de preço, estados, catálogo vinculado, bloqueios) iguais à página do painel,
+mais o gestor responsável (exibido no subtítulo). Reutiliza `EditarRoteiroForm` do painel via
+import direto, passando o novo prop opcional `voltarHref="/administrator/roteiros"` (default
+`/painel/roteiros`).
+
+**Autorização compartilhada (mudança nas actions do painel):** em
+`painel/(gestao)/roteiros/[id]/editar/actions.ts` (`getAuthorizedUser`) e em
+`painel/(gestao)/roteiros/novo/actions.ts` (`salvarImagemRoteiro`), a checagem de posse
+(`owner_id = user.id`) passa a ser aplicada **apenas quando o usuário não tem a role `admin`**.
+As demais actions reutilizadas (`atualizarRoteiro`, `atualizarCatalogoRoteiro`,
+`excluirImagemRoteiro`, `definirPrincipalRoteiro`, `excluirRegraRoteiro`,
+`salvarBloqueiosRoteiro`) já passam por `getAuthorizedUser`; `criarRegraRoteiro` exige apenas
+sessão (comportamento pré-existente).

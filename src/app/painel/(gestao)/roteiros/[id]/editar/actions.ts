@@ -40,13 +40,16 @@ async function getAuthorizedUser(roteiroId: string) {
   const autorizado = await checkRoleInDb(user.id, ['gestor', 'admin']);
   if (!autorizado) return { error: 'Acesso não autorizado.' };
 
-  const { data: roteiro } = await supabaseAdmin
+  // Admin pode editar qualquer roteiro; gestor apenas os próprios.
+  const isAdmin = await checkRoleInDb(user.id, ['admin']);
+
+  let query = supabaseAdmin
     .from('roteiro')
     .select('id')
-    .eq('id', roteiroId)
-    .eq('owner_id', user.id)
-    .single();
+    .eq('id', roteiroId);
+  if (!isAdmin) query = query.eq('owner_id', user.id);
 
+  const { data: roteiro } = await query.single();
   if (!roteiro) return { error: 'Roteiro não encontrado ou sem permissão.' };
 
   return { userId: user.id, ok: true as const };

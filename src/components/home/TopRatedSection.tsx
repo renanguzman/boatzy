@@ -1,11 +1,35 @@
 import Link from 'next/link';
 import { ArrowRight } from 'lucide-react';
-import BoatCard from '@/components/ui/BoatCard';
-import { topRatedBoats } from '@/lib/mock-data';
+import { createClient } from '@/lib/supabase/server';
+import { getEmbarcacoesTopAvaliadas, getFavoritosEmbarcacaoSet } from '@/lib/embarcacoes-top';
+import TopRatedBoats, { type TopRatedItem } from './TopRatedBoats';
 
-export default function TopRatedSection() {
+export default async function TopRatedSection() {
+  // Lista global (SSR). Se o navegador do usuário já tem permissão de
+  // geolocalização, o client (TopRatedBoats) troca pela lista próxima a ele.
+  const embarcacoes = await getEmbarcacoesTopAvaliadas({ limit: 4 });
+
+  // Sem nenhuma embarcação avaliada na plataforma, a seção não aparece.
+  if (embarcacoes.length === 0) return null;
+
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  const favoritos = user
+    ? await getFavoritosEmbarcacaoSet(
+        user.id,
+        embarcacoes.map((e) => e.id),
+      )
+    : new Set<string>();
+
+  const inicial: TopRatedItem[] = embarcacoes.map((e) => ({
+    ...e,
+    favorito: favoritos.has(e.id),
+  }));
+
   return (
-    <section className="py-16 bg-slate-50/50" id="top-rated-section">
+    <section className="py-16 bg-white" id="top-rated-section">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         {/* Header */}
         <div className="flex items-end justify-between mb-8">
@@ -21,7 +45,7 @@ export default function TopRatedSection() {
             </h2>
           </div>
           <Link
-            href="/boats"
+            href="/buscar?tipo=embarcacao"
             className="hidden md:flex items-center gap-1.5 text-sm font-medium text-[#0B3D91] hover:text-cyan-600 transition-colors group"
           >
             Ver Todas
@@ -30,16 +54,12 @@ export default function TopRatedSection() {
         </div>
 
         {/* Cards Grid */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
-          {topRatedBoats.map((boat) => (
-            <BoatCard key={boat.id} boat={boat} />
-          ))}
-        </div>
+        <TopRatedBoats inicial={inicial} />
 
         {/* Mobile CTA */}
         <div className="md:hidden mt-6 text-center">
           <Link
-            href="/boats"
+            href="/buscar?tipo=embarcacao"
             className="inline-flex items-center gap-1.5 text-sm font-medium text-[#0B3D91]"
           >
             Ver Todas as Embarcações

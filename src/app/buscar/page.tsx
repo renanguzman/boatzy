@@ -127,7 +127,7 @@ export default async function BuscarPage({ searchParams }: { searchParams: Promi
       .select('roteiro_id')
       .eq('user_id', user.id)
       .in('roteiro_id', ids);
-    favoritosSet = new Set((favs ?? []).map((f) => f.roteiro_id));
+    favoritosSet = new Set((favs ?? []).flatMap((f) => (f.roteiro_id ? [f.roteiro_id] : [])));
   }
 
   // Querystring repassada ao detalhe do roteiro para pré-preencher data/pessoas.

@@ -115,13 +115,16 @@ export async function salvarImagem(
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return { ok: false, error: 'Não autenticado.' };
 
-  const { data: emb } = await supabaseAdmin
+  // Admin pode gerenciar imagens de qualquer embarcação; gestor apenas as próprias.
+  const isAdmin = await checkRoleInDb(user.id, ['admin']);
+
+  let query = supabaseAdmin
     .from('embarcacao')
     .select('id')
-    .eq('id', payload.embarcacaoId)
-    .eq('owner_id', user.id)
-    .single();
+    .eq('id', payload.embarcacaoId);
+  if (!isAdmin) query = query.eq('owner_id', user.id);
 
+  const { data: emb } = await query.single();
   if (!emb) return { ok: false, error: 'Embarcação não encontrada ou sem permissão.' };
 
   if (payload.principal) {

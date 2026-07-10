@@ -290,6 +290,24 @@ tipo/status); pagamento (Stripe).
 - **Card da busca** (`/buscar` e `/favoritos`): roteiros com avaliação exibem `★ média (total)` na linha do preço, no lugar do badge "Novo"; sem avaliação, nada é exibido (o badge "Novo" permanece).
 - Só avaliações **aprovadas pelo admin** aparecem nesses pontos (ver 6.11) — uma avaliação recém-enviada fica com o selo "Aguardando aprovação" em `/minhas-reservas` até a moderação.
 
+#### ✅ Implementado — Home: "Embarcações Mais Bem Avaliadas" (dinâmica)
+
+- A seção da home deixou de usar mock: exibe as **4 embarcações mais bem avaliadas**, com todos os dados do card vindos do banco (imagem principal, tipo, nome, cidade/UF, `★ média (total)`, preço base/dia e capacidade).
+- Como a avaliação é do **roteiro** (não da embarcação em si), as notas são agregadas por embarcação via `avaliacao.embarcacao_id` (copiado da reserva).
+- **Ranking:** média bayesiana (fórmula IMDb) — quanto **mais avaliações** e **maior a nota**, melhor posicionada; uma única nota 5 não vence uma 4.8 com dezenas de avaliações.
+- **Com localização do usuário** (permissão de geolocalização já concedida no navegador): mostra as mais bem avaliadas num raio de 100 km, completando com o topo da plataforma se a região não preencher as 4. **Sem localização:** topo da plataforma inteira. A home **não dispara** o prompt de permissão.
+- **"Ver Todas"** → `/buscar?tipo=embarcacao` (busca com a aba Embarcações selecionada).
+- O **coração do card** favorita/desfavorita a embarcação (ver 6.9); sem nenhuma embarcação avaliada, a seção não aparece.
+- Detalhes técnicos: SPEC §18.9.
+
+#### ✅ Implementado — Home: "Roteiros Mais Bem Avaliados" (dinâmica)
+
+- A antiga seção "Featured Charters" virou **"Roteiros Mais Bem Avaliados"** (eyebrow "Roteiros Selecionados") e deixou de usar mock: exibe os **3 roteiros mais bem avaliados**, com o mesmo card da busca (imagem principal, tipo da embarcação, pessoas, duração, nome, cidade/UF, preço/dia e `★ média (total)`).
+- **Mesmas regras da seção de embarcações:** ranking por média bayesiana (mais avaliações + maior nota); com localização do usuário (permissão já concedida) mostra os melhores num raio de 100 km, completando com o topo da plataforma; sem localização, plataforma inteira; sem nenhum roteiro avaliado, a seção não aparece.
+- O **coração do card** favorita/desfavorita o roteiro (função já existente — ver 6.9).
+- **"Ver Mais"** → `/buscar` (busca de roteiros).
+- Detalhes técnicos: SPEC §18.9.
+
 #### ✅ Implementado — Moderação pelo admin
 
 - Toda avaliação nasce com status `pendente` e só é exibida publicamente depois de **aprovada** em `/administrator/avaliacoes`. Detalhes em 6.11.
@@ -374,6 +392,13 @@ Todos os números são do **gestor logado** (`owner_id`):
 - **Menu do usuário** (dropdown do avatar e menu mobile) ganhou o item **Favoritos** → `/favoritos`: grade com os roteiros salvos (mesmo card da busca) e botão "Remover dos favoritos". Roteiros desativados depois de favoritados não aparecem (mesma regra da busca).
 - Um favorito por par usuário↔roteiro. Detalhes técnicos: SPEC §23.
 
+#### ✅ Implementado — Favoritos de embarcação (migration 20260709)
+
+- O coração dos **cards de embarcação** (home "Embarcações Mais Bem Avaliadas") favorita/desfavorita a embarcação para o usuário logado (toggle otimista).
+- **Deslogado:** o clique leva a `/entrar` e, após o login, o favorito é **concluído automaticamente** ao voltar à página (parâmetro `fav_emb` no retorno).
+- `/favoritos` passou a listar **roteiros e embarcações** (seções separadas quando há os dois tipos), cada item com "Remover dos favoritos". Embarcações desativadas não aparecem.
+- Um favorito por par usuário↔embarcação. Detalhes técnicos: SPEC §23.5.
+
 #### ✅ Implementado — Compartilhar roteiro
 
 - O botão **Compartilhar** no detalhe do roteiro abre um menu com **WhatsApp**, **Facebook**, **Instagram** e **Copiar link**.
@@ -410,7 +435,8 @@ Todos os números são do **gestor logado** (`owner_id`):
 - Layout inspirado no `/painel` (sidebar + header), com dashboard de métricas globais do sistema (usuários, gestores, embarcações, roteiros, reservas, avaliações e taxa vigente) e cards de acesso rápido aos módulos.
 - Menu com os módulos previstos:
   - **Avaliações** — ✅ implementado (ver abaixo)
-  - **Embarcações** — 🔜 gestão de todas as embarcações da plataforma (placeholder)
+  - **Embarcações** — ✅ implementado (ver abaixo)
+  - **Roteiros** — ✅ implementado (ver abaixo)
   - **Publicidade** — 🔜 gestão de espaços de publicidade (placeholder)
   - **Taxas** — 🔜 taxas gerais do sistema (percentual da plataforma × repasse ao gestor) (placeholder)
   - **Categorias** — 🔜 cadastro de categorias (placeholder)
@@ -418,7 +444,8 @@ Todos os números são do **gestor logado** (`owner_id`):
 
 #### ✅ Implementado — Gestão de Avaliações (`/administrator/avaliacoes`)
 
-- Lista geral de **todas** as avaliações da plataforma (qualquer cliente, roteiro ou embarcação), com busca, ordenação por coluna e paginação (10/25/50/100 registros por página, padrão 25).
+- Lista geral de **todas** as avaliações da plataforma (qualquer cliente, roteiro ou embarcação), com busca (com debounce), ordenação por coluna e **paginação no servidor** (10/25/50 registros por página, padrão 10) — apenas a página atual é carregada do banco.
+- Busca por cliente (nome/e-mail), roteiro, embarcação ou comentário; ordenação disponível nas colunas Data, Nota e Status.
 - Cada linha mostra: data, cliente (nome + e-mail), vínculo (roteiro ou embarcação avaliado, com o nome), nota em estrelas, comentário e status (Pendente/Aprovada).
 - Ações por avaliação:
   - **Aprovar** — só quando pendente; passa a aparecer nas páginas públicas do roteiro/embarcação e no card da busca.
@@ -426,9 +453,32 @@ Todos os números são do **gestor logado** (`owner_id`):
   - **Excluir** — remove definitivamente (é também a forma de "reprovar": não existe estado separado de reprovada).
 - Toda avaliação enviada pelo cliente nasce **pendente**; só fica pública depois de aprovada aqui. Não há SLA nem notificação de moderação — decisão de escopo desta primeira versão.
 
+#### ✅ Implementado — Gestão de Embarcações (`/administrator/embarcacoes`)
+
+- Lista geral de **todas** as embarcações da plataforma (de todos os gestores), no mesmo padrão visual da lista do `/painel`, com busca, ordenação por coluna e **paginação no servidor** (10/25/50 por página, padrão 10) — apenas a página atual é carregada do banco, para suportar grande volume de registros.
+- Busca (com debounce) por nome da embarcação ou gestor (nome/e-mail); ordenação disponível nas colunas Embarcação, Status e Capacidade.
+- Cada linha mostra: foto + nome + ID curto, **gestor responsável (nome + e-mail)**, tipo, categoria, status (toggle Ativo/Inativo), localização (município/UF) e capacidade.
+- Ações por embarcação:
+  - **Ativar/Desativar** — toggle direto na lista; desativar exige confirmação e mostra os roteiros vinculados, que ficam inativos em cascata (reativar reativa os roteiros — mesmo comportamento do painel do gestor).
+  - **Editar** — abre `/administrator/embarcacoes/[id]/editar`, reutilizando o formulário completo de edição do painel (dados, endereço/mapa, comodidades, fotos, regras de preço e disponibilidade). A página mostra o gestor responsável no cabeçalho.
+- O admin pode editar qualquer embarcação, independentemente do dono; gestores continuam restritos às próprias (a verificação de posse das server actions passa a abrir exceção para a role `admin`).
+- Não há criação nem exclusão de embarcação pelo admin nesta versão — cadastro continua sendo feito pelo gestor no `/painel`.
+
+#### ✅ Implementado — Gestão de Roteiros (`/administrator/roteiros`)
+
+- Mesma lógica do módulo de Embarcações, adaptada a roteiros: lista geral de **todos** os roteiros da plataforma (de todos os gestores), com busca, ordenação por coluna e **paginação no servidor** (10/25/50 por página, padrão 10) — apenas a página atual é carregada do banco.
+- Busca (com debounce) por nome, origem, destino ou gestor (nome/e-mail); ordenação disponível nas colunas Roteiro, Duração, Pessoas e Status.
+- Cada linha mostra: foto + nome + origem→destino, **gestor responsável (nome + e-mail)**, embarcação vinculada, localização (município/UF), duração, quantidade de pessoas e status (toggle Ativo/Inativo).
+- Ações por roteiro:
+  - **Ativar/Desativar** — toggle direto na lista, sem confirmação (roteiro é folha, não há cascata).
+  - **Editar** — abre `/administrator/roteiros/[id]/editar`, reutilizando o formulário completo de edição do painel (dados, embarcação, endereço/mapa, catálogo de opcionais, fotos, regras de preço e disponibilidade). Os selects de embarcação e catálogo listam os itens **do gestor dono do roteiro** (não do admin). A página mostra o gestor responsável no cabeçalho.
+- O admin pode editar qualquer roteiro, independentemente do dono; gestores continuam restritos aos próprios (mesma exceção de role `admin` nas server actions).
+- Não há criação nem exclusão de roteiro pelo admin nesta versão — cadastro continua sendo feito pelo gestor no `/painel`.
+- Novo item **ROTEIROS** no menu lateral do admin.
+
 #### 🔜 A implementar
 
-- Conteúdo dos demais módulos (Embarcações, Publicidade, Taxas, Categorias, Configurações), cada um em separado.
+- Conteúdo dos demais módulos (Publicidade, Taxas, Categorias, Configurações), cada um em separado.
 
 ---
 

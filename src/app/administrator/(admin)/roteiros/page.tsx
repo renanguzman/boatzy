@@ -1,22 +1,23 @@
 import { redirect } from 'next/navigation';
-import { Ship } from 'lucide-react';
+import { MapPin } from 'lucide-react';
 import { createClient } from '@/lib/supabase/server';
 import { supabaseAdmin } from '@/lib/supabase';
-import AdminEmbarcacoesGrid, { type AdminEmbarcacaoListItem } from './_components/AdminEmbarcacoesGrid';
+import AdminRoteirosGrid, { type AdminRoteiroListItem } from './_components/AdminRoteirosGrid';
 
 const PAGE_SIZES = [10, 25, 50] as const;
 
-// Colunas ordenáveis no servidor (apenas colunas da própria tabela embarcacao).
+// Colunas ordenáveis no servidor (apenas colunas da própria tabela roteiro).
 const SORT_COLUMNS: Record<string, string> = {
   nome: 'nome',
-  status: 'status',
-  capacidade: 'capacidade',
+  duracao: 'duracao',
+  pessoas: 'quantidade_pessoas',
+  status: 'ativo',
   created_at: 'created_at',
 };
 
 type SearchParams = { q?: string; page?: string; per?: string; sort?: string; dir?: string };
 
-export default async function AdminEmbarcacoesPage({
+export default async function AdminRoteirosPage({
   searchParams,
 }: {
   searchParams: Promise<SearchParams>;
@@ -45,23 +46,25 @@ export default async function AdminEmbarcacoesPage({
   }
 
   let query = supabaseAdmin
-    .from('embarcacao')
+    .from('roteiro')
     .select(`
       id,
       nome,
-      status,
-      capacidade,
+      descricao,
+      duracao,
+      quantidade_pessoas,
+      origem,
+      destino,
+      ativo,
       owner_id,
       created_at,
-      embarcacao_tipo ( nome ),
-      embarcacao_categoria ( nome ),
+      embarcacao ( nome ),
       municipios ( nome, estados ( uf ) ),
-      embarcacao_imagens ( url_imagem, principal ),
-      roteiro ( id, nome )
+      roteiro_imagens ( url_imagem, principal )
     `, { count: 'exact' });
 
   if (q) {
-    const orParts = [`nome.ilike.%${q}%`];
+    const orParts = [`nome.ilike.%${q}%`, `origem.ilike.%${q}%`, `destino.ilike.%${q}%`];
     if (ownerIdsBusca.length > 0) orParts.push(`owner_id.in.(${ownerIdsBusca.join(',')})`);
     query = query.or(orParts.join(','));
   }
@@ -74,7 +77,7 @@ export default async function AdminEmbarcacoesPage({
 
   const total = count ?? 0;
 
-  const rows = (data ?? []) as unknown as (Omit<AdminEmbarcacaoListItem, 'gestor'> & { owner_id: string })[];
+  const rows = (data ?? []) as unknown as (Omit<AdminRoteiroListItem, 'gestor'> & { owner_id: string })[];
 
   // Gestores apenas da página atual: owner_id não possui FK declarada no PostgREST.
   const ownerIds = [...new Set(rows.map((r) => r.owner_id))];
@@ -84,7 +87,7 @@ export default async function AdminEmbarcacoesPage({
 
   const gestorById = new Map((gestores ?? []).map((g) => [g.id, { name: g.name, email: g.email }]));
 
-  const embarcacoes: AdminEmbarcacaoListItem[] = rows.map((r) => ({
+  const roteiros: AdminRoteiroListItem[] = rows.map((r) => ({
     ...r,
     gestor: gestorById.get(r.owner_id) ?? null,
   }));
@@ -93,19 +96,19 @@ export default async function AdminEmbarcacoesPage({
     <div className="p-8">
       <div className="flex items-center gap-3 mb-8">
         <div className="w-11 h-11 rounded-xl bg-[#0B2447]/5 flex items-center justify-center">
-          <Ship className="w-5 h-5 text-[#0B2447]" />
+          <MapPin className="w-5 h-5 text-[#0B2447]" />
         </div>
         <div>
-          <h1 className="text-2xl font-bold text-[#0B2447]">Embarcações</h1>
+          <h1 className="text-2xl font-bold text-[#0B2447]">Roteiros</h1>
           <p className="text-sm text-slate-500">
-            Todas as embarcações cadastradas na plataforma, com o gestor responsável.
-            Ative, desative ou edite as informações de qualquer embarcação.
+            Todos os roteiros cadastrados na plataforma, com o gestor responsável.
+            Ative, desative ou edite as informações de qualquer roteiro.
           </p>
         </div>
       </div>
 
-      <AdminEmbarcacoesGrid
-        embarcacoes={embarcacoes}
+      <AdminRoteirosGrid
+        roteiros={roteiros}
         total={total}
         page={page}
         perPage={perPage}

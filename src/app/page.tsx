@@ -17,8 +17,8 @@ export default async function HomePage() {
       <main className="flex-1">
         <HeroSection tiposEmbarcacao={tiposEmbarcacao} />
         <TrustBadges />
-        <TopRatedSection />
         <FeaturedChartersSection />
+        <TopRatedSection />
         <BenefitsSection />
         <MomentsSection />
       </main>

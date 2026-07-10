@@ -142,6 +142,8 @@ type Props = {
   catalogo: CatalogoItem[];
   catalogoIniciais: ItemSelecionado[];
   bloqueiosIniciais: string[];
+  /** Rota de retorno após salvar/cancelar (o admin reutiliza o form com outra rota). */
+  voltarHref?: string;
 };
 
 // ─── Helpers de UI ────────────────────────────────────────────────────────────
@@ -220,7 +222,7 @@ const emptyRegra = (): Omit<RegraLocal, 'localId'> => ({
 
 // ─── Componente principal ─────────────────────────────────────────────────────
 
-export default function EditarRoteiroForm({ roteiro, estados, municipiosIniciais, embarcacoes, catalogo, catalogoIniciais, bloqueiosIniciais }: Props) {
+export default function EditarRoteiroForm({ roteiro, estados, municipiosIniciais, embarcacoes, catalogo, catalogoIniciais, bloqueiosIniciais, voltarHref = '/painel/roteiros' }: Props) {
   const router = useRouter();
   const [, startTransition] = useTransition();
   const fileInputRef   = useRef<HTMLInputElement>(null);
@@ -548,7 +550,7 @@ export default function EditarRoteiroForm({ roteiro, estados, municipiosIniciais
 
     setFeedback({ type: 'success', msg: 'Roteiro atualizado com sucesso!' });
     setSubmitting(false);
-    setTimeout(() => router.push('/painel/roteiros'), 1200);
+    setTimeout(() => router.push(voltarHref), 1200);
   }
 
   // ─── Render ───────────────────────────────────────────────────────────────
@@ -1063,7 +1065,7 @@ export default function EditarRoteiroForm({ roteiro, estados, municipiosIniciais
 
       {/* ── Ações ────────────────────────────────────────────────────────── */}
       <div className="flex items-center justify-end gap-3 pb-4">
-        <button type="button" onClick={() => router.push('/painel/roteiros')}
+        <button type="button" onClick={() => router.push(voltarHref)}
           disabled={submitting}
           className="px-5 py-2.5 rounded-xl border border-slate-200 text-sm font-semibold text-slate-600 hover:bg-slate-50 transition disabled:opacity-50">
           Cancelar
