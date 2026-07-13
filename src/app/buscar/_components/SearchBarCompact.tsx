@@ -59,6 +59,14 @@ export default function SearchBarCompact({
   }
 
   function runSearch(type: SearchType) {
+    // A aba Vendas tem página e filtros próprios: navega para /vendas
+    // (os filtros de roteiro/embarcação não se aplicam lá).
+    if (type === 'venda') {
+      router.push('/vendas');
+      setActive(null);
+      return;
+    }
+
     const params = new URLSearchParams();
     // Busca orientada a roteiro: a aba "Embarcações" filtra roteiros pelo tipo
     // da embarcação vinculada; o destino é sempre /buscar.

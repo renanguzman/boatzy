@@ -6,6 +6,13 @@ export type CatalogoTipo = 'produto' | 'servico';
 export type ReservaStatus = 'pendente' | 'confirmada' | 'recusada' | 'cancelada' | 'concluida';
 export type ReservaTipo = 'roteiro' | 'embarcacao';
 export type AvaliacaoStatus = 'pendente' | 'aprovada';
+export type AnuncioVendaStatus = 'ativo' | 'pausado' | 'vendido' | 'cancelado';
+export type AnuncioInteracaoTipo =
+  | 'visualizou'
+  | 'revelou_contato'
+  | 'favoritou'
+  | 'compartilhou'
+  | 'conversou';
 
 export type Database = {
   public: {
@@ -141,6 +148,7 @@ export type Database = {
           user_id: string;
           roteiro_id: string | null;
           embarcacao_id: string | null;
+          anuncio_venda_id: string | null;
           created_at: string;
         };
         Insert: {
@@ -148,6 +156,7 @@ export type Database = {
           user_id: string;
           roteiro_id?: string | null;
           embarcacao_id?: string | null;
+          anuncio_venda_id?: string | null;
           created_at?: string;
         };
         Update: {
@@ -155,6 +164,7 @@ export type Database = {
           user_id?: string;
           roteiro_id?: string | null;
           embarcacao_id?: string | null;
+          anuncio_venda_id?: string | null;
           created_at?: string;
         };
         Relationships: [
@@ -177,6 +187,13 @@ export type Database = {
             columns: ['embarcacao_id'];
             isOneToOne: false;
             referencedRelation: 'embarcacao';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'favorito_anuncio_venda_id_fkey';
+            columns: ['anuncio_venda_id'];
+            isOneToOne: false;
+            referencedRelation: 'anuncio_venda';
             referencedColumns: ['id'];
           },
         ];
@@ -949,6 +966,134 @@ export type Database = {
           },
         ];
       };
+      anuncio_venda: {
+        Row: {
+          id: string;
+          embarcacao_id: string;
+          owner_id: string;
+          fabricante: string;
+          ano_modelo: number;
+          ano_fabricacao: number;
+          preco: number;
+          descricao_venda: string | null;
+          status: AnuncioVendaStatus;
+          visualizacoes: number;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          embarcacao_id: string;
+          owner_id: string;
+          fabricante: string;
+          ano_modelo: number;
+          ano_fabricacao: number;
+          preco: number;
+          descricao_venda?: string | null;
+          status?: AnuncioVendaStatus;
+          visualizacoes?: number;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          embarcacao_id?: string;
+          owner_id?: string;
+          fabricante?: string;
+          ano_modelo?: number;
+          ano_fabricacao?: number;
+          preco?: number;
+          descricao_venda?: string | null;
+          status?: AnuncioVendaStatus;
+          visualizacoes?: number;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'anuncio_venda_embarcacao_id_fkey';
+            columns: ['embarcacao_id'];
+            isOneToOne: false;
+            referencedRelation: 'embarcacao';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'anuncio_venda_owner_id_fkey';
+            columns: ['owner_id'];
+            isOneToOne: false;
+            referencedRelation: 'users';
+            referencedColumns: ['id'];
+          },
+        ];
+      };
+      anuncio_venda_preco: {
+        Row: {
+          id: string;
+          anuncio_id: string;
+          preco: number;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          anuncio_id: string;
+          preco: number;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          anuncio_id?: string;
+          preco?: number;
+          created_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'anuncio_venda_preco_anuncio_id_fkey';
+            columns: ['anuncio_id'];
+            isOneToOne: false;
+            referencedRelation: 'anuncio_venda';
+            referencedColumns: ['id'];
+          },
+        ];
+      };
+      anuncio_venda_interacao: {
+        Row: {
+          id: string;
+          anuncio_id: string;
+          user_id: string;
+          tipo: AnuncioInteracaoTipo;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          anuncio_id: string;
+          user_id: string;
+          tipo: AnuncioInteracaoTipo;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          anuncio_id?: string;
+          user_id?: string;
+          tipo?: AnuncioInteracaoTipo;
+          created_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'anuncio_venda_interacao_anuncio_id_fkey';
+            columns: ['anuncio_id'];
+            isOneToOne: false;
+            referencedRelation: 'anuncio_venda';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'anuncio_venda_interacao_user_id_fkey';
+            columns: ['user_id'];
+            isOneToOne: false;
+            referencedRelation: 'users';
+            referencedColumns: ['id'];
+          },
+        ];
+      };
     };
     Views: Record<string, never>;
     Functions: {
@@ -1027,6 +1172,60 @@ export type Database = {
         Args: { p_cliente?: string };
         Returns: number;
       };
+      chat_conversas_cliente: {
+        Args: { p_cliente?: string };
+        Returns: {
+          conversa_id: string;
+          gestor_id: string;
+          gestor_nome: string;
+          gestor_avatar: string | null;
+          ultima_mensagem: string;
+          ultima_em: string;
+          nao_lidas: number;
+        }[];
+      };
+      buscar_anuncios_venda: {
+        Args: {
+          p_tipo_id?: string | null;
+          p_estado_id?: number | null;
+          p_municipio_id?: number | null;
+          p_ano_min?: number | null;
+          p_ano_max?: number | null;
+          p_preco_min?: number | null;
+          p_preco_max?: number | null;
+          p_limit?: number | null;
+          p_offset?: number | null;
+        };
+        Returns: { id: string; total: number }[];
+      };
+      registrar_visualizacao_anuncio: {
+        Args: { p_anuncio: string };
+        Returns: undefined;
+      };
+      vendas_locais: {
+        Args: Record<string, never>;
+        Returns: {
+          estado_id: number;
+          estado_nome: string;
+          uf: string;
+          municipio_id: number;
+          municipio_nome: string;
+          total: number;
+        }[];
+      };
+      vendas_funil: {
+        Args: { p_gestor?: string };
+        Returns: {
+          anuncio_id: string;
+          embarcacao_nome: string;
+          user_id: string;
+          lead_nome: string;
+          lead_avatar: string | null;
+          eventos: string[];
+          estagio: number;
+          ultima_interacao: string;
+        }[];
+      };
     };
     Enums: {
       user_role: UserRole;
@@ -1035,6 +1234,8 @@ export type Database = {
       modalidade_capitao: ModalidadeCapitao;
       catalogo_tipo: CatalogoTipo;
       avaliacao_status: AvaliacaoStatus;
+      anuncio_venda_status: AnuncioVendaStatus;
+      anuncio_interacao_tipo: AnuncioInteracaoTipo;
     };
     CompositeTypes: Record<string, never>;
   };

@@ -10,6 +10,7 @@ import {
   Map as MapIcon,
   Users,
   MapPin,
+  Tag,
 } from 'lucide-react';
 import { createClient } from '@/lib/supabase/server';
 import { supabaseAdmin } from '@/lib/supabase';
@@ -58,7 +59,7 @@ export default async function PainelDashboardPage() {
   // Transição lazy confirmada → concluída antes de contar/exibir status.
   await concluirReservasVencidas();
 
-  const [{ data: embarcacoesData }, { data: roteirosData }, { data: reservasData }] =
+  const [{ data: embarcacoesData }, { data: roteirosData }, { data: reservasData }, { data: anunciosData }, { data: funilData }] =
     await Promise.all([
       supabaseAdmin.from('embarcacao').select('id, status').eq('owner_id', user.id),
       supabaseAdmin.from('roteiro').select('id, ativo').eq('owner_id', user.id),
@@ -71,17 +72,23 @@ export default async function PainelDashboardPage() {
         )
         .eq('owner_id', user.id)
         .order('solicitado_em', { ascending: false }),
+      supabaseAdmin.from('anuncio_venda').select('id, status').eq('owner_id', user.id),
+      // Leads dos anúncios de venda (1 linha por lead↔anúncio) — RPC vendas_funil.
+      supabaseAdmin.rpc('vendas_funil', { p_gestor: user.id }),
     ]);
 
   const embarcacoes = embarcacoesData ?? [];
   const roteiros = roteirosData ?? [];
   const reservas = (reservasData ?? []) as unknown as ReservaDashboard[];
+  const anunciosVenda = anunciosData ?? [];
+  const leadsFunil = (funilData ?? []).length;
 
   /* ── Cards ── */
   const pendentes = reservas.filter((r) => r.status === 'pendente').length;
   const embarcacoesAtivas = embarcacoes.filter((e) => e.status === 'ativo').length;
   const roteirosAtivos = roteiros.filter((r) => r.ativo).length;
   const totalClientes = new Set(reservas.map((r) => r.cliente_id)).size;
+  const anunciosAtivos = anunciosVenda.filter((a) => a.status === 'ativo').length;
 
   const stats = [
     {
@@ -123,6 +130,16 @@ export default async function PainelDashboardPage() {
       iconColor: 'text-emerald-600',
       href: '/painel/clientes',
     },
+    {
+      label: 'Anúncios de venda',
+      value: String(anunciosAtivos),
+      sub: `${leadsFunil} lead${leadsFunil !== 1 ? 's' : ''} no funil`,
+      subDot: leadsFunil > 0,
+      icon: Tag,
+      iconBg: 'bg-violet-50',
+      iconColor: 'text-violet-600',
+      href: '/painel/vendas/funil',
+    },
   ];
 
   /* ── Gráfico: reservas solicitadas nos últimos 6 meses ── */
@@ -162,7 +179,7 @@ export default async function PainelDashboardPage() {
   return (
     <div className="p-8">
       {/* Stats Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-5 mb-8">
+      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-5 gap-5 mb-8">
         {stats.map((stat) => (
           <Link
             key={stat.label}

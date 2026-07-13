@@ -8,16 +8,23 @@ import DatePicker, { type DateValue } from './search/DatePicker';
 import GuestPicker from './search/GuestPicker';
 import SearchTypeToggle, { type SearchType } from './search/SearchTypeToggle';
 import TipoEmbarcacaoPicker, { type TipoEmbarcacaoValue } from './search/TipoEmbarcacaoPicker';
+import TipoVendaPicker, { type TipoVendaOption } from './search/venda/TipoVendaPicker';
+import LocalidadeVendaPicker, { type LocalVendaOption, type LocalidadeVendaValue } from './search/venda/LocalidadeVendaPicker';
+import AnoVendaPicker, { type AnoVendaValue } from './search/venda/AnoVendaPicker';
+import ValorVendaPicker, { type ValorVendaValue } from './search/venda/ValorVendaPicker';
+import { buildVendaSearchUrl } from './search/venda/build-url';
 
-type ActivePanel = 'location' | 'date' | 'guests' | 'tipo' | null;
+type ActivePanel = 'location' | 'date' | 'guests' | 'tipo' | 'tipo_venda' | 'localidade' | 'ano' | 'valor' | null;
 
 const HERO_VIDEOS = ['/videos/hero01.mp4', '/videos/hero02.mp4', '/videos/hero03.mp4', '/videos/hero04.mp4'];
 
 type Props = {
   tiposEmbarcacao: TipoEmbarcacaoValue[];
+  tiposVenda: TipoVendaOption[];
+  locaisVenda: LocalVendaOption[];
 };
 
-export default function HeroSection({ tiposEmbarcacao }: Props) {
+export default function HeroSection({ tiposEmbarcacao, tiposVenda, locaisVenda }: Props) {
   const [location, setLocation] = useState<LocationValue | null>(null);
   const [date, setDate] = useState<DateValue | null>(null);
   const [guests, setGuests] = useState(0);
@@ -25,6 +32,12 @@ export default function HeroSection({ tiposEmbarcacao }: Props) {
   const [searchType, setSearchType] = useState<SearchType>('roteiro');
   const [active, setActive] = useState<ActivePanel>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+
+  // Filtros da aba Vendas (tipo obrigatório; demais opcionais).
+  const [tipoVenda, setTipoVenda] = useState<TipoVendaOption | null>(null);
+  const [localidadeVenda, setLocalidadeVenda] = useState<LocalidadeVendaValue | null>(null);
+  const [anoVenda, setAnoVenda] = useState<AnoVendaValue>({ min: '', max: '' });
+  const [valorVenda, setValorVenda] = useState<ValorVendaValue>({ min: '', max: '' });
 
   const [videoReady, setVideoReady] = useState(false);
   const [videoSrc, setVideoSrc] = useState<string | null>(null);
@@ -60,6 +73,21 @@ export default function HeroSection({ tiposEmbarcacao }: Props) {
   }
 
   function handleSearch() {
+    // A aba Vendas tem filtros e destino próprios (/vendas); tipo é obrigatório.
+    if (searchType === 'venda') {
+      if (!tipoVenda) {
+        setActive('tipo_venda');
+        return;
+      }
+      window.location.href = buildVendaSearchUrl({
+        tipo: tipoVenda,
+        localidade: localidadeVenda,
+        ano: anoVenda,
+        valor: valorVenda,
+      });
+      return;
+    }
+
     const params = new URLSearchParams();
     // A busca é orientada a roteiro: a aba "Embarcações" filtra roteiros pelo
     // tipo da embarcação vinculada, e o resultado é sempre em /buscar.
@@ -143,6 +171,81 @@ export default function HeroSection({ tiposEmbarcacao }: Props) {
           id="search-bar"
         >
           <div className="flex flex-col md:flex-row items-stretch gap-1">
+            {searchType === 'venda' ? (
+              <>
+                {/* Tipo (obrigatório) */}
+                <div className="flex-1 relative min-w-0">
+                  <TipoVendaPicker
+                    options={tiposVenda}
+                    value={tipoVenda}
+                    onChange={setTipoVenda}
+                    isOpen={active === 'tipo_venda'}
+                    onOpen={() => open('tipo_venda')}
+                    onClose={() => setActive(null)}
+                  />
+                </div>
+
+                <div className="hidden md:block w-px bg-slate-200 my-2 shrink-0" />
+
+                {/* Localidade (estado → cidade, opcional) */}
+                <div className="flex-1 relative min-w-0">
+                  <LocalidadeVendaPicker
+                    options={locaisVenda}
+                    value={localidadeVenda}
+                    onChange={setLocalidadeVenda}
+                    isOpen={active === 'localidade'}
+                    onOpen={() => open('localidade')}
+                    onClose={() => setActive(null)}
+                  />
+                  {localidadeVenda && (
+                    <button
+                      type="button"
+                      onClick={() => setLocalidadeVenda(null)}
+                      className="absolute right-2 top-1/2 -translate-y-1/2 h-6 w-6 rounded-full bg-slate-100 hover:bg-slate-200 flex items-center justify-center transition-colors"
+                    >
+                      <X className="h-3.5 w-3.5 text-slate-500" />
+                    </button>
+                  )}
+                </div>
+
+                <div className="hidden md:block w-px bg-slate-200 my-2 shrink-0" />
+
+                {/* Ano (opcional) */}
+                <div className="flex-1 relative min-w-0">
+                  <AnoVendaPicker
+                    value={anoVenda}
+                    onChange={setAnoVenda}
+                    isOpen={active === 'ano'}
+                    onOpen={() => open('ano')}
+                    onClose={() => setActive(null)}
+                  />
+                </div>
+
+                <div className="hidden md:block w-px bg-slate-200 my-2 shrink-0" />
+
+                {/* Valor (opcional) */}
+                <div className="flex-1 relative min-w-0">
+                  <ValorVendaPicker
+                    value={valorVenda}
+                    onChange={setValorVenda}
+                    isOpen={active === 'valor'}
+                    onOpen={() => open('valor')}
+                    onClose={() => setActive(null)}
+                  />
+                </div>
+
+                <button
+                  type="button"
+                  onClick={handleSearch}
+                  className="bg-[#0B3D91] hover:bg-[#092E6E] text-white rounded-xl p-3.5 flex items-center justify-center gap-2 transition-all hover:shadow-lg hover:scale-[1.03] active:scale-[0.97] cursor-pointer shrink-0 w-full md:w-auto"
+                  aria-label="Buscar embarcações à venda"
+                >
+                  <Search className="h-5 w-5" />
+                  <span className="font-semibold md:hidden">Buscar</span>
+                </button>
+              </>
+            ) : (
+              <>
             {/* Tipo de embarcação (apenas na busca por embarcação) */}
             {searchType === 'embarcacao' && (
               <>
@@ -261,6 +364,8 @@ export default function HeroSection({ tiposEmbarcacao }: Props) {
                 <span className="font-semibold md:hidden">Buscar</span>
               </button>
             </div>
+              </>
+            )}
           </div>
         </div>
       </div>

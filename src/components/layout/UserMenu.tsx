@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
-import { CalendarCheck, UserCog, LogOut, ChevronDown, Heart } from 'lucide-react';
+import { CalendarCheck, UserCog, LogOut, ChevronDown, Heart, MessageCircle } from 'lucide-react';
 
 type Props = {
   displayName: string;
@@ -79,6 +79,20 @@ export default function UserMenu({ displayName, email, avatarUrl, naoLidas = 0, 
 
           <nav className="py-1.5">
             <Link
+              href="/minhas-conversas"
+              onClick={() => setOpen(false)}
+              role="menuitem"
+              className="flex items-center gap-3 px-4 py-2.5 text-sm text-slate-700 hover:bg-slate-50 hover:text-[#0B3D91] transition-colors"
+            >
+              <MessageCircle className="h-4 w-4 text-slate-400" />
+              Minhas conversas
+              {naoLidas > 0 && (
+                <span className="ml-auto min-w-[18px] h-[18px] px-1 flex items-center justify-center rounded-full bg-red-500 text-white text-[10px] font-bold leading-none">
+                  {naoLidas > 99 ? '99+' : naoLidas}
+                </span>
+              )}
+            </Link>
+            <Link
               href="/minhas-reservas"
               onClick={() => setOpen(false)}
               role="menuitem"
@@ -86,11 +100,6 @@ export default function UserMenu({ displayName, email, avatarUrl, naoLidas = 0, 
             >
               <CalendarCheck className="h-4 w-4 text-slate-400" />
               Minhas reservas
-              {naoLidas > 0 && (
-                <span className="ml-auto min-w-[18px] h-[18px] px-1 flex items-center justify-center rounded-full bg-red-500 text-white text-[10px] font-bold leading-none">
-                  {naoLidas > 99 ? '99+' : naoLidas}
-                </span>
-              )}
             </Link>
             <Link
               href="/favoritos"

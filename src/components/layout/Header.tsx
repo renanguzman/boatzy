@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { usePathname, useRouter } from 'next/navigation';
-import { Menu, X, User, Globe, LogOut, Loader2, CalendarCheck, UserCog, Heart } from 'lucide-react';
+import { Menu, X, User, Globe, LogOut, Loader2, CalendarCheck, UserCog, Heart, MessageCircle } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { authorizeRealtime } from '@/lib/supabase/realtime';
 import type { User as SupabaseUser, RealtimeChannel } from '@supabase/supabase-js';
@@ -159,17 +159,25 @@ export default function Header() {
               {!authLoading && user && (
                 <>
                   <Link
+                    href="/minhas-conversas"
+                    onClick={() => setMobileMenuOpen(false)}
+                    className="flex items-center gap-2 px-3 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-50 rounded-lg"
+                  >
+                    <MessageCircle className="h-4 w-4 text-slate-400" />
+                    Minhas conversas
+                    {naoLidas > 0 && (
+                      <span className="ml-auto min-w-[18px] h-[18px] px-1 flex items-center justify-center rounded-full bg-red-500 text-white text-[10px] font-bold leading-none">
+                        {naoLidas > 99 ? '99+' : naoLidas}
+                      </span>
+                    )}
+                  </Link>
+                  <Link
                     href="/minhas-reservas"
                     onClick={() => setMobileMenuOpen(false)}
                     className="flex items-center gap-2 px-3 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-50 rounded-lg"
                   >
                     <CalendarCheck className="h-4 w-4 text-slate-400" />
                     Minhas reservas
-                    {naoLidas > 0 && (
-                      <span className="ml-auto min-w-[18px] h-[18px] px-1 flex items-center justify-center rounded-full bg-red-500 text-white text-[10px] font-bold leading-none">
-                        {naoLidas > 99 ? '99+' : naoLidas}
-                      </span>
-                    )}
                   </Link>
                   <Link
                     href="/favoritos"

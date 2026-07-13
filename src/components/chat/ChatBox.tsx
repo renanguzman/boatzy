@@ -41,6 +41,7 @@ export default function ChatBox({
   voltarHref,
   voltarLabel = 'Voltar',
   mensagensIniciais,
+  rascunhoInicial,
 }: {
   conversaId: string;
   meId: string;
@@ -48,9 +49,11 @@ export default function ChatBox({
   voltarHref: string;
   voltarLabel?: string;
   mensagensIniciais: Mensagem[];
+  /** Texto pré-preenchido no campo de envio (ex.: contexto do anúncio de venda). */
+  rascunhoInicial?: string;
 }) {
   const [mensagens, setMensagens] = useState<Mensagem[]>(mensagensIniciais);
-  const [texto, setTexto] = useState('');
+  const [texto, setTexto] = useState(rascunhoInicial ?? '');
   const [enviando, startEnvio] = useTransition();
 
   const supabaseRef = useRef(createClient());

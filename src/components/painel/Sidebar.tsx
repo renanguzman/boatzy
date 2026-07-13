@@ -18,6 +18,7 @@ import {
   LogOut,
   HelpCircle,
   BookOpen,
+  Tag,
 } from 'lucide-react';
 import clsx from 'clsx';
 
@@ -26,6 +27,7 @@ const navItems = [
   { href: '/painel/agendamentos', label: 'AGENDAMENTOS', icon: CalendarDays, exact: false, tour: 'nav-agendamentos' },
   { href: '/painel/embarcacoes', label: 'EMBARCAÇÕES', icon: Ship, exact: false, tour: 'nav-embarcacoes' },
   { href: '/painel/roteiros', label: 'ROTEIROS', icon: MapPin, exact: false, tour: 'nav-roteiros' },
+  { href: '/painel/vendas', label: 'VENDAS', icon: Tag, exact: false, tour: 'nav-vendas' },
   { href: '/painel/catalogo', label: 'CATÁLOGO', icon: BookOpen, exact: false, tour: 'nav-catalogo' },
   { href: '/painel/clientes', label: 'CLIENTES', icon: Users, exact: false, tour: 'nav-clientes' },
   { href: '/painel/receitas', label: 'RECEITAS', icon: DollarSign, exact: false, tour: 'nav-receitas' },

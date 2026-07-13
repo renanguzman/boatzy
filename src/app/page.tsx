@@ -7,15 +7,23 @@ import FeaturedChartersSection from '@/components/home/FeaturedChartersSection';
 import BenefitsSection from '@/components/home/BenefitsSection';
 import MomentsSection from '@/components/home/MomentsSection';
 import { getTiposEmbarcacaoComRoteiro } from '@/lib/tipos-embarcacao';
+import { getFiltrosVenda } from '@/lib/vendas-filtros';
 
 export default async function HomePage() {
-  const tiposEmbarcacao = await getTiposEmbarcacaoComRoteiro();
+  const [tiposEmbarcacao, filtrosVenda] = await Promise.all([
+    getTiposEmbarcacaoComRoteiro(),
+    getFiltrosVenda(),
+  ]);
 
   return (
     <div className="min-h-screen flex flex-col">
       <Header />
       <main className="flex-1">
-        <HeroSection tiposEmbarcacao={tiposEmbarcacao} />
+        <HeroSection
+          tiposEmbarcacao={tiposEmbarcacao}
+          tiposVenda={filtrosVenda.tipos}
+          locaisVenda={filtrosVenda.locais}
+        />
         <TrustBadges />
         <FeaturedChartersSection />
         <TopRatedSection />

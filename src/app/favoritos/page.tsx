@@ -8,6 +8,7 @@ import { supabaseAdmin } from '@/lib/supabase';
 import { getAvaliacoesResumoPorRoteiro, getAvaliacoesResumoPorEmbarcacao } from '@/lib/avaliacoes';
 import RoteiroCard, { type RoteiroCardData } from '../buscar/_components/RoteiroCard';
 import EmbarcacaoCard, { type EmbarcacaoCardData } from '@/components/ui/EmbarcacaoCard';
+import AnuncioVendaCard, { type AnuncioVendaCardData } from '../vendas/_components/AnuncioVendaCard';
 import RemoverFavoritoButton from './_components/RemoverFavoritoButton';
 
 type EmbarcacaoFavoritaRow = {
@@ -21,12 +22,50 @@ type EmbarcacaoFavoritaRow = {
   embarcacao_imagens: { url_imagem: string; principal: boolean }[];
 };
 
+type AnuncioFavoritoRow = {
+  id: string;
+  fabricante: string;
+  ano_modelo: number;
+  ano_fabricacao: number;
+  preco: number;
+  status: string;
+  embarcacao: {
+    nome: string;
+    capacidade: number | null;
+    comprimento: number | null;
+    status: string;
+    embarcacao_tipo: { nome: string } | null;
+    municipios: { nome: string; estados: { uf: string } | null } | null;
+    embarcacao_imagens: { url_imagem: string; principal: boolean }[];
+  } | null;
+};
+
 type FavoritoRow = {
   id: string;
   created_at: string;
   roteiro: (RoteiroCardData & { ativo: boolean }) | null;
   embarcacao: EmbarcacaoFavoritaRow | null;
+  anuncio_venda: AnuncioFavoritoRow | null;
 };
+
+function toAnuncioCardData(a: AnuncioFavoritoRow, precoAnterior: number | null): AnuncioVendaCardData {
+  const imgs = a.embarcacao?.embarcacao_imagens ?? [];
+  const m = a.embarcacao?.municipios;
+  return {
+    id: a.id,
+    nome: a.embarcacao?.nome ?? 'Embarcação',
+    fabricante: a.fabricante,
+    ano_modelo: a.ano_modelo,
+    ano_fabricacao: a.ano_fabricacao,
+    preco: Number(a.preco),
+    precoAnterior,
+    tipo: a.embarcacao?.embarcacao_tipo?.nome ?? null,
+    localidade: m ? (m.estados ? `${m.nome}, ${m.estados.uf}` : m.nome) : null,
+    capacidade: a.embarcacao?.capacidade ?? null,
+    comprimento: a.embarcacao?.comprimento != null ? Number(a.embarcacao.comprimento) : null,
+    imagem: (imgs.find((i) => i.principal) ?? imgs[0])?.url_imagem ?? null,
+  };
+}
 
 function toEmbarcacaoCardData(e: EmbarcacaoFavoritaRow): EmbarcacaoCardData {
   return {
@@ -68,6 +107,15 @@ export default async function FavoritosPage() {
          embarcacao_tipo ( nome ),
          municipios ( nome, estados ( uf ) ),
          embarcacao_imagens ( url_imagem, principal )
+       ),
+       anuncio_venda (
+         id, fabricante, ano_modelo, ano_fabricacao, preco, status,
+         embarcacao (
+           nome, capacidade, comprimento, status,
+           embarcacao_tipo ( nome ),
+           municipios ( nome, estados ( uf ) ),
+           embarcacao_imagens ( url_imagem, principal )
+         )
        )`,
     )
     .eq('user_id', user.id)
@@ -87,13 +135,44 @@ export default async function FavoritosPage() {
       f.embarcacao != null && f.embarcacao.status === 'ativo',
   );
 
+  // Anúncios encerrados/pausados ou de embarcação inativa não aparecem.
+  const favoritosAnuncio = rows.filter(
+    (f): f is FavoritoRow & { anuncio_venda: NonNullable<FavoritoRow['anuncio_venda']> } =>
+      f.anuncio_venda != null &&
+      f.anuncio_venda.status === 'ativo' &&
+      f.anuncio_venda.embarcacao?.status === 'ativo',
+  );
+
   // Média/total de avaliações por item favoritado (exibida no card quando houver).
   const [avaliacoesRoteiro, avaliacoesEmbarcacao] = await Promise.all([
     getAvaliacoesResumoPorRoteiro(favoritosRoteiro.map((f) => f.roteiro.id)),
     getAvaliacoesResumoPorEmbarcacao(favoritosEmbarcacao.map((f) => f.embarcacao.id)),
   ]);
 
-  const vazio = favoritosRoteiro.length === 0 && favoritosEmbarcacao.length === 0;
+  // Preço anterior dos anúncios favoritados (selo "Preço reduzido" no card).
+  const precoAnterior = new Map<string, number>();
+  if (favoritosAnuncio.length > 0) {
+    const { data: precos } = await supabaseAdmin
+      .from('anuncio_venda_preco')
+      .select('anuncio_id, preco, created_at')
+      .in('anuncio_id', favoritosAnuncio.map((f) => f.anuncio_venda.id))
+      .order('created_at', { ascending: false });
+    const vistos = new Map<string, number>();
+    for (const p of precos ?? []) {
+      const n = (vistos.get(p.anuncio_id) ?? 0) + 1;
+      vistos.set(p.anuncio_id, n);
+      if (n === 2) precoAnterior.set(p.anuncio_id, Number(p.preco));
+    }
+  }
+
+  const vazio =
+    favoritosRoteiro.length === 0 &&
+    favoritosEmbarcacao.length === 0 &&
+    favoritosAnuncio.length === 0;
+  const tiposPresentes =
+    (favoritosRoteiro.length > 0 ? 1 : 0) +
+    (favoritosEmbarcacao.length > 0 ? 1 : 0) +
+    (favoritosAnuncio.length > 0 ? 1 : 0);
 
   return (
     <div className="min-h-screen flex flex-col bg-slate-50">
@@ -125,7 +204,7 @@ export default async function FavoritosPage() {
           <>
             {favoritosRoteiro.length > 0 && (
               <section className="mt-6">
-                {favoritosEmbarcacao.length > 0 && (
+                {tiposPresentes > 1 && (
                   <h2 className="text-lg font-semibold text-[#0B2447] mb-4">Roteiros</h2>
                 )}
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
@@ -145,7 +224,7 @@ export default async function FavoritosPage() {
 
             {favoritosEmbarcacao.length > 0 && (
               <section className="mt-8">
-                {favoritosRoteiro.length > 0 && (
+                {tiposPresentes > 1 && (
                   <h2 className="text-lg font-semibold text-[#0B2447] mb-4">Embarcações</h2>
                 )}
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
@@ -157,6 +236,28 @@ export default async function FavoritosPage() {
                         avaliacaoResumo={avaliacoesEmbarcacao.get(f.embarcacao.id) ?? null}
                       />
                       <RemoverFavoritoButton embarcacaoId={f.embarcacao.id} />
+                    </div>
+                  ))}
+                </div>
+              </section>
+            )}
+
+            {favoritosAnuncio.length > 0 && (
+              <section className="mt-8">
+                {tiposPresentes > 1 && (
+                  <h2 className="text-lg font-semibold text-[#0B2447] mb-4">À venda</h2>
+                )}
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
+                  {favoritosAnuncio.map((f) => (
+                    <div key={f.id} className="space-y-2">
+                      <AnuncioVendaCard
+                        anuncio={toAnuncioCardData(
+                          f.anuncio_venda,
+                          precoAnterior.get(f.anuncio_venda.id) ?? null,
+                        )}
+                        initialFavorito
+                      />
+                      <RemoverFavoritoButton anuncioVendaId={f.anuncio_venda.id} />
                     </div>
                   ))}
                 </div>

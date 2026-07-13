@@ -2236,3 +2236,344 @@ type Passo = {
 - **Persistência:** `localStorage['boatzy:tutorial-painel:v1'] = 'concluido'`. Abre sozinho (após
   600ms) apenas em `/painel` quando a chave não existe; qualquer forma de encerrar grava a chave.
   Acesso ao `localStorage` é protegido por `try/catch` (modo privado).
+
+---
+
+## 29. Módulo de Vendas de Embarcações (fundação de dados)
+
+Migrations: `supabase/migrations/20260712_vendas.sql` (tabelas, RLS, favorito) e
+`supabase/migrations/20260713_vendas_rpcs.sql` (RPCs). Plano completo do módulo:
+`docs/planejamento-vendas.md`. **Status: Fases 1–5 implementadas** (dados §29.1–29.4 · painel
+cadastro §29.5 · site busca §29.6 · site detalhe/interações §29.7 · funil no painel §29.8).
+Resta a Fase 6 (testes manuais ponta a ponta em produção).
+
+Cadeia de migrations validada de ponta a ponta em Postgres Supabase descartável (Docker,
+`supabase/postgres:15.8.1.085`), incluindo smoke test de constraints, RPCs e RLS (anon, lead
+autenticado e gestor).
+
+### 29.1 Modelo de dados
+
+#### Enums
+
+```sql
+anuncio_venda_status   ENUM ('ativo', 'pausado', 'vendido', 'cancelado')
+anuncio_interacao_tipo ENUM ('visualizou', 'revelou_contato', 'favoritou', 'compartilhou', 'conversou')
+```
+
+#### Tabela `anuncio_venda`
+
+```sql
+id              uuid PK default gen_random_uuid()
+embarcacao_id   uuid NOT NULL FK → embarcacao(id) ON DELETE CASCADE
+owner_id        uuid NOT NULL FK → users(id) ON DELETE CASCADE  -- denormalizado p/ RLS e funil
+fabricante      text NOT NULL
+ano_modelo      integer NOT NULL CHECK (1900..2100)
+ano_fabricacao  integer NOT NULL CHECK (1900..2100)
+preco           numeric(12,2) NOT NULL CHECK (> 0)   -- preço vigente
+descricao_venda text
+status          anuncio_venda_status NOT NULL default 'ativo'
+visualizacoes   bigint NOT NULL default 0            -- contador (anônimo + logado)
+created_at / updated_at (trigger anuncio_venda_updated_at_trigger)
+```
+
+- **UNIQUE parcial** `(embarcacao_id) WHERE status IN ('ativo','pausado')` — um anúncio
+  vigente por embarcação; `vendido` e `cancelado` encerram o ciclo e liberam novo anúncio
+  (vendido = negócio concluído; cancelado = anúncio encerrado sem venda).
+- Dados técnicos/fotos/categoria/localização vêm da `embarcacao` vinculada (fonte única, sem
+  duplicação). Validações relacionais dos anos (modelo × fabricação) ficam na server action.
+- **Sem DELETE** (nem policy): ciclo de vida é status, preservando histórico e leads.
+- Índices: `owner_id`, `status`, `preco`, `ano_modelo`.
+- **RLS:** `service_role_all`; público (anon+authenticated) SELECT só de anúncio `ativo` **com
+  embarcação ativa** (regra §15-C); owner SELECT (qualquer status), INSERT (exige ser dono da
+  embarcação) e UPDATE dos próprios.
+
+#### Tabela `anuncio_venda_preco` (histórico, append-only)
+
+```sql
+id uuid PK · anuncio_id uuid NOT NULL FK → anuncio_venda ON DELETE CASCADE
+preco numeric(12,2) NOT NULL CHECK (> 0) · created_at timestamptz
+```
+
+- Escrita na server action junto com INSERT/UPDATE do anúncio (sem trigger, decisão de escopo);
+  o selo público "Preço reduzido" compara o vigente com o registro imediatamente anterior.
+- Índice `(anuncio_id, created_at DESC)`. **RLS:** leitura pública apenas de anúncios
+  publicamente visíveis (ou do próprio owner); INSERT só do owner; sem UPDATE/DELETE.
+
+#### Tabela `anuncio_venda_interacao` (eventos do funil, append-only)
+
+```sql
+id uuid PK · anuncio_id FK → anuncio_venda · user_id FK → users
+tipo anuncio_interacao_tipo NOT NULL · created_at timestamptz
+UNIQUE (anuncio_id, user_id, tipo)   -- registro idempotente, 1 evento de cada tipo por lead
+```
+
+- Só usuário **logado** gera evento; visualização anônima conta apenas em
+  `anuncio_venda.visualizacoes`. Desfavoritar não remove o evento (o funil mede interesse
+  demonstrado). O **estágio do lead é derivado** dos eventos na RPC `vendas_funil` — nunca
+  persistido.
+- Índices: `(anuncio_id, tipo)` e `(user_id)`. **RLS:** INSERT do próprio `user_id` apenas em
+  anúncio publicamente visível; SELECT do próprio usuário **ou** do dono do anúncio; sem
+  UPDATE/DELETE.
+
+#### `favorito` — novo alvo
+
+Coluna `anuncio_venda_id uuid FK` (nullable); `favorito_um_alvo_check` recriada com
+`num_nonnulls(roteiro_id, embarcacao_id, anuncio_venda_id) = 1`; UNIQUE parcial
+`(user_id, anuncio_venda_id)` + índice parcial — mesmo padrão da `20260709_favoritos_embarcacao`.
+
+### 29.2 RPCs (`20260713_vendas_rpcs.sql`)
+
+- **`buscar_anuncios_venda(p_tipo_id, p_estado_id, p_municipio_id, p_ano_min, p_ano_max,
+  p_preco_min, p_preco_max, p_limit=24, p_offset=0)`** → `(id, total)` — mesmo padrão de
+  `buscar_roteiros` (ids + total; a página compõe detalhes via select/embed). Todos os filtros
+  opcionais na RPC (a UI torna o tipo obrigatório); tipo/estado/município resolvidos
+  via `embarcacao` → `municipios`; ano filtra `ano_modelo`; só anúncio ativo + embarcação ativa;
+  ordena por `created_at DESC`. GRANT anon/authenticated/service_role.
+- **`registrar_visualizacao_anuncio(p_anuncio)`** → void — incrementa `visualizacoes` (só anúncio
+  publicamente visível). `SECURITY DEFINER` (anon/authenticated não têm UPDATE na tabela).
+  GRANT anon/authenticated/service_role.
+- **`vendas_locais()`** → `(estado_id, estado_nome, uf, municipio_id, municipio_nome, total)` —
+  municípios (com estado) que possuem anúncio ativo, para os selects de localidade (só oferta o
+  que existe, filosofia de `/api/buscar/locais`). O client agrupa por estado. GRANT
+  anon/authenticated/service_role. Embarcação sem `municipio_id` não aparece aqui nem no filtro
+  de localidade.
+- **`vendas_funil(p_gestor DEFAULT auth.uid())`** → `(anuncio_id, embarcacao_nome, user_id,
+  lead_nome, lead_avatar, eventos text[], estagio, ultima_interacao)` — um lead por par
+  anúncio↔usuário; `estagio` = evento mais quente (1 visualizou · 2 revelou_contato ·
+  3 favoritou · 4 compartilhou · 5 conversou; a "temperatura" mora só nesta função).
+  `SECURITY DEFINER` (RLS de `users` impede o browser de ler nome/avatar de terceiros, mesmo
+  motivo de `chat_conversas_nao_lidas`) com **guarda anti-spoof** `p_gestor = auth.uid() OR
+  auth.uid() IS NULL` — endurecimento sobre o padrão das RPCs de chat: gestor autenticado não
+  consulta funil alheio; service role (auth.uid() nulo) passa qualquer `p_gestor`. GRANT apenas
+  authenticated/service_role.
+
+### 29.3 Tipos TypeScript
+
+`src/types/supabase.ts`: tipos `AnuncioVendaStatus` e `AnuncioInteracaoTipo`; tabelas
+`anuncio_venda`, `anuncio_venda_preco`, `anuncio_venda_interacao` (Row/Insert/Update +
+Relationships); `favorito` com `anuncio_venda_id`; as 4 RPCs em `Functions`; enums registrados
+em `Enums`.
+
+### 29.4 Convenção de nomes de migration
+
+A migration de RPCs foi nomeada `20260713_…` (e não `20260712b_…`) porque o sufixo alfabético
+gera **ordem ambígua** conforme o locale do sort (`_` × letras) — detectado ao validar a cadeia
+completa em container. Ao criar migrations no mesmo dia, preferir avançar a data/prefixo
+numérico a sufixar letras.
+
+### 29.4-B Correção — busca por TIPO, não categoria (13/07/2026)
+
+Migration `20260714_vendas_busca_por_tipo.sql`. A busca de Vendas é de **embarcação**, então o
+filtro primário obrigatório é o **tipo** (`embarcacao_tipo`: Lancha, Iate, Jet Ski…), não a
+**categoria** (`embarcacao_categoria`: Passeio, Pesca, Luxo…), que é orientada a passeio e fazia a
+busca "parecer venda de passeio". A migration faz **DROP + CREATE** de `buscar_anuncios_venda`
+(o Postgres não permite renomear parâmetro de entrada com `CREATE OR REPLACE`), trocando
+`p_categoria_id`/`embarcacao_categoria_id` por `p_tipo_id`/`embarcacao_tipo_id`. Validada em
+Postgres descartável (filtro por tipo, sem filtro, tipo+preço, `vendas_locais`).
+
+Ajustes de código correspondentes (todos os "locais necessários"):
+- **Picker:** `CategoriaVendaPicker` → `TipoVendaPicker` (rótulo "Tipo", ícone `Ship`).
+- **Filtros:** `getFiltrosVenda()` retorna `{ tipos, locais }` (embed `embarcacao_tipo`);
+  `build-url` usa o param `tipo` (era `categoria`).
+- **Busca/UI:** `HeroSection` (prop `tiposVenda`), `VendasSearchBar` (prop `tipos`), página
+  `/vendas` (param `tipo`, chip "Tipo: …", título, card badge de tipo), `AnuncioVendaCard.tipo`,
+  `/favoritos` (embed `embarcacao_tipo`).
+- **Cadastro:** `AnuncioForm`/`actions`/`novo`/`editar` exigem **tipo** quando a embarcação não
+  tem (grava `embarcacao_tipo_id`); selects carregam `embarcacao_tipo`.
+- **Detalhe `/vendas/[id]`:** removido o badge de categoria (mostra só o tipo), para consistência.
+  A **categoria da embarcação permanece intacta** no banco e nos contextos de aluguel
+  (roteiros/embarcações) — a mudança é escopada ao módulo de Vendas.
+
+### 29.5 Painel do gestor — módulo Vendas (`/painel/vendas`) — Fase 2
+
+Estrutura em `src/app/painel/(gestao)/vendas/` (protegida pelo layout `(gestao)`):
+
+| Arquivo | Papel |
+| --- | --- |
+| `page.tsx` | Grid: anúncios do gestor (embed `embarcacao` + imagens) + leads por anúncio via RPC `vendas_funil` (`supabaseAdmin`, `p_gestor` explícito — service role passa a guarda) |
+| `_components/VendasGrid.tsx` | `'use client'` — busca (nome/fabricante), ordenação por coluna, paginação (10/pág, padrão dos grids); toggle Ativo/Pausado; modal de confirmação para encerramento (vendido/cancelado) |
+| `_components/AnuncioForm.tsx` | Form compartilhado novo/editar (`modo`), card-resumo da embarcação, categoria condicional, histórico de preço na edição |
+| `_components/embarcacao-option.ts` | `EmbarcacaoRow`/`toOption`/`EMBARCACAO_OPTION_SELECT` — shape do select de embarcação |
+| `novo/page.tsx` | Elegíveis = embarcações **ativas** do gestor **sem anúncio vigente** (`status IN (ativo,pausado)`); estado vazio com CTAs |
+| `[id]/editar/page.tsx` | Posse via `owner_id`; anúncio encerrado redireciona ao grid; carrega histórico (`anuncio_venda_preco` desc) |
+| `actions.ts` | Server actions (abaixo) |
+
+**Server actions** (`actions.ts`, padrão `checkRoleInDb(['gestor','admin'])` + posse via `supabaseAdmin`):
+
+- `criarAnuncio(payload)` — valida campos (fabricante, anos 1900..ano+1, preço > 0); exige
+  embarcação própria **e ativa**; sem categoria → exige `categoriaId` e grava na embarcação;
+  INSERT do anúncio + primeiro registro em `anuncio_venda_preco`; `23505` (UNIQUE parcial) vira
+  erro amigável "já possui anúncio vigente".
+- `atualizarAnuncio(anuncioId, payload)` — embarcação vinculada não muda; anúncio encerrado não
+  edita; se o preço mudou, INSERT no histórico (é o que alimenta o selo "Preço reduzido").
+- `alterarStatusAnuncio(anuncioId, novoStatus)` — ativo ↔ pausado (toggle direto no grid);
+  vendido/cancelado são terminais (modal de confirmação na UI; não há reabertura nem DELETE).
+
+**Sidebar/Tutorial:** item `VENDAS` (ícone `Tag`, `data-tour="nav-vendas"`) entre ROTEIROS e
+CATÁLOGO; novo passo no tutorial guiado (§28 — a sequência passou de 12 para **13 passos**, com
+o passo Vendas entre Roteiros e Catálogo; marcador `nav-vendas` adicionado à lista do §28.4).
+
+Validação da fase: `tsc`, ESLint e `next build` (rotas `/painel/vendas`, `/novo`,
+`/[id]/editar`). Validações relacionais entre anos (modelo × fabricação) ficaram para o
+refinamento — o form/action valida apenas faixas.
+
+### 29.6 Site — busca e resultados de Vendas (`/vendas`) — Fase 3
+
+**Aba no toggle:** `SearchTypeToggle` ganhou `'venda'` (`SearchType = 'roteiro' | 'embarcacao' |
+'venda'`, ícone `Tag`) — Hero e barras compactas.
+
+**Pickers de venda** — `src/components/home/search/venda/` (mesmo padrão visual do
+`TipoEmbarcacaoPicker`, opções carregadas no servidor):
+
+| Componente | Valor | Observações |
+| --- | --- | --- |
+| `TipoVendaPicker` | `{ id, nome } \| null` | **Obrigatório** — buscar sem tipo abre o seletor em vez de navegar. Usa `embarcacao_tipo` (Lancha, Iate, Jet Ski…), **não** `embarcacao_categoria` (Passeio/Pesca/Luxo, orientada a passeio) — a venda é de embarcação |
+| `LocalidadeVendaPicker` | `{ estadoId, estadoNome, uf, municipioId?, municipioNome? } \| null` | Dropdown em 2 etapas (estados → cidades do estado, com "Todo o estado" e contagens); cidade opcional |
+| `AnoVendaPicker` | `{ min, max }` (strings) | Faixa de/até com rascunho local + "Aplicar"; normaliza faixa invertida |
+| `ValorVendaPicker` | `{ min, max }` (strings) | Idem faixa/normalização |
+| `labels.ts` | — | Helpers **puros** `anoVendaLabel()`/`valorVendaLabel()`/`valorCompacto()` ("R$ 450 mil", "R$ 1,2 mi") em módulo **neutro** (sem `'use client'`) — a página `/vendas` (Server Component) os chama no servidor; os pickers importam e re-exportam. Definir esses helpers no arquivo `'use client'` quebra em runtime ("Attempted to call … from the server but … is on the client"). |
+| `build-url.ts` | — | `buildVendaSearchUrl(state)` → `/vendas?categoria=&estado=&cidade=&ano_min=&ano_max=&preco_min=&preco_max=` (compartilhado Hero/barra) |
+
+**Fonte das opções** — `src/lib/vendas-filtros.ts` (`server-only`): `getFiltrosVenda()` retorna
+`{ tipos, locais }` — tipos com anúncio **ativo** (embed `anuncio_venda → embarcacao →
+embarcacao_tipo`, dedupe) e locais via RPC `vendas_locais`. **Decisão:** não foi criada a
+rota `/api/vendas/locais` prevista no plano — as opções são passadas por props do Server
+Component, como o `TipoEmbarcacaoPicker` já faz (não há autocomplete/fetch dinâmico que
+justifique API).
+
+**Integração:**
+- `HeroSection` (novas props `categoriasVenda`/`locaisVenda`, injetadas por `src/app/page.tsx` via
+  `getFiltrosVenda()`): na aba Vendas a barra troca os pickers (local/data/pessoas → categoria/
+  localidade/ano/valor) e o submit navega para `/vendas`.
+- `SearchBarCompact` (`/buscar`): selecionar a aba Vendas navega para `/vendas` (filtros de
+  roteiro são descartados — domínios diferentes). No sentido inverso, `VendasSearchBar` navega
+  para `/buscar` / `/buscar?tipo=embarcacao`.
+
+**Página `/vendas`** (`src/app/vendas/page.tsx`, Server Component — mesmo esqueleto de `/buscar`):
+- Query params: `categoria, estado, cidade, ano_min, ano_max, preco_min, preco_max, pagina`.
+  Rótulos de chips/título resolvidos em memória a partir de `getFiltrosVenda()` (sem query extra).
+- RPC `buscar_anuncios_venda` (ids + total, 24/página) → detalhes via select/embed preservando a
+  ordem; **preço anterior** resolvido em lote: `anuncio_venda_preco` dos ids da página ordenado
+  desc, tomando o 2º registro de cada anúncio.
+- UI: barra compacta sticky (`VendasSearchBar`), chips removíveis por filtro, título contextual
+  ("<Categoria> à venda em <Cidade, UF>"), grid 1→2→3→4, paginação server-side, estado vazio com
+  "Limpar filtros".
+- `_components/AnuncioVendaCard.tsx`: imagem principal, selo **"Preço reduzido ↓"** (só quando
+  vigente < anterior; aumento nunca aparece), badge de categoria, nome, fabricante · ano
+  modelo/fabricação, localidade, capacidade, comprimento, preço em destaque + anterior riscado.
+  Link → `/vendas/[id]` (detalhe é a Fase 4; até lá o link resulta em 404). O coração de
+  favoritar entra na Fase 4 junto com os eventos de lead.
+
+### 29.7 Site — detalhe do anúncio (`/vendas/[id]`) — Fase 4
+
+**Página** (`src/app/vendas/[id]/page.tsx`, Server Component):
+- Carrega o anúncio com `status = 'ativo'` + embarcação embed; embarcação fora de `'ativo'` →
+  `notFound()` (pausado/vendido/cancelado idem).
+- **Contador:** chama `registrar_visualizacao_anuncio` a cada abertura (anônimo e logado).
+- **Gate de login:** deslogado recebe o *teaser* — galeria (`GaleriaRoteiro` reutilizada), badges
+  (selo de redução/categoria/tipo), nome, localidade e preço + CTA
+  `/entrar?redirect_to=/vendas/[id]`. Nenhum dado sensível (vendedor, ficha completa) é enviado.
+- **Logado:** registra `visualizou` (INSERT idempotente; `23505` ignorado; **dono não registra**),
+  e renderiza ficha técnica (fabricante/anos do anúncio + specs da embarcação), "Sobre esta
+  venda" (`descricao_venda`), descrição/comodidades da embarcação, mapa (`LocalizacaoMap`; só
+  bairro/cidade no texto — logradouro não é exposto na venda), avaliações (`AvaliacoesSection`
+  por `embarcacao_id`) e a sidebar.
+- **Selo de redução:** últimos 2 registros de `anuncio_venda_preco`; reduzido = vigente <
+  anterior; a data exibida é a do registro vigente.
+
+**Sidebar** (`_components/VendaSidebar.tsx`, `'use client'`):
+- Preço (com "De X por Y · reduzido em DD/MM"), card do vendedor com **nome mascarado no
+  servidor** (`mascararNome`: "R***** G*****") — o nome completo/e-mail nunca vão pré-renderizados.
+- **Revelar contato** → `revelarContatoVendedor` (abaixo); **Conversar com o vendedor** →
+  `/vendas/[id]/chat`; **Favoritar/Compartilhar** no padrão §23.3 (ícones de marca inline).
+- `ehDono`: dono vê "Este é o seu anúncio" + atalho ao painel; sem revelar/chat/favorito.
+
+**Server actions** (`src/lib/vendas-actions.ts`):
+- Helper `registrarInteracao` — INSERT idempotente em `anuncio_venda_interacao`; **ignora o
+  dono** (gestor não é lead de si mesmo). Usada por todas as actions.
+- `revelarContatoVendedor(anuncioId)` → valida sessão + anúncio visível; registra
+  `revelou_contato`; retorna `{ nome, email, avatar_url }`. (Telefone: questão em aberto §9 do
+  plano — `users` não tem o campo.)
+- `registrarCompartilhamentoAnuncio(anuncioId)` → registra `compartilhou` (deslogado não pontua;
+  o share em si roda no client).
+- `alternarFavoritoAnuncio(anuncioId)` (**`favoritos-actions.ts`**) — mesma semântica das demais;
+  ao favoritar registra `favoritou` (desfavoritar não remove o evento).
+
+**Chat** (`/vendas/[id]/chat/page.tsx` — espelho de `/minhas-reservas/[id]/chat`):
+- Gate de auth; anúncio visível; **dono → redirect ao anúncio** (a CHECK de `conversa` bloqueia
+  self-chat); upsert da conversa gestor↔cliente (única por par, §21 — sem alteração no modelo);
+  registra `conversou`; zera não lidas; `ChatBox` com `voltarHref` ao anúncio.
+- `ChatBox` ganhou a prop opcional **`rascunhoInicial`** — em conversa vazia, o campo vem
+  pré-preenchido: `Olá! Tenho interesse na "<nome>" anunciada por R$ X. Podemos conversar?`.
+- O comprador reencontra a conversa pelo próprio anúncio; a página "Minhas conversas" segue como
+  questão em aberto (§9 do plano).
+
+**Card e favoritos:**
+- `AnuncioVendaCard` ganhou o coração (toggle otimista; deslogado → `/entrar` com `fav_anuncio=<id>`
+  no retorno e **auto-favorito pós-login**, padrão §23.5); `/vendas` resolve o `Set` de favoritos
+  do usuário em lote.
+- `/favoritos` ganhou a seção **"À venda"** (`AnuncioVendaCard` + `RemoverFavoritoButton` com novo
+  prop `anuncioVendaId`); anúncios pausados/encerrados ou de embarcação inativa não aparecem;
+  cabeçalhos de seção exibidos quando há mais de um tipo.
+
+### 29.8 Painel — funil de vendas (`/painel/vendas/funil`) — Fase 5
+
+**Página** (`funil/page.tsx`, Server Component, protegida pelo layout `(gestao)`):
+- Carrega os anúncios do gestor (id, status, `visualizacoes`, preço, nome da embarcação) e os
+  leads via RPC `vendas_funil` (`supabaseAdmin` com `p_gestor` explícito — service role passa a
+  guarda anti-spoof). Aceita `?anuncio=<id>` como filtro inicial (é o link da ação "Funil" do
+  grid).
+
+**Board** (`funil/_components/FunilBoard.tsx`, `'use client'`):
+- **Filtro por anúncio** (select; "Todos os anúncios" default) — todo o board e as métricas
+  reagem em memória (dados já carregados; sem nova query).
+- **Métricas:** Visualizações (soma do contador dos anúncios filtrados), Leads no funil,
+  Em negociação (estágio 5) e conversão Visualização→conversa (%).
+- **Kanban 5 colunas** (accent color por coluna): 1 Visitante (slate) · 2 Interessado (sky) ·
+  3 Engajado (amber) · 4 Promotor (violet) · 5 Em negociação (emerald). O lead entra na coluna
+  do `estagio` (evento mais quente, derivado na RPC — sem drag-and-drop nesta versão).
+- **Card do lead:** avatar (ou inicial), nome, tempo relativo da última interação, nome do
+  anúncio (no modo "Todos"), badges com ícone por evento (tooltip) e atalho de **chat** →
+  `/painel/clientes/[user_id]/chat` (o lead é um cliente; a conversa é a mesma do §21).
+- Estado vazio orientando como os leads surgem. Colunas com placeholder tracejado quando vazias.
+
+**Entradas:**
+- Grid `/painel/vendas`: ação **Funil** (ícone `Filter`) por linha — vigentes e **encerrados**
+  (leads são preservados; anúncio encerrado tem só essa ação) — e botão "Funil de vendas" no
+  header da página.
+- Dashboard `/painel`: 5º card **"Anúncios de venda"** (nº ativos + "N leads no funil", dot verde
+  quando há leads) → `/painel/vendas/funil`; grid de stats passou de `xl:grid-cols-4` para
+  `xl:grid-cols-5`; consultas do dashboard ganharam `anuncio_venda` + `vendas_funil` no
+  `Promise.all`.
+
+**Refinamentos futuros (fora desta versão):** realtime no board (padrão do sino §21.4b),
+drag-and-drop/movimentação manual de estágio, notificação de novos leads no sino.
+
+### 29.9 "Minhas conversas" — hub de chat do cliente (correção pós-Fase 4)
+
+Migration `20260715_chat_conversas_cliente.sql`. **Problema:** a conversa gestor↔cliente é única
+por par (§21); o comprador que conversava sobre uma **venda sem ter reserva** não tinha por onde
+reabrir a conversa — o único acesso do cliente ao chat era `/minhas-reservas/[id]/chat` (indexado
+por reserva). O badge de não lidas aparecia, mas sem destino para a conversa de venda.
+
+**RPC** `chat_conversas_cliente(p_cliente DEFAULT auth.uid())` → `(conversa_id, gestor_id,
+gestor_nome, gestor_avatar, ultima_mensagem, ultima_em, nao_lidas)` — espelho do lado cliente de
+`chat_conversas_nao_lidas` (§21.4b), mas lista **todas** as conversas do cliente **com pelo menos
+uma mensagem** (não só as com não lidas). `security definer` (RLS de `users` esconde nome/avatar
+do gestor) + guarda `p_cliente = auth.uid() OR auth.uid() IS NULL`.
+
+**Páginas:**
+- `/minhas-conversas` (`page.tsx`, Server Component): lista via RPC (`supabaseAdmin`,
+  `p_cliente` explícito) com avatar/nome do gestor, preview da última mensagem, tempo relativo e
+  badge de não lidas; item → `/minhas-conversas/[conversa_id]/chat`. Estado vazio com CTA.
+- `/minhas-conversas/[id]/chat` (`[id]/chat/page.tsx`): chat indexado pela **própria conversa**
+  (não por reserva/anúncio) — cobre qualquer conversa gestor↔cliente, inclusive venda. Autoriza
+  por `conversa.cliente_id = user.id`, zera não lidas, `ChatBox` com `voltarHref="/minhas-conversas"`.
+
+**Menu:** novo item **"Minhas conversas"** (ícone `MessageCircle`) no `UserMenu` (dropdown) e no
+menu mobile do `Header`, acima de "Minhas reservas". O **badge de não lidas do cliente
+(`chat_total_nao_lidas_cliente`, ao vivo) migrou para este item** — é agora o hub canônico de
+chat; "Minhas reservas" deixou de exibir o badge (evita duplicidade). O acesso contextual por
+reserva (`/minhas-reservas/[id]/chat`) e por anúncio (`/vendas/[id]/chat`) permanece.
+
+> Resolve a questão em aberto §9 do plano ("onde o cliente reencontra a conversa de venda").

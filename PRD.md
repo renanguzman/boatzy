@@ -514,6 +514,89 @@ Todos os números são do **gestor logado** (`owner_id`):
 
 ---
 
+### 6.12 Vendas de Embarcações (novo vertical)
+
+Além do aluguel, o gestor poderá **anunciar embarcações para venda**; o site ganha a busca
+"Vendas" (3ª aba), páginas próprias de resultados e detalhes, e o painel ganha o cadastro de
+anúncios e um **funil de vendas** com os leads gerados pelas interações dos usuários
+(visualizou → revelou contato → favoritou → compartilhou → conversou). Plano completo e
+decisões de escopo: `docs/planejamento-vendas.md`.
+
+**Regras de produto centrais:**
+- O anúncio **aproveita a embarcação já cadastrada** (fotos, ficha técnica, categoria,
+  localização); o gestor só acrescenta fabricante, ano do modelo, ano de fabricação e valor.
+- Um anúncio vigente por embarcação; ciclo de vida: ativo → pausado (temporário) →
+  vendido/cancelado (encerram e liberam a embarcação para novo anúncio; sem exclusão).
+- **Histórico de preço:** reduções são exibidas ao comprador (selo "Preço reduzido" com valor
+  anterior); aumentos nunca aparecem.
+- Detalhes do anúncio **exigem login**; dados do vendedor ficam ocultos até o clique em
+  "Revelar contato". Visualização anônima conta apenas no contador de visualizações.
+- Favoritar, compartilhar e conversar com o vendedor (chat existente) geram eventos que
+  esquentam o lead no funil do gestor.
+
+**Status por fase:**
+- ✅ **Fase 1 — Fundação de dados** (migrations `20260712_vendas` + `20260713_vendas_rpcs`):
+  tabelas `anuncio_venda`, `anuncio_venda_preco` (histórico), `anuncio_venda_interacao`
+  (eventos do funil), favorito de anúncio, RLS completa e 4 RPCs (`buscar_anuncios_venda`,
+  `registrar_visualizacao_anuncio`, `vendas_locais`, `vendas_funil`). Cadeia validada em
+  Postgres local com smoke test (constraints, RPCs e RLS). Detalhes: SPEC §29.
+- ✅ **Fase 2 — Painel: cadastro de anúncios** (`/painel/vendas`): novo item **VENDAS** no menu
+  lateral (com passo no tutorial guiado); grid de anúncios (busca, ordenação, paginação) com
+  foto/nome da embarcação, fabricante, ano modelo/fabricação, preço, **visualizações**, **leads**
+  e status; toggle **Ativo/Pausado** direto no grid + ações **Marcar como vendido** e **Cancelar
+  anúncio** (com confirmação — são terminais e liberam a embarcação para novo anúncio);
+  cadastro (`/painel/vendas/novo`) aproveitando embarcação ativa sem anúncio vigente (card-resumo
+  com os dados herdados) + campos da venda (fabricante*, anos*, valor*, detalhes); se a embarcação
+  não tem categoria, o form exige e grava na embarcação; edição com **histórico de preço**
+  (data, valor, variação %) — alterar o valor grava novo registro no histórico. Detalhes: SPEC §29.5.
+- ✅ **Fase 3 — Site: busca e resultados de Vendas:** o toggle da busca (Hero e barras compactas)
+  ganhou a 3ª aba **Vendas**, com filtros próprios: **Tipo** de embarcação (obrigatório — Lancha,
+  Iate, Jet Ski…; sem ele o botão Buscar abre o seletor), **Localidade** (Estado → carrega as
+  cidades do estado; cidade opcional, "Todo o estado" disponível), **Ano do modelo** (faixa
+  de/até) e **Valor** (faixa min/máx) — tipo e localidade só ofertam opções **com anúncio ativo**.
+  > **Correção (13/07/2026):** o filtro primário era Categoria (Passeio/Pesca/Luxo — orientada a
+  > passeio, fazia a busca parecer venda de passeio) e passou a ser o **Tipo** da embarcação, que
+  > é o classificador correto para venda; ajustado em toda a cadeia (busca, cadastro, cards,
+  > detalhe). A categoria da embarcação segue intacta nos contextos de aluguel.
+  Resultado em página própria
+  `/vendas` (não `/buscar`): barra compacta com os mesmos filtros, chips removíveis, título
+  contextual, grid responsivo 1→2→3→4 de cards com selo **"Preço reduzido"** (preço anterior
+  riscado) quando o valor caiu, e paginação server-side (24/página) via RPC
+  `buscar_anuncios_venda`. Alternar de/para a aba Vendas descarta os filtros da outra aba (domínios
+  diferentes). Detalhes: SPEC §29.6.
+- ✅ **Fase 4 — Site: detalhe do anúncio (`/vendas/[id]`):**
+  - **Gate de login:** deslogado vê só o teaser (galeria, nome, categoria, preço + selo de
+    redução) com CTA "Entrar ou criar conta"; a visualização anônima conta no contador, mas não
+    gera lead. Logado vê tudo e registra o evento `visualizou` (estágio 1 — idempotente).
+  - **Conteúdo completo:** ficha técnica (fabricante, anos, capacidade, comprimento, cabines,
+    suítes, banheiros, tripulação), "Sobre esta venda" + descrição da embarcação, comodidades,
+    localização (mapa + bairro/cidade — endereço exato não é exposto), avaliações da embarcação
+    e preço com "De R$ X por R$ Y · reduzido em DD/MM" (aumentos nunca aparecem).
+  - **Vendedor oculto:** nome mascarado ("R***** G*****") no HTML; o botão **"Revelar contato"**
+    busca nome/e-mail via server action autenticada e registra `revelou_contato` (estágio 2).
+  - **Favoritar** (card da busca, detalhe e `/favoritos`, com auto-favorito pós-login) registra
+    `favoritou` (estágio 3; desfavoritar não remove o evento); **Compartilhar** (WhatsApp/
+    Facebook/Instagram/Copiar link) registra `compartilhou` (estágio 4); **"Conversar com o
+    vendedor"** abre o chat da plataforma em `/vendas/[id]/chat` (conversa gestor↔cliente
+    existente, mensagem pré-preenchida citando o anúncio) e registra `conversou` (estágio 5).
+  - O **dono** vendo o próprio anúncio não gera eventos (não é lead) e vê atalho para o painel.
+  - Detalhes: SPEC §29.7.
+- ✅ **Fase 5 — Painel: funil de vendas (`/painel/vendas/funil`):** visão CRM dos leads de todos
+  os anúncios do gestor (com **filtro por anúncio**, pré-selecionável via ação "Funil" no grid —
+  disponível inclusive para anúncios encerrados, cujos leads ficam preservados). **Kanban de 5
+  colunas** (Visitante → Interessado → Engajado → Promotor → Em negociação); o lead aparece na
+  coluna do seu estágio mais quente, com avatar, nome, anúncio de interesse, badges das
+  interações, tempo da última interação e **atalho para o chat** com o cliente. Cabeçalho com
+  métricas reativas ao filtro: visualizações, leads no funil, em negociação e conversão
+  visualização→conversa. Dashboard (`/painel`) ganhou o card **"Anúncios de venda"** (ativos +
+  leads no funil) linkando para o funil; botão "Funil de vendas" também no topo de
+  `/painel/vendas`. Sem drag-and-drop nesta versão (estágio é derivado dos eventos); realtime é
+  refinamento futuro. Detalhes: SPEC §29.8.
+- 🔜 **Fase 6 — Encerramento:** testes manuais dos fluxos ponta a ponta em produção
+  (deslogado→login→lead; redução de preço; pausar/vender/cancelar; funil refletindo interações).
+
+---
+
 ## 7. Modelagem de Dados (Simplificada)
 
 ### users

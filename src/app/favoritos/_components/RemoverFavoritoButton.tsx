@@ -3,15 +3,21 @@
 import { useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { Heart, Loader2 } from 'lucide-react';
-import { alternarFavorito, alternarFavoritoEmbarcacao } from '@/lib/favoritos-actions';
+import {
+  alternarFavorito,
+  alternarFavoritoEmbarcacao,
+  alternarFavoritoAnuncio,
+} from '@/lib/favoritos-actions';
 
-/** Remove um favorito (de roteiro OU de embarcação — informar exatamente um id). */
+/** Remove um favorito (roteiro, embarcação OU anúncio — informar exatamente um id). */
 export default function RemoverFavoritoButton({
   roteiroId,
   embarcacaoId,
+  anuncioVendaId,
 }: {
   roteiroId?: string;
   embarcacaoId?: string;
+  anuncioVendaId?: string;
 }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
@@ -20,6 +26,7 @@ export default function RemoverFavoritoButton({
     startTransition(async () => {
       if (roteiroId) await alternarFavorito(roteiroId);
       else if (embarcacaoId) await alternarFavoritoEmbarcacao(embarcacaoId);
+      else if (anuncioVendaId) await alternarFavoritoAnuncio(anuncioVendaId);
       router.refresh();
     });
   }

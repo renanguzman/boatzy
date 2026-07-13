@@ -1,8 +1,8 @@
 'use client';
 
-import { MapPin, Ship } from 'lucide-react';
+import { MapPin, Ship, Tag } from 'lucide-react';
 
-export type SearchType = 'roteiro' | 'embarcacao';
+export type SearchType = 'roteiro' | 'embarcacao' | 'venda';
 
 type Props = {
   value: SearchType;
@@ -14,6 +14,7 @@ type Props = {
 const OPTIONS: { id: SearchType; label: string; icon: typeof MapPin }[] = [
   { id: 'roteiro', label: 'Roteiros', icon: MapPin },
   { id: 'embarcacao', label: 'Embarcações', icon: Ship },
+  { id: 'venda', label: 'Vendas', icon: Tag },
 ];
 
 export default function SearchTypeToggle({ value, onChange, variant = 'dark' }: Props) {

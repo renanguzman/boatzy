@@ -60,6 +60,12 @@ const PASSOS: Passo[] = [
       'Monte passeios prontos para venda — destino, duração, o que está incluso e a embarcação usada.',
   },
   {
+    alvo: '[data-tour="nav-vendas"]',
+    titulo: 'Vendas',
+    descricao:
+      'Anuncie embarcações para venda no site e acompanhe visualizações e interessados em cada anúncio.',
+  },
+  {
     alvo: '[data-tour="nav-catalogo"]',
     titulo: 'Catálogo',
     descricao:
