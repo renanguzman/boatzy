@@ -1,10 +1,9 @@
 import { redirect } from 'next/navigation';
 
-// A busca do site é orientada a roteiro: a antiga listagem de embarcações foi
-// substituída pela aba "Embarcações" de /buscar, que devolve ROTEIROS filtrados
-// pelo tipo da embarcação vinculada. Esta rota apenas redireciona preservando
-// os filtros compatíveis. O detalhe /embarcacoes/[id] segue ativo (links
-// diretos e fluxo de reserva direta de embarcação).
+// A listagem de embarcações mora em /buscar?tipo=embarcacao (aba
+// "Embarcações"). Esta rota apenas redireciona preservando os filtros
+// compatíveis. O detalhe /embarcacoes/[id] segue ativo (links diretos e
+// fluxo de reserva direta de embarcação).
 
 type SearchParams = {
   municipio?: string;

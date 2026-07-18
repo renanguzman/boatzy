@@ -89,8 +89,9 @@ export default function HeroSection({ tiposEmbarcacao, tiposVenda, locaisVenda }
     }
 
     const params = new URLSearchParams();
-    // A busca é orientada a roteiro: a aba "Embarcações" filtra roteiros pelo
-    // tipo da embarcação vinculada, e o resultado é sempre em /buscar.
+    // A aba "Embarcações" leva a /buscar, que lista as embarcações que
+    // atendem o critério (com foto); só depois de escolher uma é que os
+    // roteiros dela aparecem (embarcacao_id, adicionado dentro de /buscar).
     if (searchType === 'embarcacao') {
       params.set('tipo', 'embarcacao');
       if (tipoEmbarcacao) {

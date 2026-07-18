@@ -23,12 +23,15 @@ export default function EmbarcacaoCard({
   embarcacao,
   initialFavorito = false,
   avaliacaoResumo = null,
+  href,
 }: {
   embarcacao: EmbarcacaoCardData;
   /** Se o usuário logado já favoritou esta embarcação (false quando deslogado). */
   initialFavorito?: boolean;
   /** Média/total de avaliações (de roteiros feitos na embarcação); null = sem avaliações. */
   avaliacaoResumo?: AvaliacaoResumoCard | null;
+  /** Destino do card; padrão é o detalhe da embarcação (`/embarcacoes/[id]`). */
+  href?: string;
 }) {
   const router = useRouter();
   const [, startTransition] = useTransition();
@@ -76,7 +79,7 @@ export default function EmbarcacaoCard({
 
   return (
     <Link
-      href={`/embarcacoes/${embarcacao.id}`}
+      href={href ?? `/embarcacoes/${embarcacao.id}`}
       className="group block rounded-2xl overflow-hidden bg-white border border-slate-100 hover:border-slate-200 hover:shadow-xl transition-all duration-300"
       id={`embarcacao-card-${embarcacao.id}`}
     >

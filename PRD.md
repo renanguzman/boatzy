@@ -137,13 +137,17 @@ Visualização:
 - `GuestPicker`: contador +/− com mínimo 0, dropdown.
 - Navegação para `/buscar?municipio=&data=&flex=&pessoas=` ao submeter.
 
-#### ✅ Implementado — Busca por tipo de embarcação (resultados em roteiros)
+#### ✅ Implementado — Busca por embarcação em duas etapas (lista de embarcações → roteiros da embarcação)
 
-- A aba **Embarcações** deixou de listar embarcações: ela filtra **roteiros** pelo **tipo da embarcação vinculada**, via novo parâmetro `p_tipo_id` da RPC `buscar_roteiros` (migration 024). Roteiros sem embarcação vinculada não aparecem quando o filtro de tipo está ativo (mesma regra do filtro de pessoas).
+- A aba **Embarcações** volta a listar **embarcações** (com foto) como primeiro resultado — não roteiros. O usuário escolhe local, data, pessoas e opcionalmente o **tipo** de embarcação (`TipoEmbarcacaoPicker`); a busca (RPC `buscar_embarcacoes`, migration `20260718`, parâmetro `p_tipo_id`) retorna as embarcações que atendem o critério **e que têm ao menos um roteiro ativo vinculado** (senão o clique não teria roteiro para mostrar).
+- **Só ao clicar em uma embarcação** da lista é que o cliente vai para a página própria
+  `/embarcacoes/[id]/roteiros` (ver 6.4), que mostra a embarcação em detalhe e, abaixo, **todos os
+  roteiros ativos que ela realiza** — sem reaplicar local/data/pessoas (esses já serviram para achar
+  a embarcação certa) e sem paginação (mostra todos, num carrossel).
 - O seletor `TipoEmbarcacaoPicker` lista apenas tipos com pelo menos um roteiro ativo vinculado (mesma filosofia do autocomplete de locais).
-- Em `/buscar`: chip removível "Tipo: \<nome\>", título contextualizado ("Roteiros com Lancha em …"), badge do tipo da embarcação no `RoteiroCard` e estado vazio com ação "Limpar filtro de tipo".
-- A rota `/embarcacoes` (listagem) agora **redireciona** para `/buscar?tipo=embarcacao` preservando os filtros compatíveis. O detalhe `/embarcacoes/[id]` e o fluxo de reserva direta de embarcação **permanecem ativos** (acessíveis por link direto), apenas sem entrada pela busca.
-- A RPC `buscar_embarcacoes` (migration 017/020) permanece no banco, mas não é mais consumida pela busca pública.
+- Em `/buscar`: chip removível "Tipo: \<nome\>", título contextualizado ("Embarcações com Lancha em …"), grid com `EmbarcacaoCard` (foto, tipo, localidade, capacidade, avaliação/favorito) — o card leva para `/embarcacoes/[id]/roteiros`, preservando os filtros atuais para o botão "voltar" daquela página.
+- A rota `/embarcacoes` (listagem) **redireciona** para `/buscar?tipo=embarcacao` preservando os filtros compatíveis, caindo na etapa "lista de embarcações". O detalhe `/embarcacoes/[id]` (reserva direta da embarcação) **permanece ativo** (acessível por link direto), apenas sem entrada pela busca.
+- A aba **Roteiros** (padrão) não muda: continua retornando roteiros diretamente via `buscar_roteiros`.
 
 #### ✅ Implementado — Página de Resultados `/buscar`
 
@@ -188,6 +192,19 @@ Exibir:
 - Navegação: setas ◀ ▶, teclado (ESC fecha, ← → navega), contador "N / total".
 - Thumbnails: strip no rodapé com ring cyan no ativo.
 - Footer de especificações: capacidade, comprimento, cabines, tripulação, modalidade do capitão.
+
+#### ✅ Implementado (v1) — Página `/embarcacoes/[id]/roteiros`
+
+- Destino do card da embarcação na busca (aba Embarcações, ver 6.3): mostra a embarcação em
+  detalhe — galeria de fotos, badges (tipo/categoria), descrição, especificações técnicas
+  (capacidade, comprimento, cabines, suítes, banheiros, tripulação) e comodidades a bordo — no mesmo
+  visual da página de detalhe da embarcação (`/embarcacoes/[id]`).
+- Abaixo, um **carrossel** com todos os **roteiros ativos** que aquela embarcação realiza (setas de
+  navegação; roteiros inativos nunca aparecem). Clicar num roteiro do carrossel leva ao detalhe
+  normal (`/roteiros/[id]`).
+- Botão "voltar" (na galeria) retorna à busca com os filtros originais (local/data/pessoas/tipo).
+- Primeira versão — mapa de localização, avaliações e favoritar a embarcação nesta tela ficam para
+  uma refinada seguinte, a pedido do usuário.
 
 ---
 

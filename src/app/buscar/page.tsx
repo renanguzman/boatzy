@@ -3,13 +3,16 @@ import Footer from '@/components/layout/Footer';
 import { supabaseAdmin } from '@/lib/supabase';
 import { createClient } from '@/lib/supabase/server';
 import { getTiposEmbarcacaoComRoteiro } from '@/lib/tipos-embarcacao';
-import { getAvaliacoesResumoPorRoteiro } from '@/lib/avaliacoes';
+import { getAvaliacoesResumoPorRoteiro, getAvaliacoesResumoPorEmbarcacao } from '@/lib/avaliacoes';
+import { getFavoritosEmbarcacaoSet } from '@/lib/embarcacoes-top';
 import SearchBarCompact from './_components/SearchBarCompact';
 import RoteiroCard, { type RoteiroCardData } from './_components/RoteiroCard';
+import EmbarcacaoCard, { type EmbarcacaoCardData } from '@/components/ui/EmbarcacaoCard';
 import Link from 'next/link';
 import { SlidersHorizontal, X } from 'lucide-react';
 
 const POR_PAGINA = 24;
+const RAIO_KM = 50;
 
 type SearchParams = {
   municipio?: string;
@@ -22,7 +25,7 @@ type SearchParams = {
   pagina?: string;
   /** Aba ativa da busca ('embarcacao' exibe o seletor de tipo). */
   tipo?: string;
-  /** Filtro por tipo da embarcação vinculada ao roteiro (uuid de embarcacao_tipo). */
+  /** Filtro por tipo de embarcação (uuid de embarcacao_tipo). */
   tipo_embarcacao?: string;
   /** Rótulo do tipo para chip/título (evita query extra). */
   tipo_nome?: string;
@@ -47,10 +50,41 @@ function getPageNumbers(current: number, total: number): (number | '…')[] {
   return pages;
 }
 
+type EmbarcacaoDetalheRow = {
+  id: string;
+  nome: string;
+  preco_base: number | null;
+  capacidade: number | null;
+  embarcacao_tipo: { nome: string } | null;
+  municipios: { nome: string; estados: { uf: string } | null } | null;
+  embarcacao_imagens: { url_imagem: string; principal: boolean }[];
+};
+
+function mapEmbarcacaoRow(d: EmbarcacaoDetalheRow): EmbarcacaoCardData {
+  const imagem = (d.embarcacao_imagens.find((i) => i.principal) ?? d.embarcacao_imagens[0])?.url_imagem ?? null;
+  const localidade = d.municipios
+    ? d.municipios.estados
+      ? `${d.municipios.nome}, ${d.municipios.estados.uf}`
+      : d.municipios.nome
+    : null;
+  return {
+    id: d.id,
+    nome: d.nome,
+    preco_base: d.preco_base,
+    capacidade: d.capacidade,
+    tipo: d.embarcacao_tipo?.nome ?? null,
+    localidade,
+    imagem,
+  };
+}
+
+const ROTEIRO_SELECT = `id, nome, descricao, quantidade_pessoas, preco_base, duracao,
+   municipios ( nome, estados ( uf ) ),
+   roteiro_imagens ( url_imagem, principal ),
+   embarcacao ( embarcacao_tipo ( nome ) )`;
+
 export default async function BuscarPage({ searchParams }: { searchParams: Promise<SearchParams> }) {
   const params = await searchParams;
-
-  const RAIO_KM = 50;
 
   const municipioId = params.municipio ? parseInt(params.municipio) : null;
   const lat = params.lat ? parseFloat(params.lat) : null;
@@ -62,72 +96,126 @@ export default async function BuscarPage({ searchParams }: { searchParams: Promi
   const tipoEmbarcacaoId = params.tipo_embarcacao || null;
   const abaEmbarcacao = params.tipo === 'embarcacao' || tipoEmbarcacaoId != null;
 
+  // Dois modos dentro da mesma página:
+  //  - roteiro (default): busca de roteiros, como sempre foi.
+  //  - lista de embarcações: aba "Embarcações" — mostra as embarcações que
+  //    atendem o critério (com foto); clicar leva para /embarcacoes/[id]/roteiros,
+  //    que mostra a embarcação em detalhe + o carrossel dos roteiros ativos dela.
+  const modoListaEmbarcacoes = abaEmbarcacao;
+
   // Tipos com roteiro ativo vinculado — alimentam o seletor da aba "Embarcações".
   const tiposEmbarcacao = await getTiposEmbarcacaoComRoteiro();
 
-  // Resolve filtros (localização/raio + disponibilidade na data + capacidade da
-  // embarcação vinculada) e ordenação por proximidade no banco, retornando ids
-  // ordenados + total (paginação).
-  const { data: rpcRows, error: rpcError } = await supabaseAdmin.rpc('buscar_roteiros', {
-    p_municipio_id: municipioId,
-    p_lat: lat,
-    p_lng: lng,
-    p_raio_km: RAIO_KM,
-    p_data: params.data ?? null,
-    p_flex: flex,
-    p_pessoas: pessoas,
-    p_limit: POR_PAGINA,
-    p_offset: from,
-    p_tipo_id: tipoEmbarcacaoId,
-  });
-
-  // Não silenciar falhas da RPC: um erro aqui deixa a busca vazia sem motivo
-  // aparente. Logamos para diagnóstico em vez de mostrar "nenhum resultado".
-  if (rpcError) {
-    console.error('[buscar_roteiros] falha na RPC:', rpcError);
-  }
-
-  const rows = rpcRows ?? [];
-  const total = rows.length > 0 ? Number(rows[0].total) : 0;
-  const ids = rows.map((r) => r.id);
-
-  // Busca os detalhes (com joins) preservando a ordem retornada pela RPC.
   let roteiros: RoteiroCardData[] = [];
-  if (ids.length > 0) {
-    const { data: detalhes } = await supabaseAdmin
-      .from('roteiro')
-      .select(
-        `id, nome, descricao, quantidade_pessoas, preco_base, duracao,
-         municipios ( nome, estados ( uf ) ),
-         roteiro_imagens ( url_imagem, principal ),
-         embarcacao ( embarcacao_tipo ( nome ) )`,
-      )
-      .in('id', ids);
+  let embarcacoes: EmbarcacaoCardData[] = [];
+  let total = 0;
+  let ids: string[] = [];
 
-    const byId = new Map((detalhes ?? []).map((d) => [d.id, d]));
-    roteiros = ids
-      .map((id) => byId.get(id))
-      .filter((d): d is NonNullable<typeof d> => d != null) as unknown as RoteiroCardData[];
+  if (modoListaEmbarcacoes) {
+    const { data: rpcRows, error: rpcError } = await supabaseAdmin.rpc('buscar_embarcacoes', {
+      p_municipio_id: municipioId,
+      p_lat: lat,
+      p_lng: lng,
+      p_raio_km: RAIO_KM,
+      p_data: params.data ?? null,
+      p_flex: flex,
+      p_pessoas: pessoas,
+      p_limit: POR_PAGINA,
+      p_offset: from,
+      p_tipo_id: tipoEmbarcacaoId,
+    });
+
+    if (rpcError) {
+      console.error('[buscar_embarcacoes] falha na RPC:', rpcError);
+    }
+
+    const rows = rpcRows ?? [];
+    total = rows.length > 0 ? Number(rows[0].total) : 0;
+    ids = rows.map((r) => r.id);
+
+    if (ids.length > 0) {
+      const { data: detalhes } = await supabaseAdmin
+        .from('embarcacao')
+        .select(
+          `id, nome, preco_base, capacidade,
+           embarcacao_tipo ( nome ),
+           municipios ( nome, estados ( uf ) ),
+           embarcacao_imagens ( url_imagem, principal )`,
+        )
+        .in('id', ids);
+
+      const byId = new Map((detalhes ?? []).map((d) => [d.id, d as unknown as EmbarcacaoDetalheRow]));
+      embarcacoes = ids.flatMap((id) => {
+        const d = byId.get(id);
+        return d ? [mapEmbarcacaoRow(d)] : [];
+      });
+    }
+  } else {
+    // Resolve filtros (localização/raio + disponibilidade na data + capacidade da
+    // embarcação vinculada) e ordenação por proximidade no banco, retornando ids
+    // ordenados + total (paginação).
+    const { data: rpcRows, error: rpcError } = await supabaseAdmin.rpc('buscar_roteiros', {
+      p_municipio_id: municipioId,
+      p_lat: lat,
+      p_lng: lng,
+      p_raio_km: RAIO_KM,
+      p_data: params.data ?? null,
+      p_flex: flex,
+      p_pessoas: pessoas,
+      p_limit: POR_PAGINA,
+      p_offset: from,
+      p_tipo_id: tipoEmbarcacaoId,
+    });
+
+    // Não silenciar falhas da RPC: um erro aqui deixa a busca vazia sem motivo
+    // aparente. Logamos para diagnóstico em vez de mostrar "nenhum resultado".
+    if (rpcError) {
+      console.error('[buscar_roteiros] falha na RPC:', rpcError);
+    }
+
+    const rows = rpcRows ?? [];
+    total = rows.length > 0 ? Number(rows[0].total) : 0;
+    ids = rows.map((r) => r.id);
+
+    // Busca os detalhes (com joins) preservando a ordem retornada pela RPC.
+    if (ids.length > 0) {
+      const { data: detalhes } = await supabaseAdmin.from('roteiro').select(ROTEIRO_SELECT).in('id', ids);
+
+      const byId = new Map((detalhes ?? []).map((d) => [d.id, d]));
+      roteiros = ids
+        .map((id) => byId.get(id))
+        .filter((d): d is NonNullable<typeof d> => d != null) as unknown as RoteiroCardData[];
+    }
   }
 
   const totalPaginas = Math.max(1, Math.ceil(total / POR_PAGINA));
 
-  // Média/total de avaliações por roteiro listado (exibida no card quando houver).
-  const avaliacoesResumo = await getAvaliacoesResumoPorRoteiro(ids);
-
-  // Favoritos do usuário logado entre os resultados (coração preenchido no card).
+  // Favoritos do usuário logado + avaliações entre os resultados.
   const supabase = await createClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();
-  let favoritosSet = new Set<string>();
+
+  const avaliacoesResumoRoteiro = modoListaEmbarcacoes
+    ? new Map<string, { media: number; total: number }>()
+    : await getAvaliacoesResumoPorRoteiro(ids);
+  const avaliacoesResumoEmbarcacao = modoListaEmbarcacoes
+    ? await getAvaliacoesResumoPorEmbarcacao(ids)
+    : new Map<string, { media: number; total: number }>();
+
+  let favoritosRoteiroSet = new Set<string>();
+  let favoritosEmbarcacaoSet = new Set<string>();
   if (user && ids.length > 0) {
-    const { data: favs } = await supabaseAdmin
-      .from('favorito')
-      .select('roteiro_id')
-      .eq('user_id', user.id)
-      .in('roteiro_id', ids);
-    favoritosSet = new Set((favs ?? []).flatMap((f) => (f.roteiro_id ? [f.roteiro_id] : [])));
+    if (modoListaEmbarcacoes) {
+      favoritosEmbarcacaoSet = await getFavoritosEmbarcacaoSet(user.id, ids);
+    } else {
+      const { data: favs } = await supabaseAdmin
+        .from('favorito')
+        .select('roteiro_id')
+        .eq('user_id', user.id)
+        .in('roteiro_id', ids);
+      favoritosRoteiroSet = new Set((favs ?? []).flatMap((f) => (f.roteiro_id ? [f.roteiro_id] : [])));
+    }
   }
 
   // Querystring repassada ao detalhe do roteiro para pré-preencher data/pessoas.
@@ -146,9 +234,16 @@ export default async function BuscarPage({ searchParams }: { searchParams: Promi
     initialLocation = { id: municipioId, nome, uf: uf ?? '' };
   }
 
-  // Build page title
   const tipoNome = tipoEmbarcacaoId ? params.tipo_nome : undefined;
-  const sujeito = tipoNome ? `Roteiros com ${tipoNome}` : 'Roteiros';
+
+  // Build page title
+  const sujeito = modoListaEmbarcacoes
+    ? tipoNome
+      ? `Embarcações com ${tipoNome}`
+      : 'Embarcações'
+    : tipoNome
+      ? `Roteiros com ${tipoNome}`
+      : 'Roteiros';
   let titulo = `${sujeito} disponíveis`;
   if (params.local) {
     titulo = `${sujeito} em ${params.local}`;
@@ -171,6 +266,9 @@ export default async function BuscarPage({ searchParams }: { searchParams: Promi
   if (pessoas > 0) {
     chips.push({ label: `Grupo: ${pessoas} ${pessoas === 1 ? 'pessoa' : 'pessoas'}`, removeKey: 'pessoas' });
   }
+
+  const itemLabel = modoListaEmbarcacoes ? 'embarcação' : 'roteiro';
+  const itemLabelPlural = modoListaEmbarcacoes ? 'embarcações' : 'roteiros';
 
   return (
     <div className="min-h-screen flex flex-col bg-slate-50">
@@ -249,13 +347,66 @@ export default async function BuscarPage({ searchParams }: { searchParams: Promi
           <h1 className="text-2xl font-bold text-[#0B2447]">{titulo}</h1>
           {total > 0 && (
             <p className="text-sm text-slate-500 mt-1">
-              Página {pagina} de {totalPaginas} · {total} roteiro{total !== 1 ? 's' : ''}
+              Página {pagina} de {totalPaginas} · {total} {total !== 1 ? itemLabelPlural : itemLabel}
             </p>
           )}
         </div>
 
         {/* Results grid */}
-        {roteiros.length === 0 ? (
+        {modoListaEmbarcacoes ? (
+          embarcacoes.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-24 text-center">
+              <div className="h-16 w-16 rounded-2xl bg-slate-100 flex items-center justify-center mb-4">
+                <SlidersHorizontal className="h-8 w-8 text-slate-300" />
+              </div>
+              <h2 className="text-lg font-semibold text-slate-700 mb-2">
+                {tipoNome ? `Nenhuma embarcação com ${tipoNome} encontrada` : 'Nenhuma embarcação encontrada'}
+              </h2>
+              <p className="text-sm text-slate-400 max-w-sm">
+                {tipoNome
+                  ? 'Tente outro tipo de embarcação, ajustar os filtros ou explorar outros destinos.'
+                  : 'Tente ajustar os filtros ou explorar outros destinos.'}
+              </p>
+              <div className="mt-6 flex items-center gap-3">
+                {tipoNome && (
+                  <Link
+                    href={buildPageUrl(
+                      (() => {
+                        const semTipo = { ...params };
+                        delete semTipo.tipo_embarcacao;
+                        delete semTipo.tipo_nome;
+                        delete semTipo.pagina;
+                        return semTipo;
+                      })(),
+                      {},
+                    )}
+                    className="px-5 py-2.5 border border-slate-300 text-slate-700 hover:bg-white text-sm font-semibold rounded-xl transition-colors"
+                  >
+                    Limpar filtro de tipo
+                  </Link>
+                )}
+                <Link
+                  href="/buscar?tipo=embarcacao"
+                  className="px-5 py-2.5 bg-[#0B3D91] hover:bg-[#0B2447] text-white text-sm font-semibold rounded-xl transition-colors"
+                >
+                  Ver todas as embarcações
+                </Link>
+              </div>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
+              {embarcacoes.map((e) => (
+                <EmbarcacaoCard
+                  key={e.id}
+                  embarcacao={e}
+                  initialFavorito={favoritosEmbarcacaoSet.has(e.id)}
+                  avaliacaoResumo={avaliacoesResumoEmbarcacao.get(e.id) ?? null}
+                  href={`/embarcacoes/${e.id}/roteiros?voltar=${encodeURIComponent(buildPageUrl(params, {}))}`}
+                />
+              ))}
+            </div>
+          )
+        ) : roteiros.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-24 text-center">
             <div className="h-16 w-16 rounded-2xl bg-slate-100 flex items-center justify-center mb-4">
               <SlidersHorizontal className="h-8 w-8 text-slate-300" />
@@ -301,8 +452,8 @@ export default async function BuscarPage({ searchParams }: { searchParams: Promi
                 key={r.id}
                 roteiro={r}
                 query={detalheQuery}
-                initialFavorito={favoritosSet.has(r.id)}
-                avaliacaoResumo={avaliacoesResumo.get(r.id) ?? null}
+                initialFavorito={favoritosRoteiroSet.has(r.id)}
+                avaliacaoResumo={avaliacoesResumoRoteiro.get(r.id) ?? null}
               />
             ))}
           </div>

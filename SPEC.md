@@ -942,8 +942,10 @@ type Props = {
 | `pessoas` | number | Tamanho do grupo |
 | `pagina` | number | Página atual (padrão: 1) |
 | `tipo` | `'embarcacao'` | Aba ativa da busca (exibe o seletor de tipo na barra compacta) |
-| `tipo_embarcacao` | uuid | Filtro pelo tipo da **embarcação vinculada** ao roteiro (`embarcacao_tipo.id`) |
+| `tipo_embarcacao` | uuid | Filtro pelo tipo da embarcação (`embarcacao_tipo.id`) — na aba Embarcações filtra a própria embarcação; combinado com `p_tipo_id` |
 | `tipo_nome` | string | Rótulo do tipo para chip/título (evita query extra) |
+| `embarcacao_id` | uuid | Embarcação escolhida na lista da aba Embarcações — presente, a página mostra os roteiros dela em vez da lista |
+| `embarcacao_nome` | string | Nome da embarcação escolhida, para o título (evita query extra) |
 
 **Filtros aplicados (via RPC `buscar_roteiros` — migrations 018/019/020/024):**
 
@@ -957,7 +959,14 @@ Mesma mecânica de `buscar_embarcacoes` (ver §18.6), com **uma diferença no fi
 - **Ordenação:** por distância quando há centro; senão `created_at` desc. A página chama a RPC (ids + total) e busca os detalhes com `.in('id', ids)` preservando a ordem.
 - `GRANT EXECUTE` para `anon, authenticated, service_role`.
 
-**Busca orientada a roteiro (aba Embarcações):** a aba "Embarcações" do `SearchTypeToggle` não navega mais para `/embarcacoes` — ela adiciona `tipo=embarcacao` (+ `tipo_embarcacao`/`tipo_nome` quando um tipo é escolhido) e o destino é sempre `/buscar`. A página exibe chip removível "Tipo: \<nome\>" (a remoção preserva `tipo=embarcacao`), título contextualizado ("Roteiros com \<tipo\> em …") e, no estado vazio com filtro de tipo, o botão "Limpar filtro de tipo".
+**Dois modos em `/buscar` (resolvidos pelos mesmos `searchParams`):**
+
+- `abaEmbarcacao = tipo === 'embarcacao' || tipo_embarcacao != null'` → `modoListaEmbarcacoes = abaEmbarcacao` — chama a RPC `buscar_embarcacoes` (ver §18.6) com `p_tipo_id`; renderiza `EmbarcacaoCard` (`src/components/ui/EmbarcacaoCard.tsx`) em vez de `RoteiroCard`, com `href` apontando para `` `/embarcacoes/<id>/roteiros?voltar=<url atual de /buscar, encodeURIComponent>` `` (a prop `href` do card é opcional — sem ela, o card usado em "Mais Bem Avaliadas" continua indo para `/embarcacoes/[id]`). Avaliação/favorito via `getAvaliacoesResumoPorEmbarcacao` e `getFavoritosEmbarcacaoSet`. Título contextualizado ("Embarcações com \<tipo\> em …"), chip removível "Tipo: \<nome\>" e estado vazio com "Limpar filtro de tipo".
+- Modo roteiro (default, `!abaEmbarcacao`): inalterado — RPC `buscar_roteiros` com `p_tipo_id` sempre `null`.
+- A aba "Embarcações" do `SearchTypeToggle` (Hero e barra compacta) sempre navega para `/buscar?tipo=embarcacao[&tipo_embarcacao=&tipo_nome=]`, o que cai no modo "lista de embarcações". A rota `/embarcacoes` (sem id) também redireciona para lá.
+- Clicar numa embarcação da lista **sai de `/buscar`**: vai para a página própria
+  `/embarcacoes/[id]/roteiros` (ver §18.7-B), que mostra a embarcação em detalhe + um carrossel com
+  os roteiros ativos dela. `/buscar` não tem mais um terceiro modo para isso.
 
 **Helper `getTiposEmbarcacaoComRoteiro()`** (`src/lib/tipos-embarcacao.ts`, `server-only`): retorna `{ id, nome }[]` dos tipos com pelo menos um roteiro **ativo** com embarcação vinculada daquele tipo (dedupe em memória, ordenado por nome). Usado pela home (`HeroSection`) e por `/buscar` (`SearchBarCompact`) via props.
 
@@ -1069,51 +1078,39 @@ type RoteiroDetalhe = {
 
 ---
 
-### 18.6 Busca de Embarcações `/embarcacoes` — **substituída por redirect**
+### 18.6 Busca de Embarcações — RPC `buscar_embarcacoes` (consumida por `/buscar`)
 
-**Arquivo:** `src/app/embarcacoes/page.tsx` (Server Component).
+**Arquivo consumidor:** `src/app/buscar/page.tsx`, modo `modoListaEmbarcacoes` (ver §18.3). A rota
+`src/app/embarcacoes/page.tsx` (sem id) segue existindo só como **redirect** para
+`/buscar?tipo=embarcacao`, preservando os params compatíveis (`municipio`, `local`, `lat`, `lng`,
+`data`, `flex`, `pessoas`, `pagina`). O detalhe `/embarcacoes/[id]` (§18.7) e a reserva direta de
+embarcação (§20.7) seguem ativos, acessíveis por link direto; a página de roteiros da embarcação
+(§18.7-B) é o destino do card na busca. O componente antigo
+`src/app/embarcacoes/_components/EmbarcacaoCard.tsx` continua sem uso (órfão); quem renderiza o card
+na busca é `src/components/ui/EmbarcacaoCard.tsx` (o mesmo da seção "Mais Bem Avaliadas" da home —
+ver §18.9), que ganhou uma prop `href?: string` opcional para apontar para
+`/embarcacoes/[id]/roteiros` em vez do padrão `/embarcacoes/[id]`.
 
-> ⚠️ **Descontinuada como listagem** (busca orientada a roteiro — ver §18.3): a rota agora apenas
-> **redireciona** (`redirect()`) para `/buscar?tipo=embarcacao`, preservando os params compatíveis
-> (`municipio`, `local`, `lat`, `lng`, `data`, `flex`, `pessoas`, `pagina`). O componente
-> `_components/EmbarcacaoCard.tsx` ficou sem uso (mantido no repositório). O detalhe
-> `/embarcacoes/[id]` (§18.7) e a reserva direta de embarcação (§20.7) **seguem ativos**, acessíveis
-> por link direto.
-
-**Filtros da RPC `buscar_embarcacoes` (migration 017/020) — mantida no banco, sem consumidor público:**
+**Filtros da RPC `buscar_embarcacoes` (migration 017/020/`20260718_buscar_embarcacoes_tipo`):**
 
 A página delega os filtros à função SQL `public.buscar_embarcacoes(...)`, que resolve tudo em uma chamada e retorna os **ids ordenados + total** (para paginação). A página então busca os detalhes (joins) com `.in('id', ids)`, **preservando a ordem** retornada.
 
 ```ts
 const { data: rpcRows } = await supabaseAdmin.rpc('buscar_embarcacoes', {
   p_municipio_id, p_lat, p_lng, p_raio_km: 50,
-  p_data, p_flex, p_pessoas, p_limit, p_offset,
+  p_data, p_flex, p_pessoas, p_limit, p_offset, p_tipo_id,
 });
 // rpcRows: { id, distancia_km, total }[]  (já ordenado por distância → created_at)
 ```
 
 Regras da função:
+- **Roteiro ativo obrigatório (migration `20260718`):** só aparecem embarcações com `EXISTS (SELECT 1 FROM roteiro WHERE embarcacao_id = e.id AND ativo = true)` — sem isso, o clique no card levaria a uma lista vazia de roteiros.
+- **Tipo (migration `20260718`):** parâmetro `p_tipo_id uuid DEFAULT NULL` — quando informado, só embarcações com `embarcacao_tipo_id = p_tipo_id`. Mesmo padrão de `DROP FUNCTION IF EXISTS` + `CREATE` de `buscar_roteiros`/migration 024, para evitar overload ambíguo no PostgREST.
 - **Localização:** centro = `lat/lng` ("perto de mim") ou coordenadas do `municipio_id`. Aparece se `municipio_id` bater **exato** OU se a distância (haversine) ao centro for ≤ **50 km**. Sem centro = sem filtro de local.
 - **Pessoas:** `capacidade >= pessoas`.
 - **Data:** disponível se **algum** dia da janela `data ± flex` tiver o dia da semana em `disponibilidade_dias_semana` (ou ela for `NULL`) **e** não estiver em `embarcacao_disponibilidade_bloqueio`. Sem `data` = sem filtro de disponibilidade.
 - **Ordenação:** por distância (mais próximas primeiro) quando há centro; senão por `created_at` desc. Embarcações sem coordenadas só aparecem pelo match exato de município (ordenadas por último, `NULLS LAST`).
 - `GRANT EXECUTE` para `anon, authenticated, service_role` (busca anônima no hotsite).
-
-**Componente `EmbarcacaoCard`** (`src/app/embarcacoes/_components/EmbarcacaoCard.tsx`, `'use client'`):
-```ts
-type EmbarcacaoCardData = {
-  id: string;
-  nome: string;
-  descricao: string | null;
-  capacidade: number | null;
-  comprimento: number | null;
-  preco_base: number | null;
-  embarcacao_tipo: { nome: string } | null;
-  municipios: { nome: string; estados: { uf: string } | null } | null;
-  embarcacao_imagens: { url_imagem: string; principal: boolean }[];
-};
-```
-Link para `/embarcacoes/[id]`.
 
 > Preço exibido a partir de `preco_base` (paridade com a listagem de roteiros). Refinamento futuro: usar `get_precos_embarcacoes` para preço dependente da data.
 
@@ -1123,11 +1120,49 @@ Link para `/embarcacoes/[id]`.
 
 Carrega a embarcação com tipo, categoria, município, comodidades e imagens. Reutiliza `GaleriaRoteiro` (com prop `voltarHref="/embarcacoes"`) e `LocalizacaoMap` de `roteiros/[id]/_components`.
 
-Seções: badges (tipo/categoria), título + localidade, descrição, grid de specs (capacidade, comprimento, cabines, suítes, banheiros, tripulação), comodidades, mapa + endereço, placeholder de avaliações, e a sidebar de reserva `EmbarcacaoBookingCard` (data/pessoas obrigatórios, disponibilidade, preço/dia + taxa de serviço → `/reservas/novo?embarcacao=...`). Ver §20.7.
+Seções: `EmbarcacaoInfoSection` (badges tipo/categoria, título + localidade, descrição, grid de specs — capacidade, comprimento, cabines, suítes, banheiros, tripulação — e comodidades; ver §18.7-B), mapa + endereço, `AvaliacoesSection` (avaliações reais, agregadas de reservas de roteiros feitos na embarcação), e a sidebar de reserva `EmbarcacaoBookingCard` (data/pessoas obrigatórios, disponibilidade, preço/dia + taxa de serviço → `/reservas/novo?embarcacao=...`). Ver §20.7.
 
 > A query lê `searchParams` (`data`/`flex`/`pessoas`) para pré-preencher o `EmbarcacaoBookingCard` quando o cliente chega pela busca, e inclui `disponibilidade_dias_semana` + `embarcacao_disponibilidade_bloqueio ( data )`.
 
 > `GaleriaRoteiro` ganhou prop `voltarHref?: string` (padrão `/buscar`) para o botão "voltar".
+
+### 18.7-B Roteiros da Embarcação `/embarcacoes/[id]/roteiros`
+
+**Arquivo:** `src/app/embarcacoes/[id]/roteiros/page.tsx` (Server Component). Destino do card na
+busca por embarcação (§18.3/§18.6) — v1, a ser refinada.
+
+- 404 nas mesmas condições de `/embarcacoes/[id]` (`status != 'ativo'`).
+- Query da embarcação: `id, nome, descricao, capacidade, comprimento, cabines, suites, banheiros,
+  tripulacao, embarcacao_tipo(nome), embarcacao_categoria(nome), municipios(nome, estados(uf)),
+  embarcacao_comodidades(comodidade(nome)), embarcacao_imagens(id, url_imagem, titulo, principal)`
+  — mais enxuta que a de `/embarcacoes/[id]` (sem `preco_base`/disponibilidade/endereço, que só
+  importam para a reserva direta).
+- Query dos roteiros: `roteiro` filtrando `embarcacao_id = :id AND ativo = true`, ordenados por
+  `created_at desc`, **sem paginação** (mostra todos no carrossel). Mesmo shape de `RoteiroCardData`
+  (`src/app/buscar/_components/RoteiroCard.tsx`). Avaliação/favorito por roteiro via
+  `getAvaliacoesResumoPorRoteiro` e a mesma query de `favorito` usada em `/buscar`.
+- `searchParams.voltar` (URL codificada, opcional) vira o `voltarHref` da `GaleriaRoteiro` — link
+  "voltar" para a busca com os filtros originais; sem o param, cai em `/buscar?tipo=embarcacao`.
+- Layout: `GaleriaRoteiro` → `EmbarcacaoInfoSection` (mesmo componente do detalhe da embarcação,
+  **sem** sidebar de reserva — o objetivo aqui é escolher um roteiro, não reservar a embarcação) →
+  `RoteirosCarousel` com o título "Roteiros desta embarcação".
+- Fora do escopo desta v1 (a pedido do usuário, que vai refinar depois): mapa de localização,
+  avaliações e favoritar a embarcação nesta tela.
+
+**`EmbarcacaoInfoSection`** (`src/app/embarcacoes/[id]/_components/EmbarcacaoInfoSection.tsx`) —
+extraído de `/embarcacoes/[id]/page.tsx` para ser compartilhado pelas duas páginas: badges
+(tipo/categoria/"Embarcação Verificada"), título + localidade, descrição, specs row e comodidades.
+Props: só os campos que esse bloco usa (`nome`, `descricao`, `capacidade`, `comprimento`, `cabines`,
+`suites`, `banheiros`, `tripulacao`, `embarcacao_tipo`, `embarcacao_categoria`, `municipios`,
+`embarcacao_comodidades`).
+
+**`RoteirosCarousel`** (`src/components/ui/RoteirosCarousel.tsx`, `'use client'`) — primeiro
+carrossel horizontal do projeto (não existia nenhum antes). `overflow-x-auto snap-x snap-mandatory
+scrollbar-hide` com `RoteiroCard`s em itens `shrink-0 snap-start` de largura fixa, e duas setas
+(`ChevronLeft`/`ChevronRight`) que chamam `scrollerRef.current.scrollBy({ left: ±320,
+behavior: 'smooth' })`. Recebe `items: { roteiro, initialFavorito, avaliacaoResumo }[]` já resolvidos
+pela página (evita passar `Set`/`Map`, não serializáveis de Server → Client Component), `title?` e
+`query?`. Sem setas desabilitadas nas pontas nem dots nesta v1.
 
 ### 18.5 Modal de Fotos da Embarcação
 

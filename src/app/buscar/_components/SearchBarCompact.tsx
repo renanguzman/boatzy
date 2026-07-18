@@ -68,8 +68,8 @@ export default function SearchBarCompact({
     }
 
     const params = new URLSearchParams();
-    // Busca orientada a roteiro: a aba "Embarcações" filtra roteiros pelo tipo
-    // da embarcação vinculada; o destino é sempre /buscar.
+    // A aba "Embarcações" lista embarcações (não roteiros) em /buscar; o
+    // roteiro só aparece depois de escolher uma embarcação (embarcacao_id).
     if (type === 'embarcacao') {
       params.set('tipo', 'embarcacao');
       if (tipoEmbarcacao) {
