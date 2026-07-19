@@ -1545,7 +1545,11 @@ phone, avatar_url, created_at`) via `supabaseAdmin` e deriva os **provedores de 
 `user.identities[].provider` ∪ `user.app_metadata.providers` (fallback `['email']`).
 `canChangePassword = providers.includes('email')`. Passa tudo para o client `MinhaContaForm`.
 
-**`_components/MinhaContaForm.tsx`** (`'use client'`) — três blocos:
+**`_components/MinhaContaForm.tsx`** (`'use client'`) — no topo, uma **barra de atalhos** (`<nav>`
+sticky abaixo do `Header`, `top-16`) com "tabs-âncora" (Dados pessoais, Meu endereço, Notificações,
+Segurança); clicar faz `scrollIntoView({behavior:'smooth'})` até a seção (cada seção tem `id` +
+`scroll-mt-32` para não ficar sob o header/barra). Um `IntersectionObserver` (scroll-spy) destaca o
+atalho da seção visível. Abaixo, os blocos:
 1. **Cartão de identidade:** avatar (ou inicial do nome), nome, e-mail, "cliente desde"
    (`created_at` em pt-BR) e chips dos provedores vinculados (`E-mail e senha`, `Google`, …).
 2. **Dados pessoais:** edita **nome**, **CPF** (`maskCPF` + `isValidCPF`) e **celular**

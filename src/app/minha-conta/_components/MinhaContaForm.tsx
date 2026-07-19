@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Image from 'next/image';
 import {
   User,
@@ -280,8 +280,65 @@ export default function MinhaContaForm({
   const inputClass = `${inputBase} pl-11 pr-4`; // campos com ícone à esquerda
   const inputField = `${inputBase} px-4`; // campos sem ícone (endereço)
 
+  // Atalhos (tabs-âncora) para as seções da página.
+  const secoes = [
+    { id: 'dados-pessoais', label: 'Dados pessoais' },
+    { id: 'meu-endereco', label: 'Meu endereço' },
+    { id: 'notificacoes', label: 'Notificações' },
+    { id: 'seguranca', label: 'Segurança' },
+  ];
+  const [secaoAtiva, setSecaoAtiva] = useState(secoes[0].id);
+
+  // Scroll-spy: destaca o atalho da seção visível.
+  useEffect(() => {
+    const alvos = secoes
+      .map((s) => document.getElementById(s.id))
+      .filter((el): el is HTMLElement => el !== null);
+    if (alvos.length === 0) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        const visivel = entries
+          .filter((e) => e.isIntersecting)
+          .sort((a, b) => a.boundingClientRect.top - b.boundingClientRect.top)[0];
+        if (visivel) setSecaoAtiva(visivel.target.id);
+      },
+      { rootMargin: '-96px 0px -55% 0px', threshold: 0 },
+    );
+    alvos.forEach((el) => observer.observe(el));
+    return () => observer.disconnect();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  function irParaSecao(id: string) {
+    setSecaoAtiva(id);
+    document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+
   return (
     <div className="mt-8 space-y-6">
+      {/* Atalhos das seções (tabs-âncora) */}
+      <nav
+        aria-label="Seções da conta"
+        className="sticky top-16 z-10 -mx-1 flex gap-1 overflow-x-auto rounded-2xl border border-slate-100 bg-white/90 p-1.5 shadow-sm backdrop-blur"
+      >
+        {secoes.map((s) => (
+          <button
+            key={s.id}
+            type="button"
+            onClick={() => irParaSecao(s.id)}
+            aria-current={secaoAtiva === s.id ? 'true' : undefined}
+            className={`whitespace-nowrap rounded-xl px-3.5 py-2 text-sm font-medium transition-colors ${
+              secaoAtiva === s.id
+                ? 'bg-[#0B2447] text-white shadow-sm'
+                : 'text-slate-500 hover:bg-slate-100 hover:text-slate-700'
+            }`}
+          >
+            {s.label}
+          </button>
+        ))}
+      </nav>
+
       {/* Cartão de identidade */}
       <div className="rounded-2xl border border-slate-100 bg-white p-6 shadow-sm">
         <div className="flex items-center gap-4">
@@ -325,7 +382,7 @@ export default function MinhaContaForm({
       </div>
 
       {/* Dados pessoais */}
-      <form onSubmit={handleProfileSubmit} className="rounded-2xl border border-slate-100 bg-white p-6 shadow-sm sm:p-8">
+      <form id="dados-pessoais" onSubmit={handleProfileSubmit} className="scroll-mt-32 rounded-2xl border border-slate-100 bg-white p-6 shadow-sm sm:p-8">
         <h3 className="text-base font-bold text-[#0B2447]">Dados pessoais</h3>
         <p className="mt-0.5 text-sm text-slate-500">Atualize suas informações de contato.</p>
 
@@ -413,7 +470,7 @@ export default function MinhaContaForm({
       </form>
 
       {/* Meu endereço (opcional) */}
-      <form onSubmit={handleEnderecoSubmit} className="rounded-2xl border border-slate-100 bg-white p-6 shadow-sm sm:p-8">
+      <form id="meu-endereco" onSubmit={handleEnderecoSubmit} className="scroll-mt-32 rounded-2xl border border-slate-100 bg-white p-6 shadow-sm sm:p-8">
         <div className="flex items-center gap-2">
           <MapPin className="h-5 w-5 text-[#0B3D91]" />
           <h3 className="text-base font-bold text-[#0B2447]">Meu endereço</h3>
@@ -568,7 +625,7 @@ export default function MinhaContaForm({
       </form>
 
       {/* Notificações */}
-      <div className="rounded-2xl border border-slate-100 bg-white p-6 shadow-sm sm:p-8">
+      <div id="notificacoes" className="scroll-mt-32 rounded-2xl border border-slate-100 bg-white p-6 shadow-sm sm:p-8">
         <div className="flex items-center gap-2">
           <Bell className="h-5 w-5 text-[#0B3D91]" />
           <h3 className="text-base font-bold text-[#0B2447]">Notificações</h3>
@@ -605,7 +662,7 @@ export default function MinhaContaForm({
       </div>
 
       {/* Segurança / senha */}
-      <div className="rounded-2xl border border-slate-100 bg-white p-6 shadow-sm sm:p-8">
+      <div id="seguranca" className="scroll-mt-32 rounded-2xl border border-slate-100 bg-white p-6 shadow-sm sm:p-8">
         <div className="flex items-center gap-2">
           <ShieldCheck className="h-5 w-5 text-[#0B3D91]" />
           <h3 className="text-base font-bold text-[#0B2447]">Segurança</h3>
