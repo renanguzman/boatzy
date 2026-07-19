@@ -2,11 +2,14 @@
 
 import { useState, useEffect, Suspense } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
-import { Mail, Lock, Eye, EyeOff, ArrowRight, Loader2, User } from 'lucide-react';
+import { Mail, Lock, Eye, EyeOff, ArrowRight, Loader2, User, IdCard } from 'lucide-react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { createClient } from '@/lib/supabase/client';
 import SocialLoginButtons, { type OAuthProvider } from '@/components/auth/SocialLoginButtons';
+import PhoneInput, { type PhoneValue } from '@/components/auth/PhoneInput';
+import PasswordRequirements from '@/components/auth/PasswordRequirements';
+import { isStrongPassword, isValidCPF, maskCPF, onlyDigits } from '@/lib/validators';
 
 function EntrarForm() {
   const searchParams = useSearchParams();
@@ -19,8 +22,11 @@ function EntrarForm() {
   const [mode, setMode] = useState<'login' | 'cadastro'>('login');
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
+  const [cpf, setCpf] = useState('');
+  const [phone, setPhone] = useState<PhoneValue>({ e164: '', valid: false });
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+  const [attemptedSubmit, setAttemptedSubmit] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -37,7 +43,10 @@ function EntrarForm() {
     setError('');
     setName('');
     setEmail('');
+    setCpf('');
+    setPhone({ e164: '', valid: false });
     setPassword('');
+    setAttemptedSubmit(false);
     setSuccess(false);
   }
 
@@ -61,14 +70,34 @@ function EntrarForm() {
 
   async function handleCadastro(e: React.FormEvent) {
     e.preventDefault();
-    setLoading(true);
+    setAttemptedSubmit(true);
     setError('');
+
+    // Validações client-side antes de chamar o Supabase.
+    if (!isValidCPF(cpf)) {
+      setError('CPF inválido. Confira os números digitados.');
+      return;
+    }
+    if (!phone.valid) {
+      setError('Informe um número de celular válido.');
+      return;
+    }
+    if (!isStrongPassword(password)) {
+      setError('A senha não atende a todos os requisitos.');
+      return;
+    }
+
+    setLoading(true);
 
     const { error: authError } = await supabase.auth.signUp({
       email,
       password,
       options: {
-        data: { full_name: name },
+        data: {
+          full_name: name,
+          cpf: onlyDigits(cpf),
+          phone: phone.e164,
+        },
         emailRedirectTo: `${baseUrl()}/auth/callback?next=${encodeURIComponent(
           `/api/auth/setup-cliente?redirect_to=${encodeURIComponent(redirectTo)}`
         )}`,
@@ -201,6 +230,48 @@ function EntrarForm() {
           </div>
         </div>
 
+        {mode === 'cadastro' && (
+          <>
+            <div>
+              <label htmlFor="cpf" className="block text-xs font-bold text-[#0B2447] tracking-wider uppercase mb-2">
+                CPF
+              </label>
+              <div className="relative">
+                <IdCard className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                <input
+                  id="cpf"
+                  type="text"
+                  inputMode="numeric"
+                  value={cpf}
+                  onChange={(e) => setCpf(maskCPF(e.target.value))}
+                  placeholder="000.000.000-00"
+                  required
+                  className={`w-full pl-11 pr-4 py-3.5 rounded-xl border bg-slate-50/50 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-[#0B3D91]/20 focus:border-[#0B3D91] transition-all ${
+                    attemptedSubmit && cpf && !isValidCPF(cpf) ? 'border-red-300' : 'border-slate-200'
+                  }`}
+                />
+              </div>
+              {attemptedSubmit && cpf && !isValidCPF(cpf) && (
+                <p className="mt-1.5 text-xs text-red-500">CPF inválido.</p>
+              )}
+            </div>
+
+            <div>
+              <label className="block text-xs font-bold text-[#0B2447] tracking-wider uppercase mb-2">
+                Celular
+              </label>
+              <PhoneInput
+                onChange={setPhone}
+                disabled={loading}
+                invalid={attemptedSubmit && !phone.valid}
+              />
+              {attemptedSubmit && !phone.valid && (
+                <p className="mt-1.5 text-xs text-red-500">Informe um número de celular válido.</p>
+              )}
+            </div>
+          </>
+        )}
+
         <div>
           <div className="flex items-center justify-between mb-2">
             <label htmlFor="password" className="block text-xs font-bold text-[#0B2447] tracking-wider uppercase">
@@ -219,8 +290,8 @@ function EntrarForm() {
               type={showPassword ? 'text' : 'password'}
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              placeholder={mode === 'cadastro' ? 'Mínimo 6 caracteres' : '••••••••'}
-              minLength={mode === 'cadastro' ? 6 : undefined}
+              placeholder={mode === 'cadastro' ? 'Crie uma senha segura' : '••••••••'}
+              minLength={mode === 'cadastro' ? 8 : undefined}
               required
               className="w-full pl-11 pr-12 py-3.5 rounded-xl border border-slate-200 bg-slate-50/50 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-[#0B3D91]/20 focus:border-[#0B3D91] transition-all"
             />
@@ -232,6 +303,7 @@ function EntrarForm() {
               {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
             </button>
           </div>
+          {mode === 'cadastro' && <PasswordRequirements password={password} />}
         </div>
 
         {error && (

@@ -255,8 +255,17 @@ export type Database = {
           name: string;
           email: string;
           cpf_cnpj: string | null;
+          phone: string | null;
           birthday: string | null;
           avatar_url: string | null;
+          endereco_cep: string | null;
+          endereco_estado_id: number | null;
+          endereco_municipio_id: number | null;
+          endereco_bairro: string | null;
+          endereco_logradouro: string | null;
+          endereco_numero: string | null;
+          endereco_complemento: string | null;
+          notif_email_conversas: boolean;
           created_at: string;
           updated_at: string;
         };
@@ -265,8 +274,17 @@ export type Database = {
           name: string;
           email: string;
           cpf_cnpj?: string | null;
+          phone?: string | null;
           birthday?: string | null;
           avatar_url?: string | null;
+          endereco_cep?: string | null;
+          endereco_estado_id?: number | null;
+          endereco_municipio_id?: number | null;
+          endereco_bairro?: string | null;
+          endereco_logradouro?: string | null;
+          endereco_numero?: string | null;
+          endereco_complemento?: string | null;
+          notif_email_conversas?: boolean;
           created_at?: string;
           updated_at?: string;
         };
@@ -275,8 +293,17 @@ export type Database = {
           name?: string;
           email?: string;
           cpf_cnpj?: string | null;
+          phone?: string | null;
           birthday?: string | null;
           avatar_url?: string | null;
+          endereco_cep?: string | null;
+          endereco_estado_id?: number | null;
+          endereco_municipio_id?: number | null;
+          endereco_bairro?: string | null;
+          endereco_logradouro?: string | null;
+          endereco_numero?: string | null;
+          endereco_complemento?: string | null;
+          notif_email_conversas?: boolean;
           created_at?: string;
           updated_at?: string;
         };
@@ -931,6 +958,7 @@ export type Database = {
           remetente_id: string;
           conteudo: string;
           lida_em: string | null;
+          notificada_em: string | null;
           created_at: string;
         };
         Insert: {
@@ -939,6 +967,7 @@ export type Database = {
           remetente_id: string;
           conteudo: string;
           lida_em?: string | null;
+          notificada_em?: string | null;
           created_at?: string;
         };
         Update: {
@@ -947,6 +976,7 @@ export type Database = {
           remetente_id?: string;
           conteudo?: string;
           lida_em?: string | null;
+          notificada_em?: string | null;
           created_at?: string;
         };
         Relationships: [
@@ -1182,6 +1212,21 @@ export type Database = {
           ultima_mensagem: string;
           ultima_em: string;
           nao_lidas: number;
+        }[];
+      };
+      chat_notificacoes_pendentes: {
+        Args: Record<string, never>;
+        Returns: {
+          recipient_id: string;
+          recipient_email: string;
+          recipient_name: string;
+          recipient_is_gestor: boolean;
+          conversa_id: string;
+          remetente_nome: string;
+          qtd: number;
+          primeira_em: string;
+          ultima_em: string;
+          msg_ids: string[];
         }[];
       };
       buscar_anuncios_venda: {

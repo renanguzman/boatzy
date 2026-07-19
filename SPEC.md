@@ -198,9 +198,18 @@ STRIPE_SECRET_KEY
 id          uuid primary key                     -- = auth.users.id (FK)
 name        text not null
 email       text not null unique
-cpf_cnpj    text
+cpf_cnpj    text                                 -- CPF do cliente (só dígitos), coletado no cadastro por e-mail
+phone       text                                 -- celular em E.164 (ex.: +5511912345678), coletado no cadastro por e-mail
 birthday    date
 avatar_url  text
+endereco_cep          text                       -- endereço opcional (editado em "Minha conta")
+endereco_estado_id    integer references estados(id)
+endereco_municipio_id integer references municipios(id)
+endereco_bairro       text
+endereco_logradouro   text
+endereco_numero       text
+endereco_complemento  text
+notif_email_conversas boolean not null default true  -- e-mail (agrupado) de novas conversas
 created_at  timestamptz default now()
 updated_at  timestamptz default now()
 ```
@@ -208,8 +217,13 @@ updated_at  timestamptz default now()
 `users.id` referencia `auth.users(id) ON DELETE CASCADE`.  
 RLS habilitado: usuário lê/atualiza apenas o próprio registro.
 
+`cpf_cnpj` e `phone` são **NULLABLE**: só são preenchidos no cadastro por e-mail em `/entrar` (via `user_metadata` → `setup-cliente`). Contas criadas por SSO (Google/Facebook/Apple) não fornecem esses dados no cadastro e ficam `NULL` até serem completadas em "Minha conta".
+
 Migration: `supabase/migrations/001_create_users_table.sql`  
-Migration de migração Clerk→Supabase: `supabase/migrations/20260517_clerk_to_supabase_auth.sql`
+Migration de migração Clerk→Supabase: `supabase/migrations/20260517_clerk_to_supabase_auth.sql`  
+Migration da coluna `phone`: `supabase/migrations/20260719_users_phone.sql`  
+Migration das colunas de endereço: `supabase/migrations/20260719b_users_endereco.sql` (todas NULLABLE — endereço é opcional)  
+Migration da preferência de notificação: `supabase/migrations/20260719c_users_notif_conversas.sql` (`notif_email_conversas`, default `true`)
 
 Clientes Supabase:
 - `createClient()` de `@/lib/supabase/client` — browser, anon key, RLS ativo
@@ -310,6 +324,16 @@ Os botões de login social são renderizados pelo componente compartilhado `Soci
 - **OAuth:** `signInWithOAuth({ provider, options: { redirectTo: `${baseUrl()}/auth/callback?next=/api/auth/setup-cliente?redirect_to=...` } })`, onde `baseUrl()` = `NEXT_PUBLIC_APP_URL ?? window.location.origin`.
 - Em qualquer caminho a role resultante é `cliente`.
 
+#### Campos do cadastro por e-mail (celular, CPF e senha forte)
+
+O formulário de **criar conta** (modo `cadastro`) coleta, além de nome/e-mail/senha, o **celular** e o **CPF**. Esses campos **só aparecem no cadastro por e-mail** — o fluxo OAuth não os usa e permanece inalterado.
+
+- **Celular** — componente `src/components/auth/PhoneInput.tsx` (`'use client'`): seletor de país (DDI + bandeira emoji, com busca) + campo de número nacional com máscara por país. A lista de países fica em `src/lib/countries.ts` (Brasil é o padrão, `+55`, máscara `(##) #####-####`). O componente emite `{ e164, valid }` via `onChange`; `valid` exige a quantidade de dígitos da máscara do país (fallback genérico: 8–15 dígitos). O valor final é montado em **E.164** (`dial + dígitos`, ex.: `+5511912345678`).
+- **CPF** — `input` com máscara progressiva `000.000.000-00` (`maskCPF`) e validação de dígitos verificadores (`isValidCPF`), ambos em `src/lib/validators.ts`. Rejeita sequências repetidas. Persistido como **só dígitos** em `users.cpf_cnpj`.
+- **Senha forte** — `src/lib/validators.ts` exporta `PASSWORD_RULES` (≥8 caracteres, 1 maiúscula, 1 minúscula, 1 número, 1 caractere especial) e `isStrongPassword`. O componente `src/components/auth/PasswordRequirements.tsx` mostra a lista de requisitos abaixo do campo e marca cada regra com um check (verde) em tempo real conforme o usuário digita.
+- **Validação no submit:** `handleCadastro` bloqueia o envio (antes de chamar `signUp`) se CPF, celular ou senha forem inválidos, exibindo mensagens específicas; os erros de campo (CPF/celular) só destacam em vermelho após a primeira tentativa (`attemptedSubmit`).
+- **Transporte até o banco:** os valores vão em `signUp({ options: { data: { full_name, cpf, phone } } })` → gravados no `user_metadata` do `auth.users` → lidos por `setup-cliente` (após a confirmação de e-mail) e persistidos em `public.users` (`cpf_cnpj`, `phone`) **apenas no insert** do registro.
+
 ### Recuperação de senha (site e painel)
 
 Duas superfícies, cada uma com seu próprio trio de rotas (todas públicas — ver `painelPublicRoutes` em `src/proxy.ts` para as do painel; as do site não são protegidas pelo proxy):
@@ -357,7 +381,7 @@ Ambos são **aditivos** (não substituem roles existentes):
   4. Redireciona para `/painel`.
 
 - `GET /api/auth/setup-cliente?redirect_to=/...`
-  1. Mesmo fluxo de upsert.
+  1. Mesmo fluxo de upsert. **No insert** (primeiro acesso), grava também `cpf_cnpj` e `phone` lidos do `user_metadata` (`user.user_metadata.cpf` / `.phone`) — presentes só no cadastro por e-mail; `NULL` no SSO. No **update** (logins seguintes) esses campos não são tocados, para não sobrescrever dados editados em "Minha conta".
   2. `addRole(userId, 'cliente')`.
   3. Redireciona para `redirect_to` (caminho relativo apenas).
 
@@ -1515,8 +1539,44 @@ aparecem no menu sanfonado para usuários logados.
   revalida `/minhas-reservas` e `/painel/agendamentos`.
 - **Avaliar** (reserva `concluida`): ver §22.
 
-**`/minha-conta`** (`src/app/minha-conta/page.tsx`): placeholder ("Em breve") com gate de auth —
-edição dos dados da conta fica para um passo futuro.
+**`/minha-conta`** (`src/app/minha-conta/page.tsx`, Server Component): gate de auth (sem sessão →
+`/entrar?redirect_to=/minha-conta`). Carrega o registro de `public.users` (`name, email, cpf_cnpj,
+phone, avatar_url, created_at`) via `supabaseAdmin` e deriva os **provedores de login** de
+`user.identities[].provider` ∪ `user.app_metadata.providers` (fallback `['email']`).
+`canChangePassword = providers.includes('email')`. Passa tudo para o client `MinhaContaForm`.
+
+**`_components/MinhaContaForm.tsx`** (`'use client'`) — três blocos:
+1. **Cartão de identidade:** avatar (ou inicial do nome), nome, e-mail, "cliente desde"
+   (`created_at` em pt-BR) e chips dos provedores vinculados (`E-mail e senha`, `Google`, …).
+2. **Dados pessoais:** edita **nome**, **CPF** (`maskCPF` + `isValidCPF`) e **celular**
+   (`PhoneInput` com `initialE164` pré-preenchido). E-mail é **somente leitura** (troca de e-mail
+   exige reconfirmação no Auth — fora de escopo). Salva via server action **`atualizarPerfil`**
+   (`src/lib/conta-actions.ts`, `'use server'`): valida sessão + nome + CPF, faz `update` em
+   `public.users` (`name, cpf_cnpj` só dígitos, `phone` E.164 ou `null`, `updated_at`) com
+   `supabaseAdmin`, e `revalidatePath('/minha-conta')`.
+3. **Meu endereço (opcional):** CEP, estado (select de `estados`), município (select dependente,
+   carregado por estado), bairro, logradouro, número e complemento — **todos opcionais**. Reusa a
+   **mesma lógica do cadastro de roteiro**: ao digitar o CEP (8 dígitos) consulta o **ViaCEP**
+   (`https://viacep.com.br/ws/{cep}/json/`), autopreenche logradouro/bairro, mapeia `uf` → estado,
+   carrega os municípios daquele estado e casa o município por nome normalizado. Os municípios vêm
+   da server action **`getMunicipiosByEstado`** (`conta-actions.ts`, consulta `municipios` por
+   `estado_id`); a página já entrega `estados` e os `municipiosIniciais` do endereço salvo. Salva via
+   **`atualizarEndereco`** (`conta-actions.ts`, `'use server'`): grava `endereco_*` em `public.users`
+   (estado/município como id; campos vazios viram `NULL`) e `revalidatePath('/minha-conta')`.
+4. **Notificações:** toggle **"Receber e-mail de notificação de novas conversas"**
+   (`notif_email_conversas`, padrão **habilitado**). Salva **na hora** ao alternar (UI otimista com
+   rollback em erro) via server action **`atualizarNotifEmailConversas(ativo)`** (`conta-actions.ts`).
+   O toggle é um `<button role="switch">` acessível. O envio de e-mail em si é descrito em
+   "§ Notificação de novas conversas por e-mail".
+5. **Segurança:** só quando `canChangePassword`. Form de troca de senha (senha atual + nova senha
+   forte com `PasswordRequirements` + confirmação). No submit: **reautentica** com
+   `signInWithPassword({ email, senha atual })` (client SSR) — se falhar → "Senha atual incorreta" —
+   e então `updateUser({ password })`. Contas somente-SSO não veem o form: mostram um aviso de que a
+   senha é gerenciada pelo provedor. Reusa `isStrongPassword`/`PASSWORD_RULES` de
+   `src/lib/validators.ts` — mesma política do cadastro.
+
+`PhoneInput` ganhou a prop opcional `initialE164`: deduz país (DDI de maior comprimento que casa o
+prefixo) + dígitos nacionais para pré-preencher o campo.
 
 ### 20.7 Reserva de embarcação (cliente)
 
@@ -1658,6 +1718,38 @@ nome/avatar de terceiros.
   clientes" → `/painel/clientes`.
 - Escopo atual: apenas chat. O componente é o ponto de agregação para **futuras notificações**
   (novas solicitações de reserva etc.).
+
+### 21.4c Notificação de novas conversas por e-mail (agrupada)
+
+Avisa por e-mail quem tem mensagens de chat **não lidas**, sem enviar um e-mail por mensagem —
+agrupa numa **janela anti-bombardeio**. Vale para os dois lados (gestor e cliente); respeita a
+preferência `users.notif_email_conversas` (toggle em "Minha conta → Notificações", padrão `true`).
+
+**Peças:**
+- Migration `20260719d_chat_notificacao_email.sql`: coluna `mensagem.notificada_em timestamptz`
+  (carimba mensagens já incluídas em algum e-mail; índice parcial `WHERE lida_em IS NULL AND
+  notificada_em IS NULL`) + RPC **`chat_notificacoes_pendentes()`** (`security definer`, **só**
+  `service_role`): retorna uma linha por **(destinatário, conversa)** — `recipient_id/email/name`,
+  `recipient_is_gestor`, `conversa_id`, `remetente_nome`, `qtd`, `primeira_em`, `ultima_em`,
+  `msg_ids[]` — considerando apenas mensagens `lida_em IS NULL AND notificada_em IS NULL` de
+  destinatários com `notif_email_conversas = true`. Destinatário = o participante que **não** enviou.
+- `src/lib/notificacoes-conversa.ts` (`server-only`) — `processarNotificacoesConversas()`: agrupa por
+  destinatário e aplica a regra: **envia** se a mensagem mais recente já tem ≥ `NOTIF_QUIET_MINUTES`
+  (rajada acalmou) **ou** a mais antiga já espera ≥ `NOTIF_MAX_WAIT_MINUTES` (teto); senão **adia**
+  para a próxima rodada. Padrões: 5 e 30 min (via env). Monta **um** e-mail HTML por destinatário
+  (lista remetentes + quantidades; CTA para `/minhas-conversas` ou `/painel` conforme
+  `recipient_is_gestor`), envia e só então carimba `notificada_em` nos `msg_ids` — se o envio falhar,
+  não carimba (reenvia na próxima rodada).
+- `src/lib/email.ts` (`server-only`) — `sendEmail({to,subject,html})` via **Resend** (REST API por
+  `fetch`, sem dependência nova). Usa `RESEND_API_KEY` + `EMAIL_FROM`; sem a chave, vira no-op logado.
+- `src/app/api/cron/notificar-conversas/route.ts` — aciona `processarNotificacoesConversas`.
+  Protegida por `CRON_SECRET` (checa `Authorization: Bearer <CRON_SECRET>`, que a Vercel envia
+  automaticamente); sem o secret responde 401. `GET` (Vercel Cron) e `POST` (teste manual).
+- `vercel.json` — `crons`: `/api/cron/notificar-conversas` a cada 5 min (`*/5 * * * *`).
+
+**Envs** (`.env.example`): `RESEND_API_KEY`, `EMAIL_FROM`, `CRON_SECRET`, `NOTIF_QUIET_MINUTES`,
+`NOTIF_MAX_WAIT_MINUTES`. Mensagens que o destinatário ler antes da rodada saem naturalmente do
+conjunto (`lida_em` deixa de ser nulo) e não geram e-mail.
 
 ### 21.5 Lado do cliente (site público)
 

@@ -51,6 +51,7 @@ Validar um marketplace de aluguel de embarcações, garantindo:
 
 #### Usuário (Cliente) (role: cliente)
 - ✅ Cadastro/Login em `/entrar` (Supabase Auth — email/senha, Google, Facebook, Apple)
+- ✅ Cadastro por e-mail coleta **celular** (seletor de país com DDI + bandeira e máscara por país; padrão Brasil +55), **CPF** (máscara `000.000.000-00` + validação de dígitos verificadores) e exige **senha forte** com checklist de requisitos que marca cada regra em tempo real (≥8 caracteres, maiúscula, minúscula, número, caractere especial). Esses campos aparecem apenas no cadastro por e-mail — o fluxo SSO permanece inalterado; celular/CPF ficam `NULL` para contas SSO até serem completados em "Minha conta". Detalhes técnicos no `SPEC.md`.
 - ✅ Role `cliente` atribuída automaticamente via `/api/auth/setup-cliente` após login/cadastro
 - Buscar embarcações
 - Visualizar detalhes
@@ -264,7 +265,7 @@ gestor. Detalhes técnicos: SPEC §20.4–20.5.
 - O avatar do cliente no `Header` abre um menu com **Minhas reservas**, **Minha conta** e **Sair**.
 - `/minhas-reservas`: o cliente vê todas as reservas que solicitou com status, dados do pedido,
   adicionais, total e a **resposta do gestor** (observação + data). Detalhes: SPEC §20.6.
-- `/minha-conta`: placeholder ("Em breve") — edição de dados fica para depois.
+- `/minha-conta`: o cliente vê seus dados (avatar, nome, e-mail, "cliente desde", provedores de login vinculados) e **edita** nome, CPF (máscara + validação) e celular (seletor de país + máscara). Tem também a seção **"Meu endereço"** (totalmente opcional): CEP, estado, município, bairro, logradouro, número e complemento — ao preencher o CEP os demais campos são autopreenchidos via ViaCEP (mesma lógica do cadastro de roteiro). Tem também a seção **"Notificações"** com o toggle **"Receber e-mail de notificação de novas conversas"** (padrão habilitado). Quando ativo, o usuário recebe **um e-mail agrupado** avisando de mensagens de chat não lidas — nunca um e-mail por mensagem: um job (Vercel Cron, a cada 5 min) aplica uma **janela anti-bombardeio** (envia após ~5 min sem novas mensagens, no máximo ~30 min) e junta tudo num único aviso via Resend. Detalhes: SPEC §21.4c. Também **altera a senha** — mas **apenas para contas criadas por e-mail** (exige a senha atual + nova senha forte com checklist); contas somente-SSO veem um aviso de que a senha é gerenciada pelo provedor. Detalhes: SPEC §20.6 / §Minha conta.
 
 #### ✅ Implementado — Reserva de **embarcação** pelo site
 
@@ -278,8 +279,7 @@ gestor. Detalhes técnicos: SPEC §20.4–20.5.
 - Reservas de embarcação aparecem no calendário do gestor, no detalhe `/painel/agendamentos/[id]` e
   em "Minhas reservas", com o ícone/diferenciação de tipo. Detalhes: SPEC §20.7.
 
-**Próximos passos:** tela "Minha conta" (edição de dados); refinamentos do calendário (filtros por
-tipo/status); pagamento (Stripe).
+**Próximos passos:** refinamentos do calendário (filtros por tipo/status); pagamento (Stripe).
 
 ---
 

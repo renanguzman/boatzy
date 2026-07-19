@@ -32,6 +32,12 @@ export async function GET(request: Request) {
     (user.user_metadata?.picture as string | undefined) ??
     null;
 
+  // CPF e telefone só existem no metadata quando a conta é criada por e-mail
+  // em /entrar. Contas via SSO (Google/Facebook/Apple) não trazem esses dados
+  // e ficam NULL — preenchidos depois em "Minha conta".
+  const cpf = (user.user_metadata?.cpf as string | undefined) ?? null;
+  const phone = (user.user_metadata?.phone as string | undefined) ?? null;
+
   // Upsert do usuário — o id coincide com auth.users.id
   const { data: existing } = await supabaseAdmin
     .from('users')
@@ -45,6 +51,8 @@ export async function GET(request: Request) {
       name,
       email,
       avatar_url: avatarUrl,
+      cpf_cnpj: cpf,
+      phone,
     };
     await supabaseAdmin.from('users').insert(userData);
   } else {
