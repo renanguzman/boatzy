@@ -39,11 +39,18 @@ export default async function ChatVendaPage({ params }: { params: Promise<{ id: 
     .single();
   if (!vendedor) notFound();
 
-  // Garante (idempotente) a conversa gestor ↔ cliente.
+  // Garante (idempotente) a conversa gestor ↔ cliente, registrando a origem
+  // (última a abrir o chat) = este anúncio de venda.
   const { data: conversa } = await supabaseAdmin
     .from('conversa')
     .upsert(
-      { gestor_id: data.owner_id, cliente_id: user.id },
+      {
+        gestor_id: data.owner_id,
+        cliente_id: user.id,
+        origem_tipo: 'venda',
+        origem_id: id,
+        origem_label: emb!.nome,
+      },
       { onConflict: 'gestor_id,cliente_id', ignoreDuplicates: false },
     )
     .select('id')
@@ -91,6 +98,7 @@ export default async function ChatVendaPage({ params }: { params: Promise<{ id: 
           voltarLabel="Voltar para o anúncio"
           mensagensIniciais={(mensagens ?? []) as Mensagem[]}
           rascunhoInicial={rascunhoInicial}
+          contexto={{ tipo: 'venda', label: emb!.nome }}
         />
       </div>
     </div>

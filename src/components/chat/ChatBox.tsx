@@ -3,11 +3,12 @@
 import { useState, useEffect, useRef, useTransition, useCallback } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
-import { ArrowLeft, Send, User, Loader2 } from 'lucide-react';
+import { ArrowLeft, Send, User, Loader2, Tag } from 'lucide-react';
 import type { RealtimeChannel } from '@supabase/supabase-js';
 import { createClient } from '@/lib/supabase/client';
 import { authorizeRealtime } from '@/lib/supabase/realtime';
 import { enviarMensagem, marcarConversaComoLida } from '@/lib/chat-actions';
+import { origemTipoLabel, type ConversaOrigem } from '@/lib/conversa-origem';
 
 export type Mensagem = {
   id: string;
@@ -42,6 +43,7 @@ export default function ChatBox({
   voltarLabel = 'Voltar',
   mensagensIniciais,
   rascunhoInicial,
+  contexto,
 }: {
   conversaId: string;
   meId: string;
@@ -51,6 +53,8 @@ export default function ChatBox({
   mensagensIniciais: Mensagem[];
   /** Texto pré-preenchido no campo de envio (ex.: contexto do anúncio de venda). */
   rascunhoInicial?: string;
+  /** A que objeto a conversa se refere (venda/roteiro/embarcação). */
+  contexto?: ConversaOrigem;
 }) {
   const [mensagens, setMensagens] = useState<Mensagem[]>(mensagensIniciais);
   const [texto, setTexto] = useState(rascunhoInicial ?? '');
@@ -147,7 +151,27 @@ export default function ChatBox({
           <p className="text-sm font-semibold text-[#0B2447] leading-tight truncate">{interlocutor.name}</p>
           <p className="text-xs text-slate-400 truncate">{interlocutor.email}</p>
         </div>
+        {contexto && (
+          <span
+            className="ml-auto hidden sm:inline-flex items-center gap-1.5 rounded-full bg-[#0B3D91]/10 px-3 py-1.5 text-xs font-medium text-[#0B3D91] max-w-[45%]"
+            title={`Referente a: ${contexto.label} (${origemTipoLabel(contexto.tipo)})`}
+          >
+            <Tag className="w-3.5 h-3.5 flex-shrink-0" />
+            <span className="truncate">
+              {origemTipoLabel(contexto.tipo)}: {contexto.label}
+            </span>
+          </span>
+        )}
       </div>
+      {/* Selo de contexto no mobile (abaixo do header) */}
+      {contexto && (
+        <div className="sm:hidden flex items-center gap-1.5 px-6 py-2 bg-[#0B3D91]/5 border-b border-slate-100 text-xs font-medium text-[#0B3D91]">
+          <Tag className="w-3.5 h-3.5 flex-shrink-0" />
+          <span className="truncate">
+            {origemTipoLabel(contexto.tipo)}: {contexto.label}
+          </span>
+        </div>
+      )}
 
       {/* Mensagens */}
       <div className="flex-1 overflow-y-auto px-6 py-6 space-y-1">

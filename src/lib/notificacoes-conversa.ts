@@ -2,6 +2,7 @@ import 'server-only';
 
 import { supabaseAdmin } from '@/lib/supabase';
 import { sendEmail } from '@/lib/email';
+import { origemTipoLabel } from '@/lib/conversa-origem';
 
 // ============================================================
 // Notificação agrupada de novas conversas (chat).
@@ -29,6 +30,9 @@ type PendenteRow = {
   recipient_name: string;
   recipient_is_gestor: boolean;
   conversa_id: string;
+  cliente_id: string;
+  origem_tipo: string | null;
+  origem_label: string | null;
   remetente_nome: string;
   qtd: number;
   primeira_em: string;
@@ -36,12 +40,28 @@ type PendenteRow = {
   msg_ids: string[];
 };
 
+/** Deep-link para a conversa, conforme o papel do destinatário. */
+function linkConversa(row: PendenteRow): string {
+  return row.recipient_is_gestor
+    ? `${APP_URL}/painel/clientes/${row.cliente_id}/chat`
+    : `${APP_URL}/minhas-conversas/${row.conversa_id}/chat`;
+}
+
 export type ProcessarResultado = {
   destinatariosPendentes: number;
   enviados: number;
   adiados: number;
   falhas: number;
+  /** Motivos de falha (e-mail mascarado) — para diagnóstico via cron. */
+  erros: string[];
 };
+
+/** Mascara o e-mail para não expor o endereço completo no retorno de diagnóstico. */
+function mascararEmail(email: string): string {
+  const [user, dominio] = (email ?? '').split('@');
+  if (!dominio) return email;
+  return `${user.slice(0, 2)}***@${dominio}`;
+}
 
 export async function processarNotificacoesConversas(): Promise<ProcessarResultado> {
   const { data, error } = await supabaseAdmin.rpc('chat_notificacoes_pendentes');
@@ -64,6 +84,7 @@ export async function processarNotificacoesConversas(): Promise<ProcessarResulta
   let enviados = 0;
   let adiados = 0;
   let falhas = 0;
+  const erros: string[] = [];
 
   for (const grupo of porDestinatario.values()) {
     const ultimaMsg = Math.max(...grupo.map((r) => new Date(r.ultima_em).getTime()));
@@ -81,16 +102,23 @@ export async function processarNotificacoesConversas(): Promise<ProcessarResulta
     const { recipient_email, recipient_name } = grupo[0];
     const totalMsgs = grupo.reduce((acc, r) => acc + Number(r.qtd), 0);
     const isGestor = grupo.every((r) => r.recipient_is_gestor);
-    const link = isGestor ? `${APP_URL}/painel` : `${APP_URL}/minhas-conversas`;
+    // 1 conversa → botão vai direto para ela; várias → vai para o hub.
+    const linkPrincipal =
+      grupo.length === 1
+        ? linkConversa(grupo[0])
+        : isGestor
+          ? `${APP_URL}/painel/clientes`
+          : `${APP_URL}/minhas-conversas`;
 
     const res = await sendEmail({
       to: recipient_email,
       subject: assunto(totalMsgs),
-      html: montarHtml({ nome: recipient_name, grupo, totalMsgs, link }),
+      html: montarHtml({ nome: recipient_name, grupo, totalMsgs, link: linkPrincipal }),
     });
 
     if (!res.ok) {
       falhas += 1;
+      erros.push(`${mascararEmail(recipient_email)}: ${res.error}`);
       continue; // não marca como notificada → tenta de novo na próxima rodada
     }
 
@@ -103,6 +131,7 @@ export async function processarNotificacoesConversas(): Promise<ProcessarResulta
 
     if (updErr) {
       falhas += 1;
+      erros.push(`${mascararEmail(recipient_email)}: update notificada_em: ${updErr.message}`);
       continue;
     }
 
@@ -114,6 +143,7 @@ export async function processarNotificacoesConversas(): Promise<ProcessarResulta
     enviados,
     adiados,
     falhas,
+    erros,
   };
 }
 
@@ -147,10 +177,17 @@ function montarHtml({
     .map((r) => {
       const qtd = Number(r.qtd);
       const label = qtd === 1 ? '1 nova mensagem' : `${qtd} novas mensagens`;
+      // Selo do contexto (a que a conversa se refere), quando houver.
+      const contexto = r.origem_label
+        ? `<span style="display:inline-block;margin-top:6px;padding:2px 10px;border-radius:999px;background:#e8eefb;color:#0B3D91;font-size:12px;font-weight:bold;">${esc(origemTipoLabel(r.origem_tipo))}: ${esc(r.origem_label)}</span>`
+        : '';
       return `<tr>
         <td style="padding:12px 16px;border-bottom:1px solid #eef2f7;">
-          <strong style="color:#0B2447;">${esc(r.remetente_nome)}</strong>
-          <div style="color:#64748b;font-size:13px;">${label}</div>
+          <a href="${esc(linkConversa(r))}" style="text-decoration:none;color:inherit;display:block;">
+            <strong style="color:#0B2447;">${esc(r.remetente_nome)}</strong>
+            <div style="color:#64748b;font-size:13px;">${label}</div>
+            ${contexto}
+          </a>
         </td>
       </tr>`;
     })

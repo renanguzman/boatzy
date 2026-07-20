@@ -3,6 +3,7 @@ import Header from '@/components/layout/Header';
 import { createClient } from '@/lib/supabase/server';
 import { supabaseAdmin } from '@/lib/supabase';
 import ChatBox, { type Mensagem } from '@/components/chat/ChatBox';
+import { toConversaOrigem } from '@/lib/conversa-origem';
 
 /**
  * Chat do cliente por conversaId (hub "Minhas conversas"). Diferente de
@@ -20,7 +21,7 @@ export default async function ChatConversaPage({ params }: { params: Promise<{ i
   // A conversa precisa pertencer ao cliente logado (autorização) e dá o gestor.
   const { data: conversa } = await supabaseAdmin
     .from('conversa')
-    .select('id, gestor_id')
+    .select('id, gestor_id, origem_tipo, origem_label')
     .eq('id', conversaId)
     .eq('cliente_id', user.id)
     .single();
@@ -60,6 +61,7 @@ export default async function ChatConversaPage({ params }: { params: Promise<{ i
           voltarHref="/minhas-conversas"
           voltarLabel="Voltar para Minhas conversas"
           mensagensIniciais={(mensagens ?? []) as Mensagem[]}
+          contexto={toConversaOrigem(conversa.origem_tipo, conversa.origem_label)}
         />
       </div>
     </div>

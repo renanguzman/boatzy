@@ -3,6 +3,7 @@ import { createClient } from '@/lib/supabase/server';
 import { supabaseAdmin } from '@/lib/supabase';
 import { abrirConversa } from '../../actions';
 import ChatBox, { type Mensagem } from '@/components/chat/ChatBox';
+import { toConversaOrigem } from '@/lib/conversa-origem';
 
 export default async function ChatClientePage({ params }: { params: Promise<{ id: string }> }) {
   const { id: clienteId } = await params;
@@ -24,6 +25,13 @@ export default async function ChatClientePage({ params }: { params: Promise<{ id
   const conversaResult = await abrirConversa(clienteId);
   if (!conversaResult.ok) notFound();
   const { conversaId } = conversaResult;
+
+  // Origem (contexto) registrada na conversa, para exibir o selo.
+  const { data: conversaOrigem } = await supabaseAdmin
+    .from('conversa')
+    .select('origem_tipo, origem_label')
+    .eq('id', conversaId)
+    .single();
 
   // Ao abrir, zera as não lidas enviadas pelo cliente (inline, sem revalidate —
   // não é permitido revalidar durante o render de um Server Component).
@@ -49,6 +57,7 @@ export default async function ChatClientePage({ params }: { params: Promise<{ id
       voltarHref="/painel/clientes"
       voltarLabel="Voltar para Clientes"
       mensagensIniciais={(mensagens ?? []) as Mensagem[]}
+      contexto={toConversaOrigem(conversaOrigem?.origem_tipo, conversaOrigem?.origem_label)}
     />
   );
 }

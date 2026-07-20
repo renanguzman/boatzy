@@ -917,6 +917,9 @@ export type Database = {
           id: string;
           gestor_id: string;
           cliente_id: string;
+          origem_tipo: string | null;
+          origem_id: string | null;
+          origem_label: string | null;
           created_at: string;
           updated_at: string;
         };
@@ -924,6 +927,9 @@ export type Database = {
           id?: string;
           gestor_id: string;
           cliente_id: string;
+          origem_tipo?: string | null;
+          origem_id?: string | null;
+          origem_label?: string | null;
           created_at?: string;
           updated_at?: string;
         };
@@ -931,6 +937,9 @@ export type Database = {
           id?: string;
           gestor_id?: string;
           cliente_id?: string;
+          origem_tipo?: string | null;
+          origem_id?: string | null;
+          origem_label?: string | null;
           created_at?: string;
           updated_at?: string;
         };
@@ -1222,6 +1231,9 @@ export type Database = {
           recipient_name: string;
           recipient_is_gestor: boolean;
           conversa_id: string;
+          cliente_id: string;
+          origem_tipo: string | null;
+          origem_label: string | null;
           remetente_nome: string;
           qtd: number;
           primeira_em: string;

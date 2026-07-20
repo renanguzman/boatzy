@@ -1729,21 +1729,36 @@ Avisa por e-mail quem tem mensagens de chat **não lidas**, sem enviar um e-mail
 agrupa numa **janela anti-bombardeio**. Vale para os dois lados (gestor e cliente); respeita a
 preferência `users.notif_email_conversas` (toggle em "Minha conta → Notificações", padrão `true`).
 
+**Contexto da conversa ("origem"):** como a conversa é única por par gestor↔cliente e reutilizada,
+a migration `20260720_conversa_origem.sql` adiciona `conversa.origem_tipo`
+(`venda`|`roteiro`|`embarcacao`), `origem_id` e `origem_label`, gravando a **última** origem a partir
+da qual o chat foi aberto. Quem grava: `/vendas/[id]/chat` (venda + nome da embarcação) e
+`/minhas-reservas/[id]/chat` (embarcação/roteiro + `item_nome`) — no `upsert` da conversa. As demais
+páginas de chat (`/minhas-conversas/[id]/chat`, `/painel/clientes/[id]/chat`) apenas **leem** e
+exibem. O `ChatBox` recebe a prop `contexto` e mostra um **selo** ("Embarcação: {nome}") no header
+(helper `src/lib/conversa-origem.ts`, compartilhado client/server). Conversas abertas só pelo painel
+ou pelo hub não alteram a origem (mantêm a última).
+
 **Peças:**
 - Migration `20260719d_chat_notificacao_email.sql`: coluna `mensagem.notificada_em timestamptz`
   (carimba mensagens já incluídas em algum e-mail; índice parcial `WHERE lida_em IS NULL AND
   notificada_em IS NULL`) + RPC **`chat_notificacoes_pendentes()`** (`security definer`, **só**
   `service_role`): retorna uma linha por **(destinatário, conversa)** — `recipient_id/email/name`,
-  `recipient_is_gestor`, `conversa_id`, `remetente_nome`, `qtd`, `primeira_em`, `ultima_em`,
-  `msg_ids[]` — considerando apenas mensagens `lida_em IS NULL AND notificada_em IS NULL` de
-  destinatários com `notif_email_conversas = true`. Destinatário = o participante que **não** enviou.
+  `recipient_is_gestor`, `conversa_id`, `cliente_id`, `origem_tipo`, `origem_label`, `remetente_nome`,
+  `qtd`, `primeira_em`, `ultima_em`, `msg_ids[]` — considerando apenas mensagens
+  `lida_em IS NULL AND notificada_em IS NULL` de destinatários com `notif_email_conversas = true`.
+  Destinatário = o participante que **não** enviou. (Recriada em `20260720_conversa_origem.sql` para
+  trazer `cliente_id` + origem.)
 - `src/lib/notificacoes-conversa.ts` (`server-only`) — `processarNotificacoesConversas()`: agrupa por
   destinatário e aplica a regra: **envia** se a mensagem mais recente já tem ≥ `NOTIF_QUIET_MINUTES`
   (rajada acalmou) **ou** a mais antiga já espera ≥ `NOTIF_MAX_WAIT_MINUTES` (teto); senão **adia**
   para a próxima rodada. Padrões: 5 e 30 min (via env). Monta **um** e-mail HTML por destinatário
-  (lista remetentes + quantidades; CTA para `/minhas-conversas` ou `/painel` conforme
-  `recipient_is_gestor`), envia e só então carimba `notificada_em` nos `msg_ids` — se o envio falhar,
-  não carimba (reenvia na próxima rodada).
+  (lista remetentes + quantidades + **selo do contexto** da conversa quando houver; cada linha é um
+  **link direto para aquela conversa**). O deep-link segue o papel: cliente →
+  `/minhas-conversas/{conversa_id}/chat`, gestor → `/painel/clientes/{cliente_id}/chat`. O botão
+  principal vai direto à conversa quando há só uma, ou ao hub (`/minhas-conversas` ou
+  `/painel/clientes`) quando há várias. Envia e só então carimba `notificada_em` nos `msg_ids` — se o
+  envio falhar, não carimba (reenvia na próxima rodada).
 - `src/lib/email.ts` (`server-only`) — `sendEmail({to,subject,html})` via **Resend** (REST API por
   `fetch`, sem dependência nova). Usa `RESEND_API_KEY` + `EMAIL_FROM`; sem a chave, vira no-op logado.
 - `src/app/api/cron/notificar-conversas/route.ts` — aciona `processarNotificacoesConversas`.

@@ -14,12 +14,17 @@ export default async function ChatGestorPage({ params }: { params: Promise<{ id:
   // A reserva precisa pertencer ao cliente logado (valida acesso) e dá o gestor.
   const { data: reserva } = await supabaseAdmin
     .from('reserva')
-    .select('id, owner_id')
+    .select('id, owner_id, tipo, item_nome, embarcacao_id, roteiro_id')
     .eq('id', reservaId)
     .eq('cliente_id', user.id)
     .single();
 
   if (!reserva) notFound();
+
+  // Origem da conversa = o objeto da reserva (embarcação ou roteiro).
+  const origemTipo = reserva.tipo === 'roteiro' ? 'roteiro' : 'embarcacao';
+  const origemId = reserva.roteiro_id ?? reserva.embarcacao_id ?? null;
+  const origemLabel = reserva.item_nome;
 
   // Dados do gestor (interlocutor).
   const { data: gestor } = await supabaseAdmin
@@ -30,11 +35,18 @@ export default async function ChatGestorPage({ params }: { params: Promise<{ id:
 
   if (!gestor) notFound();
 
-  // Garante (idempotente) a conversa gestor ↔ cliente.
+  // Garante (idempotente) a conversa gestor ↔ cliente, registrando a origem
+  // (última a abrir o chat) = o objeto desta reserva.
   const { data: conversa } = await supabaseAdmin
     .from('conversa')
     .upsert(
-      { gestor_id: reserva.owner_id, cliente_id: user.id },
+      {
+        gestor_id: reserva.owner_id,
+        cliente_id: user.id,
+        origem_tipo: origemTipo,
+        origem_id: origemId,
+        origem_label: origemLabel,
+      },
       { onConflict: 'gestor_id,cliente_id', ignoreDuplicates: false },
     )
     .select('id')
@@ -68,6 +80,7 @@ export default async function ChatGestorPage({ params }: { params: Promise<{ id:
           voltarHref="/minhas-reservas"
           voltarLabel="Voltar para Minhas reservas"
           mensagensIniciais={(mensagens ?? []) as Mensagem[]}
+          contexto={{ tipo: origemTipo, label: origemLabel }}
         />
       </div>
     </div>
