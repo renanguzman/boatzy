@@ -20,10 +20,12 @@ import GaleriaRoteiro from './_components/GaleriaRoteiro';
 import AvaliacoesSection, { type AvaliacaoPublica } from '@/components/avaliacoes/AvaliacoesSection';
 import { supabaseAdmin } from '@/lib/supabase';
 import { createClient } from '@/lib/supabase/server';
+import { getDatasReservadasRoteiro } from '@/lib/reservas';
 
 type RoteiroDetalhe = {
   id: string;
   owner_id: string;
+  embarcacao_id: string | null;
   nome: string;
   descricao: string;
   origem: string | null;
@@ -73,7 +75,7 @@ export default async function RoteiroDetalhePage({
   const { data, error } = await supabaseAdmin
     .from('roteiro')
     .select(`
-      id, owner_id, nome, descricao, origem, destino, duracao, quantidade_pessoas, preco_base,
+      id, owner_id, embarcacao_id, nome, descricao, origem, destino, duracao, quantidade_pessoas, preco_base,
       disponibilidade_dias_semana,
       latitude, longitude, cep, bairro, logradouro, logradouro_numero, complemento,
       municipios ( nome, estados ( uf, nome ) ),
@@ -96,6 +98,13 @@ export default async function RoteiroDetalhePage({
   if (error || !data) notFound();
 
   const roteiro = data as unknown as RoteiroDetalhe;
+
+  // Datas com reserva CONFIRMADA (do próprio roteiro ou da embarcação
+  // vinculada) — mescladas aos bloqueios manuais antes de ir ao BookingCard.
+  const datasReservadas = await getDatasReservadasRoteiro({
+    roteiroId: roteiro.id,
+    embarcacaoId: roteiro.embarcacao_id,
+  });
 
   // Avaliações de reservas concluídas deste roteiro (mais recentes primeiro).
   const { data: avaliacoesData } = await supabaseAdmin
@@ -397,7 +406,10 @@ export default async function RoteiroDetalhePage({
                 initialFavorito={isFavorito}
                 preco={roteiro.preco_base}
                 diasOperacao={roteiro.disponibilidade_dias_semana}
-                datasBloqueadas={roteiro.roteiro_disponibilidade_bloqueio?.map((b) => b.data) ?? []}
+                datasBloqueadas={[
+                  ...(roteiro.roteiro_disponibilidade_bloqueio?.map((b) => b.data) ?? []),
+                  ...datasReservadas,
+                ]}
                 initialData={sp.data}
                 initialFlex={sp.flex ? parseInt(sp.flex) : undefined}
                 initialPessoas={sp.pessoas ? parseInt(sp.pessoas) : undefined}

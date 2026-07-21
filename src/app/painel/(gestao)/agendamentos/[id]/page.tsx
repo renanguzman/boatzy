@@ -2,17 +2,20 @@ import { notFound, redirect } from 'next/navigation';
 import Link from 'next/link';
 import {
   ArrowLeft, MapPin, Ship, Users, CalendarDays, ShoppingCart, User, Mail,
-  IdCard, Clock, MessageSquare,
+  IdCard, Clock, MessageSquare, AlertTriangle,
 } from 'lucide-react';
 import { createClient } from '@/lib/supabase/server';
 import { supabaseAdmin } from '@/lib/supabase';
 import { formatCurrency } from '@/lib/utils';
+import { getDatasReservadasEmbarcacao, getDatasReservadasRoteiro } from '@/lib/reservas';
 import ReservaAcoes from './_components/ReservaAcoes';
 import AdicionarAoCalendario from './_components/AdicionarAoCalendario';
 
 type ReservaDetalhe = {
   id: string;
   tipo: 'roteiro' | 'embarcacao';
+  roteiro_id: string | null;
+  embarcacao_id: string | null;
   data_reserva: string;
   flexibilidade: number | null;
   quantidade_pessoas: number;
@@ -26,7 +29,11 @@ type ReservaDetalhe = {
   solicitado_em: string;
   respondido_em: string | null;
   cliente: { name: string; email: string; cpf_cnpj: string | null; avatar_url: string | null } | null;
-  roteiro: { nome: string; municipios: { nome: string; estados: { uf: string } | null } | null } | null;
+  roteiro: {
+    nome: string;
+    embarcacao_id: string | null;
+    municipios: { nome: string; estados: { uf: string } | null } | null;
+  } | null;
   embarcacao: { nome: string } | null;
   reserva_adicional: { id: string; descricao: string; valor: number; tipo: string }[];
 };
@@ -67,11 +74,11 @@ export default async function ReservaDetalhePage({ params }: { params: Promise<{
   const { data } = await supabaseAdmin
     .from('reserva')
     .select(
-      `id, tipo, data_reserva, flexibilidade, quantidade_pessoas, item_nome,
+      `id, tipo, roteiro_id, embarcacao_id, data_reserva, flexibilidade, quantidade_pessoas, item_nome,
        preco_base, total_adicionais, taxa_servico, total_estimado,
        status, observacao_gestor, solicitado_em, respondido_em,
        cliente:users!reserva_cliente_id_fkey ( name, email, cpf_cnpj, avatar_url ),
-       roteiro ( nome, municipios ( nome, estados ( uf ) ) ),
+       roteiro ( nome, embarcacao_id, municipios ( nome, estados ( uf ) ) ),
        embarcacao ( nome ),
        reserva_adicional ( id, descricao, valor, tipo )`,
     )
@@ -83,6 +90,21 @@ export default async function ReservaDetalhePage({ params }: { params: Promise<{
 
   const r = data as unknown as ReservaDetalhe;
   const s = STATUS[r.status];
+
+  // Pendente cuja data já foi tomada por outra reserva confirmada (mesma
+  // embarcação ou mesmo roteiro) — aviso visual; a ação de recusar continua
+  // manual, o gestor decide.
+  let temConflito = false;
+  if (r.status === 'pendente') {
+    const datasIndisponiveis =
+      r.tipo === 'embarcacao'
+        ? await getDatasReservadasEmbarcacao(r.embarcacao_id!)
+        : await getDatasReservadasRoteiro({
+            roteiroId: r.roteiro_id!,
+            embarcacaoId: r.roteiro?.embarcacao_id ?? null,
+          });
+    temConflito = datasIndisponiveis.includes(r.data_reserva);
+  }
   const TipoIcon = r.tipo === 'embarcacao' ? Ship : MapPin;
   const localidade = r.roteiro?.municipios
     ? r.roteiro.municipios.estados
@@ -265,6 +287,17 @@ export default async function ReservaDetalhePage({ params }: { params: Promise<{
               <p className="text-sm text-slate-500">Preço a combinar.</p>
             )}
           </section>
+
+          {temConflito && (
+            <div className="flex items-start gap-2.5 rounded-2xl border border-amber-200 bg-amber-50 p-4">
+              <AlertTriangle className="h-4 w-4 text-amber-500 shrink-0 mt-0.5" />
+              <p className="text-sm text-amber-800">
+                Esta data já tem outra reserva confirmada para
+                {r.tipo === 'embarcacao' ? ' esta embarcação' : ' este roteiro (ou a embarcação vinculada a ele)'}.
+                Confirmar esta solicitação vai falhar — considere recusá-la.
+              </p>
+            </div>
+          )}
 
           <ReservaAcoes reservaId={r.id} status={r.status} />
 

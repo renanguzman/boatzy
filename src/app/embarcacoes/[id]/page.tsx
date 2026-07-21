@@ -9,6 +9,7 @@ import EmbarcacaoInfoSection from './_components/EmbarcacaoInfoSection';
 import AvaliacoesSection, { type AvaliacaoPublica } from '@/components/avaliacoes/AvaliacoesSection';
 import { supabaseAdmin } from '@/lib/supabase';
 import { createClient } from '@/lib/supabase/server';
+import { getDatasReservadasEmbarcacao } from '@/lib/reservas';
 
 type EmbarcacaoDetalhe = {
   id: string;
@@ -76,6 +77,10 @@ export default async function EmbarcacaoDetalhePage({
   if (error || !data) notFound();
 
   const embarcacao = data as unknown as EmbarcacaoDetalhe;
+
+  // Datas com reserva CONFIRMADA (direta ou via qualquer roteiro que usa
+  // esta embarcação) — mescladas aos bloqueios manuais antes do BookingCard.
+  const datasReservadas = await getDatasReservadasEmbarcacao(embarcacao.id);
 
   // Avaliações da embarcação (inclui reservas de roteiros feitos nela).
   const { data: avaliacoesData } = await supabaseAdmin
@@ -162,7 +167,10 @@ export default async function EmbarcacaoDetalhePage({
                 preco={embarcacao.preco_base}
                 modalidadeLabel={modalidadeLabel[embarcacao.modalidade_capitao] ?? embarcacao.modalidade_capitao}
                 diasOperacao={embarcacao.disponibilidade_dias_semana}
-                datasBloqueadas={embarcacao.embarcacao_disponibilidade_bloqueio?.map((b) => b.data) ?? []}
+                datasBloqueadas={[
+                  ...(embarcacao.embarcacao_disponibilidade_bloqueio?.map((b) => b.data) ?? []),
+                  ...datasReservadas,
+                ]}
                 initialData={sp.data}
                 initialFlex={sp.flex ? parseInt(sp.flex) : undefined}
                 initialPessoas={sp.pessoas ? parseInt(sp.pessoas) : undefined}

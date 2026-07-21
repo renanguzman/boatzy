@@ -2,6 +2,7 @@
 
 import { createClient } from '@/lib/supabase/server';
 import { supabaseAdmin } from '@/lib/supabase';
+import { getDatasReservadasEmbarcacao, getDatasReservadasRoteiro } from '@/lib/reservas';
 
 /** Mantém paridade com SERVICE_FEE_RATE do BookingCard (exibição) e do resumo. */
 const SERVICE_FEE_RATE = 0.12;
@@ -100,6 +101,17 @@ export async function criarReserva(input: CriarReservaInput): Promise<CriarReser
           };
         });
     }
+  }
+
+  // Bloqueia a data se a embarcação (ou o roteiro, quando sem vínculo) já
+  // tiver uma reserva CONFIRMADA nesse dia — valida sempre pela embarcação
+  // quando ela existe, pois uma mesma embarcação pode atender vários roteiros.
+  const datasIndisponiveis =
+    input.tipo === 'embarcacao'
+      ? await getDatasReservadasEmbarcacao(alvo.embarcacaoId!)
+      : await getDatasReservadasRoteiro({ roteiroId: alvo.roteiroId!, embarcacaoId: alvo.embarcacaoId });
+  if (datasIndisponiveis.includes(input.data)) {
+    return { ok: false, error: 'Essa data não está mais disponível. Escolha outra data.' };
   }
 
   // Cálculo (servidor) — mesma fórmula do resumo/BookingCard.

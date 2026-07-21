@@ -15,6 +15,7 @@ import {
   Info,
   MapPin,
   Bell,
+  Calendar,
 } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import {
@@ -23,7 +24,7 @@ import {
   atualizarNotifEmailConversas,
   getMunicipiosByEstado,
 } from '@/lib/conta-actions';
-import { isStrongPassword, isValidCPF, maskCPF, maskCEP } from '@/lib/validators';
+import { isStrongPassword, isValidCPF, isValidBirthday, maskCPF, maskCEP } from '@/lib/validators';
 import PhoneInput, { type PhoneValue } from '@/components/auth/PhoneInput';
 import PasswordRequirements from '@/components/auth/PasswordRequirements';
 
@@ -45,6 +46,7 @@ type MinhaContaFormProps = {
   name: string;
   cpf: string | null; // dígitos
   phone: string | null; // E.164
+  birthday: string | null; // 'yyyy-mm-dd'
   avatarUrl: string | null;
   createdAt: string;
   /** True quando a conta tem provedor de senha (criada por e-mail). */
@@ -69,6 +71,7 @@ export default function MinhaContaForm({
   name: initialName,
   cpf: initialCpf,
   phone: initialPhone,
+  birthday: initialBirthday,
   avatarUrl,
   createdAt,
   canChangePassword,
@@ -87,6 +90,7 @@ export default function MinhaContaForm({
     e164: initialPhone ?? '',
     valid: true, // valor persistido já é considerado válido até o usuário editar
   });
+  const [birthday, setBirthday] = useState(initialBirthday ?? '');
   const [savingProfile, setSavingProfile] = useState(false);
   const [profileMsg, setProfileMsg] = useState<{ type: 'ok' | 'erro'; text: string } | null>(null);
 
@@ -112,6 +116,7 @@ export default function MinhaContaForm({
   const [savingNotif, setSavingNotif] = useState(false);
 
   const cpfInvalid = cpf.length > 0 && !isValidCPF(cpf);
+  const birthdayInvalid = birthday.length > 0 && !isValidBirthday(birthday);
 
   async function handleToggleNotifConversas() {
     const novo = !notifConversas;
@@ -213,9 +218,13 @@ export default function MinhaContaForm({
       setProfileMsg({ type: 'erro', text: 'Número de celular inválido.' });
       return;
     }
+    if (birthday && !isValidBirthday(birthday)) {
+      setProfileMsg({ type: 'erro', text: 'Data de nascimento inválida.' });
+      return;
+    }
 
     setSavingProfile(true);
-    const res = await atualizarPerfil({ name, cpf, phone: phone.e164 });
+    const res = await atualizarPerfil({ name, cpf, phone: phone.e164, birthday });
     setSavingProfile(false);
 
     if (res.ok) {
@@ -225,6 +234,7 @@ export default function MinhaContaForm({
         nao_autenticado: 'Sua sessão expirou. Entre novamente.',
         nome_invalido: 'Informe seu nome completo.',
         cpf_invalido: 'CPF inválido.',
+        nascimento_invalido: 'Data de nascimento inválida.',
         erro: 'Não foi possível salvar. Tente novamente.',
       };
       setProfileMsg({ type: 'erro', text: map[res.error] ?? map.erro });
@@ -444,6 +454,24 @@ export default function MinhaContaForm({
               Celular
             </label>
             <PhoneInput onChange={setPhone} initialE164={initialPhone ?? undefined} disabled={savingProfile} />
+          </div>
+
+          <div>
+            <label htmlFor="birthday" className="mb-2 block text-xs font-bold uppercase tracking-wider text-[#0B2447]">
+              Data de nascimento <span className="font-normal normal-case text-slate-400">(opcional)</span>
+            </label>
+            <div className="relative">
+              <Calendar className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+              <input
+                id="birthday"
+                type="date"
+                value={birthday}
+                max={new Date().toISOString().slice(0, 10)}
+                onChange={(e) => setBirthday(e.target.value)}
+                className={`${inputClass} ${birthdayInvalid ? 'border-red-300' : 'border-slate-200'}`}
+              />
+            </div>
+            {birthdayInvalid && <p className="mt-1.5 text-xs text-red-500">Data de nascimento inválida.</p>}
           </div>
         </div>
 

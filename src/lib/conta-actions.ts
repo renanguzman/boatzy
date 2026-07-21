@@ -3,22 +3,26 @@
 import { revalidatePath } from 'next/cache';
 import { createClient } from '@/lib/supabase/server';
 import { supabaseAdmin } from '@/lib/supabase';
-import { isValidCPF, onlyDigits } from '@/lib/validators';
+import { isValidCPF, isValidBirthday, onlyDigits } from '@/lib/validators';
 
 export type AtualizarPerfilInput = {
   name: string;
   cpf: string; // com ou sem máscara
   phone: string; // E.164 (ex.: +5511912345678) ou vazio
+  birthday: string; // 'yyyy-mm-dd' ou vazio — opcional
 };
 
 export type AtualizarPerfilResult =
   | { ok: true }
-  | { ok: false; error: 'nao_autenticado' | 'nome_invalido' | 'cpf_invalido' | 'erro' };
+  | {
+      ok: false;
+      error: 'nao_autenticado' | 'nome_invalido' | 'cpf_invalido' | 'nascimento_invalido' | 'erro';
+    };
 
 /**
- * Atualiza os dados do perfil do cliente logado (nome, CPF e celular) em
- * public.users. O e-mail não é editável aqui (troca de e-mail exige
- * reconfirmação no Supabase Auth — fora do escopo desta tela).
+ * Atualiza os dados do perfil do cliente logado (nome, CPF, celular e data
+ * de nascimento) em public.users. O e-mail não é editável aqui (troca de
+ * e-mail exige reconfirmação no Supabase Auth — fora do escopo desta tela).
  */
 export async function atualizarPerfil(
   input: AtualizarPerfilInput,
@@ -39,12 +43,17 @@ export async function atualizarPerfil(
 
   const phone = input.phone.trim() || null;
 
+  // Data de nascimento é opcional, mas se informada precisa ser uma data real e não futura.
+  const birthday = input.birthday.trim() || null;
+  if (birthday && !isValidBirthday(birthday)) return { ok: false, error: 'nascimento_invalido' };
+
   const { error } = await supabaseAdmin
     .from('users')
     .update({
       name,
       cpf_cnpj: cpfDigits || null,
       phone,
+      birthday,
       updated_at: new Date().toISOString(),
     })
     .eq('id', user.id);

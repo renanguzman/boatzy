@@ -266,7 +266,7 @@ gestor. Detalhes técnicos: SPEC §20.4–20.5.
 - O avatar do cliente no `Header` abre um menu com **Minhas reservas**, **Minha conta** e **Sair**.
 - `/minhas-reservas`: o cliente vê todas as reservas que solicitou com status, dados do pedido,
   adicionais, total e a **resposta do gestor** (observação + data). Detalhes: SPEC §20.6.
-- `/minha-conta`: o cliente vê seus dados (avatar, nome, e-mail, "cliente desde", provedores de login vinculados) e **edita** nome, CPF (máscara + validação) e celular (seletor de país + máscara). Tem também a seção **"Meu endereço"** (totalmente opcional): CEP, estado, município, bairro, logradouro, número e complemento — ao preencher o CEP os demais campos são autopreenchidos via ViaCEP (mesma lógica do cadastro de roteiro). Tem também a seção **"Notificações"** com o toggle **"Receber e-mail de notificação de novas conversas"** (padrão habilitado). Quando ativo, o usuário recebe **um e-mail agrupado** avisando de mensagens de chat não lidas — nunca um e-mail por mensagem: um job (Vercel Cron, a cada 5 min) aplica uma **janela anti-bombardeio** (envia após ~5 min sem novas mensagens, no máximo ~30 min) e junta tudo num único aviso via Resend. Detalhes: SPEC §21.4c. Também **altera a senha** — mas **apenas para contas criadas por e-mail** (exige a senha atual + nova senha forte com checklist); contas somente-SSO veem um aviso de que a senha é gerenciada pelo provedor. Detalhes: SPEC §20.6 / §Minha conta.
+- `/minha-conta`: o cliente vê seus dados (avatar, nome, e-mail, "cliente desde", provedores de login vinculados) e **edita** nome, CPF (máscara + validação), celular (seletor de país + máscara) e **data de nascimento** (campo opcional, tipo data, sem restrição de idade — só valida que a data existe e não é futura). Tem também a seção **"Meu endereço"** (totalmente opcional): CEP, estado, município, bairro, logradouro, número e complemento — ao preencher o CEP os demais campos são autopreenchidos via ViaCEP (mesma lógica do cadastro de roteiro). Tem também a seção **"Notificações"** com o toggle **"Receber e-mail de notificação de novas conversas"** (padrão habilitado). Quando ativo, o usuário recebe **um e-mail agrupado** avisando de mensagens de chat não lidas — nunca um e-mail por mensagem: um job (Vercel Cron, a cada 5 min) aplica uma **janela anti-bombardeio** (envia após ~5 min sem novas mensagens, no máximo ~30 min) e junta tudo num único aviso via Resend. Detalhes: SPEC §21.4c. Também **altera a senha** — mas **apenas para contas criadas por e-mail** (exige a senha atual + nova senha forte com checklist); contas somente-SSO veem um aviso de que a senha é gerenciada pelo provedor. Detalhes: SPEC §20.6 / §Minha conta.
 
 #### ✅ Implementado — Reserva de **embarcação** pelo site
 
@@ -282,6 +282,23 @@ gestor. Detalhes técnicos: SPEC §20.4–20.5.
 - ✅ Botão **"Converse com o dono"** na sidebar `EmbarcacaoBookingCard` (oculto para o próprio dono
   vendo sua embarcação) → `/embarcacoes/[id]/chat`, que abre o chat da plataforma com o dono da
   embarcação (ver 6.8 → Chat).
+
+#### ✅ Implementado — Bloqueio automático de datas com reserva confirmada
+
+- Uma embarcação pode realizar vários roteiros e também pode ser reservada diretamente — a partir
+  de agora, uma reserva **confirmada** em qualquer um desses caminhos bloqueia a mesma data em
+  **todos os outros**: nos demais roteiros que usam aquela embarcação, na reserva direta da
+  embarcação e no próprio roteiro que gerou a reserva. A checagem é sempre pela embarcação (o
+  recurso realmente compartilhado), não apenas pelo roteiro isolado.
+- Só reserva **confirmada** bloqueia — solicitações **pendentes** continuam podendo coexistir
+  livremente até o gestor decidir qual confirmar.
+- O calendário de `/roteiros/[id]` e `/embarcacoes/[id]` já nasce refletindo isso (datas somem do
+  seletor, junto dos bloqueios manuais do gestor); tentar solicitar ou confirmar uma reserva numa
+  data já tomada é recusado com uma mensagem clara.
+- No painel, ao abrir uma solicitação pendente cuja data já foi tomada por outra reserva
+  confirmada, um aviso destacado avisa o gestor antes de ele tentar confirmar — a decisão de
+  recusar continua manual, nada é feito automaticamente.
+- Detalhes técnicos: `SPEC.md` §15-B → "Bloqueio por reserva confirmada".
 
 **Próximos passos:** refinamentos do calendário (filtros por tipo/status); pagamento (Stripe).
 
@@ -399,7 +416,7 @@ Todos os números são do **gestor logado** (`owner_id`):
 - Nova seção "Disponibilidade" nos forms de cadastro/edição (roteiro **e** embarcação): o gestor define os **dias da semana** de operação e **bloqueia datas específicas** (exceções) num mini-calendário, via componente compartilhado `DisponibilidadePicker`.
 - Modelo: recorrência semanal + bloqueios; dia inteiro; capacidade exclusiva (1 reserva/dia). Sem dias selecionados = disponível todos os dias (sujeito a bloqueios).
 - **Roteiro:** a disponibilidade é refletida no calendário público de reserva (`BookingCard`).
-- **Embarcação:** disponibilidade cadastrada e persistida; o reflexo público fica como gancho (a página `/embarcacoes/[id]` ainda não tem calendário de reserva). Detalhes técnicos em `SPEC.md` §15-B.
+- **Embarcação:** a disponibilidade também é refletida no calendário público (`EmbarcacaoBookingCard`, mesmo comportamento do roteiro). Detalhes técnicos em `SPEC.md` §15-B.
 
 #### ✅ Implementado — Tutorial guiado do painel
 

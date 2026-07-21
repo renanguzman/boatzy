@@ -17,7 +17,7 @@ export default async function MinhaContaPage() {
     supabaseAdmin
       .from('users')
       .select(
-        'name, email, cpf_cnpj, phone, avatar_url, created_at, endereco_cep, endereco_estado_id, endereco_municipio_id, endereco_bairro, endereco_logradouro, endereco_numero, endereco_complemento, notif_email_conversas',
+        'name, email, cpf_cnpj, phone, birthday, avatar_url, created_at, endereco_cep, endereco_estado_id, endereco_municipio_id, endereco_bairro, endereco_logradouro, endereco_numero, endereco_complemento, notif_email_conversas',
       )
       .eq('id', user.id)
       .maybeSingle(),
@@ -64,6 +64,7 @@ export default async function MinhaContaPage() {
           name={name}
           cpf={perfil?.cpf_cnpj ?? null}
           phone={perfil?.phone ?? null}
+          birthday={perfil?.birthday ?? null}
           avatarUrl={perfil?.avatar_url ?? null}
           createdAt={perfil?.created_at ?? user.created_at}
           canChangePassword={canChangePassword}

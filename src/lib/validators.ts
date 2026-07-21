@@ -70,6 +70,17 @@ export function maskDigitCount(mask: string): number {
   return (mask.match(/#/g) ?? []).length;
 }
 
+// ─── Data de nascimento ───────────────────────────────────────────────────
+
+/** True quando a data ('yyyy-mm-dd') é uma data real e não está no futuro. */
+export function isValidBirthday(value: string): boolean {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
+  const [y, m, d] = value.split('-').map(Number);
+  const date = new Date(y, m - 1, d);
+  const dataReal = date.getFullYear() === y && date.getMonth() === m - 1 && date.getDate() === d;
+  return dataReal && date.getTime() <= Date.now();
+}
+
 // ─── Senha ────────────────────────────────────────────────────────────────
 
 export type PasswordRule = {

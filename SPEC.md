@@ -752,7 +752,41 @@ Uma data está **indisponível** quando:
 1. `disponibilidade_dias_semana` está definido **e** o dia da semana da data **não** está incluído; **ou**
 2. a data consta em `roteiro_disponibilidade_bloqueio`.
 
-> Capacidade exclusiva está modelada no schema, mas o bloqueio automático de datas já reservadas é um gancho futuro — depende da persistência de reservas, ainda não implementada.
+> Capacidade exclusiva (1 reserva **confirmada** por dia) é aplicada automaticamente a partir das
+> reservas já persistidas — ver "Bloqueio por reserva confirmada" logo abaixo.
+
+### Bloqueio por reserva confirmada (embarcação como recurso compartilhado)
+
+Além da disponibilidade manual acima, uma data fica **automaticamente indisponível** quando já
+existe uma **reserva confirmada** que a ocupa — a embarcação é o recurso físico realmente escasso
+(pode atender vários roteiros), então uma reserva confirmada em qualquer um deles, ou uma reserva
+direta da embarcação, bloqueia a data nos demais. Só `status = 'confirmada'` bloqueia; `pendente`
+não bloqueia nada (várias solicitações pendentes podem coexistir até o gestor decidir).
+
+- **Camada de banco** (`supabase/migrations/20260721_reserva_bloqueio_confirmada.sql`): dois
+  índices únicos parciais em `reserva` — `reserva_embarcacao_data_confirmada_uniq
+  (embarcacao_id, data_reserva) WHERE status='confirmada'` e `reserva_roteiro_data_confirmada_uniq
+  (roteiro_id, data_reserva) WHERE status='confirmada'`. O segundo é necessário mesmo quando o
+  roteiro tem embarcação vinculada: `reserva.embarcacao_id` é um **snapshot** do momento da
+  solicitação (como `item_nome`/`preco_base`) e `atualizarRoteiro` permite trocar/remover a
+  embarcação vinculada a qualquer momento sem validação — sem esse segundo índice, um roteiro
+  religado a outra embarcação depois de já ter reserva confirmada ficaria sem proteção.
+- **Camada de leitura** — `src/lib/reservas.ts`: `getDatasReservadasEmbarcacao(embarcacaoId)`
+  (reserva direta OU de qualquer roteiro que usa a embarcação) e
+  `getDatasReservadasRoteiro({ roteiroId, embarcacaoId })` (protege sempre o roteiro por
+  `roteiro_id` +, quando há vínculo atual, também por `embarcacao_id`). As páginas
+  `/roteiros/[id]` e `/embarcacoes/[id]` mesclam o resultado ao array `datasBloqueadas` que já
+  existia (bloqueios manuais) antes de passar para `BookingCard`/`EmbarcacaoBookingCard` — nenhuma
+  mudança nesses dois componentes, que já tratam a lista como opaca.
+- **Camada de escrita:** `criarReserva` (`src/app/reservas/novo/actions.ts`) recusa a solicitação
+  se a data já estiver confirmada para a embarcação/roteiro; `responderReserva`
+  (`src/app/painel/(gestao)/agendamentos/actions.ts`, usada por `confirmarReserva`) roda a mesma
+  checagem antes de confirmar (usando o **vínculo atual** do roteiro via embed `roteiro (
+  embarcacao_id )`, não o snapshot da própria reserva) e trata `error.code === '23505'` do
+  `UPDATE` como rede de segurança contra corrida concorrente.
+- **Aviso visual (painel):** `/painel/agendamentos/[id]` mostra um banner de alerta acima de
+  `ReservaAcoes` quando a reserva pendente exibida já está em conflito com outra confirmada — a
+  ação de recusar continua manual (decisão de produto: avisar, não recusar automaticamente).
 
 ### Painel (cadastro/edição)
 
@@ -767,7 +801,9 @@ Uma data está **indisponível** quando:
 
 - `DatePicker` (`src/components/home/search/DatePicker.tsx`) recebe prop opcional `isDateDisabled?: (date: Date) => boolean`; datas indisponíveis aparecem riscadas e não clicáveis (além das datas passadas).
 - **Roteiro:** `BookingCard` recebe `diasOperacao` e `datasBloqueadas`, monta `isDateDisabled` e repassa ao `DatePicker`. A página `/roteiros/[id]` inclui `disponibilidade_dias_semana` e `roteiro_disponibilidade_bloqueio ( data )` na query.
-- **Embarcação:** a disponibilidade é cadastrada no painel e persistida, mas **ainda não há reflexo público** — a página `/embarcacoes/[id]` não possui calendário de reserva (apenas botão "Solicitar reserva" → login). Gancho para quando essa página ganhar um seletor de data.
+- **Embarcação:** `EmbarcacaoBookingCard` (`/embarcacoes/[id]`) já tem o mesmo calendário do
+  roteiro — recebe `diasOperacao` e `datasBloqueadas` (`embarcacao_disponibilidade_bloqueio` +
+  datas com reserva confirmada, ver seção anterior) e repassa ao `DatePicker` (§20.7).
 
 ---
 
@@ -1409,6 +1445,12 @@ created_at          timestamptz
 Tipos TS adicionados em `src/types/supabase.ts`: tabelas `reserva`/`reserva_adicional` e
 `export type ReservaStatus`.
 
+**Índices únicos parciais** (migration `20260721_reserva_bloqueio_confirmada.sql`, além dos quatro
+já existentes): `reserva_embarcacao_data_confirmada_uniq (embarcacao_id, data_reserva)` e
+`reserva_roteiro_data_confirmada_uniq (roteiro_id, data_reserva)`, ambos `WHERE status =
+'confirmada'` — impedem duas reservas confirmadas conflitantes no nível de banco. Detalhes e
+motivação em §15-B → "Bloqueio por reserva confirmada".
+
 ### 20.2 Detalhe do roteiro — campos obrigatórios + pré-preenchimento
 
 - `BookingCard` (`src/app/roteiros/[id]/_components/BookingCard.tsx`): **Data** e **Pessoas** são
@@ -1444,10 +1486,13 @@ criarReserva(input: {
 }) → { ok: true, reservaId } | { ok: false, error }
 ```
 Revalida auth e recarrega o alvo **no servidor** (não confia em valores do client). Para roteiro,
-recarrega os adicionais; para embarcação, carrega `embarcacao` ativa (preço/owner). Recalcula
-`preco_base`/`total_adicionais`/`taxa_servico`/`total_estimado`, insere `reserva` (status `pendente`,
-`tipo`, `cliente_id = user.id`, `owner_id`, `roteiro_id`/`embarcacao_id` conforme o tipo) + (roteiro)
-linhas em `reserva_adicional` (snapshot). Se o insert dos adicionais falhar, a reserva é revertida.
+recarrega os adicionais; para embarcação, carrega `embarcacao` ativa (preço/owner). **Recusa a
+solicitação se a data já tiver reserva confirmada** para a embarcação (ou o roteiro, quando sem
+vínculo) — `getDatasReservadasEmbarcacao`/`getDatasReservadasRoteiro` (`src/lib/reservas.ts`, ver
+§15-B). Recalcula `preco_base`/`total_adicionais`/`taxa_servico`/`total_estimado`, insere `reserva`
+(status `pendente`, `tipo`, `cliente_id = user.id`, `owner_id`, `roteiro_id`/`embarcacao_id`
+conforme o tipo) + (roteiro) linhas em `reserva_adicional` (snapshot). Se o insert dos adicionais
+falhar, a reserva é revertida.
 
 ### 20.4 Painel — `/painel/agendamentos` (calendário)
 
@@ -1478,9 +1523,13 @@ Visão em **calendário** de todas as reservas dos roteiros/embarcações do ges
 
 - Server Component: valida auth e **posse** (`owner_id = user.id`); 404 caso contrário. Carrega a
   reserva completa com `cliente:users!reserva_cliente_id_fkey ( name, email, cpf_cnpj, avatar_url )`,
-  `roteiro ( nome, municipios … )`, `embarcacao ( nome )` e `reserva_adicional`.
+  `roteiro ( nome, embarcacao_id, municipios … )`, `embarcacao ( nome )` e `reserva_adicional`.
 - Exibe: tipo + status, dados do cliente, detalhes do pedido (data, pessoas, embarcação, solicitado
   em), adicionais, breakdown de valores e a observação já registrada.
+- **Aviso de conflito:** quando a reserva está `pendente` e a mesma data já foi tomada por outra
+  reserva **confirmada** (mesma embarcação ou mesmo roteiro — mesma checagem de §15-B), um banner
+  âmbar aparece acima de `ReservaAcoes` avisando que a confirmação vai falhar; a decisão de recusar
+  continua manual (nada é feito automaticamente).
 - `ReservaAcoes` (`'use client'`): para reservas **pendentes**, botões **Confirmar** / **Cancelar
   reserva** abrem um textarea de observação; chamam as server actions e dão `router.refresh()`.
   Para reservas já resolvidas, mostra aviso de que não há ações pendentes.
@@ -1495,6 +1544,11 @@ Visão em **calendário** de todas as reservas dos roteiros/embarcações do ges
 - `recusarReserva(reservaId, observacao?)` → `status = 'recusada'`.
 - Ambas validam auth + role `gestor`/`admin` + posse (`owner_id`), gravam `observacao_gestor` e
   `respondido_em = now()`, e `revalidatePath('/painel/agendamentos')`.
+- `confirmarReserva` primeiro checa se a data já está confirmada para a embarcação/roteiro (mesma
+  lógica de §15-B, usando o vínculo **atual** do roteiro via embed `roteiro ( embarcacao_id )`, não
+  o snapshot em `reserva.embarcacao_id`) — se houver conflito, retorna erro sem atualizar. O
+  `UPDATE` também trata `error.code === '23505'` (violação dos índices únicos parciais) como a
+  mesma mensagem de conflito, como rede de segurança contra confirmação concorrente.
 
 ### 20.5b Painel — Clientes `/painel/clientes`
 
@@ -1541,7 +1595,7 @@ aparecem no menu sanfonado para usuários logados.
 
 **`/minha-conta`** (`src/app/minha-conta/page.tsx`, Server Component): gate de auth (sem sessão →
 `/entrar?redirect_to=/minha-conta`). Carrega o registro de `public.users` (`name, email, cpf_cnpj,
-phone, avatar_url, created_at`) via `supabaseAdmin` e deriva os **provedores de login** de
+phone, birthday, avatar_url, created_at`) via `supabaseAdmin` e deriva os **provedores de login** de
 `user.identities[].provider` ∪ `user.app_metadata.providers` (fallback `['email']`).
 `canChangePassword = providers.includes('email')`. Passa tudo para o client `MinhaContaForm`.
 
@@ -1552,12 +1606,20 @@ Segurança); clicar faz `scrollIntoView({behavior:'smooth'})` até a seção (ca
 atalho da seção visível. Abaixo, os blocos:
 1. **Cartão de identidade:** avatar (ou inicial do nome), nome, e-mail, "cliente desde"
    (`created_at` em pt-BR) e chips dos provedores vinculados (`E-mail e senha`, `Google`, …).
-2. **Dados pessoais:** edita **nome**, **CPF** (`maskCPF` + `isValidCPF`) e **celular**
-   (`PhoneInput` com `initialE164` pré-preenchido). E-mail é **somente leitura** (troca de e-mail
-   exige reconfirmação no Auth — fora de escopo). Salva via server action **`atualizarPerfil`**
-   (`src/lib/conta-actions.ts`, `'use server'`): valida sessão + nome + CPF, faz `update` em
-   `public.users` (`name, cpf_cnpj` só dígitos, `phone` E.164 ou `null`, `updated_at`) com
-   `supabaseAdmin`, e `revalidatePath('/minha-conta')`.
+2. **Dados pessoais:** edita **nome**, **CPF** (`maskCPF` + `isValidCPF`), **celular**
+   (`PhoneInput` com `initialE164` pré-preenchido) e **data de nascimento** (`<input type="date">`,
+   coluna `users.birthday`, já existente desde a migration `001_create_users_table.sql` mas sem
+   nenhuma tela que a editasse até aqui). **Campo opcional** — sem asterisco de obrigatório, rótulo
+   com o sufixo "(opcional)"; se vazio, grava `NULL`. Quando preenchido, `isValidBirthday`
+   (`src/lib/validators.ts`) exige uma data real (rejeita ex. `2023-02-30`, que o `Date` do JS
+   normalizaria silenciosamente para março) e **não futura** — sem qualquer restrição de idade
+   mínima/máxima. O próprio input já tem `max` = data de hoje (bloqueio nativo no seletor do
+   navegador), e a mesma checagem roda de novo no client antes do submit e na server action (defesa
+   em profundidade). E-mail é **somente leitura** (troca de e-mail exige reconfirmação no Auth —
+   fora de escopo). Salva via server action **`atualizarPerfil`** (`src/lib/conta-actions.ts`,
+   `'use server'`): valida sessão + nome + CPF + data de nascimento, faz `update` em `public.users`
+   (`name, cpf_cnpj` só dígitos, `phone` E.164 ou `null`, `birthday` `'yyyy-mm-dd'` ou `null`,
+   `updated_at`) com `supabaseAdmin`, e `revalidatePath('/minha-conta')`.
 3. **Meu endereço (opcional):** CEP, estado (select de `estados`), município (select dependente,
    carregado por estado), bairro, logradouro, número e complemento — **todos opcionais**. Reusa a
    **mesma lógica do cadastro de roteiro**: ao digitar o CEP (8 dígitos) consulta o **ViaCEP**
