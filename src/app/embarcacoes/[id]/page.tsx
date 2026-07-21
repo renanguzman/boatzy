@@ -8,9 +8,11 @@ import EmbarcacaoBookingCard from './_components/EmbarcacaoBookingCard';
 import EmbarcacaoInfoSection from './_components/EmbarcacaoInfoSection';
 import AvaliacoesSection, { type AvaliacaoPublica } from '@/components/avaliacoes/AvaliacoesSection';
 import { supabaseAdmin } from '@/lib/supabase';
+import { createClient } from '@/lib/supabase/server';
 
 type EmbarcacaoDetalhe = {
   id: string;
+  owner_id: string;
   nome: string;
   descricao: string | null;
   capacidade: number | null;
@@ -57,7 +59,7 @@ export default async function EmbarcacaoDetalhePage({
   const { data, error } = await supabaseAdmin
     .from('embarcacao')
     .select(`
-      id, nome, descricao, capacidade, comprimento, cabines, quartos, suites, banheiros,
+      id, owner_id, nome, descricao, capacidade, comprimento, cabines, quartos, suites, banheiros,
       tripulacao, modalidade_capitao, preco_base, disponibilidade_dias_semana,
       latitude, longitude, cep, bairro, logradouro, logradouro_numero, complemento,
       embarcacao_tipo ( nome ),
@@ -83,6 +85,13 @@ export default async function EmbarcacaoDetalhePage({
     .eq('status', 'aprovada')
     .order('created_at', { ascending: false });
   const avaliacoes = (avaliacoesData ?? []) as unknown as AvaliacaoPublica[];
+
+  // Dono vendo a própria embarcação: sem CTA de chat (não conversa consigo mesmo).
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  const ehDono = user?.id === embarcacao.owner_id;
 
   const images = [...embarcacao.embarcacao_imagens].sort((a, b) =>
     a.principal === b.principal ? 0 : a.principal ? -1 : 1,
@@ -149,6 +158,7 @@ export default async function EmbarcacaoDetalhePage({
             <div className="lg:col-span-1">
               <EmbarcacaoBookingCard
                 embarcacaoId={embarcacao.id}
+                ehDono={ehDono}
                 preco={embarcacao.preco_base}
                 modalidadeLabel={modalidadeLabel[embarcacao.modalidade_capitao] ?? embarcacao.modalidade_capitao}
                 diasOperacao={embarcacao.disponibilidade_dias_semana}

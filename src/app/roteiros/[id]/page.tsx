@@ -23,6 +23,7 @@ import { createClient } from '@/lib/supabase/server';
 
 type RoteiroDetalhe = {
   id: string;
+  owner_id: string;
   nome: string;
   descricao: string;
   origem: string | null;
@@ -72,7 +73,7 @@ export default async function RoteiroDetalhePage({
   const { data, error } = await supabaseAdmin
     .from('roteiro')
     .select(`
-      id, nome, descricao, origem, destino, duracao, quantidade_pessoas, preco_base,
+      id, owner_id, nome, descricao, origem, destino, duracao, quantidade_pessoas, preco_base,
       disponibilidade_dias_semana,
       latitude, longitude, cep, bairro, logradouro, logradouro_numero, complemento,
       municipios ( nome, estados ( uf, nome ) ),
@@ -120,6 +121,8 @@ export default async function RoteiroDetalhePage({
       .maybeSingle();
     isFavorito = fav != null;
   }
+  // Dono vendo o próprio roteiro: sem CTA de chat (não conversa consigo mesmo).
+  const ehDono = user?.id === roteiro.owner_id;
 
   // Sort images: principal first
   const images = [...roteiro.roteiro_imagens].sort((a, b) =>
@@ -390,6 +393,7 @@ export default async function RoteiroDetalhePage({
               <BookingCard
                 roteiroId={roteiro.id}
                 roteiroNome={roteiro.nome}
+                ehDono={ehDono}
                 initialFavorito={isFavorito}
                 preco={roteiro.preco_base}
                 diasOperacao={roteiro.disponibilidade_dias_semana}

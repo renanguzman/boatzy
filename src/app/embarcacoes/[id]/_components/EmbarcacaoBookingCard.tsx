@@ -1,7 +1,8 @@
 'use client';
 
 import { useState } from 'react';
-import { Headphones, ShieldCheck, Heart, Share2 } from 'lucide-react';
+import Link from 'next/link';
+import { Headphones, ShieldCheck, Heart, Share2, MessageCircle } from 'lucide-react';
 import DatePicker, { type DateValue } from '@/components/home/search/DatePicker';
 import GuestPicker from '@/components/home/search/GuestPicker';
 import { formatCurrency } from '@/lib/utils';
@@ -10,6 +11,8 @@ type ActivePanel = 'date' | 'guests' | null;
 
 type Props = {
   embarcacaoId: string;
+  /** Dono vendo a própria embarcação: oculta o CTA de chat (não conversa consigo mesmo). */
+  ehDono?: boolean;
   preco: number | null;
   modalidadeLabel: string;
   /** Dias da semana em que a embarcação opera (0=Dom..6=Sáb). Vazio/null = todos os dias. */
@@ -36,6 +39,7 @@ function parseISO(iso?: string): Date | null {
 
 export default function EmbarcacaoBookingCard({
   embarcacaoId,
+  ehDono = false,
   preco,
   modalidadeLabel,
   diasOperacao,
@@ -188,6 +192,17 @@ export default function EmbarcacaoBookingCard({
           </div>
         </div>
       </div>
+
+      {/* Chat com o dono */}
+      {!ehDono && (
+        <Link
+          href={`/embarcacoes/${embarcacaoId}/chat`}
+          className="w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-[#0B3D91] hover:bg-[#092E6E] text-white text-sm font-semibold transition-colors"
+        >
+          <MessageCircle className="h-4 w-4" />
+          Converse com o dono
+        </Link>
+      )}
 
       {/* Action buttons */}
       <div className="flex gap-3">

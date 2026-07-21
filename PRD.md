@@ -185,6 +185,7 @@ Exibir:
 - Reviews: seção placeholder.
 - Sidebar `BookingCard`: seleção de data e pessoas, breakdown de preço com taxa de serviço (12%), total estimado, botão "Solicitar Reserva" → `/reservas/novo`.
 - ✅ O calendário de data do `BookingCard` respeita a **disponibilidade do roteiro**: datas fora dos dias de operação ou bloqueadas pelo gestor aparecem riscadas e não selecionáveis (ver 6.8 → Disponibilidade do roteiro).
+- ✅ Botão **"Converse com o dono"** na sidebar (oculto para o próprio dono vendo seu roteiro) → `/roteiros/[id]/chat`, que abre o chat da plataforma com o gestor do roteiro (ver 6.8 → Chat).
 
 #### ✅ Implementado — Modal de Fotos da Embarcação (`EmbarcacaoFotosModal`)
 
@@ -278,6 +279,9 @@ gestor. Detalhes técnicos: SPEC §20.4–20.5.
   por **link direto** (sem entrada pela busca).
 - Reservas de embarcação aparecem no calendário do gestor, no detalhe `/painel/agendamentos/[id]` e
   em "Minhas reservas", com o ícone/diferenciação de tipo. Detalhes: SPEC §20.7.
+- ✅ Botão **"Converse com o dono"** na sidebar `EmbarcacaoBookingCard` (oculto para o próprio dono
+  vendo sua embarcação) → `/embarcacoes/[id]/chat`, que abre o chat da plataforma com o dono da
+  embarcação (ver 6.8 → Chat).
 
 **Próximos passos:** refinamentos do calendário (filtros por tipo/status); pagamento (Stripe).
 
@@ -370,6 +374,7 @@ Todos os números são do **gestor logado** (`owner_id`):
 - **Lado gestor (painel):** a partir da lista de Clientes, o gestor abre o chat (`/painel/clientes/[id]/chat`). Cada linha tem ícone de chat com **badge de não lidas**; há um **badge com o total geral** no item `CLIENTES` da sidebar, ao vivo.
 - ✅ **Sino de notificações (topbar do painel):** exibe badge com o total de mensagens não lidas dos clientes, ao vivo. Ao clicar, abre um dropdown com a lista de conversas (avatar, nome, prévia da última mensagem, tempo relativo, contagem por conversa) e atalho direto para cada chat; footer leva a Clientes. Estado vazio quando não há não lidas. **Futuramente o sino agregará outros tipos de notificação** (ex.: novas solicitações de reserva). Detalhes: SPEC §21.4b.
 - **Lado cliente (site):** em **Minhas reservas**, cada reserva tem o botão **"Conversar com o gestor"** (`/minhas-reservas/[id]/chat`) com **badge de não lidas** por reserva. O **menu do usuário (dropdown)** exibe um **badge de aviso** quando há qualquer conversa não lida (no avatar e ao lado de "Minhas reservas"), atualizado ao vivo.
+- ✅ **Entrada direta pelo detalhe de embarcação/roteiro:** o botão **"Converse com o dono"** em `/embarcacoes/[id]` e `/roteiros/[id]` (oculto para o próprio dono) abre `.../chat`, que exige login (deslogado → `/entrar?redirect_to=...`, retornando ao chat após autenticar) e, uma vez logado, garante a conversa com o dono e já registra a origem (`embarcacao` ou `roteiro`) exibida no cabeçalho da conversa — mesmo padrão usado em "Conversar com o vendedor" (vendas) e "Conversar com o gestor" (reservas).
 - Detalhes técnicos em `SPEC.md` §21.
 
 #### ✅ Implementado — Precificação dinâmica (UI) — roteiros e embarcações

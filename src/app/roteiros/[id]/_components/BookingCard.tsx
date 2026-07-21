@@ -1,7 +1,8 @@
 'use client';
 
 import { useRef, useState } from 'react';
-import { Headphones, ShieldCheck, ShoppingCart, X } from 'lucide-react';
+import Link from 'next/link';
+import { Headphones, ShieldCheck, ShoppingCart, X, MessageCircle } from 'lucide-react';
 import DatePicker, { type DateValue } from '@/components/home/search/DatePicker';
 import GuestPicker from '@/components/home/search/GuestPicker';
 import { formatCurrency } from '@/lib/utils';
@@ -14,6 +15,8 @@ type Props = {
   roteiroId: string;
   /** Nome do roteiro (texto do compartilhamento). */
   roteiroNome: string;
+  /** Dono vendo o próprio roteiro: oculta o CTA de chat (não conversa consigo mesmo). */
+  ehDono?: boolean;
   preco: number | null;
   /** Se o usuário logado já favoritou este roteiro (false quando deslogado). */
   initialFavorito?: boolean;
@@ -43,6 +46,7 @@ function parseISO(iso?: string): Date | null {
 export default function BookingCard({
   roteiroId,
   roteiroNome,
+  ehDono = false,
   preco,
   initialFavorito = false,
   diasOperacao,
@@ -256,6 +260,17 @@ export default function BookingCard({
           ))}
         </div>
       </div>
+
+      {/* Chat com o dono */}
+      {!ehDono && (
+        <Link
+          href={`/roteiros/${roteiroId}/chat`}
+          className="w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-[#0B3D91] hover:bg-[#092E6E] text-white text-sm font-semibold transition-colors"
+        >
+          <MessageCircle className="h-4 w-4" />
+          Converse com o dono
+        </Link>
+      )}
 
       {/* Favoritar + Compartilhar */}
       <RoteiroAcoes roteiroId={roteiroId} roteiroNome={roteiroNome} initialFavorito={initialFavorito} />

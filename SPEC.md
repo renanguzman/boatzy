@@ -1739,6 +1739,18 @@ exibem. O `ChatBox` recebe a prop `contexto` e mostra um **selo** ("Embarcação
 (helper `src/lib/conversa-origem.ts`, compartilhado client/server). Conversas abertas só pelo painel
 ou pelo hub não alteram a origem (mantêm a última).
 
+**Contato direto pelo detalhe de embarcação/roteiro:** `src/app/embarcacoes/[id]/chat/page.tsx` e
+`src/app/roteiros/[id]/chat/page.tsx` (Server Components), acionadas pelo botão **"Converse com o
+dono"** em `EmbarcacaoBookingCard`/`BookingCard` (props `ehDono`, calculada nas respectivas
+`page.tsx` a partir do `owner_id` do item comparado a `auth.getUser()`; oculta o CTA quando o
+visitante é o próprio dono). Ambas seguem o **mesmo molde** de `/vendas/[id]/chat`: gate de auth
+(`/entrar?redirect_to=/embarcacoes/[id]/chat` ou `/roteiros/[id]/chat`), busca do item **ativo**
+(`embarcacao.status = 'ativo'` / `roteiro.ativo = true`, senão 404), guarda de self-chat (dono
+tentando acessar a própria URL de chat é redirecionado de volta ao detalhe), `upsert` idempotente da
+conversa gravando `origem_tipo: 'embarcacao' | 'roteiro'`, `origem_id` (id do item) e `origem_label`
+(nome do item), e mensagem pré-preenchida ("Olá! Tenho interesse n[a/o] "...") apenas quando a
+conversa ainda está vazia. `voltarHref` aponta de volta ao detalhe do item.
+
 **Peças:**
 - Migration `20260719d_chat_notificacao_email.sql`: coluna `mensagem.notificada_em timestamptz`
   (carimba mensagens já incluídas em algum e-mail; índice parcial `WHERE lida_em IS NULL AND
