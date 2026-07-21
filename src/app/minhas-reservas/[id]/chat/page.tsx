@@ -11,6 +11,14 @@ export default async function ChatGestorPage({ params }: { params: Promise<{ id:
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect(`/entrar?redirect_to=/minhas-reservas/${reservaId}/chat`);
 
+  // Aviso "converse pela plataforma": só exibido enquanto o cliente não confirmou ciência.
+  const { data: usuarioDb } = await supabaseAdmin
+    .from('users')
+    .select('chat_aviso_ciente_em')
+    .eq('id', user.id)
+    .single();
+  const avisoCienteInicial = usuarioDb?.chat_aviso_ciente_em != null;
+
   // A reserva precisa pertencer ao cliente logado (valida acesso) e dá o gestor.
   const { data: reserva } = await supabaseAdmin
     .from('reserva')
@@ -81,6 +89,7 @@ export default async function ChatGestorPage({ params }: { params: Promise<{ id:
           voltarLabel="Voltar para Minhas reservas"
           mensagensIniciais={(mensagens ?? []) as Mensagem[]}
           contexto={{ tipo: origemTipo, label: origemLabel }}
+          avisoCienteInicial={avisoCienteInicial}
         />
       </div>
     </div>

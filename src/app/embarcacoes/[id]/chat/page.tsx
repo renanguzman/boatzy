@@ -16,6 +16,14 @@ export default async function ChatEmbarcacaoPage({ params }: { params: Promise<{
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect(`/entrar?redirect_to=/embarcacoes/${id}/chat`);
 
+  // Aviso "converse pela plataforma": só exibido enquanto o cliente não confirmou ciência.
+  const { data: usuarioDb } = await supabaseAdmin
+    .from('users')
+    .select('chat_aviso_ciente_em')
+    .eq('id', user.id)
+    .single();
+  const avisoCienteInicial = usuarioDb?.chat_aviso_ciente_em != null;
+
   const { data: embarcacao } = await supabaseAdmin
     .from('embarcacao')
     .select('id, owner_id, nome, status')
@@ -87,6 +95,7 @@ export default async function ChatEmbarcacaoPage({ params }: { params: Promise<{
           mensagensIniciais={(mensagens ?? []) as Mensagem[]}
           rascunhoInicial={rascunhoInicial}
           contexto={{ tipo: 'embarcacao', label: embarcacao.nome }}
+          avisoCienteInicial={avisoCienteInicial}
         />
       </div>
     </div>

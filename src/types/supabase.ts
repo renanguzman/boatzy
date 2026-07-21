@@ -266,6 +266,7 @@ export type Database = {
           endereco_numero: string | null;
           endereco_complemento: string | null;
           notif_email_conversas: boolean;
+          chat_aviso_ciente_em: string | null;
           created_at: string;
           updated_at: string;
         };
@@ -285,6 +286,7 @@ export type Database = {
           endereco_numero?: string | null;
           endereco_complemento?: string | null;
           notif_email_conversas?: boolean;
+          chat_aviso_ciente_em?: string | null;
           created_at?: string;
           updated_at?: string;
         };
@@ -304,6 +306,7 @@ export type Database = {
           endereco_numero?: string | null;
           endereco_complemento?: string | null;
           notif_email_conversas?: boolean;
+          chat_aviso_ciente_em?: string | null;
           created_at?: string;
           updated_at?: string;
         };

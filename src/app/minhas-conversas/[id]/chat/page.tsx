@@ -18,6 +18,14 @@ export default async function ChatConversaPage({ params }: { params: Promise<{ i
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect(`/entrar?redirect_to=/minhas-conversas/${conversaId}/chat`);
 
+  // Aviso "converse pela plataforma": só exibido enquanto o cliente não confirmou ciência.
+  const { data: usuarioDb } = await supabaseAdmin
+    .from('users')
+    .select('chat_aviso_ciente_em')
+    .eq('id', user.id)
+    .single();
+  const avisoCienteInicial = usuarioDb?.chat_aviso_ciente_em != null;
+
   // A conversa precisa pertencer ao cliente logado (autorização) e dá o gestor.
   const { data: conversa } = await supabaseAdmin
     .from('conversa')
@@ -62,6 +70,7 @@ export default async function ChatConversaPage({ params }: { params: Promise<{ i
           voltarLabel="Voltar para Minhas conversas"
           mensagensIniciais={(mensagens ?? []) as Mensagem[]}
           contexto={toConversaOrigem(conversa.origem_tipo, conversa.origem_label)}
+          avisoCienteInicial={avisoCienteInicial}
         />
       </div>
     </div>

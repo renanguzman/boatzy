@@ -3,6 +3,7 @@
 import { revalidatePath } from 'next/cache';
 import { createClient } from '@/lib/supabase/server';
 import { supabaseAdmin } from '@/lib/supabase';
+import { mascararTelefones } from '@/lib/mascarar-telefone';
 
 type ActionResult = { ok: boolean; error?: string };
 
@@ -39,14 +40,38 @@ export async function enviarMensagem(conversaId: string, conteudo: string): Prom
   const guard = await ensureParticipante(conversaId);
   if ('error' in guard) return { ok: false, error: guard.error };
 
+  // Números de telefone são mascarados antes de gravar — nunca ficam
+  // armazenados em texto puro, para desestimular a tratativa fora da
+  // plataforma (ver aviso exibido ao cliente no ChatBox).
+  const textoSeguro = mascararTelefones(texto);
+
   const { error } = await supabaseAdmin
     .from('mensagem')
-    .insert({ conversa_id: conversaId, remetente_id: guard.userId, conteudo: texto });
+    .insert({ conversa_id: conversaId, remetente_id: guard.userId, conteudo: textoSeguro });
 
   if (error) return { ok: false, error: error.message };
 
   revalidatePath('/painel/clientes');
   revalidatePath('/minhas-reservas');
+  return { ok: true };
+}
+
+/**
+ * Registra que o usuário logado confirmou ciência do aviso "converse pela
+ * plataforma" exibido ao abrir o chat (lado do cliente no site). Grava
+ * timestamp em `users.chat_aviso_ciente_em` como evidência do aceite.
+ */
+export async function confirmarAvisoChat(): Promise<ActionResult> {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { ok: false, error: 'Não autenticado.' };
+
+  const { error } = await supabaseAdmin
+    .from('users')
+    .update({ chat_aviso_ciente_em: new Date().toISOString() })
+    .eq('id', user.id);
+
+  if (error) return { ok: false, error: error.message };
   return { ok: true };
 }
 

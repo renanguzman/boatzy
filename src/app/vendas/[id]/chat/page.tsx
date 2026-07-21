@@ -18,6 +18,14 @@ export default async function ChatVendaPage({ params }: { params: Promise<{ id: 
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect(`/entrar?redirect_to=/vendas/${id}/chat`);
 
+  // Aviso "converse pela plataforma": só exibido enquanto o cliente não confirmou ciência.
+  const { data: usuarioDb } = await supabaseAdmin
+    .from('users')
+    .select('chat_aviso_ciente_em')
+    .eq('id', user.id)
+    .single();
+  const avisoCienteInicial = usuarioDb?.chat_aviso_ciente_em != null;
+
   // Anúncio publicamente visível (ativo + embarcação ativa).
   const { data } = await supabaseAdmin
     .from('anuncio_venda')
@@ -99,6 +107,7 @@ export default async function ChatVendaPage({ params }: { params: Promise<{ id: 
           mensagensIniciais={(mensagens ?? []) as Mensagem[]}
           rascunhoInicial={rascunhoInicial}
           contexto={{ tipo: 'venda', label: emb!.nome }}
+          avisoCienteInicial={avisoCienteInicial}
         />
       </div>
     </div>

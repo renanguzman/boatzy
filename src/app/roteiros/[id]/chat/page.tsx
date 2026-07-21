@@ -16,6 +16,14 @@ export default async function ChatRoteiroPage({ params }: { params: Promise<{ id
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect(`/entrar?redirect_to=/roteiros/${id}/chat`);
 
+  // Aviso "converse pela plataforma": só exibido enquanto o cliente não confirmou ciência.
+  const { data: usuarioDb } = await supabaseAdmin
+    .from('users')
+    .select('chat_aviso_ciente_em')
+    .eq('id', user.id)
+    .single();
+  const avisoCienteInicial = usuarioDb?.chat_aviso_ciente_em != null;
+
   const { data: roteiro } = await supabaseAdmin
     .from('roteiro')
     .select('id, owner_id, nome, ativo')
@@ -87,6 +95,7 @@ export default async function ChatRoteiroPage({ params }: { params: Promise<{ id
           mensagensIniciais={(mensagens ?? []) as Mensagem[]}
           rascunhoInicial={rascunhoInicial}
           contexto={{ tipo: 'roteiro', label: roteiro.nome }}
+          avisoCienteInicial={avisoCienteInicial}
         />
       </div>
     </div>

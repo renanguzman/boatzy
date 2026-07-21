@@ -1806,6 +1806,64 @@ quando há não lidas daquele gestor.
 em `mensagem`, refetch a cada evento). Passa `naoLidas` ao `UserMenu`, que exibe um badge no gatilho
 do dropdown (sobre o avatar) e ao lado de **"Minhas reservas"** (também no menu mobile do Header).
 
+### 21.6 Aviso "converse pela plataforma" (lado cliente, bloqueante)
+
+Migration: `supabase/migrations/20260720b_users_chat_aviso.sql` — coluna
+`users.chat_aviso_ciente_em timestamptz` (NULL = ainda não confirmou; preenchida = timestamp do
+aceite, guardado como evidência, não é apenas uma flag local/`localStorage`).
+
+- **`ChatBox`** ganhou a prop opcional `avisoCienteInicial?: boolean`. Quando `false`, renderiza um
+  modal bloqueante (`fixed inset-0 z-50`, backdrop escurecido/blur, **sem** botão de fechar nem
+  dismiss por clique fora) com o texto legal (ver abaixo) e o botão **"Estou ciente"**; a textarea e
+  o botão de envio ficam `disabled` enquanto o modal está pendente (defesa em profundidade, além do
+  overlay já bloquear cliques). `undefined` (valor padrão, prop omitida) **nunca** exibe o modal —
+  é o caso do chat do gestor.
+- **Texto do modal:** explica que a Boatzy é uma plataforma de intermediação e recomenda que toda
+  comunicação/negociação ocorra pelo chat da plataforma, e declara que a Boatzy **não se
+  responsabiliza** por tratativas, acordos, pagamentos, danos ou prejuízos combinados por outros
+  meios (WhatsApp, telefone, e-mail, redes sociais) não formalizados dentro da plataforma. O texto é
+  genérico o bastante para caber nos quatro contextos de origem (venda/roteiro/embarcação/reserva),
+  já que o mesmo `ChatBox` é compartilhado por todos.
+- **Confirmação:** `confirmarAvisoChat()` (`src/lib/chat-actions.ts`) grava
+  `chat_aviso_ciente_em = now()` para o usuário logado via `supabaseAdmin` (bypassa RLS, mesmo
+  padrão das demais actions de chat). O dismiss do modal no client é **otimista**: fecha mesmo se a
+  persistência falhar, para não travar o chat inteiro por uma instabilidade pontual — nesse caso o
+  aviso volta a aparecer na próxima conversa aberta.
+- **Onde é lido:** as 5 páginas de chat do **site** (`/vendas/[id]/chat`, `/minhas-reservas/[id]/chat`,
+  `/minhas-conversas/[id]/chat`, `/embarcacoes/[id]/chat`, `/roteiros/[id]/chat`) consultam
+  `users.chat_aviso_ciente_em` do usuário logado (Server Component, `supabaseAdmin`) e passam
+  `avisoCienteInicial={valor != null}` ao `ChatBox`. `/painel/clientes/[id]/chat` (lado do gestor)
+  **não** passa a prop — o aviso é exclusivo do lado cliente, por decisão de produto.
+- ⚠️ **Depende da migration estar aplicada** no banco antes de funcionar: sem a coluna, a leitura
+  retorna vazio (Supabase não lança exceção, só popula `error`), o que faz `avisoCienteInicial`
+  computar `false` e o modal aparecer sempre — o dismiss otimista evita que isso trave o chat, mas o
+  aceite nunca fica persistido até a migration rodar.
+
+### 21.7 Mascaramento de telefone nas mensagens
+
+`src/lib/mascarar-telefone.ts` — `mascararTelefones(texto: string): string`. Heurística por regex
+(não é NLP, não é infalível — é uma barreira, não uma garantia) que localiza sequências no formato
+de telefone brasileiro — com ou sem DDI (`+55`), com ou sem DDD entre parênteses, com **um único
+separador** (espaço, ponto ou hífen) entre um bloco de 4–5 dígitos (o `9` de celular é opcional) e um
+bloco final de 4 dígitos — e substitui cada dígito encontrado por `*`, preservando os separadores
+(ex.: `"(11) 91234-5678"` → `"(**) *****-****"`).
+
+- **Aplicado em `enviarMensagem`** (`src/lib/chat-actions.ts`), **antes do INSERT** — a mensagem já
+  é gravada mascarada; o número em texto puro nunca chega a ser persistido. Como é o único ponto de
+  entrada de mensagens do chat (`'use server'`, compartilhado pelos dois lados), a regra vale nos
+  dois sentidos da conversa — gestor tentando passar o telefone é mascarado da mesma forma que o
+  cliente.
+- **Por que antes de gravar, e não só na exibição:** um único ponto de aplicação cobre
+  automaticamente a entrega em tempo real (Realtime replica a linha já mascarada), o histórico, e o
+  e-mail de notificação agrupada (§21.4c, que lê `mensagem.conteudo`) — sem precisar duplicar a
+  lógica em cada lugar que renderiza mensagens.
+- **Falsos positivos/negativos aceitos como trade-off:** datas (`20-01-2026`, dois separadores) e
+  valores monetários (`R$ 12.500,00`) não batem com o padrão (não têm o formato exato "bloco de
+  4/5 + um separador + bloco de 4"); uma sequência numérica longa sem separador (8–13 dígitos, ex.:
+  um código qualquer) pode ser mascarada por engano; number "spelling" com um separador por dígito
+  (ex.: `"1 1 9 8 7 6 5 4 3 2 1"`) não é detectado. Validado manualmente com 18 casos (positivos e
+  negativos) antes de integrar.
+
 ---
 
 ## 22. Avaliações (cliente → roteiro/embarcação)
