@@ -18,6 +18,12 @@ type Props = {
   tipo?: SearchType;
   tiposEmbarcacao?: TipoEmbarcacaoValue[];
   initialTipoEmbarcacao?: TipoEmbarcacaoValue | null;
+  /**
+   * Filtros avançados/ordenação em vigor (preco_*, duracao_*, ordenar).
+   * Valem nas duas abas de /buscar, então sobrevivem a uma nova busca e à
+   * troca de aba — só a aba Vendas (página própria) os descarta.
+   */
+  filtrosPreservados?: Record<string, string>;
 };
 
 export default function SearchBarCompact({
@@ -27,6 +33,7 @@ export default function SearchBarCompact({
   tipo = 'roteiro',
   tiposEmbarcacao = [],
   initialTipoEmbarcacao = null,
+  filtrosPreservados,
 }: Props) {
   const router = useRouter();
 
@@ -91,6 +98,9 @@ export default function SearchBarCompact({
       if (date.flexibility > 0) params.set('flex', String(date.flexibility));
     }
     if (guests > 0) params.set('pessoas', String(guests));
+    for (const [k, v] of Object.entries(filtrosPreservados ?? {})) {
+      if (v) params.set(k, v);
+    }
 
     router.push(`/buscar?${params.toString()}`);
     setActive(null);

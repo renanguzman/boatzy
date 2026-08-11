@@ -26,6 +26,7 @@ import {
 import MapaPicker from '../../../../embarcacoes/novo/_components/MapaPicker';
 import CatalogoSelector, { type CatalogoItem, type ItemSelecionado } from '../../../_components/CatalogoSelector';
 import DisponibilidadePicker from '@/components/painel/DisponibilidadePicker';
+import { horasParaPartes, type DuracaoUnidade } from '@/lib/duracao';
 import type { PrecoRegraTipo } from '@/types/supabase';
 
 // ─── Constantes ───────────────────────────────────────────────────────────────
@@ -88,7 +89,7 @@ type RoteiroData = {
   embarcacao_id: string | null;
   nome: string;
   descricao: string;
-  duracao: string | null;
+  duracao_horas: number | null;
   quantidade_pessoas: number | null;
   origem: string | null;
   destino: string | null;
@@ -234,13 +235,17 @@ export default function EditarRoteiroForm({ roteiro, estados, municipiosIniciais
     return d.length === 8 ? `${d.slice(0, 5)}-${d.slice(5)}` : d;
   };
 
+  // duracao_horas → (número, unidade) para os dois campos do formulário.
+  const duracaoInicial = horasParaPartes(roteiro.duracao_horas);
+
   const [form, setForm] = useState<Omit<AtualizarRoteiroPayload, 'municipio_id' | 'disponibilidade_dias_semana'> & {
     municipio_id: string; estado_id: string;
   }>({
     embarcacao_id:      roteiro.embarcacao_id ?? '',
     nome:               roteiro.nome,
     descricao:          roteiro.descricao,
-    duracao:            roteiro.duracao ?? '',
+    duracao_valor:      duracaoInicial.valor,
+    duracao_unidade:    duracaoInicial.unidade,
     quantidade_pessoas: roteiro.quantidade_pessoas != null ? String(roteiro.quantidade_pessoas) : '',
     origem:             roteiro.origem ?? '',
     destino:            roteiro.destino ?? '',
@@ -481,7 +486,8 @@ export default function EditarRoteiroForm({ roteiro, estados, municipiosIniciais
       embarcacao_id:      form.embarcacao_id,
       nome:               form.nome,
       descricao:          form.descricao,
-      duracao:            form.duracao,
+      duracao_valor:      form.duracao_valor,
+      duracao_unidade:    form.duracao_unidade,
       quantidade_pessoas: form.quantidade_pessoas,
       origem:             form.origem,
       destino:            form.destino,
@@ -592,9 +598,16 @@ export default function EditarRoteiroForm({ roteiro, estados, municipiosIniciais
               {embarcacoes.map(e => <option key={e.id} value={e.id}>{e.nome}</option>)}
             </select>
           </Field>
-          <Field label="Duração" hint='ex: "4 horas", "1 dia", "3 dias / 2 noites"'>
-            <input className={inputCls} placeholder="ex: 4 horas"
-              value={form.duracao} onChange={e => setField('duracao', e.target.value)} />
+          <Field label="Duração" hint="Usada nos filtros e na ordenação da busca do site.">
+            <div className="flex items-center gap-2">
+              <input className={inputCls} type="number" min="0" step="0.5" placeholder="ex: 4"
+                value={form.duracao_valor} onChange={e => setField('duracao_valor', e.target.value)} />
+              <select className={`${selectCls} w-32 shrink-0`} value={form.duracao_unidade}
+                onChange={e => setField('duracao_unidade', e.target.value as DuracaoUnidade)}>
+                <option value="horas">Horas</option>
+                <option value="dias">Dias</option>
+              </select>
+            </div>
           </Field>
           <Field label="Capacidade máxima" hint="Número de pessoas — preenchida com a capacidade da embarcação vinculada.">
             <input className={inputCls} type="number" min="1" placeholder="ex: 12"

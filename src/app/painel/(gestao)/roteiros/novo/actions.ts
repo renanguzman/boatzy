@@ -3,6 +3,7 @@
 import { createClient } from '@/lib/supabase/server';
 import { supabaseAdmin } from '@/lib/supabase';
 import { checkRoleInDb } from '@/lib/roles';
+import { duracaoParaHoras, duracaoTexto, type DuracaoUnidade } from '@/lib/duracao';
 import type { PrecoRegraTipo } from '@/types/supabase';
 
 // ─── Tipos ───────────────────────────────────────────────────────────────────
@@ -11,7 +12,9 @@ export type CriarRoteiroPayload = {
   embarcacao_id: string;
   nome: string;
   descricao: string;
-  duracao: string;
+  /** Duração: número digitado + unidade — vira `duracao_horas` (busca) e `duracao` (rótulo). */
+  duracao_valor: string;
+  duracao_unidade: DuracaoUnidade;
   quantidade_pessoas: string;
   origem: string;
   destino: string;
@@ -69,6 +72,10 @@ export async function criarRoteiro(
   const autorizado = await checkRoleInDb(user.id, ['gestor', 'admin']);
   if (!autorizado) return { ok: false, error: 'Acesso não autorizado.' };
 
+  // O rótulo exibido é derivado do par (valor, unidade) — nunca digitado à mão,
+  // para que texto e número nunca divirjam.
+  const duracaoHoras = duracaoParaHoras(payload.duracao_valor, payload.duracao_unidade);
+
   const { data, error } = await supabaseAdmin
     .from('roteiro')
     .insert({
@@ -77,7 +84,8 @@ export async function criarRoteiro(
       nome:               payload.nome.trim(),
       descricao:          payload.descricao.trim(),
       preco_base:         payload.preco_base ? parseFloat(payload.preco_base) : null,
-      duracao:            payload.duracao.trim() || null,
+      duracao:            duracaoTexto(duracaoHoras),
+      duracao_horas:      duracaoHoras,
       quantidade_pessoas: payload.quantidade_pessoas ? parseInt(payload.quantidade_pessoas, 10) : null,
       origem:             payload.origem.trim() || null,
       destino:            payload.destino.trim() || null,

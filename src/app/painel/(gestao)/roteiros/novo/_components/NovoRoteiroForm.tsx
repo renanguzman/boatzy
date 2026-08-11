@@ -21,6 +21,7 @@ import {
 import MapaPicker from '../../../embarcacoes/novo/_components/MapaPicker';
 import CatalogoSelector, { type CatalogoItem, type ItemSelecionado } from '../../_components/CatalogoSelector';
 import DisponibilidadePicker from '@/components/painel/DisponibilidadePicker';
+import type { DuracaoUnidade } from '@/lib/duracao';
 import type { PrecoRegraTipo } from '@/types/supabase';
 
 // ─── Constantes ───────────────────────────────────────────────────────────────
@@ -155,7 +156,7 @@ export default function NovoRoteiroForm({ estados, embarcacoes, catalogo: catalo
   }>({
     embarcacao_id: '',
     nome: '', descricao: '',
-    duracao: '', quantidade_pessoas: '',
+    duracao_valor: '', duracao_unidade: 'horas', quantidade_pessoas: '',
     origem: '', destino: '',
     preco_base: '',
     estado_id: '', municipio_id: '',
@@ -358,7 +359,8 @@ export default function NovoRoteiroForm({ estados, embarcacoes, catalogo: catalo
       embarcacao_id:      form.embarcacao_id,
       nome:               form.nome,
       descricao:          form.descricao,
-      duracao:            form.duracao,
+      duracao_valor:      form.duracao_valor,
+      duracao_unidade:    form.duracao_unidade,
       quantidade_pessoas: form.quantidade_pessoas,
       origem:             form.origem,
       destino:            form.destino,
@@ -458,9 +460,16 @@ export default function NovoRoteiroForm({ estados, embarcacoes, catalogo: catalo
               {embarcacoes.map(e => <option key={e.id} value={e.id}>{e.nome}</option>)}
             </select>
           </Field>
-          <Field label="Duração" hint='ex: "4 horas", "1 dia", "3 dias / 2 noites"'>
-            <input className={inputCls} placeholder="ex: 4 horas"
-              value={form.duracao} onChange={e => setField('duracao', e.target.value)} />
+          <Field label="Duração" hint="Usada nos filtros e na ordenação da busca do site.">
+            <div className="flex items-center gap-2">
+              <input className={inputCls} type="number" min="0" step="0.5" placeholder="ex: 4"
+                value={form.duracao_valor} onChange={e => setField('duracao_valor', e.target.value)} />
+              <select className={`${selectCls} w-32 shrink-0`} value={form.duracao_unidade}
+                onChange={e => setField('duracao_unidade', e.target.value as DuracaoUnidade)}>
+                <option value="horas">Horas</option>
+                <option value="dias">Dias</option>
+              </select>
+            </div>
           </Field>
           <Field label="Capacidade máxima" hint="Número de pessoas — preenchida com a capacidade da embarcação vinculada.">
             <input className={inputCls} type="number" min="1" placeholder="ex: 12"

@@ -26,7 +26,7 @@ export default async function EditarRoteiroPage({
   ] = await Promise.all([
     supabaseAdmin
       .from('roteiro')
-      .select('id, embarcacao_id, nome, descricao, duracao, quantidade_pessoas, origem, destino, municipio_id, cep, bairro, logradouro, logradouro_numero, complemento, latitude, longitude, preco_base, disponibilidade_dias_semana')
+      .select('id, embarcacao_id, nome, descricao, duracao, duracao_horas, quantidade_pessoas, origem, destino, municipio_id, cep, bairro, logradouro, logradouro_numero, complemento, latitude, longitude, preco_base, disponibilidade_dias_semana')
       .eq('id', id)
       .eq('owner_id', user.id)
       .single(),

@@ -68,3 +68,45 @@ html {
   background-color: #0B3D91;
   color: white;
 }
+
+/* ── InfoWindow do Google Maps (mapa de resultados de /buscar) ──────────────
+   O balão vem com padding largo, cantos quase retos e um contorno de foco
+   (o Maps chama focus() no container ao abrir); aqui ele é ajustado ao design
+   system — raio 1rem, respiro compacto e sem contorno no container, que não é
+   interativo (o link interno mantém o próprio foco). */
+.gm-style .gm-style-iw-c {
+  padding: 0.625rem !important;
+  padding-right: 1.5rem !important;
+  border-radius: 1rem !important;
+  box-shadow: 0 10px 30px -10px rgb(11 36 71 / 0.35) !important;
+}
+
+.gm-style .gm-style-iw-c:focus,
+.gm-style .gm-style-iw-c:focus-visible {
+  outline: none !important;
+}
+
+.gm-style .gm-style-iw-d {
+  overflow: hidden !important;
+  padding: 0 !important;
+  max-height: none !important;
+}
+
+/* Botão de fechar: discreto, encostado no canto do balão. */
+.gm-style .gm-style-iw-c button.gm-ui-hover-effect {
+  top: 0.125rem !important;
+  right: 0.125rem !important;
+  width: 1.5rem !important;
+  height: 1.5rem !important;
+  opacity: 0.4;
+}
+
+.gm-style .gm-style-iw-c button.gm-ui-hover-effect > span {
+  width: 1rem !important;
+  height: 1rem !important;
+  margin: 0.25rem !important;
+}
+
+.gm-style .gm-style-iw-c button.gm-ui-hover-effect:hover {
+  opacity: 0.85;
+}

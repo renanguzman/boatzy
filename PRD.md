@@ -113,16 +113,19 @@ Campos:
 
 Filtros disponíveis:
 
-- Localização
-- Data
-- Preço
-- Capacidade
-- Tipo de embarcação
+- Localização ✅
+- Data ✅
+- Preço ✅ (faixa mín./máx.)
+- Capacidade ✅ (pessoas)
+- Tipo de embarcação ✅
+- Duração do passeio ✅ (faixa em horas)
+
+Ordenação do resultado ✅: relevância (padrão), mais recentes, melhor avaliação, preço (menor/maior), duração (menor/maior).
 
 Visualização:
 
-- Lista
-- Mapa (Google Maps)
+- Lista ✅
+- Mapa (Google Maps) ✅ — abaixo da lista, plotando os resultados da página atual
 
 #### ✅ Implementado — Alternância de Tipo de Busca (Roteiros / Embarcações)
 
@@ -161,6 +164,27 @@ Visualização:
   - **Pessoas:** verifica a capacidade da **embarcação vinculada** ao roteiro (`capacidade >= pessoas`). Roteiros sem embarcação vinculada não aparecem quando há filtro de pessoas.
   - **Ordenação:** mais próximos primeiro quando há localização; senão, mais recentes. Paginação server-side.
 - `RoteiroCard`: imagem principal, badge de localidade, meta (pessoas/duração), nome, preço base.
+
+#### ✅ Implementado — Filtros de preço/duração e ordenação dos resultados (10/08/2026)
+
+Vale nas **duas abas** de `/buscar` (Roteiros e Embarcações), sempre resolvido no banco (paginação continua server-side).
+
+- **Painel "Filtros"** (o botão que existia e não fazia nada agora abre de fato), com badge da quantidade de filtros ativos:
+  - **Faixa de preço** — mínimo e máximo em R$, sobre o mesmo preço exibido no card. Item sem preço cadastrado não aparece quando a faixa está ativa.
+  - **Duração do passeio** — faixas prontas (Até 3 horas, 3 a 6 horas, 6 a 12 horas, Dia inteiro, Mais de 1 dia) ou mínimo/máximo em horas. Na aba Embarcações, a embarcação aparece se **algum roteiro ativo dela** estiver na faixa.
+  - Faixa invertida (mínimo > máximo) é corrigida automaticamente ao aplicar.
+- **Ordenar por** (select ao lado da contagem de resultados): **Relevância** (padrão — mais próximos quando há localização, senão mais recentes), **Mais recentes**, **Melhor avaliação**, **Menor preço**, **Maior preço**, **Menor duração**, **Maior duração**.
+  - "Melhor avaliação" usa a mesma média bayesiana das seções "Mais Bem Avaliados" da home (muitas notas boas vencem uma única nota 5); itens sem avaliação vão para o fim da lista, nunca são escondidos.
+  - Na aba Embarcações, a ordenação por duração usa a **menor** duração entre os roteiros ativos da embarcação.
+- Os filtros e a ordenação viram **chips removíveis** e ficam na URL (link compartilhável), sobrevivem a uma nova busca e à troca de aba. Quando zeram o resultado, o estado vazio oferece **"Limpar preço e duração"**.
+- **Impacto no cadastro:** o campo "Duração" do roteiro (painel e admin) deixou de ser texto livre e passou a ser **número + unidade** (Horas/Dias) — é o que torna o filtro e a ordenação por duração possíveis. O rótulo exibido nos cards ("4 horas", "2 dias") passa a ser gerado a partir desse par. Roteiros já cadastrados tiveram a duração convertida automaticamente; os poucos cujo texto não tinha número reconhecível ficam sem duração e só não aparecem quando o filtro de duração está ativo. Detalhes técnicos em `SPEC.md` §18.3/§18.3-A/§18.6.
+
+#### ✅ Implementado — Mapa dos resultados na busca (10/08/2026)
+
+- No rodapé de `/buscar` (abaixo da paginação), nas **duas abas**, um mapa do Google mostra os resultados **da página atual** — o mapa acompanha filtros, ordenação e paginação.
+- **Ao passar o mouse** sobre um ponto, abre um cartão com foto, nome, embarcação (nos roteiros) ou tipo (nas embarcações), cidade/UF e preço; o cartão inteiro é um link para a página de detalhes — o mesmo destino do card do grid. Ele permanece aberto ao tirar o mouse (senão não daria para clicar) e fecha no X ou num clique no mapa.
+- O mapa se enquadra automaticamente em todos os pontos. Itens **sem localização cadastrada** ficam de fora e o cabeçalho informa "X de Y com localização"; se nenhum resultado tiver coordenada, a seção nem aparece.
+- Visual alinhado ao design system: moldura branca com borda suave, pinos no azul da marca e mapa sem poluição (sem pontos de interesse nem transporte).
 
 ---
 

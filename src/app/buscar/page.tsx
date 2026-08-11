@@ -7,37 +7,26 @@ import { getAvaliacoesResumoPorRoteiro, getAvaliacoesResumoPorEmbarcacao } from 
 import { getFavoritosEmbarcacaoSet } from '@/lib/embarcacoes-top';
 import SearchBarCompact from './_components/SearchBarCompact';
 import RoteiroCard, { type RoteiroCardData } from './_components/RoteiroCard';
+import FiltrosAvancados from './_components/FiltrosAvancados';
+import OrdenarSelect from './_components/OrdenarSelect';
+import MapaResultados, { type PontoMapa } from './_components/MapaResultados';
 import EmbarcacaoCard, { type EmbarcacaoCardData } from '@/components/ui/EmbarcacaoCard';
 import Link from 'next/link';
 import { SlidersHorizontal, X } from 'lucide-react';
+import { faixaDuracaoLabel, faixaPrecoLabel } from '@/lib/duracao';
+import {
+  buildBuscarUrl,
+  contarFiltrosAvancados,
+  normalizarOrdenacao,
+  parseNumeroPositivo,
+  type BuscaSearchParams as SearchParams,
+} from './_lib/filtros';
 
 const POR_PAGINA = 24;
 const RAIO_KM = 50;
 
-type SearchParams = {
-  municipio?: string;
-  local?: string;
-  lat?: string;
-  lng?: string;
-  data?: string;
-  flex?: string;
-  pessoas?: string;
-  pagina?: string;
-  /** Aba ativa da busca ('embarcacao' exibe o seletor de tipo). */
-  tipo?: string;
-  /** Filtro por tipo de embarcação (uuid de embarcacao_tipo). */
-  tipo_embarcacao?: string;
-  /** Rótulo do tipo para chip/título (evita query extra). */
-  tipo_nome?: string;
-};
-
 function buildPageUrl(current: SearchParams, overrides: Partial<SearchParams & { pagina: string }>) {
-  const merged = { ...current, ...overrides };
-  const params = new URLSearchParams();
-  for (const [k, v] of Object.entries(merged)) {
-    if (v != null && v !== '') params.set(k, v);
-  }
-  return `/buscar?${params.toString()}`;
+  return buildBuscarUrl(current, overrides);
 }
 
 function getPageNumbers(current: number, total: number): (number | '…')[] {
@@ -55,18 +44,33 @@ type EmbarcacaoDetalheRow = {
   nome: string;
   preco_base: number | null;
   capacidade: number | null;
+  latitude: number | null;
+  longitude: number | null;
   embarcacao_tipo: { nome: string } | null;
   municipios: { nome: string; estados: { uf: string } | null } | null;
   embarcacao_imagens: { url_imagem: string; principal: boolean }[];
 };
 
+/** Linha de `roteiro` com o que o card usa + o que o mapa precisa. */
+type RoteiroDetalheRow = RoteiroCardData & {
+  latitude: number | null;
+  longitude: number | null;
+  embarcacao: { nome: string; embarcacao_tipo: { nome: string } | null } | null;
+};
+
+function localidadeDe(m: { nome: string; estados: { uf: string } | null } | null): string | null {
+  if (!m) return null;
+  return m.estados ? `${m.nome}, ${m.estados.uf}` : m.nome;
+}
+
+/** Só entram no mapa os resultados com coordenada cadastrada. */
+function temCoordenada(lat: number | null, lng: number | null): boolean {
+  return lat != null && lng != null && Number.isFinite(Number(lat)) && Number.isFinite(Number(lng));
+}
+
 function mapEmbarcacaoRow(d: EmbarcacaoDetalheRow): EmbarcacaoCardData {
   const imagem = (d.embarcacao_imagens.find((i) => i.principal) ?? d.embarcacao_imagens[0])?.url_imagem ?? null;
-  const localidade = d.municipios
-    ? d.municipios.estados
-      ? `${d.municipios.nome}, ${d.municipios.estados.uf}`
-      : d.municipios.nome
-    : null;
+  const localidade = localidadeDe(d.municipios);
   return {
     id: d.id,
     nome: d.nome,
@@ -78,10 +82,10 @@ function mapEmbarcacaoRow(d: EmbarcacaoDetalheRow): EmbarcacaoCardData {
   };
 }
 
-const ROTEIRO_SELECT = `id, nome, descricao, quantidade_pessoas, preco_base, duracao,
+const ROTEIRO_SELECT = `id, nome, descricao, quantidade_pessoas, preco_base, duracao, latitude, longitude,
    municipios ( nome, estados ( uf ) ),
    roteiro_imagens ( url_imagem, principal ),
-   embarcacao ( embarcacao_tipo ( nome ) )`;
+   embarcacao ( nome, embarcacao_tipo ( nome ) )`;
 
 export default async function BuscarPage({ searchParams }: { searchParams: Promise<SearchParams> }) {
   const params = await searchParams;
@@ -95,6 +99,14 @@ export default async function BuscarPage({ searchParams }: { searchParams: Promi
   const from = (pagina - 1) * POR_PAGINA;
   const tipoEmbarcacaoId = params.tipo_embarcacao || null;
   const abaEmbarcacao = params.tipo === 'embarcacao' || tipoEmbarcacaoId != null;
+
+  // Filtros avançados (faixa de preço e de duração) + ordenação escolhida.
+  // Tudo resolvido no banco pelas RPCs — a paginação continua server-side.
+  const precoMin = parseNumeroPositivo(params.preco_min);
+  const precoMax = parseNumeroPositivo(params.preco_max);
+  const duracaoMin = parseNumeroPositivo(params.duracao_min);
+  const duracaoMax = parseNumeroPositivo(params.duracao_max);
+  const ordenar = normalizarOrdenacao(params.ordenar);
 
   // Dois modos dentro da mesma página:
   //  - roteiro (default): busca de roteiros, como sempre foi.
@@ -110,6 +122,10 @@ export default async function BuscarPage({ searchParams }: { searchParams: Promi
   let embarcacoes: EmbarcacaoCardData[] = [];
   let total = 0;
   let ids: string[] = [];
+  // Linhas cruas (com coordenadas) da página atual — alimentam o mapa abaixo
+  // do grid, que é montado depois porque depende dos hrefs dos cards.
+  let roteirosRows: RoteiroDetalheRow[] = [];
+  let embarcacoesRows: EmbarcacaoDetalheRow[] = [];
 
   if (modoListaEmbarcacoes) {
     const { data: rpcRows, error: rpcError } = await supabaseAdmin.rpc('buscar_embarcacoes', {
@@ -123,6 +139,11 @@ export default async function BuscarPage({ searchParams }: { searchParams: Promi
       p_limit: POR_PAGINA,
       p_offset: from,
       p_tipo_id: tipoEmbarcacaoId,
+      p_preco_min: precoMin,
+      p_preco_max: precoMax,
+      p_duracao_min: duracaoMin,
+      p_duracao_max: duracaoMax,
+      p_ordenar: ordenar,
     });
 
     if (rpcError) {
@@ -137,7 +158,7 @@ export default async function BuscarPage({ searchParams }: { searchParams: Promi
       const { data: detalhes } = await supabaseAdmin
         .from('embarcacao')
         .select(
-          `id, nome, preco_base, capacidade,
+          `id, nome, preco_base, capacidade, latitude, longitude,
            embarcacao_tipo ( nome ),
            municipios ( nome, estados ( uf ) ),
            embarcacao_imagens ( url_imagem, principal )`,
@@ -145,10 +166,11 @@ export default async function BuscarPage({ searchParams }: { searchParams: Promi
         .in('id', ids);
 
       const byId = new Map((detalhes ?? []).map((d) => [d.id, d as unknown as EmbarcacaoDetalheRow]));
-      embarcacoes = ids.flatMap((id) => {
+      embarcacoesRows = ids.flatMap((id) => {
         const d = byId.get(id);
-        return d ? [mapEmbarcacaoRow(d)] : [];
+        return d ? [d] : [];
       });
+      embarcacoes = embarcacoesRows.map(mapEmbarcacaoRow);
     }
   } else {
     // Resolve filtros (localização/raio + disponibilidade na data + capacidade da
@@ -165,6 +187,11 @@ export default async function BuscarPage({ searchParams }: { searchParams: Promi
       p_limit: POR_PAGINA,
       p_offset: from,
       p_tipo_id: tipoEmbarcacaoId,
+      p_preco_min: precoMin,
+      p_preco_max: precoMax,
+      p_duracao_min: duracaoMin,
+      p_duracao_max: duracaoMax,
+      p_ordenar: ordenar,
     });
 
     // Não silenciar falhas da RPC: um erro aqui deixa a busca vazia sem motivo
@@ -182,9 +209,10 @@ export default async function BuscarPage({ searchParams }: { searchParams: Promi
       const { data: detalhes } = await supabaseAdmin.from('roteiro').select(ROTEIRO_SELECT).in('id', ids);
 
       const byId = new Map((detalhes ?? []).map((d) => [d.id, d]));
-      roteiros = ids
+      roteirosRows = ids
         .map((id) => byId.get(id))
-        .filter((d): d is NonNullable<typeof d> => d != null) as unknown as RoteiroCardData[];
+        .filter((d): d is NonNullable<typeof d> => d != null) as unknown as RoteiroDetalheRow[];
+      roteiros = roteirosRows;
     }
   }
 
@@ -227,6 +255,50 @@ export default async function BuscarPage({ searchParams }: { searchParams: Promi
     return sp.toString();
   })();
 
+  // Pontos do mapa (mesma página de resultados, mesmos hrefs dos cards).
+  // Itens sem coordenada cadastrada simplesmente não entram — o cabeçalho do
+  // mapa informa "X de Y com localização".
+  const voltarParaBusca = encodeURIComponent(buildBuscarUrl(params, {}));
+  const pontosMapa: PontoMapa[] = modoListaEmbarcacoes
+    ? embarcacoesRows.flatMap((d) =>
+        temCoordenada(d.latitude, d.longitude)
+          ? [
+              {
+                id: d.id,
+                nome: d.nome,
+                lat: Number(d.latitude),
+                lng: Number(d.longitude),
+                href: `/embarcacoes/${d.id}/roteiros?voltar=${voltarParaBusca}`,
+                subtitulo: d.embarcacao_tipo?.nome ?? null,
+                localidade: localidadeDe(d.municipios),
+                preco: d.preco_base,
+                imagem:
+                  (d.embarcacao_imagens.find((i) => i.principal) ?? d.embarcacao_imagens[0])
+                    ?.url_imagem ?? null,
+              },
+            ]
+          : [],
+      )
+    : roteirosRows.flatMap((d) =>
+        temCoordenada(d.latitude, d.longitude)
+          ? [
+              {
+                id: d.id,
+                nome: d.nome,
+                lat: Number(d.latitude),
+                lng: Number(d.longitude),
+                href: detalheQuery ? `/roteiros/${d.id}?${detalheQuery}` : `/roteiros/${d.id}`,
+                subtitulo: d.embarcacao?.nome ?? null,
+                localidade: localidadeDe(d.municipios),
+                preco: d.preco_base,
+                imagem:
+                  (d.roteiro_imagens.find((i) => i.principal) ?? d.roteiro_imagens[0])?.url_imagem ??
+                  null,
+              },
+            ]
+          : [],
+      );
+
   // Resolve municipio name for initial state
   let initialLocation: { id: number; nome: string; uf: string } | null = null;
   if (municipioId && params.local) {
@@ -266,6 +338,25 @@ export default async function BuscarPage({ searchParams }: { searchParams: Promi
   if (pessoas > 0) {
     chips.push({ label: `Grupo: ${pessoas} ${pessoas === 1 ? 'pessoa' : 'pessoas'}`, removeKey: 'pessoas' });
   }
+  const precoLabel = faixaPrecoLabel(precoMin, precoMax);
+  if (precoLabel) {
+    chips.push({ label: `Preço: ${precoLabel}`, removeKey: 'preco' });
+  }
+  const duracaoLabel = faixaDuracaoLabel(duracaoMin, duracaoMax);
+  if (duracaoLabel) {
+    chips.push({ label: `Duração: ${duracaoLabel}`, removeKey: 'duracao' });
+  }
+
+  const filtrosAvancadosAtivos = contarFiltrosAvancados(params);
+
+  // Saída do estado vazio quando preço/duração é que zeraram o resultado.
+  const semFiltrosAvancadosHref = buildBuscarUrl(params, {
+    preco_min: null,
+    preco_max: null,
+    duracao_min: null,
+    duracao_max: null,
+    pagina: null,
+  });
 
   const itemLabel = modoListaEmbarcacoes ? 'embarcação' : 'roteiro';
   const itemLabelPlural = modoListaEmbarcacoes ? 'embarcações' : 'roteiros';
@@ -286,6 +377,13 @@ export default async function BuscarPage({ searchParams }: { searchParams: Promi
             initialTipoEmbarcacao={
               tipoEmbarcacaoId && tipoNome ? { id: tipoEmbarcacaoId, nome: tipoNome } : null
             }
+            filtrosPreservados={{
+              ...(params.preco_min ? { preco_min: params.preco_min } : {}),
+              ...(params.preco_max ? { preco_max: params.preco_max } : {}),
+              ...(params.duracao_min ? { duracao_min: params.duracao_min } : {}),
+              ...(params.duracao_max ? { duracao_max: params.duracao_max } : {}),
+              ...(params.ordenar ? { ordenar: params.ordenar } : {}),
+            }}
           />
         </div>
       </div>
@@ -295,24 +393,19 @@ export default async function BuscarPage({ searchParams }: { searchParams: Promi
         {/* Filters row */}
         <div className="flex items-center justify-between gap-4 mb-6 flex-wrap">
           <div className="flex items-center gap-2 flex-wrap">
-            {chips.length > 0 && (
-              <button
-                type="button"
-                className="flex items-center gap-1.5 text-sm font-medium text-slate-600 border border-slate-300 rounded-full px-3 py-1.5 hover:bg-slate-50 transition-colors"
-              >
-                <SlidersHorizontal className="h-3.5 w-3.5" />
-                Filtros
-                <span className="h-4 w-4 rounded-full bg-[#0B2447] text-white text-[10px] font-bold flex items-center justify-center">
-                  {chips.length}
-                </span>
-              </button>
-            )}
+            <FiltrosAvancados params={params} ativos={filtrosAvancadosAtivos} />
 
             {chips.map((chip) => {
               const removeParams = { ...params };
               if (chip.removeKey === 'local_municipio') {
                 delete removeParams.local;
                 delete removeParams.municipio;
+              } else if (chip.removeKey === 'preco') {
+                delete removeParams.preco_min;
+                delete removeParams.preco_max;
+              } else if (chip.removeKey === 'duracao') {
+                delete removeParams.duracao_min;
+                delete removeParams.duracao_max;
               } else {
                 delete removeParams[chip.removeKey as keyof SearchParams];
                 if (chip.removeKey === 'data') delete removeParams.flex;
@@ -335,11 +428,14 @@ export default async function BuscarPage({ searchParams }: { searchParams: Promi
             })}
           </div>
 
-          <p className="text-sm text-slate-500 shrink-0">
-            {total > 0
-              ? `${total} resultado${total !== 1 ? 's' : ''}`
-              : 'Nenhum resultado'}
-          </p>
+          <div className="flex items-center gap-4 shrink-0">
+            <OrdenarSelect params={params} valor={ordenar} />
+            <p className="text-sm text-slate-500 shrink-0">
+              {total > 0
+                ? `${total} resultado${total !== 1 ? 's' : ''}`
+                : 'Nenhum resultado'}
+            </p>
+          </div>
         </div>
 
         {/* Title */}
@@ -367,7 +463,15 @@ export default async function BuscarPage({ searchParams }: { searchParams: Promi
                   ? 'Tente outro tipo de embarcação, ajustar os filtros ou explorar outros destinos.'
                   : 'Tente ajustar os filtros ou explorar outros destinos.'}
               </p>
-              <div className="mt-6 flex items-center gap-3">
+              <div className="mt-6 flex items-center gap-3 flex-wrap justify-center">
+                {filtrosAvancadosAtivos > 0 && (
+                  <Link
+                    href={semFiltrosAvancadosHref}
+                    className="px-5 py-2.5 border border-slate-300 text-slate-700 hover:bg-white text-sm font-semibold rounded-xl transition-colors"
+                  >
+                    Limpar preço e duração
+                  </Link>
+                )}
                 {tipoNome && (
                   <Link
                     href={buildPageUrl(
@@ -419,7 +523,15 @@ export default async function BuscarPage({ searchParams }: { searchParams: Promi
                 ? 'Tente outro tipo de embarcação, ajustar os filtros ou explorar outros destinos.'
                 : 'Tente ajustar os filtros ou explorar outros destinos.'}
             </p>
-            <div className="mt-6 flex items-center gap-3">
+            <div className="mt-6 flex items-center gap-3 flex-wrap justify-center">
+              {filtrosAvancadosAtivos > 0 && (
+                <Link
+                  href={semFiltrosAvancadosHref}
+                  className="px-5 py-2.5 border border-slate-300 text-slate-700 hover:bg-white text-sm font-semibold rounded-xl transition-colors"
+                >
+                  Limpar preço e duração
+                </Link>
+              )}
               {tipoNome && (
                 <Link
                   href={buildPageUrl(
@@ -501,6 +613,13 @@ export default async function BuscarPage({ searchParams }: { searchParams: Promi
             )}
           </div>
         )}
+
+        {/* Mapa dos resultados desta página */}
+        <MapaResultados
+          pontos={pontosMapa}
+          totalResultados={modoListaEmbarcacoes ? embarcacoes.length : roteiros.length}
+          itemLabelPlural={itemLabelPlural}
+        />
       </main>
 
       <Footer />

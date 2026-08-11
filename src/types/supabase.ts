@@ -662,6 +662,7 @@ export type Database = {
           nome: string;
           descricao: string;
           duracao: string | null;
+          duracao_horas: number | null;
           quantidade_pessoas: number | null;
           origem: string | null;
           destino: string | null;
@@ -686,6 +687,7 @@ export type Database = {
           nome: string;
           descricao: string;
           duracao?: string | null;
+          duracao_horas?: number | null;
           quantidade_pessoas?: number | null;
           origem?: string | null;
           destino?: string | null;
@@ -710,6 +712,7 @@ export type Database = {
           nome?: string;
           descricao?: string;
           duracao?: string | null;
+          duracao_horas?: number | null;
           quantidade_pessoas?: number | null;
           origem?: string | null;
           destino?: string | null;
@@ -1150,6 +1153,12 @@ export type Database = {
           p_pessoas?: number | null;
           p_limit?: number | null;
           p_offset?: number | null;
+          p_tipo_id?: string | null;
+          p_preco_min?: number | null;
+          p_preco_max?: number | null;
+          p_duracao_min?: number | null;
+          p_duracao_max?: number | null;
+          p_ordenar?: string | null;
         };
         Returns: { id: string; distancia_km: number | null; total: number }[];
       };
@@ -1183,6 +1192,11 @@ export type Database = {
           p_limit?: number | null;
           p_offset?: number | null;
           p_tipo_id?: string | null;
+          p_preco_min?: number | null;
+          p_preco_max?: number | null;
+          p_duracao_min?: number | null;
+          p_duracao_max?: number | null;
+          p_ordenar?: string | null;
         };
         Returns: { id: string; distancia_km: number | null; total: number }[];
       };

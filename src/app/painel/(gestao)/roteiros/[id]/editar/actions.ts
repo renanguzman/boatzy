@@ -4,6 +4,7 @@ import { createClient } from '@/lib/supabase/server';
 import { supabaseAdmin } from '@/lib/supabase';
 import { checkRoleInDb } from '@/lib/roles';
 import { buildKeyFromUrl, deleteFromR2 } from '@/lib/r2';
+import { duracaoParaHoras, duracaoTexto, type DuracaoUnidade } from '@/lib/duracao';
 
 // ─── Tipos ───────────────────────────────────────────────────────────────────
 
@@ -11,7 +12,9 @@ export type AtualizarRoteiroPayload = {
   embarcacao_id: string;
   nome: string;
   descricao: string;
-  duracao: string;
+  /** Duração: número digitado + unidade — vira `duracao_horas` (busca) e `duracao` (rótulo). */
+  duracao_valor: string;
+  duracao_unidade: DuracaoUnidade;
   quantidade_pessoas: string;
   origem: string;
   destino: string;
@@ -67,6 +70,10 @@ export async function atualizarRoteiro(
   if (!payload.nome.trim())      return { ok: false, error: 'O nome do roteiro é obrigatório.' };
   if (!payload.descricao.trim()) return { ok: false, error: 'A descrição do roteiro é obrigatória.' };
 
+  // O rótulo exibido é derivado do par (valor, unidade) — nunca digitado à mão,
+  // para que texto e número nunca divirjam.
+  const duracaoHoras = duracaoParaHoras(payload.duracao_valor, payload.duracao_unidade);
+
   const { error } = await supabaseAdmin
     .from('roteiro')
     .update({
@@ -74,7 +81,8 @@ export async function atualizarRoteiro(
       nome:               payload.nome.trim(),
       descricao:          payload.descricao.trim(),
       preco_base:         payload.preco_base ? parseFloat(payload.preco_base) : null,
-      duracao:            payload.duracao.trim() || null,
+      duracao:            duracaoTexto(duracaoHoras),
+      duracao_horas:      duracaoHoras,
       quantidade_pessoas: payload.quantidade_pessoas ? parseInt(payload.quantidade_pessoas, 10) : null,
       origem:             payload.origem.trim() || null,
       destino:            payload.destino.trim() || null,

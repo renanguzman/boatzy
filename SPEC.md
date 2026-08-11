@@ -1006,8 +1006,13 @@ type Props = {
 | `tipo_nome` | string | Rótulo do tipo para chip/título (evita query extra) |
 | `embarcacao_id` | uuid | Embarcação escolhida na lista da aba Embarcações — presente, a página mostra os roteiros dela em vez da lista |
 | `embarcacao_nome` | string | Nome da embarcação escolhida, para o título (evita query extra) |
+| `preco_min` / `preco_max` | number | Faixa de preço sobre `preco_base` (reais) — vale nas duas abas |
+| `duracao_min` / `duracao_max` | number | Faixa de duração do passeio, em **horas** (1 dia = 24 h) |
+| `ordenar` | string | `relevancia` (padrão, omitido da URL) \| `recentes` \| `avaliacao` \| `preco_asc` \| `preco_desc` \| `duracao_asc` \| `duracao_desc` |
 
-**Filtros aplicados (via RPC `buscar_roteiros` — migrations 018/019/020/024):**
+**Contrato de querystring:** `src/app/buscar/_lib/filtros.ts` (módulo puro, compartilhado entre a página e os Client Components) exporta `BuscaSearchParams`, `ORDENACOES`/`Ordenacao`/`ORDENACAO_PADRAO`, `normalizarOrdenacao()` (valor inválido cai no padrão), `parseNumeroPositivo()`, `buildBuscarUrl(atuais, alteracoes)` (chave com valor vazio/`null` sai da URL) e `contarFiltrosAvancados()`. Os Client Components **não** usam `useSearchParams` — recebem `params` por prop da página e navegam com `router.push(buildBuscarUrl(...))`; qualquer mudança de filtro/ordenação zera `pagina`.
+
+**Filtros aplicados (via RPC `buscar_roteiros` — migrations 018/019/020/024/`20260810b`):**
 
 > **Correção (migration 020):** `buscar_roteiros` e `buscar_embarcacoes` retornavam erro `42804` (`double precision` × `numeric` na coluna `distancia_km`), pois a expressão haversine (`acos/cos/sin/radians`) é `double precision` mas a coluna de retorno é `numeric`. A página engolia o erro e exibia "nenhum resultado". A 020 faz cast explícito da distância para `numeric` em ambas as funções. A página passou a logar `rpcError`.
 
@@ -1016,8 +1021,27 @@ Mesma mecânica de `buscar_embarcacoes` (ver §18.6), com **uma diferença no fi
 - **Localização:** município exato OU ≤ 50 km do centro (haversine), usando `roteiro.latitude/longitude`.
 - **Data:** disponibilidade via `roteiro.disponibilidade_dias_semana` + `roteiro_disponibilidade_bloqueio`; com `flex`, basta um dia livre na janela.
 - **Tipo de embarcação (migration 024):** parâmetro `p_tipo_id uuid DEFAULT NULL` — quando informado, o roteiro só aparece se a **embarcação vinculada** tiver `embarcacao_tipo_id = p_tipo_id`. Roteiros sem embarcação vinculada não aparecem com o filtro ativo (mesma regra do filtro de pessoas). `NULL` = sem filtro (aba Roteiros intocada). A 024 dá `DROP` na assinatura de 9 parâmetros (020) antes do `CREATE` para evitar overload ambíguo no PostgREST.
-- **Ordenação:** por distância quando há centro; senão `created_at` desc. A página chama a RPC (ids + total) e busca os detalhes com `.in('id', ids)` preservando a ordem.
+- **Faixa de preço (migration `20260810b`):** `p_preco_min` / `p_preco_max numeric DEFAULT NULL` sobre `roteiro.preco_base` — o mesmo valor exibido no card. Roteiro **sem** `preco_base` não aparece quando há faixa ativa.
+- **Faixa de duração (migration `20260810b`):** `p_duracao_min` / `p_duracao_max numeric DEFAULT NULL` sobre `roteiro.duracao_horas` (ver §18.3-A). Roteiro sem `duracao_horas` não aparece com a faixa ativa (mesma regra do filtro de pessoas).
+- **Ordenação (migration `20260810b`):** `p_ordenar text DEFAULT NULL`. `NULL`/`'relevancia'` mantém a regra histórica (distância quando há centro, senão `created_at` desc); `'recentes'` força `created_at` desc; `'preco_asc'`/`'preco_desc'` e `'duracao_asc'`/`'duracao_desc'` ordenam pelas colunas correspondentes com `NULLS LAST`; `'avaliacao'` ordena pelo **score bayesiano** (mesma fórmula IMDb de `roteiros_top_avaliados`: `m = 5`, `C` = média global das avaliações aprovadas), com itens sem avaliação em `NULLS LAST` — nunca excluídos. Toda ordenação explícita ignora a distância e usa `created_at DESC` como desempate estável (paginação consistente). A página chama a RPC (ids + total) e busca os detalhes com `.in('id', ids)` preservando a ordem.
 - `GRANT EXECUTE` para `anon, authenticated, service_role`.
+
+#### 18.3-A `roteiro.duracao_horas` — duração numérica (migration `20260810_roteiro_duracao_horas`)
+
+`roteiro.duracao` sempre foi `text` livre ("4 horas", "3 dias / 2 noites"): serve para exibir, mas não permite filtrar por faixa nem ordenar. A migration adiciona `duracao_horas numeric(6,2) CHECK (> 0)`, com **backfill** por regex sobre o texto existente (primeiro número encontrado; `dia|noite|pernoite|diária` multiplica por 24; "meia hora" → 0.5, "meio dia" → 12) — registros sem número reconhecível ficam `NULL`. Convenção: **1 dia = 24 horas**. Índices parciais: `roteiro_duracao_horas_idx` e `roteiro_preco_base_idx` (ambos `WHERE ativo = true`), `embarcacao_preco_base_idx` (`WHERE status = 'ativo'`, na `20260810b`).
+
+**Helpers** (`src/lib/duracao.ts`, módulo puro usado no painel, nas server actions e em `/buscar`):
+
+```ts
+type DuracaoUnidade = 'horas' | 'dias';
+duracaoParaHoras(valor: string | number, unidade): number | null  // aceita vírgula decimal; arredonda p/ numeric(6,2)
+horasParaPartes(horas): { valor: string; unidade }                // múltiplo exato de 24 volta como dias
+duracaoTexto(horas): string | null                                // rótulo gravado em roteiro.duracao ("4 horas", "2 dias")
+DURACAO_PRESETS                                                   // faixas do painel de filtros
+faixaDuracaoLabel(min, max) / faixaPrecoLabel(min, max)           // rótulos dos chips
+```
+
+**Cadastro (painel e admin):** o campo "Duração" do formulário de roteiro (novo e editar) passou a ser **número + unidade** (Horas/Dias). O payload das server actions trocou `duracao: string` por `duracao_valor: string` + `duracao_unidade: DuracaoUnidade`; a action deriva `duracao_horas` (via `duracaoParaHoras`) e o rótulo `duracao` (via `duracaoTexto`) — texto e número nunca divergem, porque o texto não é mais digitado. As queries de `/painel/roteiros/[id]/editar` e `/administrator/roteiros/[id]/editar` passaram a selecionar `duracao_horas`.
 
 **Dois modos em `/buscar` (resolvidos pelos mesmos `searchParams`):**
 
@@ -1031,8 +1055,35 @@ Mesma mecânica de `buscar_embarcacoes` (ver §18.6), com **uma diferença no fi
 **Helper `getTiposEmbarcacaoComRoteiro()`** (`src/lib/tipos-embarcacao.ts`, `server-only`): retorna `{ id, nome }[]` dos tipos com pelo menos um roteiro **ativo** com embarcação vinculada daquele tipo (dedupe em memória, ordenado por nome). Usado pela home (`HeroSection`) e por `/buscar` (`SearchBarCompact`) via props.
 
 **Componentes:**
-- `src/app/buscar/_components/SearchBarCompact.tsx` — barra compacta (`'use client'`), reutiliza pickers com `compact` prop, navega via `router.push()`. Props: `tipo?: 'roteiro' | 'embarcacao'` (padrão `'roteiro'`), `tiposEmbarcacao?: TipoEmbarcacaoValue[]` e `initialTipoEmbarcacao?`. Renderiza o `SearchTypeToggle`; na aba Embarcações exibe o `TipoEmbarcacaoPicker` como primeiro campo. Alternar a aba preserva local/data/pessoas e navega sempre para `/buscar` (a aba Embarcações acrescenta `tipo=embarcacao`).
+- `src/app/buscar/_components/SearchBarCompact.tsx` — barra compacta (`'use client'`), reutiliza pickers com `compact` prop, navega via `router.push()`. Props: `tipo?: 'roteiro' | 'embarcacao'` (padrão `'roteiro'`), `tiposEmbarcacao?: TipoEmbarcacaoValue[]`, `initialTipoEmbarcacao?` e `filtrosPreservados?: Record<string, string>` (preço/duração/ordenação em vigor, reanexados à nova URL — valem nas duas abas de `/buscar`; a aba Vendas, que tem página própria, os descarta). Renderiza o `SearchTypeToggle`; na aba Embarcações exibe o `TipoEmbarcacaoPicker` como primeiro campo. Alternar a aba preserva local/data/pessoas e navega sempre para `/buscar` (a aba Embarcações acrescenta `tipo=embarcacao`).
 - `src/app/buscar/_components/RoteiroCard.tsx` — card de roteiro (`'use client'`), imagem, localidade, specs (inclui badge com o tipo da embarcação vinculada, ícone `Ship`), preço.
+- `src/app/buscar/_components/FiltrosAvancados.tsx` — botão "Filtros" (com badge da quantidade ativa) que abre um painel com **faixa de preço** (min/max em R$) e **duração do passeio** (chips de preset `DURACAO_PRESETS` + min/max em horas). Props: `params: BuscaSearchParams`, `ativos: number`. Abrir o painel recopia o rascunho da URL (padrão do `ValorVendaPicker`); "Aplicar" normaliza faixa invertida (troca os extremos) e navega; fecha ao clicar fora.
+- `src/app/buscar/_components/OrdenarSelect.tsx` — select "Ordenar por" (ícone `ArrowUpDown`), à direita da linha de filtros, ao lado da contagem de resultados. Props: `params: BuscaSearchParams`, `valor: Ordenacao`. Escolher `relevancia` remove o param da URL.
+- `src/app/buscar/_components/MapaResultados.tsx` — mapa dos resultados (ver §18.3-B).
+
+#### 18.3-B Mapa dos resultados (`MapaResultados.tsx`)
+
+Bloco no rodapé de `/buscar` (depois da paginação) com um Google Map plotando os resultados **da página atual**, nas duas abas. `'use client'`, `@react-google-maps/api` (`GoogleMap`, `MarkerF`, `InfoWindowF`) — a mesma dependência de `LocalizacaoMap`.
+
+```ts
+type PontoMapa = {
+  id: string; nome: string; lat: number; lng: number;
+  href: string;              // o mesmo destino do card
+  subtitulo: string | null;  // nome da embarcação (roteiros) / tipo (embarcações)
+  localidade: string | null; preco: number | null; imagem: string | null;
+};
+type Props = { pontos: PontoMapa[]; totalResultados: number; itemLabelPlural: string };
+```
+
+- **Dados:** `ROTEIRO_SELECT` passou a trazer `latitude, longitude` e `embarcacao ( nome, … )`; o select de embarcações, `latitude, longitude`. A página guarda as linhas cruas (`roteirosRows` / `embarcacoesRows`) e monta `pontosMapa` **depois** de `detalheQuery`, porque os hrefs dependem dela. Helpers locais `localidadeDe()` e `temCoordenada()`.
+- **Sem coordenada, sem ponto:** itens sem `latitude`/`longitude` ficam de fora e o cabeçalho informa "X de Y com localização" (quando todos têm, mostra "N <itens> nesta página"). Com zero pontos o componente retorna `null` — nenhuma moldura vazia.
+- **Enquadramento:** `onLoad` faz `fitBounds` com padding 64 sobre todos os pontos; com um único ponto, `setCenter` + `zoom` 14 (o `fitBounds` daria zoom máximo).
+- **Interação:** `onMouseOver` no pin abre o `InfoWindowF` (imagem, nome, subtítulo, localidade, preço e seta) que é um `<Link>` inteiro para o detalhe. O card **não** fecha ao sair do pin — só no X ou num clique no mapa (`onClick` do `GoogleMap`) — senão seria impossível clicar no link. `disableAutoPan: true` para o mapa não saltar a cada hover.
+- **Pin:** SVG inline (data URI) nas cores da marca — `#0B2447`, e `#0B3D91` com escala 1.15 no ativo. `MAP_OPTIONS` desliga POIs e transporte (`styles`), `gestureHandling: 'cooperative'`, sem street view nem controle de tipo de mapa.
+- **Libraries:** `['places']`, idênticas às de `LocalizacaoMap` — o loader do `@react-google-maps/api` é singleton por sessão e alerta se for chamado com opções diferentes numa navegação client-side.
+- **CSS:** `src/app/globals.css` ajusta o `InfoWindow` ao design system (`.gm-style-iw-c`: raio 1rem, padding compacto, sombra da marca, `outline: none` no container — que o Maps foca ao abrir — e botão de fechar reduzido).
+
+**Chips e estado vazio:** as faixas de preço e duração viram chips removíveis ("Preço: R$ 500 a R$ 1.500", "Duração: 3 a 6 horas") — `removeKey` `'preco'`/`'duracao'` limpa o par min/max. Quando o resultado é vazio com preço/duração ativos, o estado vazio ganha o botão **"Limpar preço e duração"** (ao lado de "Limpar filtro de tipo", quando aplicável).
 
 #### `SearchTypeToggle` (`src/components/home/search/SearchTypeToggle.tsx`)
 
@@ -1151,7 +1202,7 @@ na busca é `src/components/ui/EmbarcacaoCard.tsx` (o mesmo da seção "Mais Bem
 ver §18.9), que ganhou uma prop `href?: string` opcional para apontar para
 `/embarcacoes/[id]/roteiros` em vez do padrão `/embarcacoes/[id]`.
 
-**Filtros da RPC `buscar_embarcacoes` (migration 017/020/`20260718_buscar_embarcacoes_tipo`):**
+**Filtros da RPC `buscar_embarcacoes` (migration 017/020/`20260718_buscar_embarcacoes_tipo`/`20260810b`):**
 
 A página delega os filtros à função SQL `public.buscar_embarcacoes(...)`, que resolve tudo em uma chamada e retorna os **ids ordenados + total** (para paginação). A página então busca os detalhes (joins) com `.in('id', ids)`, **preservando a ordem** retornada.
 
@@ -1159,8 +1210,9 @@ A página delega os filtros à função SQL `public.buscar_embarcacoes(...)`, qu
 const { data: rpcRows } = await supabaseAdmin.rpc('buscar_embarcacoes', {
   p_municipio_id, p_lat, p_lng, p_raio_km: 50,
   p_data, p_flex, p_pessoas, p_limit, p_offset, p_tipo_id,
+  p_preco_min, p_preco_max, p_duracao_min, p_duracao_max, p_ordenar,
 });
-// rpcRows: { id, distancia_km, total }[]  (já ordenado por distância → created_at)
+// rpcRows: { id, distancia_km, total }[]  (já ordenado conforme p_ordenar)
 ```
 
 Regras da função:
@@ -1169,7 +1221,9 @@ Regras da função:
 - **Localização:** centro = `lat/lng` ("perto de mim") ou coordenadas do `municipio_id`. Aparece se `municipio_id` bater **exato** OU se a distância (haversine) ao centro for ≤ **50 km**. Sem centro = sem filtro de local.
 - **Pessoas:** `capacidade >= pessoas`.
 - **Data:** disponível se **algum** dia da janela `data ± flex` tiver o dia da semana em `disponibilidade_dias_semana` (ou ela for `NULL`) **e** não estiver em `embarcacao_disponibilidade_bloqueio`. Sem `data` = sem filtro de disponibilidade.
-- **Ordenação:** por distância (mais próximas primeiro) quando há centro; senão por `created_at` desc. Embarcações sem coordenadas só aparecem pelo match exato de município (ordenadas por último, `NULLS LAST`).
+- **Faixa de preço (migration `20260810b`):** `p_preco_min`/`p_preco_max` sobre `embarcacao.preco_base`; embarcação sem `preco_base` não aparece com a faixa ativa.
+- **Faixa de duração (migration `20260810b`):** a embarcação não tem duração própria — `p_duracao_min`/`p_duracao_max` exigem `EXISTS` de um roteiro **ativo** vinculado com `duracao_horas` dentro da faixa.
+- **Ordenação (migration `20260810b`):** mesmo `p_ordenar` de `buscar_roteiros` (ver §18.3). `relevancia` (padrão) = por distância quando há centro, senão `created_at` desc — embarcações sem coordenadas só aparecem pelo match exato de município (ordenadas por último, `NULLS LAST`). `duracao_asc`/`duracao_desc` usam a **menor** `duracao_horas` entre os roteiros ativos da embarcação (o "a partir de" que o cliente vê em `/embarcacoes/[id]/roteiros`); `avaliacao` usa o score bayesiano sobre `avaliacao.embarcacao_id`.
 - `GRANT EXECUTE` para `anon, authenticated, service_role` (busca anônima no hotsite).
 
 > Preço exibido a partir de `preco_base` (paridade com a listagem de roteiros). Refinamento futuro: usar `get_precos_embarcacoes` para preço dependente da data.
