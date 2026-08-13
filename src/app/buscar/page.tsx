@@ -3,11 +3,13 @@ import Footer from '@/components/layout/Footer';
 import { supabaseAdmin } from '@/lib/supabase';
 import { createClient } from '@/lib/supabase/server';
 import { getTiposEmbarcacaoComRoteiro } from '@/lib/tipos-embarcacao';
+import { getTodasComodidades } from '@/lib/comodidades';
 import { getAvaliacoesResumoPorRoteiro, getAvaliacoesResumoPorEmbarcacao } from '@/lib/avaliacoes';
 import { getFavoritosEmbarcacaoSet } from '@/lib/embarcacoes-top';
 import SearchBarCompact from './_components/SearchBarCompact';
 import RoteiroCard, { type RoteiroCardData } from './_components/RoteiroCard';
 import FiltrosAvancados from './_components/FiltrosAvancados';
+import ComodidadesFiltro from './_components/ComodidadesFiltro';
 import OrdenarSelect from './_components/OrdenarSelect';
 import MapaResultados, { type PontoMapa } from './_components/MapaResultados';
 import EmbarcacaoCard, { type EmbarcacaoCardData } from '@/components/ui/EmbarcacaoCard';
@@ -18,6 +20,7 @@ import {
   buildBuscarUrl,
   contarFiltrosAvancados,
   normalizarOrdenacao,
+  parseComodidadeIds,
   parseNumeroPositivo,
   type BuscaSearchParams as SearchParams,
 } from './_lib/filtros';
@@ -107,6 +110,8 @@ export default async function BuscarPage({ searchParams }: { searchParams: Promi
   const duracaoMin = parseNumeroPositivo(params.duracao_min);
   const duracaoMax = parseNumeroPositivo(params.duracao_max);
   const ordenar = normalizarOrdenacao(params.ordenar);
+  // Comodidades: só filtra a busca de embarcações (é um atributo da embarcação).
+  const comodidadeIds = parseComodidadeIds(params.comodidades);
 
   // Dois modos dentro da mesma página:
   //  - roteiro (default): busca de roteiros, como sempre foi.
@@ -117,6 +122,8 @@ export default async function BuscarPage({ searchParams }: { searchParams: Promi
 
   // Tipos com roteiro ativo vinculado — alimentam o seletor da aba "Embarcações".
   const tiposEmbarcacao = await getTiposEmbarcacaoComRoteiro();
+  // Comodidades — só usadas (buscadas e exibidas) na aba "Embarcações".
+  const comodidades = modoListaEmbarcacoes ? await getTodasComodidades() : [];
 
   let roteiros: RoteiroCardData[] = [];
   let embarcacoes: EmbarcacaoCardData[] = [];
@@ -144,6 +151,7 @@ export default async function BuscarPage({ searchParams }: { searchParams: Promi
       p_duracao_min: duracaoMin,
       p_duracao_max: duracaoMax,
       p_ordenar: ordenar,
+      p_comodidade_ids: comodidadeIds.length > 0 ? comodidadeIds : null,
     });
 
     if (rpcError) {
@@ -346,6 +354,12 @@ export default async function BuscarPage({ searchParams }: { searchParams: Promi
   if (duracaoLabel) {
     chips.push({ label: `Duração: ${duracaoLabel}`, removeKey: 'duracao' });
   }
+  if (comodidadeIds.length > 0) {
+    chips.push({
+      label: `Comodidades: ${comodidadeIds.length}`,
+      removeKey: 'comodidades',
+    });
+  }
 
   const filtrosAvancadosAtivos = contarFiltrosAvancados(params);
 
@@ -355,6 +369,7 @@ export default async function BuscarPage({ searchParams }: { searchParams: Promi
     preco_max: null,
     duracao_min: null,
     duracao_max: null,
+    comodidades: null,
     pagina: null,
   });
 
@@ -382,6 +397,7 @@ export default async function BuscarPage({ searchParams }: { searchParams: Promi
               ...(params.preco_max ? { preco_max: params.preco_max } : {}),
               ...(params.duracao_min ? { duracao_min: params.duracao_min } : {}),
               ...(params.duracao_max ? { duracao_max: params.duracao_max } : {}),
+              ...(params.comodidades ? { comodidades: params.comodidades } : {}),
               ...(params.ordenar ? { ordenar: params.ordenar } : {}),
             }}
           />
@@ -394,6 +410,9 @@ export default async function BuscarPage({ searchParams }: { searchParams: Promi
         <div className="flex items-center justify-between gap-4 mb-6 flex-wrap">
           <div className="flex items-center gap-2 flex-wrap">
             <FiltrosAvancados params={params} ativos={filtrosAvancadosAtivos} />
+            {modoListaEmbarcacoes && (
+              <ComodidadesFiltro params={params} comodidades={comodidades} />
+            )}
 
             {chips.map((chip) => {
               const removeParams = { ...params };
@@ -464,12 +483,12 @@ export default async function BuscarPage({ searchParams }: { searchParams: Promi
                   : 'Tente ajustar os filtros ou explorar outros destinos.'}
               </p>
               <div className="mt-6 flex items-center gap-3 flex-wrap justify-center">
-                {filtrosAvancadosAtivos > 0 && (
+                {(filtrosAvancadosAtivos > 0 || comodidadeIds.length > 0) && (
                   <Link
                     href={semFiltrosAvancadosHref}
                     className="px-5 py-2.5 border border-slate-300 text-slate-700 hover:bg-white text-sm font-semibold rounded-xl transition-colors"
                   >
-                    Limpar preço e duração
+                    {comodidadeIds.length > 0 ? 'Limpar filtros' : 'Limpar preço e duração'}
                   </Link>
                 )}
                 {tipoNome && (

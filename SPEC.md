@@ -2984,3 +2984,70 @@ A query da página passou a buscar `roteiro_parada ( nome )` ordenado por `ordem
 vertical com gradiente) passou a renderizar, entre "Saída" (`origem`) e "Chegada" (`destino`),
 um ponto por parada cadastrada, rotulado "Parada 1", "Parada 2", etc. A seção só aparece quando
 há origem, destino **ou** ao menos uma parada (antes só considerava origem/destino).
+
+## 31. Filtro de comodidades — busca de embarcações (`/buscar?tipo=embarcacao`)
+
+Permite ao cliente filtrar embarcações pelas comodidades desejadas (Ar-Condicionado, Churrasqueira,
+Wi-Fi, etc. — catálogo de 25 itens em `comodidade`, §17). Só existe na aba **Embarcações** de
+`/buscar`: comodidade é atributo da embarcação, não do roteiro, então `buscar_roteiros` não foi
+alterada.
+
+### 31.1 RPC `buscar_embarcacoes` — novo parâmetro
+
+Migration `20260812b_buscar_embarcacoes_comodidades.sql` (DROP + CREATE, mesmo motivo de sempre:
+mudança na lista de parâmetros). Novo parâmetro `p_comodidade_ids uuid[] DEFAULT NULL`:
+
+```sql
+AND (
+  p_comodidade_ids IS NULL
+  OR NOT EXISTS (
+    SELECT 1 FROM unnest(p_comodidade_ids) AS req(comodidade_id)
+    WHERE NOT EXISTS (
+      SELECT 1 FROM public.embarcacao_comodidades ec
+      WHERE ec.embarcacao_id = e.id AND ec.comodidade_id = req.comodidade_id
+    )
+  )
+)
+```
+
+Semântica **E** (não OU): a embarcação precisa ter **todas** as comodidades selecionadas, não
+apenas uma — é o comportamento esperado de um filtro de múltiplos atributos (mesmo padrão de
+marketplaces como Airbnb). Array vazio no front nunca é enviado — vira `null` (sem filtro).
+
+### 31.2 Contrato de URL e dados
+
+- `src/app/buscar/_lib/filtros.ts`: novo campo `comodidades?: string` em `BuscaSearchParams`
+  (ids separados por vírgula, ex: `?comodidades=uuid1,uuid2`) + `parseComodidadeIds()`.
+- `src/lib/comodidades.ts` (novo, `server-only`): `getTodasComodidades()` — todas as comodidades
+  cadastradas, ordenadas por nome (sem restringir a "só as que têm embarcação ativa vinculada";
+  mesma filosofia das faixas de preço/duração, que também não pré-filtram os próprios limites).
+- `src/app/buscar/page.tsx`: busca `comodidades` via `getTodasComodidades()` **apenas** quando
+  `modoListaEmbarcacoes` é true; passa `p_comodidade_ids` à RPC; chip removível "Comodidades: N"
+  na barra de filtros ativos; entra em `filtrosPreservados` do `SearchBarCompact` (mantém o
+  filtro ao trocar local/data/pessoas); estado vazio ganha o botão "Limpar filtros" (rótulo
+  genérico quando há comodidades selecionadas, e não só "Limpar preço e duração").
+
+### 31.3 Componente `ComodidadesFiltro.tsx`
+
+Botão-pílula própria (rótulo "Comodidades", badge com a contagem quando há seleção), ao lado do
+`FiltrosAvancados` (preço/duração) — mesmo padrão visual (`border-[#0B2447]` quando ativo/aberto),
+mas dropdown **independente**: até 25 itens é considerado uma lista extensa demais para caber no
+popover de preço/duração sem prejudicar a UX dos dois.
+
+- **Estado local (rascunho)**: reinicia a partir da URL sempre que o popover abre — mesmo
+  contrato do `FiltrosAvancados` (evita que um chip removido "reapareça" ao reabrir o popover).
+- **Busca embutida**: campo de texto no topo do painel filtra a lista em tempo real (sem acento —
+  normaliza via `NFD`), essencial para navegar 25 opções rápido, principalmente no mobile.
+- **Lista em grid 2 colunas** (`sm:grid-cols-2`), dentro de um container com `max-h-56
+  overflow-y-auto` — a lista rola internamente em vez de esticar o popover indefinidamente.
+  Cada opção é um `<label>` nativo (`<input type="checkbox" className="sr-only">` + caixa
+  customizada), com `title` no `<label>` para o nome completo no hover quando truncado.
+- **Posicionamento responsivo do painel** — bug real encontrado e corrigido: como este botão não
+  é o primeiro da linha de filtros (vem depois do "Filtros"), ancorar o painel com `left-0`
+  relativo ao próprio botão (como o `FiltrosAvancados` faz, seguro por ser sempre o 1º botão)
+  cortava o painel fora da tela no mobile. Fix: `left-1/2 -translate-x-1/2` (centralizado sob o
+  botão) + `w-80` no mobile; `sm:left-0 sm:translate-x-0` + `sm:w-96` no desktop (restaura o
+  ancoramento à esquerda, com espaço de sobra em telas largas). `max-w-[calc(100vw-2rem)]`
+  como rede de segurança em qualquer tamanho de tela.
+- Ações **Limpar** / **Aplicar** (rótulo mostra a contagem do rascunho) — mesmo rodapé do
+  `FiltrosAvancados`.

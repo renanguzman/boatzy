@@ -26,6 +26,8 @@ export type BuscaSearchParams = {
   /** Faixa de duração do passeio, em horas (1 dia = 24h). */
   duracao_min?: string;
   duracao_max?: string;
+  /** Comodidades desejadas (ids separados por vírgula) — só na aba Embarcações. */
+  comodidades?: string;
   /** Critério de ordenação — ver ORDENACOES. */
   ordenar?: string;
 };
@@ -80,4 +82,10 @@ export function contarFiltrosAvancados(params: BuscaSearchParams): number {
   if (params.preco_min || params.preco_max) n++;
   if (params.duracao_min || params.duracao_max) n++;
   return n;
+}
+
+/** Ids de comodidade selecionados na URL (`?comodidades=id1,id2`), sem vazios. */
+export function parseComodidadeIds(valor: string | undefined): string[] {
+  if (!valor) return [];
+  return valor.split(',').map((v) => v.trim()).filter(Boolean);
 }

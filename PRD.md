@@ -153,6 +153,14 @@ Visualização:
 - A rota `/embarcacoes` (listagem) **redireciona** para `/buscar?tipo=embarcacao` preservando os filtros compatíveis, caindo na etapa "lista de embarcações". O detalhe `/embarcacoes/[id]` (reserva direta da embarcação) **permanece ativo** (acessível por link direto), apenas sem entrada pela busca.
 - A aba **Roteiros** (padrão) não muda: continua retornando roteiros diretamente via `buscar_roteiros`.
 
+#### ✅ Implementado — Filtro de comodidades (busca de embarcações)
+
+- Na aba **Embarcações** de `/buscar`, novo botão **"Comodidades"** ao lado de "Filtros" (preço/duração), com badge mostrando quantas estão selecionadas.
+- Abre um painel com **busca embutida** (digitar filtra a lista na hora) e a lista de comodidades em **grid de 2 colunas com rolagem interna** — pensado para as ~25 comodidades cadastradas (lista extensa) sem virar um popover gigante nem quebrar no celular.
+- A embarcação só aparece se tiver **todas** as comodidades marcadas (não basta ter uma). Chip removível "Comodidades: N" na barra de filtros; o filtro é preservado ao trocar local/data/pessoas.
+- Só existe na aba Embarcações — comodidade é um atributo da embarcação, não do roteiro.
+- Detalhes técnicos: SPEC §31.
+
 #### ✅ Implementado — Página de Resultados `/buscar`
 
 - Barra de busca compacta no topo (reutiliza os mesmos pickers com prop `compact`).
