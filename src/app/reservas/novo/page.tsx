@@ -6,6 +6,7 @@ import Footer from '@/components/layout/Footer';
 import { createClient } from '@/lib/supabase/server';
 import { supabaseAdmin } from '@/lib/supabase';
 import { formatCurrency } from '@/lib/utils';
+import { getTaxaEfetiva } from '@/lib/taxas';
 import ConfirmarReserva from './_components/ConfirmarReserva';
 
 const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
@@ -82,21 +83,25 @@ export default async function NovaReservaPage({
     .map((s) => s.trim())
     .filter(Boolean);
 
+  let ownerId: string;
+
   if (isEmbarcacao) {
     const { data: embRaw } = await supabaseAdmin
       .from('embarcacao')
-      .select(`id, nome, preco_base, municipios ( nome, estados ( uf ) )`)
+      .select(`id, owner_id, nome, preco_base, municipios ( nome, estados ( uf ) )`)
       .eq('id', alvoId)
       .eq('status', 'ativo')
       .single();
 
     if (!embRaw) redirect('/embarcacoes');
     const emb = embRaw as unknown as {
+      owner_id: string;
       nome: string;
       preco_base: number | null;
       municipios: { nome: string; estados: { uf: string } | null } | null;
     };
     nome = emb.nome;
+    ownerId = emb.owner_id;
     preco = emb.preco_base != null ? Number(emb.preco_base) : null;
     localidade = emb.municipios
       ? emb.municipios.estados
@@ -106,7 +111,7 @@ export default async function NovaReservaPage({
   } else {
     const { data: roteiroRaw } = await supabaseAdmin
       .from('roteiro')
-      .select(`id, nome, preco_base, municipios ( nome, estados ( uf ) )`)
+      .select(`id, owner_id, nome, preco_base, municipios ( nome, estados ( uf ) )`)
       .eq('id', alvoId)
       .eq('ativo', true)
       .single();
@@ -114,11 +119,13 @@ export default async function NovaReservaPage({
     if (!roteiroRaw) redirect('/buscar');
     const roteiro = roteiroRaw as unknown as {
       id: string;
+      owner_id: string;
       nome: string;
       preco_base: number | null;
       municipios: { nome: string; estados: { uf: string } | null } | null;
     };
     nome = roteiro.nome;
+    ownerId = roteiro.owner_id;
     preco = roteiro.preco_base != null ? Number(roteiro.preco_base) : null;
     localidade = roteiro.municipios
       ? roteiro.municipios.estados
@@ -149,6 +156,8 @@ export default async function NovaReservaPage({
   }
 
   const totalAdicionais = adicionais.reduce((sum, a) => sum + Number(a.valor), 0);
+  // Taxa de serviço efetiva do gestor dono do alvo (específica ou geral — ver SPEC §14).
+  const taxaPercent = await getTaxaEfetiva(ownerId);
 
   return (
     <div className="min-h-screen flex flex-col bg-slate-50">
@@ -236,6 +245,7 @@ export default async function NovaReservaPage({
           adicionaisIds={adicionalIds}
           preco={preco}
           totalAdicionais={totalAdicionais}
+          taxaPercent={taxaPercent}
         />
       </main>
 

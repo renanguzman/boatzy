@@ -18,6 +18,8 @@ type Props = {
   /** Dono vendo o próprio roteiro: oculta o CTA de chat (não conversa consigo mesmo). */
   ehDono?: boolean;
   preco: number | null;
+  /** Taxa de serviço efetiva (%) do gestor dono do roteiro — específica ou geral (ver SPEC §14). */
+  taxaPercent: number;
   /** Se o usuário logado já favoritou este roteiro (false quando deslogado). */
   initialFavorito?: boolean;
   /** Dias da semana em que o roteiro opera (0=Dom..6=Sáb). Vazio/null = todos os dias. */
@@ -29,8 +31,6 @@ type Props = {
   initialFlex?: number;
   initialPessoas?: number;
 };
-
-const SERVICE_FEE_RATE = 0.12;
 
 function toISO(d: Date): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
@@ -48,6 +48,7 @@ export default function BookingCard({
   roteiroNome,
   ehDono = false,
   preco,
+  taxaPercent,
   initialFavorito = false,
   diasOperacao,
   datasBloqueadas,
@@ -80,7 +81,7 @@ export default function BookingCard({
   }
 
   const subtotal = (preco ?? 0) + totalAdicionais;
-  const serviceFee = preco ? Math.round(subtotal * SERVICE_FEE_RATE) : null;
+  const serviceFee = preco ? Math.round(subtotal * (taxaPercent / 100)) : null;
   const total = preco && serviceFee !== null ? subtotal + serviceFee : null;
 
   function handleReserve() {
@@ -202,7 +203,9 @@ export default function BookingCard({
               </div>
             )}
             <div className="flex items-center justify-between text-sm">
-              <span className="text-slate-600">Taxa de serviço</span>
+              <span className="text-slate-600">
+                Taxa de serviço ({taxaPercent.toLocaleString('pt-BR', { maximumFractionDigits: 2 })}%)
+              </span>
               <span className="font-medium text-slate-800">{formatCurrency(serviceFee!)}</span>
             </div>
           </div>

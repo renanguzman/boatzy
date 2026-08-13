@@ -7,9 +7,6 @@ import { criarReserva, validarCupom } from '../actions';
 import { formatCurrency } from '@/lib/utils';
 import type { CupomTipoDesconto } from '@/types/supabase';
 
-/** Mantém paridade com SERVICE_FEE_RATE do BookingCard/resumo/actions.ts. */
-const SERVICE_FEE_RATE = 0.12;
-
 type Props = {
   tipo: 'roteiro' | 'embarcacao';
   roteiroId?: string;
@@ -20,6 +17,8 @@ type Props = {
   adicionaisIds: string[];
   preco: number | null;
   totalAdicionais: number;
+  /** Taxa de serviço efetiva (%) do gestor dono do alvo — resolvida no servidor (ver SPEC §14). */
+  taxaPercent: number;
 };
 
 type CupomAplicado = {
@@ -43,7 +42,7 @@ function formatContagem(ms: number): string {
 }
 
 export default function ConfirmarReserva({
-  tipo, roteiroId, embarcacaoId, data, flex, pessoas, adicionaisIds, preco, totalAdicionais,
+  tipo, roteiroId, embarcacaoId, data, flex, pessoas, adicionaisIds, preco, totalAdicionais, taxaPercent,
 }: Props) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -131,7 +130,7 @@ export default function ConfirmarReserva({
   }
 
   const subtotal = (preco ?? 0) + totalAdicionais;
-  const taxaServicoBruta = preco != null ? Math.round(subtotal * SERVICE_FEE_RATE) : null;
+  const taxaServicoBruta = preco != null ? Math.round(subtotal * (taxaPercent / 100)) : null;
   const totalBruto = preco != null && taxaServicoBruta != null ? subtotal + taxaServicoBruta : null;
   const desconto = cupomAplicado?.descontoValor ?? 0;
   const totalFinal = totalBruto != null ? Math.max(0, totalBruto - desconto) : null;
@@ -155,7 +154,9 @@ export default function ConfirmarReserva({
                   </div>
                 )}
                 <div className="flex items-center justify-between text-sm">
-                  <span className="text-slate-600">Taxa de serviço</span>
+                  <span className="text-slate-600">
+                    Taxa de serviço ({taxaPercent.toLocaleString('pt-BR', { maximumFractionDigits: 2 })}%)
+                  </span>
                   <span className="font-medium text-slate-800">{formatCurrency(taxaServicoBruta!)}</span>
                 </div>
                 {cupomAplicado && (

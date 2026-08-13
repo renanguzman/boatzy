@@ -21,6 +21,7 @@ import AvaliacoesSection, { type AvaliacaoPublica } from '@/components/avaliacoe
 import { supabaseAdmin } from '@/lib/supabase';
 import { createClient } from '@/lib/supabase/server';
 import { getDatasReservadasRoteiro } from '@/lib/reservas';
+import { getTaxaEfetiva } from '@/lib/taxas';
 
 type RoteiroDetalhe = {
   id: string;
@@ -135,6 +136,9 @@ export default async function RoteiroDetalhePage({
   }
   // Dono vendo o próprio roteiro: sem CTA de chat (não conversa consigo mesmo).
   const ehDono = user?.id === roteiro.owner_id;
+
+  // Taxa de serviço efetiva do gestor dono do roteiro (específica ou geral — ver SPEC §14).
+  const taxaPercent = await getTaxaEfetiva(roteiro.owner_id);
 
   // Sort images: principal first
   const images = [...roteiro.roteiro_imagens].sort((a, b) =>
@@ -417,6 +421,7 @@ export default async function RoteiroDetalhePage({
                 ehDono={ehDono}
                 initialFavorito={isFavorito}
                 preco={roteiro.preco_base}
+                taxaPercent={taxaPercent}
                 diasOperacao={roteiro.disponibilidade_dias_semana}
                 datasBloqueadas={[
                   ...(roteiro.roteiro_disponibilidade_bloqueio?.map((b) => b.data) ?? []),

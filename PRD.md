@@ -215,7 +215,7 @@ Exibir:
 - "O que está incluído": itens do catálogo vinculados ao roteiro (`roteiro_catalogo`).
 - "Itinerário": timeline vertical com gradiente — partida, **paradas intermediárias cadastradas pelo gestor (0, 1 ou várias)** e chegada (ver "Paradas do itinerário do roteiro" abaixo).
 - Reviews: seção placeholder.
-- Sidebar `BookingCard`: seleção de data e pessoas, breakdown de preço com taxa de serviço (12%), total estimado, botão "Solicitar Reserva" → `/reservas/novo`.
+- Sidebar `BookingCard`: seleção de data e pessoas, breakdown de preço com taxa de serviço (dinâmica — taxa geral da plataforma ou específica do gestor dono do roteiro, configuráveis em `/administrator/taxas`; ver 6.11), total estimado, botão "Solicitar Reserva" → `/reservas/novo`.
 - ✅ O calendário de data do `BookingCard` respeita a **disponibilidade do roteiro**: datas fora dos dias de operação ou bloqueadas pelo gestor aparecem riscadas e não selecionáveis (ver 6.8 → Disponibilidade do roteiro).
 - ✅ Botão **"Converse com o dono"** na sidebar (oculto para o próprio dono vendo seu roteiro) → `/roteiros/[id]/chat`, que abre o chat da plataforma com o gestor do roteiro (ver 6.8 → Chat).
 
@@ -572,7 +572,7 @@ Todos os números são do **gestor logado** (`owner_id`):
   - **Embarcações** — ✅ implementado (ver abaixo)
   - **Roteiros** — ✅ implementado (ver abaixo)
   - **Publicidade** — 🔜 gestão de espaços de publicidade (placeholder)
-  - **Taxas** — 🔜 taxas gerais do sistema (percentual da plataforma × repasse ao gestor) (placeholder)
+  - **Taxas** — ✅ implementado (ver abaixo)
   - **Categorias** — 🔜 cadastro de categorias (placeholder)
   - **Configurações** — 🔜 parâmetros gerais da plataforma (placeholder)
 
@@ -622,9 +622,16 @@ Todos os números são do **gestor logado** (`owner_id`):
   - **Excluir** — remove definitivamente, mas só quando o cupom **nunca foi usado**; um cupom com histórico de uso não pode ser excluído (preserva a rastreabilidade para o repasse) — a lista já mostra o botão desabilitado nesse caso, com a orientação de pausar em vez de excluir.
 - Novo item **CUPONS** no menu lateral do admin, entre Roteiros e Publicidade.
 
+#### ✅ Implementado — Gestão de Taxas (`/administrator/taxas`)
+
+- **Taxa geral**: um único percentual, cobrado sobre o valor do roteiro/embarcação em toda reserva da plataforma — hoje era fixo em 12% no código; passa a ser configurável só por aqui, editável a qualquer momento pelo admin (edição inline, sem tela separada).
+- **Taxa específica por gestor** (opcional): o admin pode definir, para qualquer gestor da plataforma, uma taxa diferente da geral — **maior ou menor** — com status ativo/inativo e validade opcional (data de expiração; sem data, vale indefinidamente). Um gestor sem taxa específica (ou com uma inativa/expirada) segue na taxa geral automaticamente.
+- A lista de gestores tem busca (nome/e-mail), ordenação e paginação, no mesmo padrão dos outros módulos; cada linha mostra qual taxa está **realmente em vigor** para aquele gestor agora (geral ou específica), sinalizando quando existe uma taxa específica cadastrada mas fora de vigor.
+- **Onde isso é aplicado:** toda solicitação de reserva (roteiro ou embarcação, ver 6.5) resolve a taxa efetiva do **gestor dono do item** no momento da solicitação — nunca do cliente que reserva — e grava um snapshot dela na reserva, preservando o histórico mesmo que a taxa do gestor mude depois.
+
 #### 🔜 A implementar
 
-- Conteúdo dos demais módulos (Publicidade, Taxas, Categorias, Configurações), cada um em separado.
+- Conteúdo dos demais módulos (Publicidade, Categorias, Configurações), cada um em separado.
 - Cadastro completo de parceiros (tela própria) — hoje só existe o cadastro mínimo embutido no formulário de cupom.
 
 ---

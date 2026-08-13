@@ -3,11 +3,9 @@
 import { createClient } from '@/lib/supabase/server';
 import { supabaseAdmin } from '@/lib/supabase';
 import { getDatasReservadasEmbarcacao, getDatasReservadasRoteiro } from '@/lib/reservas';
+import { getTaxaEfetiva } from '@/lib/taxas';
 import { formatCurrencyPrecise } from '@/lib/utils';
 import type { CupomTipoDesconto } from '@/types/supabase';
-
-/** Mantém paridade com SERVICE_FEE_RATE do BookingCard (exibição) e do resumo. */
-const SERVICE_FEE_RATE = 0.12;
 
 export type CriarReservaInput = {
   tipo: 'roteiro' | 'embarcacao';
@@ -31,6 +29,8 @@ type AlvoResolvido = {
   ownerId: string;
   roteiroId: string | null;
   embarcacaoId: string | null;
+  /** Taxa de serviço efetiva (%) do gestor dono do alvo — específica ou geral (ver SPEC §14). */
+  taxaPercent: number;
 };
 
 type Adicional = { roteiro_catalogo_id: string; descricao: string; valor: number; tipo: 'produto' | 'servico' };
@@ -70,6 +70,7 @@ async function resolverAlvo(input: ResolverAlvoInput): Promise<ResolverAlvoResul
         ownerId: emb.owner_id,
         roteiroId: null,
         embarcacaoId: emb.id,
+        taxaPercent: await getTaxaEfetiva(emb.owner_id),
       },
       adicionais: [],
     };
@@ -90,6 +91,7 @@ async function resolverAlvo(input: ResolverAlvoInput): Promise<ResolverAlvoResul
     ownerId: roteiro.owner_id,
     roteiroId: roteiro.id,
     embarcacaoId: roteiro.embarcacao_id,
+    taxaPercent: await getTaxaEfetiva(roteiro.owner_id),
   };
 
   // Reconstrói os adicionais selecionados a partir dos ids (snapshot dos valores atuais).
@@ -263,7 +265,7 @@ export async function validarCupom(input: ValidarCupomInput): Promise<ValidarCup
   }
 
   // Capa o desconto no total bruto (subtotal + taxa de serviço) — nunca deixa o total negativo.
-  const taxaServicoBruta = Math.round(subtotal * SERVICE_FEE_RATE);
+  const taxaServicoBruta = Math.round(subtotal * (alvo.taxaPercent / 100));
   const totalBruto = subtotal + taxaServicoBruta;
   const descontoValor = Math.min(resultado.cupom.descontoValor, totalBruto);
 
@@ -309,7 +311,7 @@ export async function criarReserva(input: CriarReservaInput): Promise<CriarReser
   const precoBase = alvo.precoBase;
   const totalAdicionais = adicionais.reduce((sum, a) => sum + Number(a.valor), 0);
   const subtotal = (precoBase ?? 0) + totalAdicionais;
-  const taxaServico = precoBase != null ? Math.round(subtotal * SERVICE_FEE_RATE) : null;
+  const taxaServico = precoBase != null ? Math.round(subtotal * (alvo.taxaPercent / 100)) : null;
   const totalBruto = precoBase != null && taxaServico != null ? subtotal + taxaServico : null;
 
   // Cupom (opcional) — última validação antes de gravar; nunca confia na
@@ -356,6 +358,7 @@ export async function criarReserva(input: CriarReservaInput): Promise<CriarReser
       preco_base: precoBase,
       total_adicionais: totalAdicionais,
       taxa_servico: taxaServico,
+      taxa_percent: taxaServico != null ? alvo.taxaPercent : null,
       total_estimado: totalEstimado,
       cupom_id: cupomAplicado?.id ?? null,
       cupom_codigo: cupomAplicado?.codigo ?? null,

@@ -535,7 +535,9 @@ Tipos permitidos: `image/jpeg`, `image/png`, `image/webp` (a rota de presigned-u
 
 ## 14. Taxas da Plataforma
 
-Migration: `supabase/migrations/004_taxas_plataforma.sql`
+Migrations: `supabase/migrations/004_taxas_plataforma.sql` (modelagem — `taxa_plataforma`,
+`usuario_taxa`, `get_taxa_usuario`) e `supabase/migrations/20260812e_taxas_reserva.sql` (liga a
+reserva na taxa real — ver nota "OBRIGATÓRIO" abaixo).
 
 ### Tabela `taxa_plataforma` (singleton)
 
@@ -548,7 +550,10 @@ created_at   timestamptz not null default now()
 updated_at   timestamptz not null default now()
 ```
 
-Seed inicial: `10.00` (10%). Um único registro atualizado in-place pelos admins.
+Seed inicial: `10.00` (10%), nunca consumido pelo app. A migration `20260812e_taxas_reserva.sql`
+atualiza o registro para `12.00` (o valor que já era cobrado via constante hardcoded — ver nota
+abaixo) no momento em que a reserva passa a ler daqui de verdade, para não mudar preço de ninguém.
+Editável em `/administrator/taxas` (ver §25.10).
 
 RLS:
 - service role: acesso total.
@@ -573,6 +578,10 @@ RLS:
 - service role: acesso total.
 - usuário autenticado: SELECT sobre seu próprio registro.
 
+Gerenciada em `/administrator/taxas` (ver §25.10) — um registro por gestor (`UNIQUE(user_id)`),
+criado/editado/removido via `upsert`/`delete` nas server actions do módulo. Vazia até a
+implementação deste módulo (nenhum gestor teve taxa específica antes disso).
+
 ---
 
 ### Função `get_taxa_usuario`
@@ -592,7 +601,10 @@ ENTÃO retorna usuario_taxa.taxa_percent
 SENÃO retorna taxa_plataforma.taxa_percent
 ```
 
-> **OBRIGATÓRIO:** todo cálculo de reserva no backend e qualquer exibição de taxa no frontend **deve** consultar essa função. Nunca hardcode o valor da taxa.
+> **OBRIGATÓRIO:** todo cálculo de reserva no backend e qualquer exibição de taxa no frontend **deve** consultar essa função. Nunca hardcode o valor da taxa. Implementado via o helper `src/lib/taxas.ts`
+> (`getTaxaEfetiva(ownerId)`, `server-only`) — chamado a partir do **dono (gestor) do roteiro/embarcação** sendo reservado, nunca do cliente que reserva. Consumido em `BookingCard`/`EmbarcacaoBookingCard`
+> (exibição), `reservas/novo` (resumo) e `reservas/novo/actions.ts` (`resolverAlvo`, cálculo autoritativo — ver §20.1/§20.3). Antes desta implementação, esses 4 pontos tinham `SERVICE_FEE_RATE = 0.12`
+> hardcoded e duplicado, sem nunca ler esta função — histórico preservado no git.
 
 **Exemplo de uso no backend (Supabase RPC):**
 
@@ -1150,7 +1162,7 @@ type RoteiroCardData = {
 ```
 
 **Componentes client:**
-- `src/app/roteiros/[id]/_components/BookingCard.tsx` — gerencia estado de data/hóspedes, calcula taxa de serviço (12% hardcoded para exibição), navega para `/reservas/novo?roteiro=...&data=...&pessoas=...`.
+- `src/app/roteiros/[id]/_components/BookingCard.tsx` — gerencia estado de data/hóspedes, calcula taxa de serviço (dinâmica via `taxaPercent`, prop resolvida no servidor por `getTaxaEfetiva` — ver §14), navega para `/reservas/novo?roteiro=...&data=...&pessoas=...`.
 - `src/app/roteiros/[id]/_components/EmbarcacaoFotosModal.tsx` — modal de fotos da embarcação (ver 18.5).
 
 **Tipo `RoteiroDetalhe`:**
@@ -1463,7 +1475,8 @@ quantidade_pessoas integer NOT NULL
 item_nome          text NOT NULL                                  -- nome-snapshot do alvo (roteiro ou embarcação); renomeado de roteiro_nome na migration 023
 preco_base         numeric(12,2)
 total_adicionais   numeric(12,2) NOT NULL DEFAULT 0
-taxa_servico       numeric(12,2)
+taxa_servico       numeric(12,2)                                  -- valor em R$ da taxa de serviço aplicada
+taxa_percent       numeric(5,2)                                   -- snapshot da % efetivamente aplicada (migration 20260812e; ver §14)
 total_estimado     numeric(12,2)                                  -- já líquido de desconto de cupom (ver §20.8)
 -- cupom aplicado (migration 20260812d_cupom_reserva_bloqueio.sql) — ver §20.8
 cupom_id           uuid FK → cupom(id) ON DELETE SET NULL
@@ -1529,11 +1542,12 @@ query param: `?roteiro=<id>` ou `?embarcacao=<id>` (presença de `embarcacao` de
 - **Gate de auth:** `createClient()` SSR + `getUser()`; se não logado, redireciona para
   `/entrar?redirect_to=<url atual>`. Sem alvo → `/buscar` (roteiro) ou `/embarcacoes` (embarcação);
   faltando `data`/`pessoas` válidos → volta ao detalhe do alvo.
-- Carrega o alvo (ativo). Para **roteiro**, reconstrói os adicionais a partir dos ids da query; para
-  **embarcação**, não há adicionais. Exibe resumo (tipo, nome, localidade, data, pessoas, adicionais
-  quando houver, diária + taxa de serviço 12% + total estimado).
+- Carrega o alvo (ativo), incluindo `owner_id` — usado para resolver `taxaPercent` via
+  `getTaxaEfetiva` (ver §14). Para **roteiro**, reconstrói os adicionais a partir dos ids da query;
+  para **embarcação**, não há adicionais. Exibe resumo (tipo, nome, localidade, data, pessoas,
+  adicionais quando houver, diária + taxa de serviço (dinâmica) + total estimado).
 - Componente client `_components/ConfirmarReserva.tsx` (props `tipo`, `roteiroId?`, `embarcacaoId?`,
-  `preco`, `totalAdicionais`, …): desenha o bloco "Valores" (Diária, Adicionais, Taxa de serviço,
+  `preco`, `totalAdicionais`, `taxaPercent`, …): desenha o bloco "Valores" (Diária, Adicionais, Taxa de serviço,
   Desconto quando houver cupom aplicado, Total estimado) — esse bloco saiu de `page.tsx` para cá
   porque precisa reagir ao cupom em tempo real (ver §20.8). Botão "Confirmar solicitação" →
   server action `criarReserva`; em sucesso mostra "Solicitação enviada! (Pendente)".
@@ -1550,7 +1564,7 @@ client) — helper interno reaproveitado também pela pré-visualização de cup
 §20.8). Para roteiro, recarrega os adicionais; para embarcação, carrega `embarcacao` ativa
 (preço/owner). **Recusa a solicitação se a data já tiver reserva confirmada** para a embarcação (ou
 o roteiro, quando sem vínculo) — `getDatasReservadasEmbarcacao`/`getDatasReservadasRoteiro`
-(`src/lib/reservas.ts`, ver §15-B). Recalcula `preco_base`/`total_adicionais`/`taxa_servico`;
+(`src/lib/reservas.ts`, ver §15-B). Recalcula `preco_base`/`total_adicionais`/`taxa_servico`/`taxa_percent` (este último via `getTaxaEfetiva(alvo.ownerId)` — ver §14);
 se `cupomCodigo` vier preenchido, valida e aplica o desconto (§20.8) antes de calcular
 `total_estimado`. Insere `reserva` (status `pendente`, `tipo`, `cliente_id = user.id`, `owner_id`,
 `roteiro_id`/`embarcacao_id` conforme o tipo, `cupom_id`/`cupom_codigo`/`desconto_valor`) +
@@ -1715,7 +1729,7 @@ Espelha o fluxo de roteiro (§20.2–20.3), **sem adicionais** (não existe `emb
 - **`EmbarcacaoBookingCard`** (`src/app/embarcacoes/[id]/_components/EmbarcacaoBookingCard.tsx`,
   `'use client'`): sidebar da página `/embarcacoes/[id]` com **Data** e **Pessoas** obrigatórios,
   calendário respeitando `disponibilidade_dias_semana` + `embarcacao_disponibilidade_bloqueio`, e
-  breakdown (diária + taxa de serviço 12% + total). Aceita `initialData`/`initialFlex`/`initialPessoas`
+  breakdown (diária + taxa de serviço dinâmica, via prop `taxaPercent` — ver §14 + total). Aceita `initialData`/`initialFlex`/`initialPessoas`
   (pré-preenchimento). Ao confirmar, navega para
   `/reservas/novo?embarcacao=...&data=...&flex=...&pessoas=...`.
 - **`EmbarcacaoCard`** (`src/app/embarcacoes/_components/EmbarcacaoCard.tsx`) recebe prop `query` e
@@ -1795,8 +1809,8 @@ quando `preco` é `null` (preço a combinar). Cupom aplicado vira um chip verde 
 "x" para remover (client-side, sem chamar o servidor). Quando bloqueado, o campo fica desabilitado
 com contagem regressiva ("Muitas tentativas — tente novamente em Xm Ys", atualizada a cada
 segundo a partir de `bloqueadoAte`). O bloco "Valores" recalcula localmente a cada mudança do
-cupom, com a mesma fórmula do servidor (`SERVICE_FEE_RATE` duplicado aqui, mesma convenção de
-`BookingCard`/`EmbarcacaoBookingCard`/`page.tsx`/`actions.ts`).
+cupom, com a mesma fórmula do servidor (`taxaPercent` recebido como prop, resolvido no servidor —
+mesma convenção de `BookingCard`/`EmbarcacaoBookingCard`; ver §14).
 
 **Exibição do desconto onde a reserva já aparece:** linha "Desconto (cupom CÓDIGO)" condicional
 (`desconto_valor > 0`) em `/minhas-reservas` (cliente) e `/painel/agendamentos/[id]` (gestor,
@@ -2400,7 +2414,7 @@ Renderiza 6 stat cards + grid de cards de acesso rápido aos 6 módulos.
 | `/administrator/roteiros` | Roteiros | ✅ implementado |
 | `/administrator/cupons` | Cupons | ✅ implementado |
 | `/administrator/publicidade` | Publicidade | 🔜 placeholder |
-| `/administrator/taxas` | Taxas | 🔜 placeholder |
+| `/administrator/taxas` | Taxas | ✅ implementado |
 | `/administrator/categorias` | Categorias | 🔜 placeholder |
 | `/administrator/configuracoes` | Configurações | 🔜 placeholder |
 
@@ -2657,6 +2671,48 @@ submit do form pai).
 
 `src/types/supabase.ts` ganhou `CupomTipoDesconto` e os blocos `Row/Insert/Update` de
 `parceiro`, `cupom` e `cupom_uso`, refletindo a migration `20260812c_cupons.sql`.
+
+---
+
+### 25.10 Módulo — Taxas (`/administrator/taxas`)
+
+Só edita registros que **já existiam no banco desde a migration 004** (§14) mas nunca tinham UI nem
+eram lidos pela reserva — este módulo é o que os liga. Migration `20260812e_taxas_reserva.sql`
+(alinha o seed e adiciona `reserva.taxa_percent`).
+
+`page.tsx` (Server Component): guarda de auth (`if (!user) redirect('/administrator/login')` — role
+`admin` já é gate do layout `(admin)`, ver §25.1). Busca a taxa geral (`getTaxaGeral()`,
+`src/lib/taxas.ts`) e a lista de gestores em duas etapas — mesmo padrão da busca por parceiro em
+Cupons (§25.9): `user_roles` (`role = 'gestor'`) → ids → `users.select(...).in('id', ids)` com busca
+(nome/e-mail), ordenação (Nome/Cadastro) e paginação no servidor (10/25/50, padrão 10); depois busca
+`usuario_taxa` para os ids da página atual e mescla em memória (evita depender do formato de embed
+1:1 do PostgREST).
+
+- **`TaxaGeralCard`** (client): mostra a % vigente com edição inline (input + salvar), chama
+  `atualizarTaxaGeral(percent)`.
+- **`AdminTaxasGestoresGrid`** (client): busca com debounce, ordenação por coluna, paginação — mesmo
+  padrão visual dos outros módulos. Coluna **"Taxa aplicada"** mostra a taxa que **está realmente em
+  vigor agora** para aquele gestor (badge "Global · X%" em cinza ou "Específica · Y%" em azul,
+  seguindo a mesma lógica de `get_taxa_usuario`: específica só conta se `ativo` e dentro da
+  `data_validade`); quando existe uma taxa específica cadastrada mas **fora de vigor** (inativa ou
+  expirada), um aviso âmbar deixa isso explícito, para não confundir com a que está valendo.
+- **`TaxaGestorModal`** (client, padrão de modal `fixed inset-0` copiado de `AvaliacoesGrid.tsx`):
+  campos taxa % (0–100, 2 casas — pode ser maior **ou** menor que a geral), ativo (toggle), validade
+  (data opcional, vazio = sem expiração), observação (opcional, uso interno). Botões Salvar /
+  Remover taxa específica (só aparece se já existir override) / Cancelar.
+
+#### `actions.ts`
+
+- `atualizarTaxaGeral(percent)` — exige sessão + role `admin`, valida `0 ≤ percent ≤ 100`, `update`
+  no singleton `taxa_plataforma`; revalida `/administrator/taxas`.
+- `salvarTaxaGestor({ userId, taxaPercent, ativo, dataValidade, observacao })` — mesma validação de
+  percentual, `upsert` em `usuario_taxa` com `onConflict: 'user_id'` (cria se não existe, atualiza se
+  existe — um registro por gestor); revalida.
+- `removerTaxaGestor(userId)` — `delete` do override; o gestor volta a valer pela taxa geral;
+  revalida.
+
+Sem mudanças em `AdminSidebar.tsx` (item **TAXAS** já existia apontando pra cá) nem no layout
+`(admin)`.
 
 ---
 

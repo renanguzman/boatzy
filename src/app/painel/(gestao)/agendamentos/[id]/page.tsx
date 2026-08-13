@@ -23,6 +23,7 @@ type ReservaDetalhe = {
   preco_base: number | null;
   total_adicionais: number;
   taxa_servico: number | null;
+  taxa_percent: number | null;
   total_estimado: number | null;
   cupom_codigo: string | null;
   desconto_valor: number;
@@ -77,7 +78,7 @@ export default async function ReservaDetalhePage({ params }: { params: Promise<{
     .from('reserva')
     .select(
       `id, tipo, roteiro_id, embarcacao_id, data_reserva, flexibilidade, quantidade_pessoas, item_nome,
-       preco_base, total_adicionais, taxa_servico, total_estimado, cupom_codigo, desconto_valor,
+       preco_base, total_adicionais, taxa_servico, taxa_percent, total_estimado, cupom_codigo, desconto_valor,
        status, observacao_gestor, solicitado_em, respondido_em,
        cliente:users!reserva_cliente_id_fkey ( name, email, cpf_cnpj, avatar_url ),
        roteiro ( nome, embarcacao_id, municipios ( nome, estados ( uf ) ) ),
@@ -274,7 +275,11 @@ export default async function ReservaDetalhePage({ params }: { params: Promise<{
                 )}
                 {r.taxa_servico != null && (
                   <div className="flex items-center justify-between">
-                    <span className="text-slate-500">Taxa de serviço</span>
+                    <span className="text-slate-500">
+                      Taxa de serviço
+                      {r.taxa_percent != null &&
+                        ` (${r.taxa_percent.toLocaleString('pt-BR', { maximumFractionDigits: 2 })}%)`}
+                    </span>
                     <span className="font-medium text-slate-700">{formatCurrency(r.taxa_servico)}</span>
                   </div>
                 )}

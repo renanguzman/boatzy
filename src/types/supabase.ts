@@ -33,6 +33,7 @@ export type Database = {
           preco_base: number | null;
           total_adicionais: number;
           taxa_servico: number | null;
+          taxa_percent: number | null;
           total_estimado: number | null;
           status: ReservaStatus;
           observacao_gestor: string | null;
@@ -59,6 +60,7 @@ export type Database = {
           preco_base?: number | null;
           total_adicionais?: number;
           taxa_servico?: number | null;
+          taxa_percent?: number | null;
           total_estimado?: number | null;
           status?: ReservaStatus;
           observacao_gestor?: string | null;
@@ -85,6 +87,7 @@ export type Database = {
           preco_base?: number | null;
           total_adicionais?: number;
           taxa_servico?: number | null;
+          taxa_percent?: number | null;
           total_estimado?: number | null;
           status?: ReservaStatus;
           observacao_gestor?: string | null;
@@ -384,6 +387,47 @@ export type Database = {
           updated_at?: string;
         };
         Relationships: [];
+      };
+      usuario_taxa: {
+        Row: {
+          id: string;
+          user_id: string;
+          taxa_percent: number;
+          ativo: boolean;
+          data_validade: string | null;
+          observacao: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          taxa_percent: number;
+          ativo?: boolean;
+          data_validade?: string | null;
+          observacao?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          user_id?: string;
+          taxa_percent?: number;
+          ativo?: boolean;
+          data_validade?: string | null;
+          observacao?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'usuario_taxa_user_id_fkey';
+            columns: ['user_id'];
+            isOneToOne: true;
+            referencedRelation: 'users';
+            referencedColumns: ['id'];
+          },
+        ];
       };
       estados: {
         Row: {
@@ -1347,6 +1391,10 @@ export type Database = {
     };
     Views: Record<string, never>;
     Functions: {
+      get_taxa_usuario: {
+        Args: { p_user_id: string };
+        Returns: number;
+      };
       buscar_embarcacoes: {
         Args: {
           p_municipio_id?: number | null;
