@@ -23,6 +23,7 @@ export default async function EditarRoteiroPage({
     { data: catalogo },
     { data: catalogoVinculado },
     { data: bloqueios },
+    { data: paradas },
   ] = await Promise.all([
     supabaseAdmin
       .from('roteiro')
@@ -61,6 +62,11 @@ export default async function EditarRoteiroPage({
       .select('data')
       .eq('roteiro_id', id)
       .order('data'),
+    supabaseAdmin
+      .from('roteiro_parada')
+      .select('nome')
+      .eq('roteiro_id', id)
+      .order('ordem'),
   ]);
 
   if (!roteiro) notFound();
@@ -118,6 +124,7 @@ export default async function EditarRoteiroPage({
           valorCustomizado: c.valor_customizado != null ? String(c.valor_customizado) : '',
         }))}
         bloqueiosIniciais={(bloqueios ?? []).map(b => b.data)}
+        paradasIniciais={(paradas ?? []).map(p => p.nome)}
       />
     </div>
   );

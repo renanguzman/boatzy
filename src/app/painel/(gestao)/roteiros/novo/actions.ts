@@ -242,6 +242,32 @@ export async function salvarBloqueiosRoteiro(
   return { ok: true };
 }
 
+// ─── Action: salvar paradas do itinerário (pontos entre origem e destino) ────
+
+export async function salvarParadasRoteiro(
+  roteiroId: string,
+  paradas: string[],
+): Promise<{ ok: boolean; error?: string }> {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { ok: false, error: 'Não autenticado.' };
+
+  // Substitui o conjunto de paradas pelo informado, preservando a ordem.
+  await supabaseAdmin
+    .from('roteiro_parada')
+    .delete()
+    .eq('roteiro_id', roteiroId);
+
+  const nomes = paradas.map(p => p.trim()).filter(Boolean);
+  if (nomes.length === 0) return { ok: true };
+
+  const rows = nomes.map((nome, i) => ({ roteiro_id: roteiroId, ordem: i, nome }));
+  const { error } = await supabaseAdmin.from('roteiro_parada').insert(rows);
+
+  if (error) return { ok: false, error: error.message };
+  return { ok: true };
+}
+
 // ─── Action: buscar municípios por estado ─────────────────────────────────────
 
 export async function getMunicipiosByEstado(

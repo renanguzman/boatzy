@@ -15,13 +15,13 @@ import {
   salvarImagemRoteiro,
   salvarCatalogoRoteiro,
   salvarBloqueiosRoteiro,
+  salvarParadasRoteiro,
   getMunicipiosByEstado,
   type CriarRoteiroPayload,
 } from '../actions';
 import MapaPicker from '../../../embarcacoes/novo/_components/MapaPicker';
 import CatalogoSelector, { type CatalogoItem, type ItemSelecionado } from '../../_components/CatalogoSelector';
 import DisponibilidadePicker from '@/components/painel/DisponibilidadePicker';
-import type { DuracaoUnidade } from '@/lib/duracao';
 import type { PrecoRegraTipo } from '@/types/supabase';
 
 // ─── Constantes ───────────────────────────────────────────────────────────────
@@ -64,6 +64,8 @@ type ImagePreview = {
   file: File; previewUrl: string; principal: boolean;
   uploading: boolean; uploaded: boolean; error?: string;
 };
+
+type ParadaLocal = { localId: string; nome: string };
 
 type RegraLocal = {
   localId: string;
@@ -178,6 +180,10 @@ export default function NovoRoteiroForm({ estados, embarcacoes, catalogo: catalo
   // Disponibilidade: dias da semana de operação (vazio = todos) + datas bloqueadas (ISO)
   const [diasOperacao, setDiasOperacao] = useState<number[]>([]);
   const [bloqueios, setBloqueios]       = useState<string[]>([]);
+
+  // Paradas do itinerário: pontos intermediários entre origem e destino (0, 1 ou vários)
+  const [paradas, setParadas]     = useState<ParadaLocal[]>([]);
+  const [novaParada, setNovaParada] = useState('');
 
   const [images, setImages]     = useState<ImagePreview[]>([]);
   const [dragging, setDragging] = useState(false);
@@ -299,6 +305,30 @@ export default function NovoRoteiroForm({ estados, embarcacoes, catalogo: catalo
     setRegras(prev => prev.filter(r => r.localId !== localId));
   }
 
+  // ─── Paradas do itinerário ──────────────────────────────────────────────────
+
+  function handleAddParada() {
+    const nome = novaParada.trim();
+    if (!nome) return;
+    setParadas(prev => [...prev, { localId: crypto.randomUUID(), nome }]);
+    setNovaParada('');
+  }
+
+  function handleRemoveParada(localId: string) {
+    setParadas(prev => prev.filter(p => p.localId !== localId));
+  }
+
+  function handleMoveParada(localId: string, dir: -1 | 1) {
+    setParadas(prev => {
+      const idx = prev.findIndex(p => p.localId === localId);
+      const alvo = idx + dir;
+      if (idx < 0 || alvo < 0 || alvo >= prev.length) return prev;
+      const next = [...prev];
+      [next[idx], next[alvo]] = [next[alvo], next[idx]];
+      return next;
+    });
+  }
+
   // ─── Imagens ──────────────────────────────────────────────────────────────
 
   function addFiles(files: FileList | File[]) {
@@ -389,6 +419,11 @@ export default function NovoRoteiroForm({ estados, embarcacoes, catalogo: catalo
       await salvarBloqueiosRoteiro(roteiroId, bloqueios);
     }
 
+    // Salvar paradas do itinerário
+    if (paradas.length > 0) {
+      await salvarParadasRoteiro(roteiroId, paradas.map(p => p.nome));
+    }
+
     // Criar regras de preço
     for (const regra of regras) {
       await criarRegraRoteiro({
@@ -461,14 +496,23 @@ export default function NovoRoteiroForm({ estados, embarcacoes, catalogo: catalo
             </select>
           </Field>
           <Field label="Duração" hint="Usada nos filtros e na ordenação da busca do site.">
-            <div className="flex items-center gap-2">
-              <input className={inputCls} type="number" min="0" step="0.5" placeholder="ex: 4"
+            <div className="flex items-center gap-2 flex-wrap">
+              <input
+                className="w-24 shrink-0 rounded-xl border border-slate-200 px-3.5 py-2.5 text-sm text-slate-800
+                  placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-[#0B2447]/20
+                  focus:border-[#0B2447]/40 transition bg-white"
+                type="number" min="0" step="0.5" placeholder="ex: 4"
                 value={form.duracao_valor} onChange={e => setField('duracao_valor', e.target.value)} />
-              <select className={`${selectCls} w-32 shrink-0`} value={form.duracao_unidade}
-                onChange={e => setField('duracao_unidade', e.target.value as DuracaoUnidade)}>
-                <option value="horas">Horas</option>
-                <option value="dias">Dias</option>
-              </select>
+              <div className="flex gap-1 bg-slate-100 rounded-xl p-1 shrink-0">
+                {(['horas', 'dias'] as const).map(u => (
+                  <button key={u} type="button" onClick={() => setField('duracao_unidade', u)}
+                    className={`px-3.5 py-2 rounded-lg text-xs font-semibold transition-all ${
+                      form.duracao_unidade === u ? 'bg-white text-[#0B2447] shadow-sm' : 'text-slate-500 hover:text-slate-700'
+                    }`}>
+                    {u === 'horas' ? 'Horas' : 'Dias'}
+                  </button>
+                ))}
+              </div>
             </div>
           </Field>
           <Field label="Capacidade máxima" hint="Número de pessoas — preenchida com a capacidade da embarcação vinculada.">
@@ -477,14 +521,76 @@ export default function NovoRoteiroForm({ estados, embarcacoes, catalogo: catalo
               onChange={e => setField('quantidade_pessoas', e.target.value)} />
           </Field>
           <div />
-          <Field label="Local de partida (origem)">
-            <input className={inputCls} placeholder="ex: Marina da Glória, RJ"
-              value={form.origem} onChange={e => setField('origem', e.target.value)} />
-          </Field>
-          <Field label="Local de chegada (destino)">
-            <input className={inputCls} placeholder="ex: Ilha Grande, RJ"
-              value={form.destino} onChange={e => setField('destino', e.target.value)} />
-          </Field>
+
+          <div className="md:col-span-2">
+            <label className="block text-sm font-medium text-slate-700 mb-1.5">Itinerário</label>
+            <p className="text-xs text-slate-400 mb-4">
+              Partida, paradas — adicione quantas precisar, ou nenhuma — e chegada, nessa ordem. É como o cliente vai ver no roteiro.
+            </p>
+
+            <div className="relative pl-6">
+              {/* Linha do tempo conectando todos os pontos */}
+              <div className="absolute left-2 top-2 bottom-2 w-0.5 bg-gradient-to-b from-[#0B3D91] via-sky-300 to-cyan-400 rounded-full" />
+
+              {/* Partida */}
+              <div className="relative mb-4">
+                <div className="absolute -left-6 top-1.5 h-3 w-3 rounded-full bg-[#0B3D91] ring-2 ring-white" />
+                <p className="text-[10px] font-bold text-[#0B3D91] uppercase tracking-wider mb-1">Partida (saída)</p>
+                <input className={inputCls} placeholder="ex: Marina da Glória, RJ"
+                  value={form.origem} onChange={e => setField('origem', e.target.value)} />
+              </div>
+
+              {/* Paradas */}
+              {paradas.map((p, i) => (
+                <div key={p.localId} className="relative mb-4">
+                  <div className="absolute -left-6 top-1.5 h-3 w-3 rounded-full bg-sky-400 ring-2 ring-white" />
+                  <p className="text-[10px] font-bold text-sky-600 uppercase tracking-wider mb-1">Parada {i + 1}</p>
+                  <div className="flex items-center gap-2 bg-white border border-slate-200 rounded-xl pl-3.5 pr-1.5 py-1.5 shadow-sm">
+                    <span className="flex-1 text-sm text-slate-700 truncate">{p.nome}</span>
+                    <div className="flex items-center gap-0.5 shrink-0">
+                      <button type="button" onClick={() => handleMoveParada(p.localId, -1)} disabled={i === 0}
+                        title="Mover para cima"
+                        className="w-7 h-7 flex items-center justify-center rounded-lg text-slate-400 hover:text-[#0B2447] hover:bg-slate-50 disabled:opacity-30 disabled:cursor-not-allowed transition-colors">
+                        <ChevronUp className="w-3.5 h-3.5" />
+                      </button>
+                      <button type="button" onClick={() => handleMoveParada(p.localId, 1)} disabled={i === paradas.length - 1}
+                        title="Mover para baixo"
+                        className="w-7 h-7 flex items-center justify-center rounded-lg text-slate-400 hover:text-[#0B2447] hover:bg-slate-50 disabled:opacity-30 disabled:cursor-not-allowed transition-colors">
+                        <ChevronDown className="w-3.5 h-3.5" />
+                      </button>
+                      <button type="button" onClick={() => handleRemoveParada(p.localId)} title="Remover"
+                        className="w-7 h-7 flex items-center justify-center rounded-lg text-slate-300 hover:text-red-500 hover:bg-red-50 transition-colors">
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              ))}
+
+              {/* Adicionar parada */}
+              <div className="relative mb-4">
+                <div className="absolute -left-6 top-1.5 h-3 w-3 rounded-full border-2 border-dashed border-slate-300 bg-white" />
+                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Adicionar parada</p>
+                <div className="flex gap-2">
+                  <input className={inputCls} placeholder="ex: Praia do Pontal (parada para banho)"
+                    value={novaParada} onChange={e => setNovaParada(e.target.value)}
+                    onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); handleAddParada(); } }} />
+                  <button type="button" onClick={handleAddParada} disabled={!novaParada.trim()}
+                    className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-[#0B2447] hover:bg-[#0B3D91] text-white text-sm font-semibold transition-colors disabled:opacity-40 disabled:cursor-not-allowed shrink-0">
+                    <Plus className="w-3.5 h-3.5" /> Adicionar
+                  </button>
+                </div>
+              </div>
+
+              {/* Chegada */}
+              <div className="relative">
+                <div className="absolute -left-6 top-1.5 h-3 w-3 rounded-full bg-cyan-400 ring-2 ring-white" />
+                <p className="text-[10px] font-bold text-cyan-600 uppercase tracking-wider mb-1">Chegada (destino)</p>
+                <input className={inputCls} placeholder="ex: Ilha Grande, RJ"
+                  value={form.destino} onChange={e => setField('destino', e.target.value)} />
+              </div>
+            </div>
+          </div>
         </div>
       </SectionCard>
 

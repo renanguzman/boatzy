@@ -205,7 +205,7 @@ Exibir:
 - "Sobre a Embarcação": nome clicável que abre `EmbarcacaoFotosModal` com galeria completa e especificações da embarcação.
 - "Comodidades a bordo": grid 3 colunas com ícones `CheckCircle2`.
 - "O que está incluído": itens do catálogo vinculados ao roteiro (`roteiro_catalogo`).
-- "Itinerário": timeline vertical com gradiente.
+- "Itinerário": timeline vertical com gradiente — partida, **paradas intermediárias cadastradas pelo gestor (0, 1 ou várias)** e chegada (ver "Paradas do itinerário do roteiro" abaixo).
 - Reviews: seção placeholder.
 - Sidebar `BookingCard`: seleção de data e pessoas, breakdown de preço com taxa de serviço (12%), total estimado, botão "Solicitar Reserva" → `/reservas/novo`.
 - ✅ O calendário de data do `BookingCard` respeita a **disponibilidade do roteiro**: datas fora dos dias de operação ou bloqueadas pelo gestor aparecem riscadas e não selecionáveis (ver 6.8 → Disponibilidade do roteiro).
@@ -500,6 +500,13 @@ Todos os números são do **gestor logado** (`owner_id`):
 - Se a embarcação não tem capacidade cadastrada, ou se o gestor escolhe "Sem vínculo", o campo mantém o valor atual em vez de ser limpo.
 - Abrir a edição de um roteiro existente **não** sobrescreve a capacidade já salva — o preenchimento só ocorre quando o gestor troca a embarcação.
 - Detalhes técnicos: SPEC §27.
+
+#### ✅ Implementado — Paradas do itinerário do roteiro
+
+- O roteiro continua tendo **Local de partida (origem)** e **Local de chegada (destino)**, mas agora o gestor pode cadastrar, entre os dois, **quantas paradas quiser** — nenhuma, uma ou várias — no cadastro (`/painel/roteiros/novo`) e na edição (`/painel/roteiros/[id]/editar`, também usada em `/administrator/roteiros/[id]/editar`).
+- Novo bloco **"Paradas do itinerário"**, logo abaixo dos campos de partida/chegada: campo de texto + botão "Adicionar" inclui uma parada; cada parada da lista pode ser reordenada (mover para cima/baixo) ou removida.
+- No site, a página do roteiro (`/roteiros/[id]`) exibe a seção **"Itinerário"** com a timeline completa: Saída → Parada 1 → Parada 2 → ... → Chegada, refletindo exatamente o que o gestor cadastrou.
+- Detalhes técnicos: SPEC §30.
 
 ### 6.10 Páginas Institucionais / Legais
 

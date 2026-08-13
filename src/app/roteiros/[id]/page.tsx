@@ -60,6 +60,7 @@ type RoteiroDetalhe = {
     catalogo: { id: string; descricao: string; valor: number; tipo: string } | null;
   }[];
   roteiro_disponibilidade_bloqueio: { data: string }[];
+  roteiro_parada: { nome: string }[];
 };
 
 export default async function RoteiroDetalhePage({
@@ -81,6 +82,7 @@ export default async function RoteiroDetalhePage({
       municipios ( nome, estados ( uf, nome ) ),
       roteiro_imagens ( id, url_imagem, titulo, principal ),
       roteiro_disponibilidade_bloqueio ( data ),
+      roteiro_parada ( nome ),
       embarcacao ( nome, capacidade, comprimento, cabines, tripulacao, modalidade_capitao,
         embarcacao_tipo ( nome ),
         embarcacao_comodidades ( comodidade ( nome ) ),
@@ -93,6 +95,7 @@ export default async function RoteiroDetalhePage({
     `)
     .eq('id', id)
     .eq('ativo', true)
+    .order('ordem', { referencedTable: 'roteiro_parada' })
     .single();
 
   if (error || !data) notFound();
@@ -334,7 +337,7 @@ export default async function RoteiroDetalhePage({
               )}
 
               {/* Itinerary */}
-              {(roteiro.origem || roteiro.destino) && (
+              {(roteiro.origem || roteiro.destino || roteiro.roteiro_parada.length > 0) && (
                 <div className="mb-10">
                   <h2 className="text-xl font-bold text-[#0B2447] mb-4">Itinerário</h2>
                   <div className="relative pl-6">
@@ -346,6 +349,15 @@ export default async function RoteiroDetalhePage({
                         <p className="text-sm font-semibold text-slate-800">{roteiro.origem}</p>
                       </div>
                     )}
+                    {roteiro.roteiro_parada.map((parada, i) => (
+                      <div key={i} className="relative mb-6">
+                        <div className="absolute -left-6 top-1 h-3 w-3 rounded-full bg-[#5B8DEF] ring-2 ring-white" />
+                        <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-0.5">
+                          Parada {i + 1}
+                        </p>
+                        <p className="text-sm font-semibold text-slate-800">{parada.nome}</p>
+                      </div>
+                    ))}
                     {roteiro.destino && (
                       <div className="relative">
                         <div className="absolute -left-6 top-1 h-3 w-3 rounded-full bg-cyan-400 ring-2 ring-white" />

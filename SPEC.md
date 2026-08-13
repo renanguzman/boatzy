@@ -2909,3 +2909,78 @@ chat; "Minhas reservas" deixou de exibir o badge (evita duplicidade). O acesso c
 reserva (`/minhas-reservas/[id]/chat`) e por anúncio (`/vendas/[id]/chat`) permanece.
 
 > Resolve a questão em aberto §9 do plano ("onde o cliente reencontra a conversa de venda").
+
+## 30. Paradas do itinerário do roteiro
+
+Permite ao gestor cadastrar quantos pontos intermediários quiser entre a partida (`origem`) e a
+chegada (`destino`) de um roteiro — zero, uma ou várias paradas — em vez de o roteiro ter apenas
+os dois pontos fixos de antes.
+
+### 30.1 Modelo de dados
+
+Migration `20260812_roteiro_paradas.sql`. As colunas `roteiro.origem` e `roteiro.destino`
+(partida/chegada) são **mantidas como estão** — a novidade é a tabela abaixo, que guarda os
+pontos **entre** elas, em ordem:
+
+```sql
+CREATE TABLE public.roteiro_parada (
+  id          uuid        PRIMARY KEY DEFAULT gen_random_uuid(),
+  roteiro_id  uuid        NOT NULL REFERENCES public.roteiro(id) ON DELETE CASCADE,
+  ordem       integer     NOT NULL,
+  nome        text        NOT NULL,
+  created_at  timestamptz NOT NULL DEFAULT now(),
+  UNIQUE (roteiro_id, ordem)
+);
+```
+
+`ordem` é 0-based, atribuída pela posição no array ao salvar (sem gaps). RLS espelha
+`roteiro_disponibilidade_bloqueio` (§15-A): `service_role_all`, `public_read` (necessário para a
+página pública `/roteiros/[id]`), `owner_insert`/`owner_delete` restritos ao dono do roteiro via
+`EXISTS (... roteiro.owner_id = auth.uid())`. Sem policy de `UPDATE`: a action sempre
+**substitui** o conjunto inteiro (delete + insert), como já é feito para bloqueios de
+disponibilidade e para os itens de catálogo do roteiro.
+
+### 30.2 Actions
+
+`salvarParadasRoteiro(roteiroId, paradas: string[])`, em duas cópias que seguem o mesmo padrão
+já usado por `salvarBloqueiosRoteiro`/`atualizarCatalogoRoteiro`:
+
+- `src/app/painel/(gestao)/roteiros/novo/actions.ts` — checa apenas usuário autenticado (roteiro
+  acabou de ser criado pelo próprio fluxo).
+- `src/app/painel/(gestao)/roteiros/[id]/editar/actions.ts` — via `getAuthorizedUser(roteiroId)`
+  (gestor dono ou admin).
+
+Comportamento: apaga todas as paradas existentes do roteiro e insere as recebidas, atribuindo
+`ordem` pela posição no array (nomes em branco são descartados). Lista vazia → roteiro fica sem
+paradas (apenas partida/chegada, como antes).
+
+### 30.3 Formulário (cadastro e edição)
+
+`NovoRoteiroForm.tsx` e `EditarRoteiroForm.tsx` (compartilhado entre `/painel/roteiros` e
+`/administrator/roteiros`), na seção **Informações gerais**, substituíram os dois campos soltos
+"Local de partida (origem)" / "Local de chegada (destino)" por um único bloco **"Itinerário"**
+(`md:col-span-2`) que apresenta partida, paradas e chegada como **uma linha do tempo contínua**
+— mesma linguagem visual da timeline pública (§30.4), para deixar visualmente óbvio que os três
+fazem parte de um único itinerário e a ordem em que aparecem é a ordem em que serão exibidos:
+
+- Container `relative pl-6` com uma linha vertical de gradiente (`from-[#0B3D91] via-sky-300
+  to-cyan-400`) atravessando todos os pontos; cada ponto é um círculo (`absolute -left-6`)
+  colorido por papel — partida em navy (`#0B3D91`), paradas em `sky-400`, "adicionar parada" com
+  contorno tracejado (indica que ainda não é um ponto salvo), chegada em `cyan-400`.
+- Ordem fixa de cima para baixo: **Partida** (input ligado a `form.origem`) → **Parada 1..N**
+  (uma linha por parada, com posição no rótulo) → **Adicionar parada** (campo + botão, também
+  aceita Enter) → **Chegada** (input ligado a `form.destino`).
+- Estado local `paradas: { localId: string; nome: string }[]` (edição parte de `paradasIniciais:
+  string[]`, carregado via `roteiro_parada` ordenado por `ordem`).
+- Cada parada tem botões para mover para cima/baixo (reordenar) e remover (`Trash2`) — mesmo
+  padrão visual da lista de "Regras de preço" já existente no form.
+- No submit, após criar/atualizar o roteiro, chama `salvarParadasRoteiro(roteiroId, nomes)` com
+  os nomes na ordem exibida.
+
+### 30.4 Exibição pública — `/roteiros/[id]`
+
+A query da página passou a buscar `roteiro_parada ( nome )` ordenado por `ordem`
+(`.order('ordem', { referencedTable: 'roteiro_parada' })`). A seção **"Itinerário"** (timeline
+vertical com gradiente) passou a renderizar, entre "Saída" (`origem`) e "Chegada" (`destino`),
+um ponto por parada cadastrada, rotulado "Parada 1", "Parada 2", etc. A seção só aparece quando
+há origem, destino **ou** ao menos uma parada (antes só considerava origem/destino).

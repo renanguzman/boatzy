@@ -755,6 +755,30 @@ export type Database = {
         };
         Relationships: [];
       };
+      roteiro_parada: {
+        Row: {
+          id: string;
+          roteiro_id: string;
+          ordem: number;
+          nome: string;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          roteiro_id: string;
+          ordem: number;
+          nome: string;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          roteiro_id?: string;
+          ordem?: number;
+          nome?: string;
+          created_at?: string;
+        };
+        Relationships: [];
+      };
       roteiro_preco_regra: {
         Row: {
           id: string;

@@ -32,6 +32,7 @@ export default async function AdminEditarRoteiroPage({
     { data: catalogo },
     { data: catalogoVinculado },
     { data: bloqueios },
+    { data: paradas },
   ] = await Promise.all([
     supabaseAdmin.from('users').select('name, email').eq('id', roteiro.owner_id).single(),
     supabaseAdmin
@@ -65,6 +66,11 @@ export default async function AdminEditarRoteiroPage({
       .select('data')
       .eq('roteiro_id', id)
       .order('data'),
+    supabaseAdmin
+      .from('roteiro_parada')
+      .select('nome')
+      .eq('roteiro_id', id)
+      .order('ordem'),
   ]);
 
   let estadoId: number | null = null;
@@ -122,6 +128,7 @@ export default async function AdminEditarRoteiroPage({
           valorCustomizado: c.valor_customizado != null ? String(c.valor_customizado) : '',
         }))}
         bloqueiosIniciais={(bloqueios ?? []).map(b => b.data)}
+        paradasIniciais={(paradas ?? []).map(p => p.nome)}
         voltarHref="/administrator/roteiros"
       />
     </div>
