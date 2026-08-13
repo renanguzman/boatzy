@@ -332,6 +332,28 @@ gestor. Detalhes técnicos: SPEC §20.4–20.5.
   recusar continua manual, nada é feito automaticamente.
 - Detalhes técnicos: `SPEC.md` §15-B → "Bloqueio por reserva confirmada".
 
+#### ✅ Implementado — Aplicação de cupom de desconto na reserva
+
+- Em `/reservas/novo` (roteiro ou embarcação), o cliente pode informar um código de cupom antes
+  de enviar a solicitação: campo + botão "Aplicar" que valida na hora (sem recarregar a página,
+  como em qualquer e-commerce) e já mostra o desconto refletido no "Total estimado".
+- Todas as regras do cupom (cadastradas no admin — ver 6.11) são checadas: cupom existe e está
+  ativo, dentro da vigência, pedido mínimo atingido, limite de uso total e por cliente ainda
+  disponíveis. Cada erro tem mensagem específica.
+- O desconto sai da taxa de serviço da Boatzy (com piso R$0; se maior que a taxa, o excedente
+  também abate do total) — o preço que o gestor cadastrou nunca é alterado por um cupom.
+- **Segurança contra força bruta**: 5 tentativas de cupom malsucedidas seguidas (mesmo cliente)
+  bloqueiam o campo por 15 minutos, com contagem regressiva visível. A validação final é sempre
+  refeita no servidor no momento do envio — o que o cliente vê na pré-visualização nunca é
+  aceito "de olhos fechados".
+- O uso é registrado (rastreável, para eventual repasse a um parceiro) só quando a reserva é
+  efetivamente solicitada, nunca durante a pré-visualização. Se o cupom deixar de valer entre a
+  pré-visualização e o envio (ex.: limite esgotado por outro cliente nesse meio-tempo), a
+  solicitação não é criada e o cliente é avisado.
+- O desconto aplicado aparece tanto para o cliente ("Minhas reservas") quanto para o gestor
+  (`/painel/agendamentos/[id]`).
+- Detalhes técnicos: `SPEC.md` §20.8.
+
 **Próximos passos:** refinamentos do calendário (filtros por tipo/status); pagamento (Stripe).
 
 ---
@@ -588,9 +610,22 @@ Todos os números são do **gestor logado** (`owner_id`):
 - Não há criação nem exclusão de roteiro pelo admin nesta versão — cadastro continua sendo feito pelo gestor no `/painel`.
 - Novo item **ROTEIROS** no menu lateral do admin.
 
+#### ✅ Implementado — Gestão de Cupons (`/administrator/cupons`)
+
+- Único módulo administrativo com **CRUD completo** (os demais só editam/ativam registros criados fora do admin): o admin cria, lista, busca, edita e exclui cupons de desconto. Lista com busca, ordenação por coluna e **paginação no servidor** (10/25/50 por página, padrão 10), no mesmo padrão dos outros módulos.
+- Cada cupom tem: código único (sem espaços, normalizado em maiúsculas), descrição interna opcional, tipo de desconto (percentual ou valor fixo em R$), teto de desconto em R$ (só para percentual), valor mínimo do pedido para valer, vigência por data (início/fim opcionais — sem as duas datas, validade é indeterminada), limite de uso total e limite de uso por cliente (ambos opcionais — em branco, ilimitado), status ativo/pausado (independente da vigência por data) e vínculo opcional a um parceiro.
+- **Parceiro**: como o cadastro completo de parceiros ainda não existe, foi criada uma tabela mínima (`parceiro`: nome + ativo) só para o cupom poder referenciar um parceiro com integridade referencial; o cadastro é feito por um modal rápido dentro do próprio formulário do cupom (sem tela própria ainda). Quando o cadastro completo de parceiros for implementado, essa tabela é estendida.
+- **Rastreabilidade de uso**: existe uma tabela de histórico (`cupom_uso`) que registra cada uso do cupom (reserva, cliente, valor do desconto aplicado) — sustenta a contagem "quantas vezes foi usado" e o repasse a um parceiro. Passou a ser alimentada de verdade desde que a aplicação do cupom no fluxo de reserva foi implementada (ver 6.5 → "Aplicação de cupom de desconto na reserva").
+- Ações por cupom:
+  - **Ativar/Pausar** — toggle direto na lista, sem confirmação (sem cascata).
+  - **Editar** — formulário completo de edição.
+  - **Excluir** — remove definitivamente, mas só quando o cupom **nunca foi usado**; um cupom com histórico de uso não pode ser excluído (preserva a rastreabilidade para o repasse) — a lista já mostra o botão desabilitado nesse caso, com a orientação de pausar em vez de excluir.
+- Novo item **CUPONS** no menu lateral do admin, entre Roteiros e Publicidade.
+
 #### 🔜 A implementar
 
 - Conteúdo dos demais módulos (Publicidade, Taxas, Categorias, Configurações), cada um em separado.
+- Cadastro completo de parceiros (tela própria) — hoje só existe o cadastro mínimo embutido no formulário de cupom.
 
 ---
 

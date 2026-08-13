@@ -13,6 +13,7 @@ export type AnuncioInteracaoTipo =
   | 'favoritou'
   | 'compartilhou'
   | 'conversou';
+export type CupomTipoDesconto = 'percentual' | 'valor_fixo';
 
 export type Database = {
   public: {
@@ -38,6 +39,9 @@ export type Database = {
           solicitado_em: string;
           respondido_em: string | null;
           cancelada_em: string | null;
+          cupom_id: string | null;
+          cupom_codigo: string | null;
+          desconto_valor: number;
           created_at: string;
           updated_at: string;
         };
@@ -61,6 +65,9 @@ export type Database = {
           solicitado_em?: string;
           respondido_em?: string | null;
           cancelada_em?: string | null;
+          cupom_id?: string | null;
+          cupom_codigo?: string | null;
+          desconto_valor?: number;
           created_at?: string;
           updated_at?: string;
         };
@@ -84,6 +91,9 @@ export type Database = {
           solicitado_em?: string;
           respondido_em?: string | null;
           cancelada_em?: string | null;
+          cupom_id?: string | null;
+          cupom_codigo?: string | null;
+          desconto_valor?: number;
           created_at?: string;
           updated_at?: string;
         };
@@ -100,6 +110,13 @@ export type Database = {
             columns: ['cliente_id'];
             isOneToOne: false;
             referencedRelation: 'users';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'reserva_cupom_id_fkey';
+            columns: ['cupom_id'];
+            isOneToOne: false;
+            referencedRelation: 'cupom';
             referencedColumns: ['id'];
           },
         ];
@@ -1163,6 +1180,170 @@ export type Database = {
           },
         ];
       };
+      parceiro: {
+        Row: {
+          id: string;
+          nome: string;
+          ativo: boolean;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          nome: string;
+          ativo?: boolean;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          nome?: string;
+          ativo?: boolean;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
+      cupom: {
+        Row: {
+          id: string;
+          codigo: string;
+          descricao: string | null;
+          tipo_desconto: CupomTipoDesconto;
+          valor: number;
+          valor_desconto_maximo: number | null;
+          valor_minimo_pedido: number | null;
+          data_inicio: string | null;
+          data_fim: string | null;
+          limite_uso_total: number | null;
+          limite_uso_por_cliente: number | null;
+          ativo: boolean;
+          parceiro_id: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          codigo: string;
+          descricao?: string | null;
+          tipo_desconto: CupomTipoDesconto;
+          valor: number;
+          valor_desconto_maximo?: number | null;
+          valor_minimo_pedido?: number | null;
+          data_inicio?: string | null;
+          data_fim?: string | null;
+          limite_uso_total?: number | null;
+          limite_uso_por_cliente?: number | null;
+          ativo?: boolean;
+          parceiro_id?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          codigo?: string;
+          descricao?: string | null;
+          tipo_desconto?: CupomTipoDesconto;
+          valor?: number;
+          valor_desconto_maximo?: number | null;
+          valor_minimo_pedido?: number | null;
+          data_inicio?: string | null;
+          data_fim?: string | null;
+          limite_uso_total?: number | null;
+          limite_uso_por_cliente?: number | null;
+          ativo?: boolean;
+          parceiro_id?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'cupom_parceiro_id_fkey';
+            columns: ['parceiro_id'];
+            isOneToOne: false;
+            referencedRelation: 'parceiro';
+            referencedColumns: ['id'];
+          },
+        ];
+      };
+      cupom_uso: {
+        Row: {
+          id: string;
+          cupom_id: string;
+          reserva_id: string | null;
+          cliente_id: string | null;
+          valor_desconto: number;
+          criado_em: string;
+        };
+        Insert: {
+          id?: string;
+          cupom_id: string;
+          reserva_id?: string | null;
+          cliente_id?: string | null;
+          valor_desconto: number;
+          criado_em?: string;
+        };
+        Update: {
+          id?: string;
+          cupom_id?: string;
+          reserva_id?: string | null;
+          cliente_id?: string | null;
+          valor_desconto?: number;
+          criado_em?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'cupom_uso_cupom_id_fkey';
+            columns: ['cupom_id'];
+            isOneToOne: false;
+            referencedRelation: 'cupom';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'cupom_uso_reserva_id_fkey';
+            columns: ['reserva_id'];
+            isOneToOne: false;
+            referencedRelation: 'reserva';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'cupom_uso_cliente_id_fkey';
+            columns: ['cliente_id'];
+            isOneToOne: false;
+            referencedRelation: 'users';
+            referencedColumns: ['id'];
+          },
+        ];
+      };
+      cupom_tentativa: {
+        Row: {
+          cliente_id: string;
+          tentativas: number;
+          bloqueado_ate: string | null;
+          atualizado_em: string;
+        };
+        Insert: {
+          cliente_id: string;
+          tentativas?: number;
+          bloqueado_ate?: string | null;
+          atualizado_em?: string;
+        };
+        Update: {
+          cliente_id?: string;
+          tentativas?: number;
+          bloqueado_ate?: string | null;
+          atualizado_em?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'cupom_tentativa_cliente_id_fkey';
+            columns: ['cliente_id'];
+            isOneToOne: true;
+            referencedRelation: 'users';
+            referencedColumns: ['id'];
+          },
+        ];
+      };
     };
     Views: Record<string, never>;
     Functions: {
@@ -1300,6 +1481,19 @@ export type Database = {
         Args: { p_anuncio: string };
         Returns: undefined;
       };
+      registrar_tentativa_cupom: {
+        Args: { p_cliente_id: string; p_sucesso: boolean };
+        Returns: { bloqueado: boolean; bloqueado_ate: string | null }[];
+      };
+      registrar_uso_cupom: {
+        Args: {
+          p_cupom_id: string;
+          p_cliente_id: string;
+          p_reserva_id: string;
+          p_valor_desconto: number;
+        };
+        Returns: boolean;
+      };
       vendas_locais: {
         Args: Record<string, never>;
         Returns: {
@@ -1334,6 +1528,7 @@ export type Database = {
       avaliacao_status: AvaliacaoStatus;
       anuncio_venda_status: AnuncioVendaStatus;
       anuncio_interacao_tipo: AnuncioInteracaoTipo;
+      cupom_tipo_desconto: CupomTipoDesconto;
     };
     CompositeTypes: Record<string, never>;
   };

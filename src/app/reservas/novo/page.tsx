@@ -8,7 +8,6 @@ import { supabaseAdmin } from '@/lib/supabase';
 import { formatCurrency } from '@/lib/utils';
 import ConfirmarReserva from './_components/ConfirmarReserva';
 
-const SERVICE_FEE_RATE = 0.12;
 const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
 
 type SearchParams = {
@@ -150,9 +149,6 @@ export default async function NovaReservaPage({
   }
 
   const totalAdicionais = adicionais.reduce((sum, a) => sum + Number(a.valor), 0);
-  const subtotal = (preco ?? 0) + totalAdicionais;
-  const taxaServico = preco != null ? Math.round(subtotal * SERVICE_FEE_RATE) : null;
-  const total = preco != null && taxaServico != null ? subtotal + taxaServico : null;
 
   return (
     <div className="min-h-screen flex flex-col bg-slate-50">
@@ -228,36 +224,6 @@ export default async function NovaReservaPage({
               </div>
             </div>
           )}
-
-          {/* Valores */}
-          <div className="p-5">
-            {preco != null ? (
-              <div className="space-y-2">
-                <div className="flex items-center justify-between text-sm">
-                  <span className="text-slate-600">Diária</span>
-                  <span className="font-medium text-slate-800">{formatCurrency(preco)}</span>
-                </div>
-                {totalAdicionais > 0 && (
-                  <div className="flex items-center justify-between text-sm">
-                    <span className="text-slate-600">Adicionais</span>
-                    <span className="font-medium text-slate-800">{formatCurrency(totalAdicionais)}</span>
-                  </div>
-                )}
-                <div className="flex items-center justify-between text-sm">
-                  <span className="text-slate-600">Taxa de serviço</span>
-                  <span className="font-medium text-slate-800">{formatCurrency(taxaServico!)}</span>
-                </div>
-                <div className="flex items-center justify-between pt-3 mt-2 border-t border-slate-200">
-                  <span className="text-base font-bold text-[#0B2447]">Total estimado</span>
-                  <span className="text-xl font-bold text-[#0B2447]">{formatCurrency(total!)}</span>
-                </div>
-              </div>
-            ) : (
-              <p className="text-sm text-slate-500">
-                Preço a combinar com o gestor — o valor será confirmado na resposta da solicitação.
-              </p>
-            )}
-          </div>
         </div>
 
         <ConfirmarReserva
@@ -268,6 +234,8 @@ export default async function NovaReservaPage({
           flex={flex}
           pessoas={pessoas}
           adicionaisIds={adicionalIds}
+          preco={preco}
+          totalAdicionais={totalAdicionais}
         />
       </main>
 

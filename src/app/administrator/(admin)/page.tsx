@@ -7,6 +7,7 @@ import {
   CalendarDays,
   Star,
   Percent,
+  TicketPercent,
   Megaphone,
   Tags,
   Settings,
@@ -107,6 +108,12 @@ export default async function AdministratorDashboardPage() {
       titulo: 'Embarcações',
       descricao: 'Visualize e gerencie todas as embarcações cadastradas no sistema.',
       icon: Ship,
+    },
+    {
+      href: '/administrator/cupons',
+      titulo: 'Cupons',
+      descricao: 'Crie e gerencie cupons de desconto, com rastreio de uso por parceiro.',
+      icon: TicketPercent,
     },
     {
       href: '/administrator/publicidade',

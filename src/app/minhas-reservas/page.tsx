@@ -30,6 +30,8 @@ type ReservaCliente = {
   total_adicionais: number;
   taxa_servico: number | null;
   total_estimado: number | null;
+  cupom_codigo: string | null;
+  desconto_valor: number;
   status: ReservaStatus;
   observacao_gestor: string | null;
   solicitado_em: string;
@@ -118,7 +120,7 @@ export default async function MinhasReservasPage() {
     .from('reserva')
     .select(
       `id, owner_id, tipo, data_reserva, flexibilidade, quantidade_pessoas, roteiro_id, item_nome,
-       preco_base, total_adicionais, taxa_servico, total_estimado,
+       preco_base, total_adicionais, taxa_servico, total_estimado, cupom_codigo, desconto_valor,
        status, observacao_gestor, solicitado_em, respondido_em, cancelada_em,
        roteiro ( nome, municipios ( nome, estados ( uf ) ), roteiro_imagens ( url_imagem, principal ) ),
        embarcacao ( nome ),
@@ -250,6 +252,16 @@ export default async function MinhasReservasPage() {
                           ))}
                         </div>
                       </div>
+                    </div>
+                  )}
+
+                  {/* Desconto (cupom) */}
+                  {r.desconto_valor > 0 && (
+                    <div className="px-4 pb-2 flex items-center justify-between">
+                      <span className="text-sm text-emerald-600">
+                        Desconto{r.cupom_codigo ? ` (${r.cupom_codigo})` : ''}
+                      </span>
+                      <span className="text-sm font-medium text-emerald-600">-{formatCurrency(r.desconto_valor)}</span>
                     </div>
                   )}
 

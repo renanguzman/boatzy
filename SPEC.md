@@ -1464,7 +1464,11 @@ item_nome          text NOT NULL                                  -- nome-snapsh
 preco_base         numeric(12,2)
 total_adicionais   numeric(12,2) NOT NULL DEFAULT 0
 taxa_servico       numeric(12,2)
-total_estimado     numeric(12,2)
+total_estimado     numeric(12,2)                                  -- já líquido de desconto de cupom (ver §20.8)
+-- cupom aplicado (migration 20260812d_cupom_reserva_bloqueio.sql) — ver §20.8
+cupom_id           uuid FK → cupom(id) ON DELETE SET NULL
+cupom_codigo       text                                           -- snapshot do código
+desconto_valor     numeric(12,2) NOT NULL DEFAULT 0
 -- status / resposta do gestor
 status             reserva_status NOT NULL DEFAULT 'pendente'
 observacao_gestor  text
@@ -1529,24 +1533,30 @@ query param: `?roteiro=<id>` ou `?embarcacao=<id>` (presença de `embarcacao` de
   **embarcação**, não há adicionais. Exibe resumo (tipo, nome, localidade, data, pessoas, adicionais
   quando houver, diária + taxa de serviço 12% + total estimado).
 - Componente client `_components/ConfirmarReserva.tsx` (props `tipo`, `roteiroId?`, `embarcacaoId?`,
-  …): botão "Confirmar solicitação" → server action `criarReserva`; em sucesso mostra
-  "Solicitação enviada! (Pendente)".
+  `preco`, `totalAdicionais`, …): desenha o bloco "Valores" (Diária, Adicionais, Taxa de serviço,
+  Desconto quando houver cupom aplicado, Total estimado) — esse bloco saiu de `page.tsx` para cá
+  porque precisa reagir ao cupom em tempo real (ver §20.8). Botão "Confirmar solicitação" →
+  server action `criarReserva`; em sucesso mostra "Solicitação enviada! (Pendente)".
 
 **Server action `criarReserva`** (`src/app/reservas/novo/actions.ts`):
 ```ts
 criarReserva(input: {
   tipo: 'roteiro' | 'embarcacao',
-  roteiroId?, embarcacaoId?, data, flex?, pessoas, adicionaisIds[]
+  roteiroId?, embarcacaoId?, data, flex?, pessoas, adicionaisIds[], cupomCodigo?
 }) → { ok: true, reservaId } | { ok: false, error }
 ```
-Revalida auth e recarrega o alvo **no servidor** (não confia em valores do client). Para roteiro,
-recarrega os adicionais; para embarcação, carrega `embarcacao` ativa (preço/owner). **Recusa a
-solicitação se a data já tiver reserva confirmada** para a embarcação (ou o roteiro, quando sem
-vínculo) — `getDatasReservadasEmbarcacao`/`getDatasReservadasRoteiro` (`src/lib/reservas.ts`, ver
-§15-B). Recalcula `preco_base`/`total_adicionais`/`taxa_servico`/`total_estimado`, insere `reserva`
-(status `pendente`, `tipo`, `cliente_id = user.id`, `owner_id`, `roteiro_id`/`embarcacao_id`
-conforme o tipo) + (roteiro) linhas em `reserva_adicional` (snapshot). Se o insert dos adicionais
-falhar, a reserva é revertida.
+Revalida auth e recarrega o alvo **no servidor** via `resolverAlvo()` (não confia em valores do
+client) — helper interno reaproveitado também pela pré-visualização de cupom (`validarCupom`, ver
+§20.8). Para roteiro, recarrega os adicionais; para embarcação, carrega `embarcacao` ativa
+(preço/owner). **Recusa a solicitação se a data já tiver reserva confirmada** para a embarcação (ou
+o roteiro, quando sem vínculo) — `getDatasReservadasEmbarcacao`/`getDatasReservadasRoteiro`
+(`src/lib/reservas.ts`, ver §15-B). Recalcula `preco_base`/`total_adicionais`/`taxa_servico`;
+se `cupomCodigo` vier preenchido, valida e aplica o desconto (§20.8) antes de calcular
+`total_estimado`. Insere `reserva` (status `pendente`, `tipo`, `cliente_id = user.id`, `owner_id`,
+`roteiro_id`/`embarcacao_id` conforme o tipo, `cupom_id`/`cupom_codigo`/`desconto_valor`) +
+(roteiro) linhas em `reserva_adicional` (snapshot). Se o insert dos adicionais falhar, a reserva é
+revertida; se o registro do uso do cupom perder uma corrida de limite (§20.8), a reserva também é
+revertida.
 
 ### 20.4 Painel — `/painel/agendamentos` (calendário)
 
@@ -1713,6 +1723,85 @@ Espelha o fluxo de roteiro (§20.2–20.3), **sem adicionais** (não existe `emb
   querystring a partir dos filtros ativos → o detalhe vem **pré-preenchido** ao chegar pela busca.
 - O restante (confirmação em `/reservas/novo`, criação via `criarReserva`, calendário do painel,
   detalhe `/painel/agendamentos/[id]`, "Minhas reservas") já trata `tipo = 'embarcacao'`.
+
+### 20.8 Aplicação de cupom de desconto na reserva
+
+Migration: `supabase/migrations/20260812d_cupom_reserva_bloqueio.sql`. Fecha o ciclo aberto pelo
+módulo de Cupons do admin (§25.9): o cliente aplica o código em `/reservas/novo`, com validação em
+tempo real e proteção contra tentativa por força bruta.
+
+**Onde o desconto incide:** sai da **taxa de serviço** (piso R$0); se o desconto for maior que a
+taxa, o excedente também abate do total. Em termos de cálculo:
+`total_estimado = max(0, (preco_base + total_adicionais + taxa_servico) - desconto_valor)`.
+`preco_base`/`total_adicionais`/`taxa_servico` continuam gravados exatamente como seriam **sem**
+cupom — o desconto nunca altera o valor que o gestor cadastrou, só o campo novo `desconto_valor` e,
+por consequência, `total_estimado`.
+
+**Modelo de dados** — `reserva` ganha `cupom_id`/`cupom_codigo` (snapshot)/`desconto_valor` (ver
+§20.1). Nova tabela de rate limit:
+
+```sql
+cupom_tentativa (
+  cliente_id    uuid PK FK → users(id) ON DELETE CASCADE
+  tentativas    integer NOT NULL DEFAULT 0
+  bloqueado_ate timestamptz
+  atualizado_em timestamptz NOT NULL DEFAULT now()
+)
+```
+
+RLS: `service_role_all` (só acessada via `supabaseAdmin` nos server actions).
+
+**Duas funções `plpgsql`, únicas operações que precisam ser atômicas** (`SELECT ... FOR UPDATE`,
+`GRANT EXECUTE` restrito a `service_role`):
+
+- `registrar_tentativa_cupom(p_cliente_id, p_sucesso) → (bloqueado, bloqueado_ate)` — trava a
+  linha do cliente em `cupom_tentativa`, incrementa (ou zera, se `p_sucesso`) o contador; **5
+  tentativas malsucedidas seguidas bloqueiam por 15 minutos**. Chamada a cada tentativa de aplicar
+  cupom, tanto na pré-visualização quanto no envio da reserva. Enquanto já bloqueado, não mexe nos
+  contadores — só devolve o horário de liberação.
+- `registrar_uso_cupom(p_cupom_id, p_cliente_id, p_reserva_id, p_valor_desconto) → boolean` —
+  trava a linha do cupom e **re-checa** `ativo`/vigência/`limite_uso_total`/`limite_uso_por_cliente`
+  antes de inserir em `cupom_uso`; devolve `false` se algo mudou entre a pré-visualização e o envio
+  (corrida de limite). É a trava final — a pré-visualização sozinha não é suficiente para garantir
+  o limite sob concorrência.
+
+**`src/app/reservas/novo/actions.ts`** ganha três helpers internos reaproveitados por
+`criarReserva` e `validarCupom`:
+- `resolverAlvo(input)` — busca roteiro/embarcação + preço + adicionais no servidor (extraído do
+  que já existia dentro de `criarReserva`).
+- `validarRegrasCupom(codigo, clienteId, subtotal)` — busca o cupom (código normalizado em
+  maiúsculas) e valida, nesta ordem, com mensagem específica: existe → `ativo` → vigência
+  (`data_inicio`/`data_fim`) → `valor_minimo_pedido` (contra `subtotal` = diária + adicionais, sem
+  taxa de serviço) → `limite_uso_total` (conta `cupom_uso`) → `limite_uso_por_cliente` (conta
+  `cupom_uso` filtrado por cliente). Calcula o desconto bruto (percentual com teto
+  `valor_desconto_maximo`, ou valor fixo).
+- `checarBloqueioCupom(clienteId)` — leitura simples de `cupom_tentativa` (não consome tentativa).
+
+**Server action `validarCupom`** (pré-visualização — botão "Aplicar" em `ConfirmarReserva.tsx`):
+```ts
+validarCupom(input: {
+  tipo, roteiroId?, embarcacaoId?, adicionaisIds[], codigo
+}) → { ok: true, cupom: { codigo, tipoDesconto, valor, descontoValor } }
+  | { ok: false, error, bloqueadoAte? }
+```
+Checa bloqueio → resolve alvo (preço real do banco, nunca confia num subtotal do cliente) → roda
+`validarRegrasCupom` → chama `registrar_tentativa_cupom` (sucesso ou falha) → devolve o resultado.
+**Não** grava em `cupom_uso` — é só pré-visualização; a gravação de uso só acontece quando a
+reserva é de fato criada em `criarReserva` (ver §20.3), que roda a mesma validação como última
+checagem antes de inserir e nunca confia no resultado da pré-visualização.
+
+**UI — `ConfirmarReserva.tsx`:** campo de código + botão "Aplicar" (Enter também dispara) — some
+quando `preco` é `null` (preço a combinar). Cupom aplicado vira um chip verde com o desconto e um
+"x" para remover (client-side, sem chamar o servidor). Quando bloqueado, o campo fica desabilitado
+com contagem regressiva ("Muitas tentativas — tente novamente em Xm Ys", atualizada a cada
+segundo a partir de `bloqueadoAte`). O bloco "Valores" recalcula localmente a cada mudança do
+cupom, com a mesma fórmula do servidor (`SERVICE_FEE_RATE` duplicado aqui, mesma convenção de
+`BookingCard`/`EmbarcacaoBookingCard`/`page.tsx`/`actions.ts`).
+
+**Exibição do desconto onde a reserva já aparece:** linha "Desconto (cupom CÓDIGO)" condicional
+(`desconto_valor > 0`) em `/minhas-reservas` (cliente) e `/painel/agendamentos/[id]` (gestor,
+seção "Valores" da sidebar). Telas que só mostram `total_estimado` em lista não precisam de
+mudança — o valor já vem líquido do banco.
 
 ---
 
@@ -2269,6 +2358,13 @@ src/app/administrator/
       actions.ts              → alternarStatusRoteiroAdmin
       _components/AdminRoteirosGrid.tsx → tabela client (busca, ordenação, paginação, toggle)
       [id]/editar/page.tsx    → edição admin (reutiliza EditarRoteiroForm do painel)
+    cupons/
+      page.tsx                → gestão de cupons (lista, CRUD completo)
+      actions.ts              → criarCupom, atualizarCupom, excluirCupom, alternarStatusCupom, criarParceiro
+      novo/page.tsx            → cadastro de cupom (CupomForm)
+      [id]/editar/page.tsx    → edição de cupom (CupomForm)
+      _components/AdminCuponsGrid.tsx → tabela client (busca, ordenação, paginação, toggle, excluir)
+      _components/CupomForm.tsx → form único (criar + editar), com modal de cadastro rápido de parceiro
     publicidade/page.tsx      → placeholder
     taxas/page.tsx            → placeholder
     categorias/page.tsx       → placeholder
@@ -2302,6 +2398,7 @@ Renderiza 6 stat cards + grid de cards de acesso rápido aos 6 módulos.
 | `/administrator/avaliacoes` | Avaliações | ✅ implementado |
 | `/administrator/embarcacoes` | Embarcações | ✅ implementado |
 | `/administrator/roteiros` | Roteiros | ✅ implementado |
+| `/administrator/cupons` | Cupons | ✅ implementado |
 | `/administrator/publicidade` | Publicidade | 🔜 placeholder |
 | `/administrator/taxas` | Taxas | 🔜 placeholder |
 | `/administrator/categorias` | Categorias | 🔜 placeholder |
@@ -2445,6 +2542,121 @@ As demais actions reutilizadas (`atualizarRoteiro`, `atualizarCatalogoRoteiro`,
 `excluirImagemRoteiro`, `definirPrincipalRoteiro`, `excluirRegraRoteiro`,
 `salvarBloqueiosRoteiro`) já passam por `getAuthorizedUser`; `criarRegraRoteiro` exige apenas
 sessão (comportamento pré-existente).
+
+### 25.9 Módulo — Cupons (`/administrator/cupons`)
+
+Único módulo do admin com **CRUD completo** (os demais só editam/ativam registros criados fora
+do admin — cupom é criado e excluído pelo próprio admin). Migration:
+`supabase/migrations/20260812c_cupons.sql`. Escopo desta entrega original: só o cadastro/gestão
+do cupom — a aplicação real no fluxo de reserva (`/reservas/novo`) foi implementada depois, com
+o schema que já vinha pronto para isso (`cupom_uso`, ver abaixo); detalhes em §20.8.
+
+#### Modelagem de dados
+
+**Tabela `parceiro`** — mínima e intencional: como o cadastro completo de parceiros ainda não
+existe no sistema, esta tabela só tem o essencial para o cupom referenciar um parceiro com
+integridade referencial. Quando o cadastro completo for feito, ela é **estendida**, não
+recriada.
+
+```sql
+id         uuid primary key default gen_random_uuid()
+nome       text not null
+ativo      boolean not null default true
+created_at timestamptz not null default now()
+updated_at timestamptz not null default now()
+```
+
+**Tabela `cupom`**:
+
+```sql
+id                     uuid primary key default gen_random_uuid()
+codigo                 text not null unique              -- normalizado: A-Z0-9_- (sem espaço)
+descricao              text                               -- nota interna, não exibida ao cliente
+tipo_desconto          cupom_tipo_desconto not null       -- enum: 'percentual' | 'valor_fixo'
+valor                  numeric(10,2) not null              -- CHECK > 0; se percentual, CHECK <= 100
+valor_desconto_maximo  numeric(10,2)                       -- teto em R$; só aceito se tipo = percentual
+valor_minimo_pedido    numeric(10,2)                       -- total mínimo do roteiro p/ o cupom valer
+data_inicio            date                                -- NULL = já vale
+data_fim               date                                -- NULL = validade indeterminada
+limite_uso_total       integer                             -- NULL = ilimitado
+limite_uso_por_cliente integer                             -- NULL = ilimitado por cliente
+ativo                  boolean not null default true       -- pausa manual, independe da vigência por data
+parceiro_id            uuid references parceiro(id) on delete set null
+created_at             timestamptz not null default now()
+updated_at             timestamptz not null default now()
+```
+
+**Tabela `cupom_uso`** (histórico de uso — vazia até a integração futura com o checkout, mas já
+pronta para rastrear "quantas vezes foi usado" e sustentar o repasse a um parceiro):
+
+```sql
+id             uuid primary key default gen_random_uuid()
+cupom_id       uuid not null references cupom(id) on delete restrict  -- trava exclusão de cupom já usado
+reserva_id     uuid references reserva(id) on delete set null
+cliente_id     uuid references users(id) on delete set null
+valor_desconto numeric(10,2) not null
+criado_em      timestamptz not null default now()
+```
+
+RLS: `service_role_all` nas três tabelas — sem policy pública (todo o CRUD passa por
+`supabaseAdmin` no admin, mesmo padrão de avaliação/embarcação/roteiro).
+
+#### `page.tsx` (lista)
+
+Server Component, mesmo esquema de query string dos demais módulos do admin (`q`, `page`,
+`per` ∈ {10, 25, 50}, `sort`, `dir`; `.range()` + `{ count: 'exact' }`; desempate por `id`).
+- Colunas ordenáveis: `codigo`, `valor` (rótulo "Desconto"), `data_fim` (rótulo "Vigência"),
+  `ativo` (rótulo "Status"), `created_at`.
+- Busca: `or(codigo.ilike, descricao.ilike, parceiro_id.in.(...))`, com os `parceiro_id`s do
+  termo resolvidos antes numa query em `parceiro` (mesmo padrão de resolução de `owner_id` por
+  nome/e-mail usado em Roteiros/Embarcações/Avaliações).
+- Embed `cupom_uso(count)` no select — conta os usos por cupom sem precisar de coluna
+  desnormalizada (evita contador dessincronizado enquanto não existe uso real).
+
+#### `AdminCuponsGrid.tsx` (lista, client)
+
+Mesmo padrão de `AdminRoteirosGrid` (busca com debounce de 400ms, ordenação e paginação via
+search params). Colunas: Código, Desconto (badge + teto/mínimo como subtexto), Vigência
+(datas ou "Indeterminada"), Usos (`x / limite` ou `x / ilimitado` + limite por cliente como
+subtexto), Parceiro, Status (toggle Ativo/Pausado, direto, sem cascata) e Ações:
+- **Editar** → `/administrator/cupons/[id]/editar`.
+- **Excluir** (`confirm()` nativo, mesmo padrão de `excluirCatalogo`) — botão vem
+  **desabilitado com tooltip** quando o cupom já tem algum uso (`usosCount > 0`).
+
+#### `CupomForm.tsx` (criar + editar, um componente só)
+
+Form único reaproveitado por `novo/page.tsx` e `[id]/editar/page.tsx` (recebe `cupom?` —
+presente = modo edição). Seções: Identificação (código, descrição, toggle ativo), Desconto
+(tipo, valor, teto — habilitado só se percentual —, valor mínimo do pedido), Vigência e
+limites (data início/fim, limite total, limite por cliente) e Parceiro (select + botão "+
+Novo parceiro").
+
+O botão "+ Novo parceiro" abre um modal simples (só nome) que chama `criarParceiro` e insere o
+parceiro recém-criado na lista local + seleciona automaticamente — mesmo espírito do
+`NovoItemModal` dentro de `CatalogoSelector` (§26): cadastro rápido de uma entidade
+relacionada simples sem sair do formulário principal. Como o modal é renderizado dentro do
+`<form>` do cupom, o botão "Salvar" do modal é `type="button"` com `onClick` (evita disparar o
+submit do form pai).
+
+#### `actions.ts`
+
+- `criarCupom(payload)` / `atualizarCupom(id, payload)` — exigem sessão + role `admin`
+  (`checkRoleInDb`), validam no servidor (código obrigatório e no formato `^[A-Z0-9_-]+$`,
+  valor > 0 e ≤ 100 se percentual, teto só aceito com tipo percentual, datas com fim ≥ início,
+  limites ≥ 1 quando preenchidos) e tratam `error.code === '23505'` como "Já existe um cupom
+  com esse código."; revalidam `/administrator/cupons`.
+- `alternarStatusCupom(id, ativo)` — toggle direto, sem cascata (mesmo padrão de
+  `alternarStatusRoteiroAdmin`).
+- `excluirCupom(id)` — antes de deletar, conta usos em `cupom_uso`; se houver algum, retorna
+  erro amigável sem tentar o delete. O `ON DELETE RESTRICT` do FK é a rede de segurança para
+  corrida com um uso concorrente (também tratado via `error.code === '23503'`).
+- `criarParceiro(nome)` — cadastro rápido usado pelo modal do `CupomForm`; não existe tela
+  própria de parceiros nesta entrega.
+
+### Tipos
+
+`src/types/supabase.ts` ganhou `CupomTipoDesconto` e os blocos `Row/Insert/Update` de
+`parceiro`, `cupom` e `cupom_uso`, refletindo a migration `20260812c_cupons.sql`.
 
 ---
 
