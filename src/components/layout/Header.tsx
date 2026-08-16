@@ -4,11 +4,12 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { usePathname, useRouter } from 'next/navigation';
-import { Menu, X, User, LogOut, Loader2, CalendarCheck, UserCog, Heart, MessageCircle, Megaphone } from 'lucide-react';
+import { Menu, X, User, Briefcase, LogOut, Loader2, CalendarCheck, UserCog, Heart, MessageCircle, Megaphone } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { authorizeRealtime } from '@/lib/supabase/realtime';
 import type { User as SupabaseUser, RealtimeChannel } from '@supabase/supabase-js';
 import UserMenu from './UserMenu';
+import EntrarMenu from './EntrarMenu';
 
 export default function Header() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -114,14 +115,7 @@ export default function Header() {
                   onSignOut={handleSignOut}
                 />
               ) : (
-                <Link
-                  href={entrarUrl}
-                  className="flex items-center gap-2 rounded-full border border-slate-200 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 hover:border-[#0B3D91] hover:text-[#0B3D91] transition-all"
-                  id="auth-button"
-                >
-                  <User className="h-4 w-4" />
-                  <span>Entrar</span>
-                </Link>
+                <EntrarMenu entrarClienteUrl={entrarUrl} />
               )}
             </div>
 
@@ -158,14 +152,27 @@ export default function Header() {
               </Link>
               <hr className="border-slate-100 my-1" />
               {!authLoading && !user && (
-                <Link
-                  href={entrarUrl}
-                  onClick={() => setMobileMenuOpen(false)}
-                  className="flex items-center gap-2 px-3 py-2.5 text-sm font-medium text-[#0B3D91]"
-                >
-                  <User className="h-4 w-4" />
-                  Entrar
-                </Link>
+                <div className="px-3 py-1 space-y-2">
+                  <p className="px-0 pb-1 text-xs font-bold text-slate-400 tracking-wider uppercase">
+                    Como você quer entrar?
+                  </p>
+                  <Link
+                    href={entrarUrl}
+                    onClick={() => setMobileMenuOpen(false)}
+                    className="flex items-center gap-3 rounded-xl bg-[#0B3D91] px-4 py-3 text-sm font-semibold text-white"
+                  >
+                    <User className="h-4 w-4" />
+                    Entrar como Cliente
+                  </Link>
+                  <Link
+                    href="/painel"
+                    onClick={() => setMobileMenuOpen(false)}
+                    className="flex items-center gap-3 rounded-xl border border-slate-200 px-4 py-3 text-sm font-semibold text-[#0B2447]"
+                  >
+                    <Briefcase className="h-4 w-4" />
+                    Entrar como Proprietário
+                  </Link>
+                </div>
               )}
               {!authLoading && user && (
                 <>

@@ -1341,7 +1341,7 @@ type Props = {
 ### Contato `/contact`
 
 **Arquivos:**
-- `src/app/contact/page.tsx` — Server Component (`export const dynamic = 'force-dynamic'`, pois gera um desafio anti-spam novo por request). Hero `#0B2447` + card de formulário + coluna lateral com e-mail/suporte, mesmo padrão visual das demais páginas institucionais (`Header` + `Footer`).
+- `src/app/contact/page.tsx` — Server Component (`export const dynamic = 'force-dynamic'`, pois gera um desafio anti-spam novo por request). Hero `#0B2447` + card de formulário + coluna lateral (Suporte "Respondemos em até 2 dias úteis" + Boatzy), mesmo padrão visual das demais páginas institucionais (`Header` + `Footer`). O e-mail de destino (`gabriela@boatzy.app`) não é exibido na UI — só aparece internamente em `actions.ts`.
 - `src/app/contact/_components/ContactForm.tsx` (`'use client'`) — formulário controlado.
 - `src/app/contact/actions.ts` — Server Actions `enviarContato()` e `novoDesafioCaptcha()`.
 - `src/lib/contato-captcha.ts` — geração/verificação do desafio anti-spam (HMAC-SHA256, sem estado em sessão/DB).
@@ -1432,6 +1432,15 @@ trocar a lista global pela localizada.
   `preco_base`/dia, "até N pessoas"), link para `/embarcacoes/[id]`, coração favoritável (ver
   §23.5). Os roteiros reutilizam o **`RoteiroCard`** da busca (favoritar já existente). O antigo
   `BoatCard` (mock) ficou órfão e foi removido.
+- **`BenefitsSection`** (`src/components/home/BenefitsSection.tsx`, Server Component estático):
+  seção "Por que reservar com o Boatzy" da home — cartão full-width `rounded-3xl` com
+  `benefits-bg.png` de fundo (overlay `#0B2447`), header centralizado (eyebrow + título com destaque
+  em gradiente ciano/teal) e grid de 6 cards (`sm:grid-cols-2 lg:grid-cols-3`, "glass" —
+  `bg-white/5 backdrop-blur-sm border border-white/10`) com ícone (`lucide-react`), título e
+  descrição curta: Transparência no preço, Tudo sobre o barco em um só lugar, Calendário ao vivo,
+  Personalize seu passeio, Cancelamento sem dor de cabeça, Pagamento protegido. CTA "Buscar
+  embarcações" → `/buscar`. Substituiu a antiga seção "Clube de Vantagens Boatzy" (assinatura/CTA
+  "Assine Agora" sem destino — funcionalidade de assinatura nunca existiu no produto).
 
 ---
 
@@ -2051,6 +2060,18 @@ Link para `/painel` (login/cadastro de gestor), estilizado como pill — `bg-[#0
 com hover sólido (`bg-[#0B3D91] text-white`) e ícone `Megaphone` (lucide-react), mesmo padrão de
 badge/tag usado em outras partes do design system. Renderizado no bloco de ações à direita (desktop,
 ao lado do botão "Entrar") e também no menu mobile, logo abaixo dos 3 links de navegação.
+
+**Botão "Entrar" com duas portas de acesso** (`src/components/layout/EntrarMenu.tsx`): substitui o
+antigo link único `/entrar`. Mesmo padrão de dropdown do `UserMenu.tsx` (click-outside, ESC, `ChevronDown`
+rotacionando), com duas opções:
+- **Entrar como Cliente** → `entrarClienteUrl` (prop calculada no `Header`, `/entrar?redirect_to=<pathname atual>`).
+- **Entrar como Proprietário** → `/painel`.
+
+Renderizado só no bloco desktop (`hidden md:flex`) do `Header`, no lugar do antigo `<Link id="auth-button">`.
+No mobile, em vez de dropdown, o `Header` renderiza as duas opções diretamente como botões sempre
+visíveis (sem interação extra para revelar) — "Entrar como Cliente" sólido azul (`bg-[#0B3D91]`) e
+"Entrar como Proprietário" outline (`border border-slate-200`), abaixo do CTA "Anuncie sua embarcação"
+no menu hambúrguer.
 
 **Header / UserMenu** (`src/components/layout/Header.tsx` + `UserMenu.tsx`): para usuários logados, o
 `Header` busca `chat_total_nao_lidas_cliente()` e mantém o total **ao vivo** (assina `postgres_changes`

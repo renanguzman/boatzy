@@ -1,5 +1,39 @@
+import Link from 'next/link';
 import Image from 'next/image';
-import { CheckCircle, Gift, Crown } from 'lucide-react';
+import { Tag, Images, CalendarClock, SlidersHorizontal, CalendarX2, ShieldCheck, ArrowRight } from 'lucide-react';
+
+const BENEFICIOS = [
+  {
+    icon: Tag,
+    titulo: 'Transparência no preço',
+    descricao: 'O valor da tela é o preço final. Sem taxas surpresas ou letras miúdas na hora de pagar.',
+  },
+  {
+    icon: Images,
+    titulo: 'Tudo sobre o barco em um só lugar',
+    descricao: 'Acesso imediato a fotos, capacidade, comodidades e perfil do dono — sem precisar de mensagens extras.',
+  },
+  {
+    icon: CalendarClock,
+    titulo: 'Calendário ao vivo',
+    descricao: 'Veja as datas livres na hora da busca. A agenda é atualizada em tempo real direto pelos proprietários.',
+  },
+  {
+    icon: SlidersHorizontal,
+    titulo: 'Personalize seu passeio',
+    descricao: 'Adicione serviços como bebidas, gelo e equipamentos de mergulho com um clique, na mesma reserva.',
+  },
+  {
+    icon: CalendarX2,
+    titulo: 'Cancelamento sem dor de cabeça',
+    descricao: 'Regras de cancelamento claras antes do pagamento — inclusive para imprevistos com o clima.',
+  },
+  {
+    icon: ShieldCheck,
+    titulo: 'Pagamento protegido',
+    descricao: 'Seu dinheiro fica protegido pela plataforma e só é repassado ao proprietário após o passeio.',
+  },
+];
 
 export default function BenefitsSection() {
   return (
@@ -14,77 +48,54 @@ export default function BenefitsSection() {
               fill
               className="object-cover"
             />
-            <div className="absolute inset-0 bg-gradient-to-r from-[#0B2447]/95 via-[#0B2447]/80 to-[#0B2447]/40" />
+            <div className="absolute inset-0 bg-gradient-to-b from-[#0B2447]/95 via-[#0B2447]/92 to-[#0B2447]/95" />
           </div>
 
-          <div className="relative z-10 grid grid-cols-1 lg:grid-cols-2 gap-8 p-8 md:p-12 lg:p-16">
-            {/* Content */}
-            <div className="flex flex-col justify-center">
+          <div className="relative z-10 p-8 md:p-12 lg:p-16">
+            {/* Header */}
+            <div className="max-w-2xl mx-auto text-center mb-10 md:mb-12">
               <p className="text-xs font-semibold text-cyan-300 uppercase tracking-widest mb-2">
-                Membro Exclusivo
+                Por que reservar com o Boatzy
               </p>
               <h2 className="text-3xl md:text-4xl font-bold text-white mb-4 leading-tight">
-                Clube de Vantagens{' '}
+                Alugar um barco{' '}
                 <span className="bg-gradient-to-r from-cyan-300 to-teal-300 bg-clip-text text-transparent">
-                  Boatzy
+                  nunca foi tão simples
                 </span>
               </h2>
-              <p className="text-slate-300 text-sm leading-relaxed mb-8 max-w-md">
-                Entre para o nosso clube de vantagens e tenha acesso a descontos exclusivos, 
-                embarcações premium e experiências únicas que você não encontra em nenhum outro lugar.
+              <p className="text-slate-300 text-sm leading-relaxed">
+                Da busca ao desembarque, cada etapa foi pensada para ser clara, rápida e sem surpresas.
               </p>
-
-              {/* Benefits List */}
-              <div className="space-y-4 mb-8">
-                <div className="flex items-start gap-3">
-                  <div className="h-6 w-6 rounded-full bg-cyan-500/20 flex items-center justify-center shrink-0 mt-0.5">
-                    <CheckCircle className="h-3.5 w-3.5 text-cyan-400" />
-                  </div>
-                  <div>
-                    <p className="text-white text-sm font-medium">Descontos Exclusivos</p>
-                    <p className="text-slate-400 text-xs">Até 30% off em embarcações selecionadas</p>
-                  </div>
-                </div>
-                <div className="flex items-start gap-3">
-                  <div className="h-6 w-6 rounded-full bg-cyan-500/20 flex items-center justify-center shrink-0 mt-0.5">
-                    <Gift className="h-3.5 w-3.5 text-cyan-400" />
-                  </div>
-                  <div>
-                    <p className="text-white text-sm font-medium">Experiências VIP</p>
-                    <p className="text-slate-400 text-xs">Acesso a eventos e experiências exclusivas</p>
-                  </div>
-                </div>
-                <div className="flex items-start gap-3">
-                  <div className="h-6 w-6 rounded-full bg-cyan-500/20 flex items-center justify-center shrink-0 mt-0.5">
-                    <Crown className="h-3.5 w-3.5 text-cyan-400" />
-                  </div>
-                  <div>
-                    <p className="text-white text-sm font-medium">Prioridade de Reserva</p>
-                    <p className="text-slate-400 text-xs">Reserve antes de todos os outros usuários</p>
-                  </div>
-                </div>
-              </div>
-
-              {/* CTA */}
-              <button
-                className="self-start bg-gradient-to-r from-cyan-500 to-teal-500 hover:from-cyan-400 hover:to-teal-400 text-white font-semibold text-sm px-8 py-3 rounded-xl transition-all hover:shadow-lg hover:shadow-cyan-500/25 hover:scale-[1.02] active:scale-[0.98] cursor-pointer"
-                id="benefits-cta"
-              >
-                Assine Agora
-              </button>
             </div>
 
-            {/* Right Image */}
-            <div className="hidden lg:flex items-center justify-center">
-              <div className="relative w-full h-80 rounded-2xl overflow-hidden">
-                <Image
-                  src="/images/charter-2.png"
-                  alt="Luxury yacht experience"
-                  fill
-                  className="object-cover"
-                />
-                <div className="absolute inset-0 bg-gradient-to-t from-[#0B2447]/40 to-transparent" />
-              </div>
+            {/* Benefits Grid */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-5 mb-10">
+              {BENEFICIOS.map(({ icon: Icon, titulo, descricao }) => (
+                <div
+                  key={titulo}
+                  className="group rounded-2xl border border-white/10 bg-white/5 backdrop-blur-sm p-6 hover:bg-white/10 hover:border-cyan-300/30 transition-all"
+                >
+                  <div className="flex items-center gap-3 mb-3">
+                    <div className="h-12 w-12 shrink-0 rounded-xl bg-gradient-to-br from-cyan-500/20 to-teal-500/20 flex items-center justify-center group-hover:from-cyan-500/30 group-hover:to-teal-500/30 transition-colors">
+                      <Icon className="h-6 w-6 text-cyan-300" />
+                    </div>
+                    <p className="text-white text-lg font-semibold leading-snug">{titulo}</p>
+                  </div>
+                  <p className="text-slate-300 text-sm leading-relaxed">{descricao}</p>
+                </div>
+              ))}
+            </div>
+
+            {/* CTA */}
+            <div className="flex justify-center">
+              <Link
+                href="/buscar"
+                className="inline-flex items-center gap-2 bg-gradient-to-r from-cyan-500 to-teal-500 hover:from-cyan-400 hover:to-teal-400 text-white font-semibold text-sm px-8 py-3 rounded-xl transition-all hover:shadow-lg hover:shadow-cyan-500/25 hover:scale-[1.02] active:scale-[0.98]"
+                id="benefits-cta"
+              >
+                Buscar embarcações
+                <ArrowRight className="h-4 w-4" />
+              </Link>
             </div>
           </div>
         </div>

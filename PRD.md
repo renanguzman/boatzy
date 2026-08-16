@@ -79,6 +79,7 @@ Validar um marketplace de aluguel de embarcações, garantindo:
 - ✅ O `Header` (site público, desktop e mobile) tem 3 links de navegação: **Roteiros** (`/buscar`), **Embarcações** (`/buscar?tipo=embarcacao`) e **Vendas** (`/vendas`). Substituem os antigos rótulos "Charters"/"Destinos"/"Experiências", que apontavam para rotas inexistentes (`/charters`, `/destinations`, `/experiences`).
 - ✅ O `Footer`, bloco "Explorar", tem 4 links: **Roteiros** (`/buscar`), **Embarcações** (`/buscar?tipo=embarcacao`), **Vendas** (`/vendas`) e **Experiências** (`#`, página ainda não implementada — link provisório).
 - ✅ No `Header`, o antigo seletor de idioma ("PT") foi substituído pelo CTA **"Anuncie sua embarcação"** (ícone `Megaphone`, pill azul `#0B3D91`/10 com hover sólido), que leva a `/painel`. Presente tanto no desktop (ao lado do botão "Entrar") quanto no menu mobile (abaixo dos links de navegação).
+- ✅ O botão **"Entrar"** do `Header` (usuário deslogado) oferece duas portas de acesso, bem visíveis: **"Entrar como Cliente"** (`/entrar`) e **"Entrar como Proprietário"** (`/painel`). No desktop é um dropdown (mesmo padrão visual do menu do usuário logado); no mobile são dois botões sempre visíveis (sem precisar abrir submenu) dentro do menu hambúrguer.
 
 ### 6.1 Autenticação
 
@@ -409,6 +410,13 @@ gestor. Detalhes técnicos: SPEC §20.4–20.5.
 #### ✅ Implementado — Moderação pelo admin
 
 - Toda avaliação nasce com status `pendente` e só é exibida publicamente depois de **aprovada** em `/administrator/avaliacoes`. Detalhes em 6.11.
+
+#### ✅ Implementado — Home: "Por que reservar com o Boatzy"
+
+- Substituiu a antiga seção "Clube de Vantagens Boatzy" (assinatura fictícia, sem funcionalidade correspondente no produto).
+- Grid de 6 diferenciais da plataforma, cada um com ícone, título e descrição curta: **Transparência no preço**, **Tudo sobre o barco em um só lugar**, **Calendário ao vivo**, **Personalize seu passeio**, **Cancelamento sem dor de cabeça** e **Pagamento protegido**.
+- CTA **"Buscar embarcações"** → `/buscar`.
+- Detalhes técnicos: SPEC §18.9.
 
 ---
 

@@ -1,7 +1,7 @@
 import type { Metadata } from 'next';
 import Header from '@/components/layout/Header';
 import Footer from '@/components/layout/Footer';
-import { Mail, Phone, MapPin } from 'lucide-react';
+import { Phone, MapPin } from 'lucide-react';
 import { gerarDesafioCaptcha } from '@/lib/contato-captcha';
 import ContactForm from './_components/ContactForm';
 
@@ -43,23 +43,11 @@ export default function ContactPage() {
               <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-6">
                 <div className="flex items-start gap-3">
                   <div className="h-10 w-10 rounded-xl bg-[#0B3D91]/10 flex items-center justify-center shrink-0">
-                    <Mail className="h-5 w-5 text-[#0B3D91]" />
-                  </div>
-                  <div>
-                    <p className="text-sm font-semibold text-[#0B2447]">E-mail</p>
-                    <p className="text-sm text-slate-500 mt-0.5">gabriela@boatzy.app</p>
-                  </div>
-                </div>
-              </div>
-
-              <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-6">
-                <div className="flex items-start gap-3">
-                  <div className="h-10 w-10 rounded-xl bg-[#0B3D91]/10 flex items-center justify-center shrink-0">
                     <Phone className="h-5 w-5 text-[#0B3D91]" />
                   </div>
                   <div>
                     <p className="text-sm font-semibold text-[#0B2447]">Suporte</p>
-                    <p className="text-sm text-slate-500 mt-0.5">Respondemos em até 1 dia útil.</p>
+                    <p className="text-sm text-slate-500 mt-0.5">Respondemos em até 2 dias úteis.</p>
                   </div>
                 </div>
               </div>
