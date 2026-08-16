@@ -51,23 +51,23 @@ export default function Footer() {
             </h4>
             <ul className="space-y-2.5">
               <li>
-                <Link href="/charters" className="text-sm text-slate-300 hover:text-white transition-colors">
-                  Charters
+                <Link href="/buscar" className="text-sm text-slate-300 hover:text-white transition-colors">
+                  Roteiros
                 </Link>
               </li>
               <li>
-                <Link href="/destinations" className="text-sm text-slate-300 hover:text-white transition-colors">
-                  Destinos
-                </Link>
-              </li>
-              <li>
-                <Link href="/experiences" className="text-sm text-slate-300 hover:text-white transition-colors">
-                  Experiências
-                </Link>
-              </li>
-              <li>
-                <Link href="/boats" className="text-sm text-slate-300 hover:text-white transition-colors">
+                <Link href="/buscar?tipo=embarcacao" className="text-sm text-slate-300 hover:text-white transition-colors">
                   Embarcações
+                </Link>
+              </li>
+              <li>
+                <Link href="/vendas" className="text-sm text-slate-300 hover:text-white transition-colors">
+                  Vendas
+                </Link>
+              </li>
+              <li>
+                <Link href="#" className="text-sm text-slate-300 hover:text-white transition-colors">
+                  Experiências
                 </Link>
               </li>
             </ul>

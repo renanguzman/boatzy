@@ -74,6 +74,12 @@ Validar um marketplace de aluguel de embarcações, garantindo:
 
 ## 6. Funcionalidades Detalhadas
 
+### 6.0 Cabeçalho / Navegação Global
+
+- ✅ O `Header` (site público, desktop e mobile) tem 3 links de navegação: **Roteiros** (`/buscar`), **Embarcações** (`/buscar?tipo=embarcacao`) e **Vendas** (`/vendas`). Substituem os antigos rótulos "Charters"/"Destinos"/"Experiências", que apontavam para rotas inexistentes (`/charters`, `/destinations`, `/experiences`).
+- ✅ O `Footer`, bloco "Explorar", tem 4 links: **Roteiros** (`/buscar`), **Embarcações** (`/buscar?tipo=embarcacao`), **Vendas** (`/vendas`) e **Experiências** (`#`, página ainda não implementada — link provisório).
+- ✅ No `Header`, o antigo seletor de idioma ("PT") foi substituído pelo CTA **"Anuncie sua embarcação"** (ícone `Megaphone`, pill azul `#0B3D91`/10 com hover sólido), que leva a `/painel`. Presente tanto no desktop (ao lado do botão "Entrar") quanto no menu mobile (abaixo dos links de navegação).
+
 ### 6.1 Autenticação
 
 - ✅ Login via Supabase Auth: email/senha e OAuth — disponível tanto no site público (`/entrar`, role `cliente`) quanto no painel (`/painel/login`, role `gestor`).
@@ -554,6 +560,14 @@ Todos os números são do **gestor logado** (`owner_id`):
 - Pagamentos descritos como funcionalidade futura; regido pelas leis brasileiras (CDC).
 - Versão atual é uma minuta provisória (v1) com aviso de status; revisão jurídica pendente para o lançamento oficial.
 - Fonte do texto: `Boatzy_Termos_Uso.md` (raiz do projeto).
+
+#### ✅ Implementado — Página de Contato `/contact`
+
+- Página estática institucional acessível pelo item "Contato" no rodapé (já presente na home, sem link quebrado desde a criação da página).
+- Formulário com **Nome**, **E-mail**, **Assunto** (select: Contato / Dúvidas / Elogio / Comercial / Financeiro / Outros), **Mensagem** (textarea) e verificador anti-spam (soma simples de dois números, gerada e validada no servidor — sem dependência de serviço externo de captcha).
+- Envio via e-mail (Resend) para **gabriela@boatzy.app**, com `reply_to` = e-mail de quem preencheu (permite responder direto no e-mail recebido).
+- Campo honeypot invisível adicional contra bots simples.
+- Detalhes técnicos no `SPEC.md`.
 
 ### 6.11 Área Administrativa (`/administrator`)
 

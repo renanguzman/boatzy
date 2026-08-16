@@ -15,11 +15,13 @@ export type SendEmailInput = {
   to: string;
   subject: string;
   html: string;
+  /** E-mail para o qual respostas devem ir (ex.: formulário de contato → e-mail de quem preencheu). */
+  replyTo?: string;
 };
 
 export type SendEmailResult = { ok: true; id?: string } | { ok: false; error: string };
 
-export async function sendEmail({ to, subject, html }: SendEmailInput): Promise<SendEmailResult> {
+export async function sendEmail({ to, subject, html, replyTo }: SendEmailInput): Promise<SendEmailResult> {
   const apiKey = process.env.RESEND_API_KEY;
   const from = process.env.EMAIL_FROM ?? 'Boatzy <no-reply@boatzy.app>';
 
@@ -35,7 +37,7 @@ export async function sendEmail({ to, subject, html }: SendEmailInput): Promise<
         Authorization: `Bearer ${apiKey}`,
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({ from, to, subject, html }),
+      body: JSON.stringify({ from, to, subject, html, ...(replyTo ? { reply_to: replyTo } : {}) }),
     });
 
     if (!res.ok) {

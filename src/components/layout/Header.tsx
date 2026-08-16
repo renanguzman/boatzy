@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { usePathname, useRouter } from 'next/navigation';
-import { Menu, X, User, Globe, LogOut, Loader2, CalendarCheck, UserCog, Heart, MessageCircle } from 'lucide-react';
+import { Menu, X, User, LogOut, Loader2, CalendarCheck, UserCog, Heart, MessageCircle, Megaphone } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { authorizeRealtime } from '@/lib/supabase/realtime';
 import type { User as SupabaseUser, RealtimeChannel } from '@supabase/supabase-js';
@@ -80,23 +80,26 @@ export default function Header() {
 
           {/* Desktop Navigation */}
           <nav className="hidden md:flex items-center gap-8" id="main-nav">
-            <Link href="/charters" className="text-sm font-medium text-slate-700 hover:text-[#0B3D91] transition-colors">
-              Charters
+            <Link href="/buscar" className="text-sm font-medium text-slate-700 hover:text-[#0B3D91] transition-colors">
+              Roteiros
             </Link>
-            <Link href="/destinations" className="text-sm font-medium text-slate-700 hover:text-[#0B3D91] transition-colors">
-              Destinos
+            <Link href="/buscar?tipo=embarcacao" className="text-sm font-medium text-slate-700 hover:text-[#0B3D91] transition-colors">
+              Embarcações
             </Link>
-            <Link href="/experiences" className="text-sm font-medium text-slate-700 hover:text-[#0B3D91] transition-colors">
-              Experiências
+            <Link href="/vendas" className="text-sm font-medium text-slate-700 hover:text-[#0B3D91] transition-colors">
+              Vendas
             </Link>
           </nav>
 
           {/* Right Side Actions */}
           <div className="flex items-center gap-3">
-            <button className="hidden md:flex items-center gap-1.5 text-sm text-slate-600 hover:text-[#0B3D91] transition-colors">
-              <Globe className="h-4 w-4" />
-              <span>PT</span>
-            </button>
+            <Link
+              href="/painel"
+              className="hidden md:inline-flex items-center gap-1.5 rounded-full bg-[#0B3D91]/10 px-4 py-2 text-sm font-semibold text-[#0B3D91] hover:bg-[#0B3D91] hover:text-white transition-colors"
+            >
+              <Megaphone className="h-4 w-4" />
+              Anuncie sua embarcação
+            </Link>
 
             {/* Auth */}
             <div className="hidden md:flex items-center">
@@ -136,14 +139,22 @@ export default function Header() {
         {mobileMenuOpen && (
           <div className="md:hidden border-t border-slate-100 py-4 animate-in slide-in-from-top">
             <nav className="flex flex-col gap-1">
-              <Link href="/charters" onClick={() => setMobileMenuOpen(false)} className="px-3 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-50 rounded-lg">
-                Charters
+              <Link href="/buscar" onClick={() => setMobileMenuOpen(false)} className="px-3 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-50 rounded-lg">
+                Roteiros
               </Link>
-              <Link href="/destinations" onClick={() => setMobileMenuOpen(false)} className="px-3 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-50 rounded-lg">
-                Destinos
+              <Link href="/buscar?tipo=embarcacao" onClick={() => setMobileMenuOpen(false)} className="px-3 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-50 rounded-lg">
+                Embarcações
               </Link>
-              <Link href="/experiences" onClick={() => setMobileMenuOpen(false)} className="px-3 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-50 rounded-lg">
-                Experiências
+              <Link href="/vendas" onClick={() => setMobileMenuOpen(false)} className="px-3 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-50 rounded-lg">
+                Vendas
+              </Link>
+              <Link
+                href="/painel"
+                onClick={() => setMobileMenuOpen(false)}
+                className="mx-3 mt-2 flex items-center justify-center gap-1.5 rounded-full bg-[#0B3D91]/10 px-4 py-2.5 text-sm font-semibold text-[#0B3D91]"
+              >
+                <Megaphone className="h-4 w-4" />
+                Anuncie sua embarcação
               </Link>
               <hr className="border-slate-100 my-1" />
               {!authLoading && !user && (

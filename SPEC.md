@@ -1338,6 +1338,25 @@ type Props = {
 - Links internos para `/privacy` (seções 1 e 10) via `next/link`.
 - Acessada pelos links "Termos de Uso" / "Termos" do `Footer` (`src/components/layout/Footer.tsx`).
 
+### Contato `/contact`
+
+**Arquivos:**
+- `src/app/contact/page.tsx` — Server Component (`export const dynamic = 'force-dynamic'`, pois gera um desafio anti-spam novo por request). Hero `#0B2447` + card de formulário + coluna lateral com e-mail/suporte, mesmo padrão visual das demais páginas institucionais (`Header` + `Footer`).
+- `src/app/contact/_components/ContactForm.tsx` (`'use client'`) — formulário controlado.
+- `src/app/contact/actions.ts` — Server Actions `enviarContato()` e `novoDesafioCaptcha()`.
+- `src/lib/contato-captcha.ts` — geração/verificação do desafio anti-spam (HMAC-SHA256, sem estado em sessão/DB).
+- `src/lib/email.ts` — `sendEmail()` ganhou o parâmetro opcional `replyTo` (mapeado para `reply_to` na API do Resend).
+
+**Campos do formulário:** Nome, E-mail, **Assunto** (`<select>` com as opções `ASSUNTOS_CONTATO`: Contato / Dúvidas / Elogio / Comercial / Financeiro / Outros, exportado de `actions.ts`), Mensagem (`<textarea>`, 10–5000 caracteres).
+
+**Anti-spam (sem serviço externo):**
+- **Honeypot:** campo `empresa` oculto (`className="hidden"`, `tabIndex={-1}`, `aria-hidden`) — se vier preenchido, a action retorna sucesso silenciosamente (não avisa o bot) sem enviar e-mail.
+- **Desafio matemático assinado:** `gerarDesafioCaptcha()` sorteia `a`, `b` (1–9) e assina `HMAC-SHA256(a:b)` com `SUPABASE_SERVICE_ROLE_KEY` (fallback `RESEND_API_KEY`, depois uma constante fixa) como segredo — reaproveita um segredo já existente no ambiente, sem exigir nova env var. O desafio (`{a, b, token}`) viaja no formulário; `verificarDesafioCaptcha()` reconfere a assinatura e a soma no servidor, sem sessão. Botão de "atualizar" (`RefreshCw`) chama `novoDesafioCaptcha()` para trocar a conta a qualquer momento; em caso de erro de validação, o form busca um novo desafio automaticamente.
+
+**Envio:** `enviarContato()` valida os campos manualmente (sem zod, seguindo o padrão do restante do projeto) e chama `sendEmail()` com `to: 'gabriela@boatzy.app'`, `replyTo: <e-mail do formulário>` — permite responder direto no e-mail recebido. HTML escapado (`escapeHtml`) antes de montar o corpo do e-mail.
+
+Acessada pelos links "Contato" do `Footer` (`src/components/layout/Footer.tsx`), tanto no bloco "Empresa" quanto na barra inferior — ambos já apontavam para `/contact`; a rota estava inexistente (404) até esta implementação.
+
 ---
 
 ## 18.9 Home — seções "Mais Bem Avaliados" (embarcações e roteiros)
@@ -2019,6 +2038,19 @@ shell `h-screen` (Header + área de chat com scroll interno).
 `owner_id`; a página chama `chat_nao_lidas_por_gestor` e, no rodapé de cada reserva, adiciona o link
 **"Conversar com o gestor"** (`MessageCircle` → `/minhas-reservas/[id]/chat`) com badge vermelho
 quando há não lidas daquele gestor.
+
+**Navegação do `Header`** (`src/components/layout/Header.tsx`, blocos desktop `#main-nav` e mobile):
+3 links — **Roteiros** → `/buscar`, **Embarcações** → `/buscar?tipo=embarcacao`, **Vendas** → `/vendas`.
+
+**Navegação do `Footer`** (`src/components/layout/Footer.tsx`, bloco "Explorar"): 4 links —
+**Roteiros** → `/buscar`, **Embarcações** → `/buscar?tipo=embarcacao`, **Vendas** → `/vendas`,
+**Experiências** → `#` (placeholder, página ainda não existe).
+
+**CTA "Anuncie sua embarcação"** (`Header`): substituiu o antigo seletor de idioma (globo + "PT").
+Link para `/painel` (login/cadastro de gestor), estilizado como pill — `bg-[#0B3D91]/10 text-[#0B3D91]`
+com hover sólido (`bg-[#0B3D91] text-white`) e ícone `Megaphone` (lucide-react), mesmo padrão de
+badge/tag usado em outras partes do design system. Renderizado no bloco de ações à direita (desktop,
+ao lado do botão "Entrar") e também no menu mobile, logo abaixo dos 3 links de navegação.
 
 **Header / UserMenu** (`src/components/layout/Header.tsx` + `UserMenu.tsx`): para usuários logados, o
 `Header` busca `chat_total_nao_lidas_cliente()` e mantém o total **ao vivo** (assina `postgres_changes`
