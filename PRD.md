@@ -411,6 +411,13 @@ gestor. Detalhes técnicos: SPEC §20.4–20.5.
 
 - Toda avaliação nasce com status `pendente` e só é exibida publicamente depois de **aprovada** em `/administrator/avaliacoes`. Detalhes em 6.11.
 
+#### ✅ Implementado (parcial) — Home: "Coleção de experiências" (ex-"Curation of Moments")
+
+- Eyebrow "Inspire-se" mantida; título trocado de "Curation of Moments" para **"Coleção de experiências"**.
+- Grid de 4 cards: o 1º agora é um **passeio com página própria** (conteúdo editorial fixo, não mock) — clicável, leva a `/passeios/[slug]`. Os 3 restantes seguem com o conteúdo antigo até serem substituídos, um a um, pelos próximos passeios.
+- **✅ Passeio 1 — Ilha do Campeche** (`/passeios/ilha-do-campeche`): artigo completo — "Descubra o 'Caribe Brasileiro': Roteiro Exclusivo de Barco para a Ilha do Campeche". Cobre o acesso tradicional (escunas/botes) vs. a experiência premium de lancha particular, os diferenciais do Boatzy, sugestões de atividades na ilha (snorkel, churrasco a bordo, trilhas guiadas) e dicas práticas (antecedência, vento, horário de saída), fechando com CTA para `/buscar`. Duas fotos reais da ilha (capa do card/hero + imagem no meio do artigo).
+- Detalhes técnicos: SPEC §18.9.
+
 #### ✅ Implementado — Home: "Por que reservar com o Boatzy"
 
 - Substituiu a antiga seção "Clube de Vantagens Boatzy" (assinatura fictícia, sem funcionalidade correspondente no produto).

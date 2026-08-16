@@ -1,5 +1,23 @@
+import Link from 'next/link';
 import Image from 'next/image';
 import { moments } from '@/lib/mock-data';
+import { PASSEIOS_DESTAQUE } from '@/lib/passeios';
+
+// Os 4 cards da seção: primeiro os passeios com página própria (conteúdo real,
+// definido em `passeios.ts`); o restante dos slots segue preenchido pelos
+// "moments" antigos até cada um ser substituído por um passeio definitivo.
+const ITENS = [
+  ...PASSEIOS_DESTAQUE.map((passeio) => ({
+    title: passeio.titulo,
+    image: passeio.imagem,
+    href: `/passeios/${passeio.slug}`,
+  })),
+  ...moments.slice(PASSEIOS_DESTAQUE.length).map((moment) => ({
+    title: moment.title,
+    image: moment.image,
+    href: undefined as string | undefined,
+  })),
+];
 
 export default function MomentsSection() {
   return (
@@ -11,41 +29,50 @@ export default function MomentsSection() {
             Inspire-se
           </p>
           <h2 className="text-2xl md:text-3xl font-bold text-[#0B2447]">
-            Curation of{' '}
+            Coleção de{' '}
             <span className="bg-gradient-to-r from-[#0B3D91] to-cyan-500 bg-clip-text text-transparent">
-              Moments
+              experiências
             </span>
           </h2>
         </div>
 
         {/* Grid */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-          {moments.map((moment, index) => (
-            <div
-              key={index}
-              className="group relative rounded-2xl overflow-hidden cursor-pointer h-64 md:h-80"
-              id={`moment-${index}`}
-            >
-              <Image
-                src={moment.image}
-                alt={moment.title}
-                fill
-                className="object-cover group-hover:scale-110 transition-transform duration-700"
-              />
-              {/* Overlay */}
-              <div className="absolute inset-0 bg-gradient-to-t from-[#0B2447]/80 via-[#0B2447]/20 to-transparent" />
+          {ITENS.map((item, index) => {
+            const card = (
+              <>
+                <Image
+                  src={item.image}
+                  alt={item.title}
+                  fill
+                  className="object-cover group-hover:scale-110 transition-transform duration-700"
+                />
+                {/* Overlay */}
+                <div className="absolute inset-0 bg-gradient-to-t from-[#0B2447]/85 via-[#0B2447]/25 to-transparent" />
 
-              {/* Content */}
-              <div className="absolute inset-x-0 bottom-0 p-4 md:p-5">
-                <h3 className="text-white font-semibold text-sm md:text-base mb-1">
-                  {moment.title}
-                </h3>
-                <p className="text-slate-300 text-xs line-clamp-2 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
-                  {moment.description}
-                </p>
+                {/* Content */}
+                <div className="absolute inset-x-0 bottom-0 p-4 md:p-5">
+                  <h3 className="text-white font-semibold text-sm md:text-base leading-snug">
+                    {item.title}
+                  </h3>
+                </div>
+              </>
+            );
+
+            const className =
+              'group relative rounded-2xl overflow-hidden h-64 md:h-80' +
+              (item.href ? ' cursor-pointer' : '');
+
+            return item.href ? (
+              <Link key={index} href={item.href} id={`moment-${index}`} className={className}>
+                {card}
+              </Link>
+            ) : (
+              <div key={index} id={`moment-${index}`} className={className}>
+                {card}
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       </div>
     </section>

@@ -1441,6 +1441,28 @@ trocar a lista global pela localizada.
   Personalize seu passeio, Cancelamento sem dor de cabeça, Pagamento protegido. CTA "Buscar
   embarcações" → `/buscar`. Substituiu a antiga seção "Clube de Vantagens Boatzy" (assinatura/CTA
   "Assine Agora" sem destino — funcionalidade de assinatura nunca existiu no produto).
+- **`MomentsSection`** (`src/components/home/MomentsSection.tsx`, Server Component estático):
+  seção "Coleção de experiências" (eyebrow "Inspire-se" preservada; título trocado de "Curation of
+  Moments"). Grid de 4 cards (`grid-cols-2 lg:grid-cols-4`, `h-64 md:h-80`) montado por `ITENS`:
+  concatena `PASSEIOS_DESTAQUE` (`src/lib/passeios.ts`, novo — conteúdo editorial fixo dos passeios
+  com página própria) com o restante de `moments` (`src/lib/mock-data.ts`, mock antigo, ainda em uso
+  até cada slot ser substituído por um passeio real). Cada item vira `<Link href="/passeios/{slug}">`
+  quando tem passeio associado, ou `<div>` (não clicável) quando ainda é o mock antigo.
+  - **Passeio 1 — Ilha do Campeche** (`slug: 'ilha-do-campeche'`): título "Descubra o 'Caribe
+    Brasileiro': Roteiro Exclusivo de Barco para a Ilha do Campeche". Imagem do card/hero:
+    `public/images/passeios/ilha-do-campeche.jpg` (foto real, enviada pelo usuário).
+  - **Página própria** `src/app/passeios/ilha-do-campeche/page.tsx` — Server Component estático,
+    mesmo padrão `Header` + hero (imagem full-bleed, `object-[center_20%]` para compensar o
+    enquadramento retrato da foto original em um banner largo e baixo — sem o ajuste, o corte
+    automático do `object-cover` mostrava só água) + `Footer` das demais páginas institucionais.
+    Artigo completo (`<article>`, mesma tipografia das páginas institucionais — `h2` com
+    `text-2xl sm:text-3xl font-bold text-[#0B2447]`, `<ul>`/`<ol>` com `list-disc`/`list-decimal`):
+    problema do acesso tradicional (escunas/botes) → experiência premium de lancha particular →
+    diferenciais do Boatzy (mesma lista de benefícios da home, reaproveitada em prosa) → atividades
+    na ilha (snorkel, churrasco a bordo, trilhas guiadas) → dicas práticas (antecedência, vento,
+    horário) → CTA final (cartão `bg-[#0B2447]`) para `/buscar`. Segunda foto real
+    (`ilha-do-campeche_01.JPG`) inserida como imagem full-width no meio do artigo, ilustrando a
+    seção do acesso tradicional (mostra os barcos/lotação da praia — coerente com o texto).
 
 ---
 
