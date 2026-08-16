@@ -411,11 +411,21 @@ gestor. Detalhes técnicos: SPEC §20.4–20.5.
 
 - Toda avaliação nasce com status `pendente` e só é exibida publicamente depois de **aprovada** em `/administrator/avaliacoes`. Detalhes em 6.11.
 
-#### ✅ Implementado (parcial) — Home: "Coleção de experiências" (ex-"Curation of Moments")
+#### ✅ Implementado — Home: "Coleção de experiências" (ex-"Curation of Moments")
 
 - Eyebrow "Inspire-se" mantida; título trocado de "Curation of Moments" para **"Coleção de experiências"**.
-- Grid de 4 cards: o 1º agora é um **passeio com página própria** (conteúdo editorial fixo, não mock) — clicável, leva a `/passeios/[slug]`. Os 3 restantes seguem com o conteúdo antigo até serem substituídos, um a um, pelos próximos passeios.
+- A seção virou um **carrossel horizontal** (antes era um grid fixo de 4): mostra ~4 cards completos por vez em telas grandes, com uma fatia do próximo item à mostra indicando que há mais conteúdo, e setas de navegação (ocultas no mobile, onde a rolagem é por gesto de arrastar). Todos os cards agora são **passeios com página própria** (conteúdo editorial fixo, não mock) — clicáveis, levam a `/passeios/[slug]`. O mock antigo ("moments") não aparece mais na seção; o código continua preparado para completar slots vazios com ele automaticamente caso a lista de passeios fique com menos de 4 itens.
 - **✅ Passeio 1 — Ilha do Campeche** (`/passeios/ilha-do-campeche`): artigo completo — "Descubra o 'Caribe Brasileiro': Roteiro Exclusivo de Barco para a Ilha do Campeche". Cobre o acesso tradicional (escunas/botes) vs. a experiência premium de lancha particular, os diferenciais do Boatzy, sugestões de atividades na ilha (snorkel, churrasco a bordo, trilhas guiadas) e dicas práticas (antecedência, vento, horário de saída), fechando com CTA para `/buscar`. Duas fotos reais da ilha (capa do card/hero + imagem no meio do artigo).
+- **✅ Passeio 2 — Costa da Lagoa** (`/passeios/costa-da-lagoa`): artigo completo — "O Segredo da Costa da Lagoa: Navegando pelas Águas de Florianópolis". Cobre a travessia até a vila da Costa da Lagoa (acesso só por água), sugestões de restaurantes para ancorar (Cabral, Ponto 16, Coração de Mãe & Sabor da Costa), esportes aquáticos, a experiência de navegar com barco particular vs. baleeiras públicas e os mesmos diferenciais do Boatzy, fechando com CTA para `/buscar`. Duas fotos reais da Lagoa da Conceição (capa do card/hero + imagem no meio do artigo).
+- **✅ Passeio 3 — Caixa D'Aço** (`/passeios/caixa-d-aco`): artigo completo — "O Destino Mais Badalado do Litoral: Roteiro Náutico para o Caixa D'Aço". Cobre a enseada de Porto Belo, os bares flutuantes (incluindo a curiosidade do clipe "Ai Se Eu Te Pego", do Michel Teló, gravado no local), a experiência VIP de chegar de lancha particular, dicas de ouro (saída cedo, ponto de ancoragem) e para quem é ideal (despedidas de solteiro, grupos), fechando com os mesmos diferenciais do Boatzy e CTA para `/buscar`. Três fotos reais da enseada (capa/hero + duas imagens no meio do artigo).
+- **✅ Passeio 4 — Praia do Tinguá** (`/passeios/praia-do-tingua`): artigo completo — "O Refúgio Exclusivo dos Barcos: A Magia da Praia do Tinguá". Cobre a enseada de Governador Celso Ramos (acesso terrestre difícil, praticamente exclusiva para quem chega de barco), a proteção natural contra vento que deixa o mar "liso", gastronomia/estrutura à beira-mar e a experiência de ser Navegador, fechando com os mesmos diferenciais do Boatzy e CTA para `/buscar`. Duas fotos reais da enseada (capa/hero + imagem no meio do artigo).
+- **✅ Passeio 5 — Praia e Ilha de Palmas** (`/passeios/praia-de-palmas`): artigo completo — "Águas de Padrão Internacional: Navegando pela Praia e Ilha de Palmas". Cobre a Ilha de Palmas em Governador Celso Ramos, o selo internacional "Bandeira Azul" já ostentado pela Praia de Palmas (mesma baía), a experiência de mergulho/snorkel como Navegador e os mesmos diferenciais do Boatzy, fechando com CTA para `/buscar`. Uma foto real da praia (capa/hero).
+- Detalhes técnicos: SPEC §18.9.
+
+#### ✅ Implementado — Home: barra de confiança (logo abaixo do hero)
+
+- Os 4 selos passaram a ser os pontos de maior impacto de confiança **antes da busca**, alinhados 1:1 com 4 dos 6 cards de "Por que reservar com o Boatzy" (mesmos ícones): **Transparência no preço**, **Pagamento protegido**, **Cancelamento sem dor de cabeça**, **Calendário ao vivo**.
+- Substituiu o conjunto anterior (Pagamento Seguro / Seguro Embarcação / Embarcações Verificadas / Seguro Completo), que tinha redundância interna (dois selos de "seguro/cobertura" quase idênticos) e repetia mensagem com a seção de benefícios mais abaixo.
 - Detalhes técnicos: SPEC §18.9.
 
 #### ✅ Implementado — Home: "Por que reservar com o Boatzy"
@@ -560,6 +570,14 @@ Todos os números são do **gestor logado** (`owner_id`):
 - Detalhes técnicos: SPEC §30.
 
 ### 6.10 Páginas Institucionais / Legais
+
+#### ✅ Implementado — Sobre Nós `/sobre`
+
+- Página estática institucional acessível pelo item "Sobre Nós" no rodapé (antes apontava para `/about`, rota inexistente/404; corrigido para `/sobre`).
+- Conteúdo editorial (não jurídico) em 6 blocos: Hero ("Tornar o mar acessível."), origem em Florianópolis, "Dois lados, uma plataforma" (cliente x proprietário), princípios ("O que nos guia": Simplicidade, Acesso, Confiança), plano de expansão nacional e chamada final com 2 CTAs ("Ver embarcações" → `/buscar`, "Quero anunciar" → `/painel`) e e-mail de contato institucional `adm@boatzy.app`.
+- `export const metadata` com `title`/`description` fornecidos pelo usuário.
+- **Ressalva do próprio texto-fonte, repassada aqui:** a afirmação de "pagamento protegido" no bloco de princípios ("Confiança") descreve a visão de produto — a integração de pagamentos (Stripe Connect, split automático) consta no roadmap (§6.6) mas **ainda não está implementada**. Revisar esse texto (ou adiantar a entrega da funcionalidade) antes de tratar a página como descrição 100% fiel do MVP atual.
+- Detalhes técnicos: SPEC §18.8.
 
 #### ✅ Implementado — Política de Privacidade `/privacy`
 

@@ -80,7 +80,7 @@ export default function Footer() {
             </h4>
             <ul className="space-y-2.5">
               <li>
-                <Link href="/about" className="text-sm text-slate-300 hover:text-white transition-colors">
+                <Link href="/sobre" className="text-sm text-slate-300 hover:text-white transition-colors">
                   Sobre Nós
                 </Link>
               </li>

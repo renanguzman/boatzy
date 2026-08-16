@@ -1,25 +1,28 @@
-import { ShieldCheck, Anchor, BadgeCheck, LifeBuoy } from 'lucide-react';
+import { Tag, ShieldCheck, CalendarX2, CalendarClock } from 'lucide-react';
 
+// Mesmos 4 conceitos (e ícones) mais relevantes do BenefitsSection ("Por que
+// reservar com o Boatzy"), priorizados aqui como selos rápidos de confiança
+// logo abaixo do hero — antes mesmo do usuário começar a busca.
 const features = [
   {
+    icon: Tag,
+    title: 'Transparência no preço',
+    description: 'O valor da tela é o preço final',
+  },
+  {
     icon: ShieldCheck,
-    title: 'Pagamento Seguro',
-    description: 'Transações protegidas por criptografia',
+    title: 'Pagamento protegido',
+    description: 'Só repassado ao dono após o passeio',
   },
   {
-    icon: Anchor,
-    title: 'Seguro Embarcação',
-    description: 'Todas as embarcações possuem cobertura',
+    icon: CalendarX2,
+    title: 'Cancelamento sem dor de cabeça',
+    description: 'Regras claras, inclusive por clima',
   },
   {
-    icon: BadgeCheck,
-    title: 'Embarcações Verificadas',
-    description: 'Inspeções regulares de qualidade',
-  },
-  {
-    icon: LifeBuoy,
-    title: 'Seguro Completo',
-    description: 'Cobertura total para sua experiência',
+    icon: CalendarClock,
+    title: 'Calendário ao vivo',
+    description: 'Disponibilidade real, sempre atualizada',
   },
 ];
 

@@ -69,6 +69,17 @@ html {
   color: white;
 }
 
+/* Esconde a scrollbar em carrosséis horizontais (usado por RoteirosCarousel e
+   MomentsSection) — a rolagem continua funcionando normalmente. */
+.scrollbar-hide {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
+
 /* ── InfoWindow do Google Maps (mapa de resultados de /buscar) ──────────────
    O balão vem com padding largo, cantos quase retos e um contorno de foco
    (o Maps chama focus() no container ao abrir); aqui ele é ajustado ao design

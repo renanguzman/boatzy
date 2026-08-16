@@ -1319,6 +1319,40 @@ type Props = {
 
 ## 18.8 Páginas Institucionais / Legais
 
+### Sobre Nós `/sobre`
+
+**Arquivo:** `src/app/sobre/page.tsx` (Server Component estático, sem props nem fetch).
+
+- Renderiza `Header` + conteúdo + `Footer` (mesmo padrão das demais páginas do hotsite), mas com
+  layout de landing institucional (não article jurídico) — alterna faixas claras/escuras.
+- **Hero:** `min-h-[60vh]`, fundo `hero-yacht.png` (`object-cover`) + overlay
+  `bg-gradient-to-r from-[#0B2447]/95 via-[#0B2447]/75 to-[#0B2447]/40`, título "Tornar o mar
+  acessível." (`text-4xl sm:text-5xl`) + subtítulo, alinhados à esquerda em `max-w-2xl`.
+- **Seção 1 e Seção 4** (narrativa, "Nasceu em Florianópolis..." / "Começamos por
+  Florianópolis..."): texto corrido em `max-w-3xl`, mesmo padrão tipográfico das páginas
+  institucionais legais (`h2` `text-2xl sm:text-3xl md:text-4xl font-bold text-[#0B2447]`,
+  parágrafos `text-slate-600`). Última frase da Seção 4 em destaque (`font-semibold`).
+- **Seção 2** ("Dois lados, uma plataforma"): fundo `bg-slate-50`, grid de 2 cards brancos
+  (`rounded-2xl border border-slate-100 shadow-sm`) com ícone (`Compass`/`Ship`, `lucide-react`) —
+  cliente x proprietário.
+- **Seção 3** ("O que nos guia"): reaproveita o padrão visual exato do `BenefitsSection` da home —
+  cartão full-width `rounded-3xl` com `benefits-bg.png` de fundo (overlay `#0B2447`) e grid de 3
+  cards "glass" (`bg-white/5 backdrop-blur-sm border border-white/10`) com ícone
+  (`Sparkles`/`Waves`/`ShieldCheck`): Simplicidade, Acesso, Confiança.
+- **Chamada final:** seção `bg-[#0B2447]` full-bleed com 2 cards (`bg-white/5 backdrop-blur-sm`),
+  cada um com uma frase + botão — "Ver embarcações" → `/buscar` (botão branco) e "Quero anunciar"
+  → `/painel` (botão gradiente ciano/teal, mesmo estilo do CTA "Anuncie sua embarcação" do
+  `Header`). Linha de fechamento com `mailto:adm@boatzy.app`.
+- `export const metadata`: title/description fornecidos pelo usuário (texto final revisado, sem
+  o aviso de "minuta provisória" das páginas de Termos/Privacidade — este conteúdo não é jurídico).
+- Acessada pelo link "Sobre Nós" do `Footer` (`src/components/layout/Footer.tsx`) — **corrigido de
+  `/about` (rota inexistente, 404) para `/sobre`**, único lugar do código que referenciava a rota
+  antiga.
+- **Ressalva de conteúdo (não é bug de código):** o card "Confiança" da Seção 3 afirma "pagamento
+  protegido" — a integração de pagamentos via Stripe Connect (split automático, ver §14/PRD §6.6)
+  ainda não está implementada no produto. Repassado ao usuário; texto publicado como fornecido, à
+  espera de revisão antes de tratar a página como descrição 100% fiel do MVP atual.
+
 ### Política de Privacidade `/privacy`
 
 **Arquivo:** `src/app/privacy/page.tsx` (Server Component estático, sem props nem fetch).
@@ -1432,6 +1466,14 @@ trocar a lista global pela localizada.
   `preco_base`/dia, "até N pessoas"), link para `/embarcacoes/[id]`, coração favoritável (ver
   §23.5). Os roteiros reutilizam o **`RoteiroCard`** da busca (favoritar já existente). O antigo
   `BoatCard` (mock) ficou órfão e foi removido.
+- **`TrustBadges`** (`src/components/home/TrustBadges.tsx`, Server Component estático): barra de 4
+  selos logo abaixo do hero (`grid-cols-2 md:grid-cols-4`, ícone circular + título + descrição de
+  uma linha). Os 4 pontos e ícones (`Tag`, `ShieldCheck`, `CalendarX2`, `CalendarClock`, todos
+  `lucide-react`) foram escolhidos entre os 6 do `BenefitsSection` como os de maior peso de
+  confiança **antes da busca** (preço, pagamento, cancelamento, disponibilidade real) — decisão
+  tomada com o usuário via `AskUserQuestion` para evitar redundância entre as duas seções.
+  Substituiu o conjunto anterior (Pagamento Seguro / Seguro Embarcação / Embarcações Verificadas /
+  Seguro Completo), que tinha dois selos quase idênticos de seguro/cobertura.
 - **`BenefitsSection`** (`src/components/home/BenefitsSection.tsx`, Server Component estático):
   seção "Por que reservar com o Boatzy" da home — cartão full-width `rounded-3xl` com
   `benefits-bg.png` de fundo (overlay `#0B2447`), header centralizado (eyebrow + título com destaque
@@ -1441,13 +1483,24 @@ trocar a lista global pela localizada.
   Personalize seu passeio, Cancelamento sem dor de cabeça, Pagamento protegido. CTA "Buscar
   embarcações" → `/buscar`. Substituiu a antiga seção "Clube de Vantagens Boatzy" (assinatura/CTA
   "Assine Agora" sem destino — funcionalidade de assinatura nunca existiu no produto).
-- **`MomentsSection`** (`src/components/home/MomentsSection.tsx`, Server Component estático):
-  seção "Coleção de experiências" (eyebrow "Inspire-se" preservada; título trocado de "Curation of
-  Moments"). Grid de 4 cards (`grid-cols-2 lg:grid-cols-4`, `h-64 md:h-80`) montado por `ITENS`:
-  concatena `PASSEIOS_DESTAQUE` (`src/lib/passeios.ts`, novo — conteúdo editorial fixo dos passeios
-  com página própria) com o restante de `moments` (`src/lib/mock-data.ts`, mock antigo, ainda em uso
-  até cada slot ser substituído por um passeio real). Cada item vira `<Link href="/passeios/{slug}">`
-  quando tem passeio associado, ou `<div>` (não clicável) quando ainda é o mock antigo.
+- **`MomentsSection`** (`src/components/home/MomentsSection.tsx`, `'use client'` — precisa de
+  estado/refs para o carrossel): seção "Coleção de experiências" (eyebrow "Inspire-se" preservada;
+  título trocado de "Curation of Moments"). Lista de cards (`h-64 md:h-80`) montada por `ITENS`:
+  concatena `PASSEIOS_DESTAQUE` (`src/lib/passeios.ts` — conteúdo editorial fixo dos passeios com
+  página própria) com o restante de `moments` (`src/lib/mock-data.ts`, mock antigo — hoje vazio, com
+  os 5 passeios preenchendo todos os slots, mas mantido como fallback automático caso a lista de
+  passeios fique menor que 4). Cada item vira `<Link href="/passeios/{slug}">` quando tem passeio
+  associado, ou `<div>` (não clicável) quando ainda é o mock antigo.
+  - **Carrossel:** container `flex gap-4 overflow-x-auto snap-x snap-mandatory scrollbar-hide`
+    (a classe `.scrollbar-hide`, usada também por `RoteirosCarousel` mas até então nunca definida no
+    CSS — dead class — foi implementada em `src/app/globals.css`). Cada card tem largura responsiva
+    `w-[78%] sm:w-[44%] lg:w-[22%]` — a proporção não fecha exatamente 4/2/1 cards por breakpoint de
+    propósito, deixando uma fatia do próximo card visível como indicação de scroll. Setas
+    `ChevronLeft`/`ChevronRight` (mesmo padrão visual do `RoteirosCarousel`) ficam `hidden sm:flex`
+    (mobile navega por gesto de arrastar) e chamam `scrollBy(container.clientWidth * 0.9)`, com
+    `scroll-snap` do CSS ajustando o alinhamento final ao card mais próximo. Estado
+    `canScrollPrev`/`canScrollNext` (via listener de `scroll` + `resize`) desabilita visualmente a
+    seta quando não há mais para onde rolar naquele sentido.
   - **Passeio 1 — Ilha do Campeche** (`slug: 'ilha-do-campeche'`): título "Descubra o 'Caribe
     Brasileiro': Roteiro Exclusivo de Barco para a Ilha do Campeche". Imagem do card/hero:
     `public/images/passeios/ilha-do-campeche.jpg` (foto real, enviada pelo usuário).
@@ -1463,6 +1516,63 @@ trocar a lista global pela localizada.
     horário) → CTA final (cartão `bg-[#0B2447]`) para `/buscar`. Segunda foto real
     (`ilha-do-campeche_01.JPG`) inserida como imagem full-width no meio do artigo, ilustrando a
     seção do acesso tradicional (mostra os barcos/lotação da praia — coerente com o texto).
+  - **Passeio 2 — Costa da Lagoa** (`slug: 'costa-da-lagoa'`): título "O Segredo da Costa da Lagoa:
+    Navegando pelas Águas de Florianópolis". Imagem do card/hero:
+    `public/images/passeios/costa-da-lagoa.png` (foto real, píer ao pôr do sol na Lagoa da
+    Conceição).
+  - **Página própria** `src/app/passeios/costa-da-lagoa/page.tsx` — mesmo padrão estrutural e de
+    tipografia da página do Campeche (`Header` + hero full-bleed + `Footer`, `<article>` com os
+    mesmos estilos de `h2`/`<ul>`). Conteúdo: introdução à Lagoa da Conceição → gastronomia e acesso
+    exclusivo por água à vila da Costa da Lagoa → sugestões de restaurantes para ancorar (Restaurante
+    Cabral/Ponto 19, Ponto 16/cachoeira, Coração de Mãe & Sabor da Costa) → esportes aquáticos
+    (SUP/Wakeboard) → experiência de navegar com barco particular vs. baleeiras públicas → mesmos 6
+    diferenciais do Boatzy em prosa → CTA final para `/buscar`. Segunda foto real
+    (`costa-da-lagoa-01.png`, vista aérea do canal/píer de barcos) inserida como imagem full-width no
+    meio do artigo, logo após a seção "A Experiência de ser um Navegador" (menciona as
+    &quot;baleeiras&quot; — coerente com a foto).
+  - **Passeio 3 — Caixa D'Aço** (`slug: 'caixa-d-aco'`): título "O Destino Mais Badalado do
+    Litoral: Roteiro Náutico para o Caixa D'Aço". Imagem do card/hero:
+    `public/images/passeios/caixa-d-aco.png` (foto real, vista aérea da enseada em Porto Belo).
+  - **Página própria** `src/app/passeios/caixa-d-aco/page.tsx` — mesmo padrão estrutural e de
+    tipografia dos dois artigos anteriores. Conteúdo: introdução à enseada de Porto Belo → os bares
+    flutuantes e a curiosidade do clipe "Ai Se Eu Te Pego" (Michel Teló, gravado no local) →
+    experiência VIP de chegar de lancha particular, com dica de ouro (sair cedo, trajeto a partir de
+    Floripa/BC) e público-alvo (despedidas de solteiro, grupos) → mesmos 6 diferenciais do Boatzy em
+    prosa → CTA final para `/buscar`. Duas fotos reais no meio do artigo:
+    `caixa-d-aco-02.png` (bar flutuante com banda ao vivo e banhistas), logo após a seção dos bares
+    flutuantes; `caixa-d-aco-01.png` (dezenas de barcos ancorados lado a lado), logo após a seção da
+    experiência VIP — cada uma ilustrando o trecho do texto que a precede.
+  - **Nota de implementação (bug recorrente):** em listas com `<strong>Rótulo:</strong> texto` na
+    mesma linha JSX, uma ocorrência isolada por artigo perdeu o espaço entre `</strong>` e a palavra
+    seguinte no HTML renderizado, apesar do código-fonte ter um espaço normal (confirmado por `od -c`
+    — sem caractere invisível). Causa não identificada (não é um padrão reproduzível: itens
+    estruturalmente idênticos no mesmo arquivo renderizam corretamente). Correção aplicada nos casos
+    encontrados: espaço trocado por `{' '}` explícito logo após o `</strong>`. Os três artigos foram
+    reverificados item a item via `eval` no browser após a correção.
+  - **Passeio 4 — Praia do Tinguá** (`slug: 'praia-do-tingua'`): título "O Refúgio Exclusivo dos
+    Barcos: A Magia da Praia do Tinguá". Imagem do card/hero:
+    `public/images/passeios/praia-do-tingua.png` (foto real, vista aérea da enseada em Governador
+    Celso Ramos).
+  - **Página própria** `src/app/passeios/praia-do-tingua/page.tsx` — mesmo padrão estrutural e de
+    tipografia dos três artigos anteriores. Conteúdo: introdução à enseada de Governador Celso
+    Ramos → o "clube privado" ao ar livre (acesso terrestre difícil, proteção natural contra vento
+    que deixa o mar "liso") → gastronomia e estrutura à beira-mar (trapiches, embarcações de apoio)
+    → "Assuma o Leme" (experiência de ser Navegador) → mesmos 6 diferenciais do Boatzy em prosa →
+    CTA final para `/buscar`. Segunda foto real (`praia-do-tingua-01.png`, amanhecer com barcos em
+    água parada) inserida como imagem full-width logo após a seção do "clube privado", reforçando
+    visualmente a descrição do mar liso/calmo. Todos os itens de lista já escritos com `{' '}`
+    explícito após o `</strong>` (precaução contra o bug de espaço acima) e reverificados via `eval`
+    no browser.
+  - **Passeio 5 — Praia e Ilha de Palmas** (`slug: 'praia-de-palmas'`): título "Águas de Padrão
+    Internacional: Navegando pela Praia e Ilha de Palmas". Imagem do card/hero:
+    `public/images/passeios/praia-de-palmas.png` (foto real, vista aérea da praia em Governador
+    Celso Ramos). Único artigo até agora com apenas 1 foto (sem imagem no meio do texto).
+  - **Página própria** `src/app/passeios/praia-de-palmas/page.tsx` — mesmo padrão estrutural e de
+    tipografia dos artigos anteriores. Conteúdo: introdução à Ilha de Palmas → o selo internacional
+    "Bandeira Azul" (já ostentado pela Praia de Palmas, mesma baía) e a qualidade da água →
+    experiência de Navegador (snorkel, costões rochosos, ilha desabitada) → mesmos 6 diferenciais do
+    Boatzy em prosa → CTA final para `/buscar`. Itens de lista com `{' '}` explícito após o
+    `</strong>` e reverificados via `eval` no browser.
 
 ---
 
