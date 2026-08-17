@@ -7,7 +7,9 @@ import { createClient } from '@/lib/supabase/server';
 import { supabaseAdmin } from '@/lib/supabase';
 import { formatCurrency } from '@/lib/utils';
 import { getTaxaEfetiva } from '@/lib/taxas';
+import { buscarPrevisaoTempo } from '@/lib/weather';
 import ConfirmarReserva from './_components/ConfirmarReserva';
+import PrevisaoTempoCard from './_components/PrevisaoTempoCard';
 
 const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
 
@@ -84,11 +86,17 @@ export default async function NovaReservaPage({
     .filter(Boolean);
 
   let ownerId: string;
+  // Coordenadas para a previsão do tempo — prioriza a coordenada exata do
+  // roteiro/embarcação e cai para o centro do município quando ausente.
+  let lat: number | null = null;
+  let lng: number | null = null;
 
   if (isEmbarcacao) {
     const { data: embRaw } = await supabaseAdmin
       .from('embarcacao')
-      .select(`id, owner_id, nome, preco_base, municipios ( nome, estados ( uf ) )`)
+      .select(
+        `id, owner_id, nome, preco_base, latitude, longitude, municipios ( nome, estados ( uf ), latitude, longitude )`,
+      )
       .eq('id', alvoId)
       .eq('status', 'ativo')
       .single();
@@ -98,7 +106,9 @@ export default async function NovaReservaPage({
       owner_id: string;
       nome: string;
       preco_base: number | null;
-      municipios: { nome: string; estados: { uf: string } | null } | null;
+      latitude: number | null;
+      longitude: number | null;
+      municipios: { nome: string; estados: { uf: string } | null; latitude: number | null; longitude: number | null } | null;
     };
     nome = emb.nome;
     ownerId = emb.owner_id;
@@ -108,10 +118,14 @@ export default async function NovaReservaPage({
         ? `${emb.municipios.nome}, ${emb.municipios.estados.uf}`
         : emb.municipios.nome
       : null;
+    lat = emb.latitude ?? emb.municipios?.latitude ?? null;
+    lng = emb.longitude ?? emb.municipios?.longitude ?? null;
   } else {
     const { data: roteiroRaw } = await supabaseAdmin
       .from('roteiro')
-      .select(`id, owner_id, nome, preco_base, municipios ( nome, estados ( uf ) )`)
+      .select(
+        `id, owner_id, nome, preco_base, latitude, longitude, municipios ( nome, estados ( uf ), latitude, longitude )`,
+      )
       .eq('id', alvoId)
       .eq('ativo', true)
       .single();
@@ -122,7 +136,9 @@ export default async function NovaReservaPage({
       owner_id: string;
       nome: string;
       preco_base: number | null;
-      municipios: { nome: string; estados: { uf: string } | null } | null;
+      latitude: number | null;
+      longitude: number | null;
+      municipios: { nome: string; estados: { uf: string } | null; latitude: number | null; longitude: number | null } | null;
     };
     nome = roteiro.nome;
     ownerId = roteiro.owner_id;
@@ -132,6 +148,8 @@ export default async function NovaReservaPage({
         ? `${roteiro.municipios.nome}, ${roteiro.municipios.estados.uf}`
         : roteiro.municipios.nome
       : null;
+    lat = roteiro.latitude ?? roteiro.municipios?.latitude ?? null;
+    lng = roteiro.longitude ?? roteiro.municipios?.longitude ?? null;
 
     // Reconstrói os adicionais selecionados a partir dos ids da query.
     if (adicionalIds.length > 0) {
@@ -159,6 +177,10 @@ export default async function NovaReservaPage({
   // Taxa de serviço efetiva do gestor dono do alvo (específica ou geral — ver SPEC §14).
   const taxaPercent = await getTaxaEfetiva(ownerId);
 
+  // Previsão do tempo para a data escolhida (Open-Meteo) — só um complemento
+  // informativo; sem coordenada, a seção simplesmente não é exibida.
+  const previsaoTempo = lat != null && lng != null ? await buscarPrevisaoTempo(lat, lng, data) : null;
+
   return (
     <div className="min-h-screen flex flex-col bg-slate-50">
       <Header />
@@ -172,6 +194,16 @@ export default async function NovaReservaPage({
         <p className="text-sm text-slate-500 mt-1">
           Revise os dados abaixo. Após o envio, o gestor analisará e responderá sua solicitação.
         </p>
+
+        {previsaoTempo && (
+          <div className="mt-6">
+            <PrevisaoTempoCard
+              resultado={previsaoTempo}
+              localidade={localidade}
+              dataLabel={formatDateLabel(data, 0)}
+            />
+          </div>
+        )}
 
         <div className="mt-6 rounded-2xl border border-slate-200 bg-white shadow-sm overflow-hidden">
           {/* Alvo */}

@@ -1819,6 +1819,65 @@ se `cupomCodigo` vier preenchido, valida e aplica o desconto (§20.8) antes de c
 revertida; se o registro do uso do cupom perder uma corrida de limite (§20.8), a reserva também é
 revertida.
 
+### 20.3b Previsão do tempo na confirmação (Open-Meteo)
+
+- **Motivação:** ajudar o cliente a se planejar (roupa, protetor solar, expectativa de vento/mar)
+  no momento em que ele já escolheu data e local — antes de confirmar a solicitação.
+- **`src/lib/weather.ts`** — `buscarPrevisaoTempo(lat, lng, dataISO)`, `server-only`. Chama a API
+  pública e gratuita do [Open-Meteo](https://open-meteo.com) (`GET
+  https://api.open-meteo.com/v1/forecast`, sem chave/autenticação), pedindo os campos diários
+  (`weathercode`, `temperature_2m_max/min`, `apparent_temperature_max`, `precipitation_sum`,
+  `precipitation_probability_max`, `windspeed_10m_max`, `windgusts_10m_max`, `uv_index_max`,
+  `sunrise`, `sunset`) e horários (`temperature_2m`, `weathercode`, `precipitation_probability`,
+  filtrados para 06h–20h) só para a data pedida (`start_date=end_date=dataISO`), `timezone=auto`.
+  Cache via `fetch(..., { next: { revalidate: 1800 } })` (30 min) — não precisa ser tempo real.
+- **Nunca lança/quebra a página de reserva.** Retorna um `ResultadoPrevisao` com 3 estados:
+  - `{ status: 'ok', previsao }` — dados completos.
+  - `{ status: 'fora-do-alcance' }` — a data está a mais de **16 dias** de hoje (limite confiável
+    da previsão diária gratuita do Open-Meteo, verificado empiricamente contra a própria API — ela
+    responde `error: true` com a janela permitida quando `start_date` extrapola). Checado
+    **localmente antes** de chamar a API (evita requisição desnecessária); datas negativas (passado)
+    também caem aqui por segurança, embora não devam ocorrer (calendário já bloqueia).
+  - `{ status: 'indisponivel' }` — qualquer falha de rede/parsing/HTTP não-2xx (`try/catch` + log
+    em `console.error`, nunca propaga).
+- **Coordenadas:** `src/app/reservas/novo/page.tsx` passou a selecionar `latitude, longitude` do
+  `roteiro`/`embarcacao` (coordenada exata, quando cadastrada) **e** `municipios ( latitude,
+  longitude )` como fallback (centro do município) — usa a primeira que existir
+  (`alvo.latitude ?? alvo.municipios?.latitude`, idem `longitude`). Sem nenhuma das duas, a seção
+  simplesmente não aparece (`buscarPrevisaoTempo` não é chamado).
+- **Componente:** `src/app/reservas/novo/_components/PrevisaoTempoCard.tsx` (`'use client'`, só
+  para os toggles — o fetch em si é 100% server-side). Renderizado **acima** do card "Alvo"
+  (embarcação/roteiro) em `page.tsx`, com `dataLabel` formatado sem o sufixo de flexibilidade
+  (`formatDateLabel(data, 0)` — a previsão é sempre para o dia exato escolhido, não para a janela
+  de flexibilidade).
+  - **A div inteira nasce colapsada** (`aberto`, `useState(false)`) para ocupar pouco espaço no
+    topo da página de confirmação — só o cabeçalho compacto fica visível (ícone, temperatura,
+    condição, badge da data) até o cliente clicar nele; o resto (estatísticas, sol, hora a hora,
+    rodapé de fonte) fica num `<div>` irmão do cabeçalho, expandido com a mesma técnica
+    `grid-rows-[0fr]→[1fr]` + `overflow-hidden` usada nos demais accordions do site. O cabeçalho é
+    sempre um `<button>` (nunca envolve outro `<button>`, para não aninhar elementos interativos —
+    o toggle de "Ver previsão hora a hora", abaixo, fica fora dele) com `ChevronDown` que gira
+    180° quando aberto.
+  - **Card "ok":** cabeçalho com faixa em gradiente que muda pela `paleta` da condição
+    (`ensolarado` / `nublado` / `chuvoso` / `tempestuoso`, mapeada a partir do [WMO weather code]
+    retornado pelo Open-Meteo — tabela completa em `TABELA_CODIGOS`), ícone grande (`lucide-react`,
+    lookup estático `CODIGO_ICONE` — **não** uma função que retorna componente, para não disparar o
+    lint `react-hooks/static-components`; mesmo padrão de `cfg.icon` já usado em
+    `CatalogoSelector.tsx`), temperatura máx/mín, condição + localidade, sensação térmica. No corpo
+    expansível: grid de 4 estatísticas (Vento + rajada, Chance de chuva, Volume esperado, Índice UV
+    com rótulo qualitativo — Baixo/Moderado/Alto/Muito alto/Extremo), linha de nascer/pôr do sol, e
+    um **segundo accordion aninhado "Ver previsão hora a hora"** (também fechado por padrão) com
+    tira horizontal rolável de cards por hora (ícone, hora, temperatura, % de chuva quando > 0).
+  - **Card "fora-do-alcance":** mesmo padrão de cabeçalho clicável + corpo expansível, tom neutro
+    (não é erro), ícone `CloudOff`; expandido explica o motivo e sugere voltar mais perto da data.
+  - **Card "indisponivel":** mesmo padrão, tom neutro; expandido mostra mensagem curta deixando
+    claro que **não afeta a solicitação de reserva**.
+  - **Rodapé de fonte/disclaimer** (`RodapeFonte`, igual nos 3 estados): ícone `Info` + texto
+    deixando explícito que é previsão sujeita a mudanças, só informativa, e que **o Boatzy não se
+    responsabiliza pela exatidão dos dados nem pelas condições reais no dia do passeio** — seguido
+    de link "Fonte: Open-Meteo.com" (`https://open-meteo.com`, `target="_blank" rel="noopener
+    noreferrer"`, ícone `ExternalLink`).
+
 ### 20.4 Painel — `/painel/agendamentos` (calendário)
 
 **Arquivos:** `src/app/painel/(gestao)/agendamentos/page.tsx` +

@@ -284,6 +284,16 @@ Fluxo de **solicitação** (sem pagamento nesta etapa). Detalhes técnicos: SPEC
 - "Solicitar Reserva" leva a `/reservas/novo`, que **exige login** e mostra um resumo; ao confirmar,
   cria a reserva como **Pendente** com `cliente_id`, data/hora da solicitação e **snapshot** dos
   valores e adicionais.
+- **Previsão do tempo:** acima dos dados da embarcação/roteiro, `/reservas/novo` mostra um card com
+  a previsão meteorológica (via Open-Meteo, API gratuita) para a data e o local escolhidos —
+  temperatura, sensação térmica, vento, chance/volume de chuva, índice UV, nascer/pôr do sol e uma
+  previsão hora a hora, esta numa segunda camada expansível. O card **nasce colapsado** (só o
+  resumo — ícone, temperatura, condição, data — fica visível) para não ocupar espaço logo no topo
+  da página; um clique no cabeçalho expande os detalhes. Deixa claro, com destaque visual e link
+  para a fonte, que é uma previsão sujeita a mudanças e que o Boatzy não se responsabiliza pela
+  exatidão dela. Sem coordenadas cadastradas, a seção simplesmente não aparece; para datas muito
+  distantes (> 16 dias, limite da previsão diária gratuita) ou falha na consulta, mostra um aviso
+  neutro (também colapsável) no lugar — nunca impede a solicitação de reserva.
 - No painel (`/painel/agendamentos`), o gestor vê as solicitações dos seus roteiros (Pendentes em
   destaque) e pode **Confirmar** ou **Recusar**, escrevendo uma **observação** retornada ao cliente.
 
