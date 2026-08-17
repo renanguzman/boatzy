@@ -341,9 +341,9 @@ export default function EntrarPage() {
             <Image
               src="/images/logo.png"
               alt="Boatzy"
-              width={160}
-              height={48}
-              className="h-12 w-auto mx-auto"
+              width={952}
+              height={817}
+              className="h-12 w-auto mx-auto object-contain"
             />
           </Link>
           <p className="text-slate-500 text-sm mt-3">

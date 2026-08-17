@@ -76,7 +76,7 @@ export default function Header() {
         <div className="flex h-16 items-center justify-between">
           {/* Logo */}
           <Link href="/" className="flex items-center gap-2" id="header-logo">
-            <Image src="/images/logo.png" alt="Boatzy" width={180} height={54} className="h-14 w-auto" priority />
+            <Image src="/images/logo.png" alt="Boatzy" width={952} height={817} className="h-14 w-auto object-contain" priority />
           </Link>
 
           {/* Desktop Navigation */}

@@ -213,7 +213,7 @@ export default function PainelRedefinirSenhaPage() {
       <div className="flex-1 flex flex-col justify-between px-8 py-10 lg:px-16 xl:px-24">
         <div className="flex-1 flex flex-col justify-center max-w-md mx-auto w-full">
           <div className="flex items-center gap-2.5 mb-10">
-            <Image src="/images/logo.png" alt="Boatzy" width={200} height={60} className="h-12 w-auto" priority />
+            <Image src="/images/logo.png" alt="Boatzy" width={952} height={817} className="h-12 w-auto object-contain" priority />
           </div>
 
           <PainelRedefinirSenhaForm />
