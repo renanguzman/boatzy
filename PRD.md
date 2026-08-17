@@ -77,7 +77,7 @@ Validar um marketplace de aluguel de embarcações, garantindo:
 ### 6.0 Cabeçalho / Navegação Global
 
 - ✅ O `Header` (site público, desktop e mobile) tem 3 links de navegação: **Roteiros** (`/buscar`), **Embarcações** (`/buscar?tipo=embarcacao`) e **Vendas** (`/vendas`). Substituem os antigos rótulos "Charters"/"Destinos"/"Experiências", que apontavam para rotas inexistentes (`/charters`, `/destinations`, `/experiences`).
-- ✅ O `Footer`, bloco "Explorar", tem 4 links: **Roteiros** (`/buscar`), **Embarcações** (`/buscar?tipo=embarcacao`), **Vendas** (`/vendas`) e **Experiências** (`#`, página ainda não implementada — link provisório).
+- ✅ O `Footer`, bloco "Explorar", tem 4 links: **Roteiros** (`/buscar`), **Embarcações** (`/buscar?tipo=embarcacao`), **Vendas** (`/vendas`) e **Experiências** (`/experiencias`, ver 6.10).
 - ✅ No `Header`, o antigo seletor de idioma ("PT") foi substituído pelo CTA **"Anuncie sua embarcação"** (ícone `Megaphone`, pill azul `#0B3D91`/10 com hover sólido), que leva a `/painel`. Presente tanto no desktop (ao lado do botão "Entrar") quanto no menu mobile (abaixo dos links de navegação).
 - ✅ O botão **"Entrar"** do `Header` (usuário deslogado) oferece duas portas de acesso, bem visíveis: **"Entrar como Cliente"** (`/entrar`) e **"Entrar como Proprietário"** (`/painel`). No desktop é um dropdown (mesmo padrão visual do menu do usuário logado); no mobile são dois botões sempre visíveis (sem precisar abrir submenu) dentro do menu hambúrguer.
 
@@ -601,6 +601,24 @@ Todos os números são do **gestor logado** (`owner_id`):
 - Envio via e-mail (Resend) para **gabriela@boatzy.app**, com `reply_to` = e-mail de quem preencheu (permite responder direto no e-mail recebido).
 - Campo honeypot invisível adicional contra bots simples.
 - Detalhes técnicos no `SPEC.md`.
+
+#### ✅ Implementado — Central de Ajuda / FAQ `/help`
+
+- Página estática acessível pelo item "Central de Ajuda" no rodapé (antes um link sem destino próprio).
+- Hero no padrão das demais páginas institucionais + campo de **busca** (ícone de lupa, botão de limpar) que filtra em tempo real pergunta, resposta e categoria — sem chamada ao servidor, tudo client-side.
+- **19 perguntas** organizadas em 8 categorias (Reservas, Pagamentos, Conta, Embarcações e proprietários, Busca e favoritos, Avaliações, Segurança e confiança, Vendas de embarcações), cada uma em um **accordion** (clique no título expande/recolhe a resposta, com ícone de seta que gira e transição suave). Conteúdo derivado das funcionalidades já implementadas do MVP (fluxo de reserva/cancelamento, status da reserva, ausência de pagamento integrado, cadastro/edição de conta, painel do gestor, favoritos, avaliações e moderação, papel de intermediário do Boatzy, vendas de embarcações).
+- Estado vazio da busca ("Nenhuma pergunta encontrada") com sugestão de contato.
+- CTA final "Fale conosco" → `/contact`.
+- Detalhes técnicos: `SPEC.md` §18.8.
+
+#### ✅ Implementado — Experiências `/experiencias`
+
+- Página estática, estilo editorial/blog, acessível pelo item "Experiências" no rodapé (antes um link provisório `#`, sem página própria).
+- Funciona como uma "chamada" (index) para os artigos já publicados em `/passeios/[slug]` — os mesmos 5 passeios exibidos no carrossel "Coleção de experiências" da home (`PASSEIOS_DESTAQUE`, `src/lib/passeios.ts`).
+- Hero `#0B2447` com o mesmo tratamento visual da home ("Inspire-se" + título com gradiente ciano). Abaixo, o primeiro passeio aparece em destaque (card grande, imagem + título + resumo) e os demais em grade de cards (imagem, badge de localidade, título, resumo, "Ler experiência →"). Todo card é clicável e leva direto ao artigo completo em `/passeios/[slug]` — não há conteúdo próprio nesta página além das chamadas.
+- CTA final "Buscar embarcações" → `/buscar`.
+- Cada passeio (`Passeio` em `src/lib/passeios.ts`) ganhou os campos `resumo` (chamada curta, estilo dek de blog) e `local` (badge de cidade/UF exibido no card), usados só nesta página — o carrossel da home continua usando apenas `titulo`/`imagem`/`slug`.
+- Detalhes técnicos: `SPEC.md` §18.8.
 
 ### 6.11 Área Administrativa (`/administrator`)
 

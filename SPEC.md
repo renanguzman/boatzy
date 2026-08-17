@@ -1391,6 +1391,43 @@ type Props = {
 
 Acessada pelos links "Contato" do `Footer` (`src/components/layout/Footer.tsx`), tanto no bloco "Empresa" quanto na barra inferior — ambos já apontavam para `/contact`; a rota estava inexistente (404) até esta implementação.
 
+### Central de Ajuda / FAQ `/help`
+
+**Arquivos:**
+- `src/app/help/page.tsx` — Server Component estático (`export const metadata`). Renderiza `Header` + hero `#0B2447` (título + subtítulo, `max-w-3xl`) + `Footer`, mesmo padrão das demais páginas institucionais. O conteúdo interativo fica isolado em `FaqContent`.
+- `src/app/help/_components/FaqContent.tsx` (`'use client'`) — dono do estado de busca/accordion.
+
+**Conteúdo:** array local `FAQ_ITEMS` (sem tabela no banco — conteúdo editorial fixo, mesmo padrão de `/sobre`) com `{ categoria, pergunta, resposta }`; `resposta` aceita JSX (para linkar `next/link` a `/buscar`, `/minhas-reservas`, `/minha-conta`, `/painel`, `/favoritos`, `/minhas-conversas`, `/vendas`, `/contact`, `/terms`, `/privacy`, `/entrar`). 19 perguntas em 8 categorias (`Reservas`, `Pagamentos`, `Conta`, `Embarcações e proprietários`, `Busca e favoritos`, `Avaliações`, `Segurança e confiança`, `Vendas de embarcações`), renderizadas agrupadas por categoria na ordem de primeira ocorrência (`CATEGORIAS = Array.from(new Set(...))`).
+
+**Busca:**
+- Campo controlado (`useState`), ícone `Search` (lucide-react) fixo à esquerda, botão de limpar (`X`) que só aparece com texto digitado.
+- Filtro 100% client-side, sem chamada ao servidor: `useMemo` compara o termo (lowercase, trim) contra `pergunta`, `categoria` e o texto puro extraído de `resposta` via helper `extrairTexto()` (percorre a árvore de `React.ReactNode` recursivamente, concatenando apenas texto — ignora JSX/props não textuais).
+- Contador de resultados ("N pergunta(s) encontrada(s)") só aparece com busca ativa; categorias sem nenhum item correspondente somem da lista; sem nenhum resultado, mostra estado vazio com sugestão de contato.
+
+**Accordion:**
+- Cada item é um `button` (`aria-expanded`) que alterna sua presença num `Set<number>` de índices abertos (`abertos`) — vários itens podem ficar abertos ao mesmo tempo (não é exclusivo).
+- Expansão via `grid-rows-[0fr]` → `grid-rows-[1fr]` + `overflow-hidden` no wrapper interno (técnica de "grid transition" para altura automática, sem JS medindo altura), `transition-all duration-200`; ícone `ChevronDown` gira 180° quando aberto.
+- Sem dependência de Radix/shadcn (não presentes no projeto) — accordion e busca implementados como componente próprio, seguindo o padrão visual de cards (`bg-white rounded-2xl shadow-sm border border-slate-100`) usado em `/contact`.
+
+**CTA final:** card `bg-[#0B2447]` com ícone `MessageCircle`, texto "Não encontrou sua resposta?" e botão "Fale conosco" → `/contact`.
+
+Acessada pelo link "Central de Ajuda" do `Footer` (`src/components/layout/Footer.tsx`, bloco "Suporte") — antes apontava para `/help`, rota inexistente (404), até esta implementação.
+
+### Experiências `/experiencias`
+
+**Arquivo:** `src/app/experiencias/page.tsx` (Server Component estático, sem props nem fetch).
+
+- Página-índice estilo blog editorial que funciona como "chamada" para os artigos já existentes em `/passeios/[slug]` — não tem conteúdo textual próprio além dos resumos, todo card leva direto ao artigo completo. Reaproveita os mesmos 5 itens do carrossel "Coleção de experiências" da home (`PASSEIOS_DESTAQUE`, `src/lib/passeios.ts`, ver §18.9).
+- **Hero:** `bg-[#0B2447]`, eyebrow "Inspire-se" + título com gradiente ciano/teal (`bg-clip-text`), mesmo tom visual do cabeçalho da seção `MomentsSection` da home.
+- **Card em destaque:** primeiro item de `PASSEIOS_DESTAQUE` renderizado maior (`grid md:grid-cols-2`, imagem à esquerda, badge de localidade + título + resumo + "Ler experiência" à direita), link único (`Link` envolvendo o card inteiro) para `/passeios/[slug]`.
+- **Grid dos demais:** `grid sm:grid-cols-2 lg:grid-cols-3`, cards com imagem (`h-52 object-cover`, zoom no hover), badge de localidade (`MapPin`, `lucide-react`), título, resumo e "Ler experiência →" — mesmo padrão visual de card (`rounded-2xl border border-slate-100 shadow-sm hover:shadow-lg`) usado em `/sobre` e `/contact`.
+- **CTA final:** card `bg-[#0B2447]` full-width com botão gradiente `from-[#0B3D91] to-cyan-500` "Buscar embarcações" → `/buscar` (mesmo estilo do CTA "Anuncie sua embarcação" do `Header`).
+- **`Passeio` (`src/lib/passeios.ts`) ganhou 2 campos novos**, usados só por esta página (a `MomentsSection` da home continua lendo apenas `slug`/`titulo`/`imagem`):
+  - `resumo: string` — chamada curta (dek), derivada da `description` de metadata de cada artigo em `/passeios/[slug]`.
+  - `local: string` — cidade/UF exibida como badge no card (ex.: "Florianópolis, SC", "Porto Belo, SC", "Governador Celso Ramos, SC").
+- `export const metadata`: title/description próprios da página.
+- Acessada pelo link "Experiências" do `Footer` (`src/components/layout/Footer.tsx`, bloco "Explorar") — **corrigido de `href="#"` (placeholder sem destino) para `/experiencias`**.
+
 ---
 
 ## 18.9 Home — seções "Mais Bem Avaliados" (embarcações e roteiros)

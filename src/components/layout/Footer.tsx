@@ -10,11 +10,11 @@ export default function Footer() {
           {/* Brand */}
           <div className="md:col-span-1">
             <Image
-              src="/images/logo-white.png"
+              src="/images/logo_name.png"
               alt="Boatzy"
-              width={120}
-              height={36}
-              className="h-8 w-auto mb-4 brightness-0 invert"
+              width={755}
+              height={227}
+              className="h-10 w-auto mb-4"
             />
             <p className="text-sm text-slate-300 leading-relaxed">
               Navegue com Elegância. A melhor plataforma de aluguel de embarcações do Brasil.
@@ -66,7 +66,7 @@ export default function Footer() {
                 </Link>
               </li>
               <li>
-                <Link href="#" className="text-sm text-slate-300 hover:text-white transition-colors">
+                <Link href="/experiencias" className="text-sm text-slate-300 hover:text-white transition-colors">
                   Experiências
                 </Link>
               </li>
