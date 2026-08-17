@@ -1,12 +1,13 @@
 'use client';
 
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
-import { Headphones, ShieldCheck, ShoppingCart, X, MessageCircle } from 'lucide-react';
+import { Headphones, ShieldCheck, MessageCircle } from 'lucide-react';
 import DatePicker, { type DateValue } from '@/components/home/search/DatePicker';
 import GuestPicker from '@/components/home/search/GuestPicker';
 import { formatCurrency } from '@/lib/utils';
 import { useCart } from './CartContext';
+import AddonsAccordion from './AddonsAccordion';
 import RoteiroAcoes from './RoteiroAcoes';
 
 type ActivePanel = 'date' | 'guests' | null;
@@ -18,8 +19,6 @@ type Props = {
   /** Dono vendo o próprio roteiro: oculta o CTA de chat (não conversa consigo mesmo). */
   ehDono?: boolean;
   preco: number | null;
-  /** Taxa de serviço efetiva (%) do gestor dono do roteiro — específica ou geral (ver SPEC §14). */
-  taxaPercent: number;
   /** Se o usuário logado já favoritou este roteiro (false quando deslogado). */
   initialFavorito?: boolean;
   /** Dias da semana em que o roteiro opera (0=Dom..6=Sáb). Vazio/null = todos os dias. */
@@ -48,7 +47,6 @@ export default function BookingCard({
   roteiroNome,
   ehDono = false,
   preco,
-  taxaPercent,
   initialFavorito = false,
   diasOperacao,
   datasBloqueadas,
@@ -66,11 +64,23 @@ export default function BookingCard({
   const [active, setActive] = useState<ActivePanel>(null);
   const [error, setError] = useState<string | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
-  const { selectedAddons, totalAdicionais, toggle } = useCart();
+  const { selectedAddons, totalAdicionais } = useCart();
 
   function open(panel: ActivePanel) {
     setActive((p) => (p === panel ? null : panel));
   }
+
+  // Fecha o picker aberto (data ou pessoas) ao clicar fora do card — antes só
+  // fechava ao clicar de novo no mesmo campo, o que prendia o usuário nele.
+  useEffect(() => {
+    function handleClick(e: MouseEvent) {
+      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
+        setActive(null);
+      }
+    }
+    document.addEventListener('mousedown', handleClick);
+    return () => document.removeEventListener('mousedown', handleClick);
+  }, []);
 
   const bloqueadasSet = new Set(datasBloqueadas ?? []);
   const operaTodos = !diasOperacao || diasOperacao.length === 0;
@@ -80,9 +90,9 @@ export default function BookingCard({
     return bloqueadasSet.has(toISO(d));
   }
 
-  const subtotal = (preco ?? 0) + totalAdicionais;
-  const serviceFee = preco ? Math.round(subtotal * (taxaPercent / 100)) : null;
-  const total = preco && serviceFee !== null ? subtotal + serviceFee : null;
+  // A taxa de serviço não é exibida aqui — só na confirmação (/reservas/novo), que a
+  // recalcula no servidor a partir do dono do roteiro (ver SPEC §14).
+  const valorEstimado = preco ? preco + totalAdicionais : null;
 
   function handleReserve() {
     // Data e Pessoas são obrigatórios para solicitar a reserva.
@@ -161,33 +171,8 @@ export default function BookingCard({
           </div>
         </div>
 
-        {/* Mini-cart: selected addons */}
-        {selectedAddons.length > 0 && (
-          <div className="mb-4 rounded-xl bg-[#0B3D91]/5 border border-[#0B3D91]/20 p-3 space-y-2">
-            <div className="flex items-center gap-1.5">
-              <ShoppingCart className="h-3.5 w-3.5 text-[#0B3D91]" />
-              <span className="text-xs font-semibold text-[#0B3D91]">
-                {selectedAddons.length} adicional{selectedAddons.length !== 1 ? 'is' : ''} selecionado{selectedAddons.length !== 1 ? 's' : ''}
-              </span>
-            </div>
-            {selectedAddons.map((a) => (
-              <div key={a.id} className="flex items-center justify-between gap-2 text-xs">
-                <span className="text-slate-600 truncate">{a.descricao}</span>
-                <div className="flex items-center gap-1.5 shrink-0">
-                  <span className="font-medium text-slate-700">{formatCurrency(a.preco)}</span>
-                  <button
-                    type="button"
-                    onClick={() => toggle(a.id)}
-                    className="h-4 w-4 rounded-full bg-slate-200 hover:bg-red-100 hover:text-red-500 flex items-center justify-center transition-colors"
-                    aria-label={`Remover ${a.descricao}`}
-                  >
-                    <X className="h-2.5 w-2.5" />
-                  </button>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
+        {/* Adicionais (produtos/serviços do catálogo) — accordion */}
+        <AddonsAccordion />
 
         {/* Price breakdown */}
         {preco && (
@@ -202,19 +187,18 @@ export default function BookingCard({
                 <span className="font-medium text-slate-800">{formatCurrency(totalAdicionais)}</span>
               </div>
             )}
-            <div className="flex items-center justify-between text-sm">
-              <span className="text-slate-600">
-                Taxa de serviço ({taxaPercent.toLocaleString('pt-BR', { maximumFractionDigits: 2 })}%)
-              </span>
-              <span className="font-medium text-slate-800">{formatCurrency(serviceFee!)}</span>
-            </div>
           </div>
         )}
 
-        {total && (
-          <div className="flex items-center justify-between py-4 border-t border-slate-200">
-            <span className="text-base font-bold text-[#0B2447]">Total estimado</span>
-            <span className="text-xl font-bold text-[#0B2447]">{formatCurrency(total)}</span>
+        {valorEstimado && (
+          <div className="py-4 border-t border-slate-200">
+            <div className="flex items-center justify-between">
+              <span className="text-base font-bold text-[#0B2447]">Valor estimado</span>
+              <span className="text-xl font-bold text-[#0B2447]">{formatCurrency(valorEstimado)}</span>
+            </div>
+            <p className="mt-1 text-[11px] text-slate-400">
+              A taxa de serviço é calculada e exibida na confirmação da reserva.
+            </p>
           </div>
         )}
 

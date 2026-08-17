@@ -10,7 +10,6 @@ import AvaliacoesSection, { type AvaliacaoPublica } from '@/components/avaliacoe
 import { supabaseAdmin } from '@/lib/supabase';
 import { createClient } from '@/lib/supabase/server';
 import { getDatasReservadasEmbarcacao } from '@/lib/reservas';
-import { getTaxaEfetiva } from '@/lib/taxas';
 
 type EmbarcacaoDetalhe = {
   id: string;
@@ -99,9 +98,6 @@ export default async function EmbarcacaoDetalhePage({
   } = await supabase.auth.getUser();
   const ehDono = user?.id === embarcacao.owner_id;
 
-  // Taxa de serviço efetiva do gestor dono da embarcação (específica ou geral — ver SPEC §14).
-  const taxaPercent = await getTaxaEfetiva(embarcacao.owner_id);
-
   const images = [...embarcacao.embarcacao_imagens].sort((a, b) =>
     a.principal === b.principal ? 0 : a.principal ? -1 : 1,
   );
@@ -169,7 +165,6 @@ export default async function EmbarcacaoDetalhePage({
                 embarcacaoId={embarcacao.id}
                 ehDono={ehDono}
                 preco={embarcacao.preco_base}
-                taxaPercent={taxaPercent}
                 modalidadeLabel={modalidadeLabel[embarcacao.modalidade_capitao] ?? embarcacao.modalidade_capitao}
                 diasOperacao={embarcacao.disponibilidade_dias_semana}
                 datasBloqueadas={[

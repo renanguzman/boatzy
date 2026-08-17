@@ -602,9 +602,14 @@ SENÃO retorna taxa_plataforma.taxa_percent
 ```
 
 > **OBRIGATÓRIO:** todo cálculo de reserva no backend e qualquer exibição de taxa no frontend **deve** consultar essa função. Nunca hardcode o valor da taxa. Implementado via o helper `src/lib/taxas.ts`
-> (`getTaxaEfetiva(ownerId)`, `server-only`) — chamado a partir do **dono (gestor) do roteiro/embarcação** sendo reservado, nunca do cliente que reserva. Consumido em `BookingCard`/`EmbarcacaoBookingCard`
-> (exibição), `reservas/novo` (resumo) e `reservas/novo/actions.ts` (`resolverAlvo`, cálculo autoritativo — ver §20.1/§20.3). Antes desta implementação, esses 4 pontos tinham `SERVICE_FEE_RATE = 0.12`
+> (`getTaxaEfetiva(ownerId)`, `server-only`) — chamado a partir do **dono (gestor) do roteiro/embarcação** sendo reservado, nunca do cliente que reserva. Consumido em `reservas/novo` (resumo/`ConfirmarReserva`)
+> e `reservas/novo/actions.ts` (`resolverAlvo`, cálculo autoritativo — ver §20.1/§20.3). Antes desta implementação, esses pontos tinham `SERVICE_FEE_RATE = 0.12`
 > hardcoded e duplicado, sem nunca ler esta função — histórico preservado no git.
+>
+> **`BookingCard`/`EmbarcacaoBookingCard` deixaram de exibir e de buscar essa taxa** (ver §20.2c) —
+> a página de detalhe (roteiro/embarcação) mostra só "Diária" + "Adicionais" → "Valor estimado", sem
+> a linha "Taxa de serviço"; ela só aparece, com o valor e o total finais, na confirmação
+> (`/reservas/novo`), que já a recalculava de forma independente e autoritativa no servidor.
 
 **Exemplo de uso no backend (Supabase RPC):**
 
@@ -1729,6 +1734,51 @@ motivação em §15-B → "Bloqueio por reserva confirmada".
   `/roteiros/[id]?data=...&flex=...&pessoas=...`; `/buscar` monta essa querystring a partir dos
   filtros ativos → o detalhe vem **pré-preenchido** quando o cliente chega pela busca.
 - Ao confirmar, `BookingCard` navega para `/reservas/novo?roteiro=...&data=...&flex=...&pessoas=...&adicionais=id1,id2`.
+
+### 20.2b Seletor de adicionais dentro do `BookingCard` (accordion)
+
+- **Arquivo:** `src/app/roteiros/[id]/_components/AddonsAccordion.tsx` (`'use client'`) — consome
+  `useCart()` (`CartContext.tsx`, já existente: `addons`/`selectedIds`/`toggle`/`selectedAddons`/
+  `totalAdicionais`) e é renderizado dentro do próprio `BookingCard`, entre o campo **Pessoas** e o
+  resumo de preço — substituiu o antigo `AddonsSection.tsx` (removido), que ficava numa seção à
+  parte na coluna principal, longe do preço/CTA de reserva.
+- **Gatilho do accordion:** fechado por padrão, com visual propositalmente chamativo (borda
+  tracejada `border-[#0B3D91]/40`, fundo gradiente sutil `from-[#0B3D91]/5 to-cyan-500/5`, ícone
+  `Sparkles`) e **copy persuasiva** para o cliente querer clicar — sem seleção: título **"Deixe seu
+  passeio inesquecível!"** + subtítulo `"Este roteiro tem N opcionais para você. Clique e
+  confira!"`; assim que algo é marcado, o título muda para **"Torne seu passeio inesquecível"** e o
+  subtítulo passa a `"N selecionado(s) · R$ X"` (em destaque azul) — visível mesmo com o accordion
+  fechado, deixando claro que os itens compõem o total.
+- **Painel expandido:** mesma técnica de altura automática do accordion do FAQ (`grid-rows-[0fr]` →
+  `grid-rows-[1fr]` + `overflow-hidden`, `transition-all duration-200`), lista vertical dos itens do
+  catálogo (ícone por tipo — `Wrench` serviço / `Package` produto —, descrição, preço ou "Incluso",
+  botão circular `+`/`✓`); clicar no item inteiro chama `toggle(item.id)`. Aviso "Todos são
+  opcionais e somam ao total estimado da reserva" quando nada está selecionado ainda.
+- Sem tabela nem componente próprios de "mini-carrinho": a lista de selecionados com botão de
+  remover que existia solta no `BookingCard` foi removida — remover um item agora é clicar nele de
+  novo dentro do accordion (mesmo gesto do `AddonsSection` original). O resumo de preço
+  (`Diária`/`Adicionais` → `Valor estimado`, ver §20.2c) continua reagindo a `totalAdicionais`
+  normalmente.
+- `EmbarcacaoBookingCard` **não** ganhou este accordion — reserva de embarcação não tem adicionais
+  (PRD §6.5).
+
+### 20.2c Taxa de serviço oculta no detalhe — só aparece na confirmação
+
+- **Motivação:** evitar ruído/confusão de preço na página de detalhe (roteiro/embarcação) antes de o
+  cliente sequer confirmar data e pessoas; a taxa de serviço passou a ser mostrada só no momento em
+  que já importa de verdade — a confirmação da solicitação.
+- **`BookingCard`** (`src/app/roteiros/[id]/_components/BookingCard.tsx`) e
+  **`EmbarcacaoBookingCard`** (`src/app/embarcacoes/[id]/_components/EmbarcacaoBookingCard.tsx`)
+  perderam a prop `taxaPercent` e toda a lógica de `serviceFee`/`total` que dependia dela. O resumo
+  de preço agora mostra só `Diária` (+ `Adicionais`, no roteiro, quando há selecionados) e um bloco
+  final **"Valor estimado"** (antes "Total estimado") = `preço + adicionais`, **sem** a taxa — com
+  uma nota abaixo: *"A taxa de serviço é calculada e exibida na confirmação da reserva."*
+- As páginas `/roteiros/[id]` e `/embarcacoes/[id]` deixaram de chamar `getTaxaEfetiva()` e de
+  passar `taxaPercent` a esses componentes — nada mais na página de detalhe depende dela.
+- **Nada muda no cálculo real:** `/reservas/novo` (`ConfirmarReserva.tsx`) continua chamando
+  `getTaxaEfetiva()` de forma independente no servidor (nunca recebe a taxa por prop/URL vinda do
+  detalhe) e é lá que a linha "Taxa de serviço (`N`%)" e o "Total estimado" (já com taxa, cupom
+  etc.) aparecem — comportamento inalterado, ver §20.3.
 
 ### 20.3 Página `/reservas/novo` (confirmação + criação) — roteiro **ou** embarcação
 

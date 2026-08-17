@@ -270,7 +270,17 @@ Fluxo de **solicitação** (sem pagamento nesta etapa). Detalhes técnicos: SPEC
 
 - No detalhe do roteiro (`BookingCard`), **Data** e **Pessoas** são **obrigatórios**; se o cliente
   chegou pela busca, os campos vêm **pré-preenchidos** com os filtros (data/flex/pessoas).
-- Os **adicionais** (produtos/serviços do catálogo) selecionados são registrados na solicitação.
+- Os **adicionais** (produtos/serviços do catálogo, quando o roteiro tem algum vinculado) são
+  selecionados direto no `BookingCard`, num accordion fechado por padrão — entre o campo Pessoas e
+  o resumo de preço — com título persuasivo, convidando ao clique: **"Deixe seu passeio
+  inesquecível!"** (chamada) / **"Este roteiro tem N opcionais para você. Clique e confira!"**
+  (subtítulo), trocando para **"Torne seu passeio inesquecível"** + contagem/valor selecionado
+  assim que algo é marcado — visível mesmo com o accordion fechado. Cada item marcado entra na
+  linha "Adicionais" do "Valor estimado" em tempo real. Os selecionados são registrados na
+  solicitação.
+- O detalhe do roteiro/embarcação **não mostra a taxa de serviço** — só "Diária" + "Adicionais" →
+  "Valor estimado", com uma nota avisando que a taxa aparece na confirmação. A taxa (e o "Total
+  estimado" já com ela somada) só é exibida em `/reservas/novo`, ao confirmar a solicitação.
 - "Solicitar Reserva" leva a `/reservas/novo`, que **exige login** e mostra um resumo; ao confirmar,
   cria a reserva como **Pendente** com `cliente_id`, data/hora da solicitação e **snapshot** dos
   valores e adicionais.

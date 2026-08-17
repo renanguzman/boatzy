@@ -225,7 +225,7 @@ export default async function VendasPage({ searchParams }: { searchParams: Promi
 
       {/* Search bar section */}
       <div className="bg-white border-b border-slate-100 shadow-sm sticky top-0 z-40">
-        <div className="max-w-6xl mx-auto px-4 py-3 flex items-center gap-4">
+        <div className="max-w-6xl mx-auto px-4 py-3 flex items-center justify-center gap-4">
           <VendasSearchBar
             tipos={filtros.tipos}
             locais={filtros.locais}

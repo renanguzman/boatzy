@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { Headphones, ShieldCheck, Heart, Share2, MessageCircle } from 'lucide-react';
 import DatePicker, { type DateValue } from '@/components/home/search/DatePicker';
@@ -14,8 +14,6 @@ type Props = {
   /** Dono vendo a própria embarcação: oculta o CTA de chat (não conversa consigo mesmo). */
   ehDono?: boolean;
   preco: number | null;
-  /** Taxa de serviço efetiva (%) do gestor dono da embarcação — específica ou geral (ver SPEC §14). */
-  taxaPercent: number;
   modalidadeLabel: string;
   /** Dias da semana em que a embarcação opera (0=Dom..6=Sáb). Vazio/null = todos os dias. */
   diasOperacao?: number[] | null;
@@ -41,7 +39,6 @@ export default function EmbarcacaoBookingCard({
   embarcacaoId,
   ehDono = false,
   preco,
-  taxaPercent,
   modalidadeLabel,
   diasOperacao,
   datasBloqueadas,
@@ -58,10 +55,23 @@ export default function EmbarcacaoBookingCard({
   const [guests, setGuests] = useState(initialPessoas && initialPessoas > 0 ? initialPessoas : 1);
   const [active, setActive] = useState<ActivePanel>(null);
   const [error, setError] = useState<string | null>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
 
   function open(panel: ActivePanel) {
     setActive((p) => (p === panel ? null : panel));
   }
+
+  // Fecha o picker aberto (data ou pessoas) ao clicar fora do card — antes só
+  // fechava ao clicar de novo no mesmo campo, o que prendia o usuário nele.
+  useEffect(() => {
+    function handleClick(e: MouseEvent) {
+      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
+        setActive(null);
+      }
+    }
+    document.addEventListener('mousedown', handleClick);
+    return () => document.removeEventListener('mousedown', handleClick);
+  }, []);
 
   const bloqueadasSet = new Set(datasBloqueadas ?? []);
   const operaTodos = !diasOperacao || diasOperacao.length === 0;
@@ -71,8 +81,9 @@ export default function EmbarcacaoBookingCard({
     return bloqueadasSet.has(toISO(d));
   }
 
-  const serviceFee = preco ? Math.round(preco * (taxaPercent / 100)) : null;
-  const total = preco && serviceFee !== null ? preco + serviceFee : null;
+  // A taxa de serviço não é exibida aqui — só na confirmação (/reservas/novo), que a
+  // recalcula no servidor a partir do dono da embarcação (ver SPEC §14).
+  const valorEstimado = preco;
 
   function handleReserve() {
     if (!date) {
@@ -95,7 +106,7 @@ export default function EmbarcacaoBookingCard({
   }
 
   return (
-    <div className="sticky top-24 space-y-4">
+    <div ref={containerRef} className="sticky top-24 space-y-4">
       {/* Price Card */}
       <div className="rounded-2xl border border-slate-200 p-6 shadow-sm">
         {/* Price header */}
@@ -153,19 +164,18 @@ export default function EmbarcacaoBookingCard({
               <span className="text-slate-600">Diária</span>
               <span className="font-medium text-slate-800">{formatCurrency(preco)}</span>
             </div>
-            <div className="flex items-center justify-between text-sm">
-              <span className="text-slate-600">
-                Taxa de serviço ({taxaPercent.toLocaleString('pt-BR', { maximumFractionDigits: 2 })}%)
-              </span>
-              <span className="font-medium text-slate-800">{formatCurrency(serviceFee!)}</span>
-            </div>
           </div>
         )}
 
-        {total && (
-          <div className="flex items-center justify-between py-4 border-t border-slate-200">
-            <span className="text-base font-bold text-[#0B2447]">Total estimado</span>
-            <span className="text-xl font-bold text-[#0B2447]">{formatCurrency(total)}</span>
+        {valorEstimado && (
+          <div className="py-4 border-t border-slate-200">
+            <div className="flex items-center justify-between">
+              <span className="text-base font-bold text-[#0B2447]">Valor estimado</span>
+              <span className="text-xl font-bold text-[#0B2447]">{formatCurrency(valorEstimado)}</span>
+            </div>
+            <p className="mt-1 text-[11px] text-slate-400">
+              A taxa de serviço é calculada e exibida na confirmação da reserva.
+            </p>
           </div>
         )}
 
