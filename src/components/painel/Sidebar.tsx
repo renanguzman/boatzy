@@ -19,6 +19,7 @@ import {
   HelpCircle,
   BookOpen,
   Tag,
+  UsersRound,
 } from 'lucide-react';
 import clsx from 'clsx';
 
@@ -30,6 +31,7 @@ const navItems = [
   { href: '/painel/vendas', label: 'VENDAS', icon: Tag, exact: false, tour: 'nav-vendas' },
   { href: '/painel/catalogo', label: 'CATÁLOGO', icon: BookOpen, exact: false, tour: 'nav-catalogo' },
   { href: '/painel/clientes', label: 'CLIENTES', icon: Users, exact: false, tour: 'nav-clientes' },
+  { href: '/painel/equipe', label: 'EQUIPE', icon: UsersRound, exact: false, tour: 'nav-equipe' },
   { href: '/painel/receitas', label: 'RECEITAS', icon: DollarSign, exact: false, tour: 'nav-receitas' },
 ];
 

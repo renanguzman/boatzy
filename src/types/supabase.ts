@@ -1388,6 +1388,138 @@ export type Database = {
           },
         ];
       };
+      equipe_membro: {
+        Row: {
+          id: string;
+          owner_id: string;
+          user_id: string | null;
+          is_gestor: boolean;
+          nome_completo: string;
+          cpf: string | null;
+          email: string | null;
+          telefone: string | null;
+          foto_url: string | null;
+          ativo: boolean;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          owner_id: string;
+          user_id?: string | null;
+          is_gestor?: boolean;
+          nome_completo: string;
+          cpf?: string | null;
+          email?: string | null;
+          telefone?: string | null;
+          foto_url?: string | null;
+          ativo?: boolean;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          owner_id?: string;
+          user_id?: string | null;
+          is_gestor?: boolean;
+          nome_completo?: string;
+          cpf?: string | null;
+          email?: string | null;
+          telefone?: string | null;
+          foto_url?: string | null;
+          ativo?: boolean;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'equipe_membro_owner_id_fkey';
+            columns: ['owner_id'];
+            isOneToOne: false;
+            referencedRelation: 'users';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'equipe_membro_user_id_fkey';
+            columns: ['user_id'];
+            isOneToOne: false;
+            referencedRelation: 'users';
+            referencedColumns: ['id'];
+          },
+        ];
+      };
+      equipe_membro_embarcacao: {
+        Row: {
+          id: string;
+          equipe_membro_id: string;
+          embarcacao_id: string;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          equipe_membro_id: string;
+          embarcacao_id: string;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          equipe_membro_id?: string;
+          embarcacao_id?: string;
+          created_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'equipe_membro_embarcacao_equipe_membro_id_fkey';
+            columns: ['equipe_membro_id'];
+            isOneToOne: false;
+            referencedRelation: 'equipe_membro';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'equipe_membro_embarcacao_embarcacao_id_fkey';
+            columns: ['embarcacao_id'];
+            isOneToOne: false;
+            referencedRelation: 'embarcacao';
+            referencedColumns: ['id'];
+          },
+        ];
+      };
+      reserva_atendente: {
+        Row: {
+          id: string;
+          reserva_id: string;
+          equipe_membro_id: string;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          reserva_id: string;
+          equipe_membro_id: string;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          reserva_id?: string;
+          equipe_membro_id?: string;
+          created_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'reserva_atendente_reserva_id_fkey';
+            columns: ['reserva_id'];
+            isOneToOne: false;
+            referencedRelation: 'reserva';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'reserva_atendente_equipe_membro_id_fkey';
+            columns: ['equipe_membro_id'];
+            isOneToOne: false;
+            referencedRelation: 'equipe_membro';
+            referencedColumns: ['id'];
+          },
+        ];
+      };
     };
     Views: Record<string, never>;
     Functions: {
@@ -1581,3 +1713,9 @@ export type Database = {
     CompositeTypes: Record<string, never>;
   };
 };
+
+// ─── Atalhos de linha (Equipe) ───────────────────────────────────────────
+export type EquipeMembroRow = Database['public']['Tables']['equipe_membro']['Row'];
+export type EquipeMembroEmbarcacaoRow =
+  Database['public']['Tables']['equipe_membro_embarcacao']['Row'];
+export type ReservaAtendenteRow = Database['public']['Tables']['reserva_atendente']['Row'];

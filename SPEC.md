@@ -3650,3 +3650,118 @@ popover de preço/duração sem prejudicar a UX dos dois.
   como rede de segurança em qualquer tamanho de tela.
 - Ações **Limpar** / **Aplicar** (rótulo mostra a contagem do rascunho) — mesmo rodapé do
   `FiltrosAvancados`.
+
+## 32. Equipe (funcionários da embarcação) — `/painel/equipe`
+
+Cadastro, no painel do gestor, das pessoas que ajudam a cuidar das embarcações. Serve a dois
+propósitos: (1) organizar a equipe do gestor; (2) na **confirmação de uma reserva**, indicar
+ao cliente quem vai atendê-lo no passeio (nome, foto e telefone) — dado exibido em
+`/minhas-reservas`. Semente para o relatório futuro de atendimentos por membro/mês.
+
+### 32.1 Modelo de dados — migration `20260830_equipe.sql`
+
+**`equipe_membro`** — a pessoa (pertence a um gestor):
+
+| coluna | tipo | notas |
+|---|---|---|
+| `id` | uuid PK | |
+| `owner_id` | uuid NOT NULL → `users(id)` ON DELETE CASCADE | gestor dono do cadastro |
+| `user_id` | uuid NULL → `users(id)` ON DELETE SET NULL | vínculo opcional com uma conta da plataforma; **não concede acesso** — é só identidade/rastreabilidade (papel `gestor` continua vindo de `user_roles`) |
+| `is_gestor` | boolean NOT NULL DEFAULT false | linha que representa o **próprio gestor** como atendente ("Você (gestor)") |
+| `nome_completo` | text NOT NULL | |
+| `cpf` | text NULL | obrigatório no formulário de membro; NULL na linha do gestor (herda de `users.cpf_cnpj`) |
+| `email` | text NULL | opcional |
+| `telefone` | text NULL | só dígitos; obrigatório no formulário de membro |
+| `foto_url` | text NULL | URL pública no R2 |
+| `ativo` | boolean NOT NULL DEFAULT true | desativar preserva histórico |
+| `created_at` / `updated_at` | timestamptz | trigger `update_equipe_membro_updated_at` |
+
+Índices: `equipe_membro_owner_idx`, `equipe_membro_user_idx`; únicos parciais
+`equipe_membro_owner_cpf_uniq (owner_id, cpf) WHERE cpf IS NOT NULL` e
+`equipe_membro_owner_gestor_uniq (owner_id) WHERE is_gestor` (uma linha do gestor por gestor).
+
+**`equipe_membro_embarcacao`** — vínculo N:N membro ↔ embarcação
+(`equipe_membro_id`, `embarcacao_id`, `UNIQUE(equipe_membro_id, embarcacao_id)`, ambos ON DELETE
+CASCADE). O membro é indicado como atendente nas embarcações vinculadas.
+
+**`reserva_atendente`** — quem atende a reserva
+(`reserva_id`, `equipe_membro_id`, `UNIQUE(reserva_id, equipe_membro_id)`, ambos ON DELETE
+CASCADE). FK único para `equipe_membro` — a opção "Você (gestor)" também é uma linha de
+`equipe_membro` (`is_gestor = true`), então o relatório futuro fica uniforme
+(`GROUP BY equipe_membro_id`). Índices `reserva_atendente_reserva_idx`,
+`reserva_atendente_membro_idx`.
+
+**RLS** (backend usa `supabaseAdmin`; policies são a rede de segurança):
+- `equipe_membro`: `service_role_all`; gestor faz SELECT/INSERT/UPDATE/DELETE onde
+  `owner_id = auth.uid()` (DELETE só com `is_gestor = false`); **cliente** faz SELECT de um membro
+  quando ele está indicado numa reserva sua (`reserva_atendente ⨝ reserva` com
+  `cliente_id = auth.uid()`).
+- `equipe_membro_embarcacao`: `service_role_all`; gestor `FOR ALL` via EXISTS em `equipe_membro`
+  do `owner_id`.
+- `reserva_atendente`: `service_role_all`; gestor (dono da reserva) `FOR ALL`; cliente (dono da
+  reserva) só SELECT.
+
+### 32.2 Foto no Cloudflare R2
+
+- `buildEquipeKey(gestorId, membroId, filename)` em `src/lib/r2.ts` →
+  `equipe/{gestorId}/{membroId}/{filename}` (pasta `equipe` + pasta com o id do gestor).
+- Rota `POST /api/painel/equipe/upload` (`src/app/api/painel/equipe/upload/route.ts`): valida
+  sessão + role `gestor|admin`, confere `equipe_membro.owner_id = user.id`, aplica
+  `MAX_IMAGE_SIZE_BYTES` e tipos `image/jpeg|png|webp`, faz `PutObjectCommand` e devolve
+  `{ publicUrl, key }`. Fluxo: cria a linha do membro → upload com `membroId` → `salvarFotoMembro`.
+- Troca/remoção de foto e exclusão do membro removem o objeto anterior via
+  `deleteFromR2(buildKeyFromUrl(foto_url))`.
+
+### 32.3 Helpers — `src/lib/equipe.ts` (+ tipos em `src/lib/equipe-types.ts`)
+
+- `ensureGestorEquipeMembro(ownerId)` → garante a linha `is_gestor = true` (idempotente) e
+  devolve o id. Chamada no 1º acesso a `/painel/equipe` e antes de montar a confirmação.
+- `resolveEmbarcacaoIdDaReserva(r)` → embarcação vigente: `reserva.embarcacao_id` (tipo
+  `embarcacao`) ou `roteiro.embarcacao_id ?? reserva.embarcacao_id` (tipo `roteiro`).
+- `getAtendenteOptions(ownerId, embarcacaoId)` → "Você (gestor)" + membros **ativos** vinculados
+  à embarcação (gestor primeiro).
+- `getAtendentesDaReserva(reservaId)` → atendentes já indicados (para painel e cliente).
+
+### 32.4 Telas do painel
+
+- `/painel/equipe` (`page.tsx`): header + formulário "Novo membro" (`NovoMembroForm` →
+  `MembroForm`) + `EquipeGrid` (cards com foto, CPF/telefone mascarados, badges das embarcações,
+  badge "conta vinculada", total de atendimentos, ações editar / ativar-desativar / excluir).
+  Exige ≥ 1 embarcação cadastrada.
+- `/painel/equipe/[id]/editar` (`page.tsx` + `MembroForm` em modo edição): mesmos campos, troca de
+  foto, re-vínculo de embarcações, vínculo/desvínculo de conta. A linha `is_gestor` redireciona
+  para `/painel/equipe` (não editável).
+- **Actions** (`equipe/actions.ts`): `criarMembro`, `atualizarMembro`, `salvarFotoMembro`,
+  `removerFotoMembro`, `alternarAtivoMembro`, `excluirMembro` (bloqueada se houver
+  `reserva_atendente` — só desativar), `buscarUsuarioParaVincular(termo)` (nome/e-mail/CPF, ≥ 3
+  chars). Validação: `isValidCPF`, telefone 10–11 dígitos, e-mail opcional, embarcações do próprio
+  gestor. CPF duplicado → erro amigável (23505).
+
+### 32.5 Confirmação da reserva — indicação de atendente(s)
+
+`agendamentos/actions.ts`:
+- `confirmarReserva(reservaId, observacao?, atendenteIds?)` — **atendentes obrigatórios** (≥ 1).
+  `definirAtendentesInterno` valida cada id contra `getAtendenteOptions` da embarcação da reserva
+  e regrava `reserva_atendente` (delete + insert) na mesma operação do update de status. Mantém a
+  checagem de conflito de datas.
+- `definirAtendentes(reservaId, atendenteIds)` — ajusta os atendentes de uma reserva já
+  `confirmada`/`concluida` sem mexer no status.
+
+`agendamentos/[id]/page.tsx`: carrega `getAtendenteOptions` + `getAtendentesDaReserva`, passa para
+`ReservaAcoes`; inclui a lista no texto do evento do Google Calendar. `ReservaAcoes` mostra
+checkboxes (pré-seleção: membros vinculados; se nenhum, "Você (gestor)") no fluxo de confirmar e um
+painel "Equipe que vai atender" com edição quando a reserva já está confirmada/concluída.
+
+### 32.6 Exibição para o cliente
+
+`/minhas-reservas`: `select` inclui
+`reserva_atendente ( equipe_membro:equipe_membro_id ( nome_completo, foto_url, telefone, is_gestor ) )`.
+Bloco "Quem vai te atender" (foto, nome ou "Gestor da embarcação", telefone mascarado) renderizado
+só quando `status ∈ {confirmada, concluida}` e há atendentes.
+
+### 32.7 Futuro (to-do)
+
+Relatório a nível de gestor: nº de atendimentos por membro em um mês —
+`reserva_atendente ⨝ reserva` com `owner_id`, `status ∈ {confirmada, concluida}` e
+`data_reserva` no período, `GROUP BY equipe_membro_id` (inclui "Você (gestor)"). Índice
+`reserva_atendente_membro_idx` já preparado.

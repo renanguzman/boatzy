@@ -5,6 +5,7 @@ import { createClient } from '@/lib/supabase/server';
 import { supabaseAdmin } from '@/lib/supabase';
 import { checkRoleInDb } from '@/lib/roles';
 import { getDatasReservadasEmbarcacao, getDatasReservadasRoteiro } from '@/lib/reservas';
+import { getAtendenteOptions, resolveEmbarcacaoIdDaReserva } from '@/lib/equipe';
 
 type ActionResult = { ok: boolean; error?: string };
 
@@ -18,10 +19,40 @@ type ReservaParaChecagem = {
   roteiro: { embarcacao_id: string | null } | null;
 };
 
+/**
+ * Regrava os atendentes (equipe / próprio gestor) de uma reserva, validando
+ * que cada id é uma opção legítima para a embarcação da reserva.
+ */
+async function definirAtendentesInterno(
+  ownerId: string,
+  reserva: ReservaParaChecagem & { id: string },
+  atendenteIds: string[],
+): Promise<ActionResult> {
+  const embarcacaoId = resolveEmbarcacaoIdDaReserva(reserva);
+  const opcoes = await getAtendenteOptions(ownerId, embarcacaoId);
+  const permitidos = new Set(opcoes.map((o) => o.id));
+
+  const ids = [...new Set(atendenteIds)].filter((id) => permitidos.has(id));
+
+  if (ids.length === 0) {
+    return { ok: false, error: 'Selecione ao menos uma pessoa para atender a reserva.' };
+  }
+
+  await supabaseAdmin.from('reserva_atendente').delete().eq('reserva_id', reserva.id);
+
+  const { error } = await supabaseAdmin
+    .from('reserva_atendente')
+    .insert(ids.map((equipe_membro_id) => ({ reserva_id: reserva.id, equipe_membro_id })));
+
+  if (error) return { ok: false, error: error.message };
+  return { ok: true };
+}
+
 async function responderReserva(
   reservaId: string,
   status: 'confirmada' | 'recusada',
   observacao?: string,
+  atendenteIds?: string[],
 ): Promise<ActionResult> {
   const supabase = await createClient();
   const {
@@ -46,7 +77,7 @@ async function responderReserva(
 
   if (!reserva) return { ok: false, error: 'Reserva não encontrada ou sem permissão.' };
 
-  const r = reserva as unknown as ReservaParaChecagem;
+  const r = reserva as unknown as ReservaParaChecagem & { id: string };
 
   // Ao CONFIRMAR: a embarcação (ou o roteiro, sempre) não pode já ter outra
   // reserva confirmada na mesma data — a própria reserva ainda está
@@ -62,6 +93,10 @@ async function responderReserva(
     if (datasIndisponiveis.includes(r.data_reserva)) {
       return { ok: false, error: CONFLITO_MSG };
     }
+
+    // Atendentes são obrigatórios na confirmação.
+    const resAtendentes = await definirAtendentesInterno(user.id, r, atendenteIds ?? []);
+    if (!resAtendentes.ok) return resAtendentes;
   }
 
   const { error } = await supabaseAdmin
@@ -83,13 +118,57 @@ async function responderReserva(
   }
 
   revalidatePath('/painel/agendamentos');
+  revalidatePath(`/painel/agendamentos/${reservaId}`);
   return { ok: true };
 }
 
-export async function confirmarReserva(reservaId: string, observacao?: string): Promise<ActionResult> {
-  return responderReserva(reservaId, 'confirmada', observacao);
+export async function confirmarReserva(
+  reservaId: string,
+  observacao?: string,
+  atendenteIds?: string[],
+): Promise<ActionResult> {
+  return responderReserva(reservaId, 'confirmada', observacao, atendenteIds);
 }
 
 export async function recusarReserva(reservaId: string, observacao?: string): Promise<ActionResult> {
   return responderReserva(reservaId, 'recusada', observacao);
+}
+
+/**
+ * Ajusta os atendentes de uma reserva JÁ confirmada (ou concluída), sem
+ * alterar o status. Usado na tela de detalhe do agendamento.
+ */
+export async function definirAtendentes(
+  reservaId: string,
+  atendenteIds: string[],
+): Promise<ActionResult> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { ok: false, error: 'Não autenticado.' };
+
+  const autorizado = await checkRoleInDb(user.id, ['gestor', 'admin']);
+  if (!autorizado) return { ok: false, error: 'Acesso não autorizado.' };
+
+  const { data: reserva } = await supabaseAdmin
+    .from('reserva')
+    .select('id, owner_id, status, tipo, roteiro_id, embarcacao_id, data_reserva, roteiro ( embarcacao_id )')
+    .eq('id', reservaId)
+    .eq('owner_id', user.id)
+    .single();
+
+  if (!reserva) return { ok: false, error: 'Reserva não encontrada ou sem permissão.' };
+
+  const r = reserva as unknown as ReservaParaChecagem & { id: string; status: string };
+  if (r.status !== 'confirmada' && r.status !== 'concluida') {
+    return { ok: false, error: 'Só é possível definir atendentes de uma reserva confirmada.' };
+  }
+
+  const res = await definirAtendentesInterno(user.id, r, atendenteIds);
+  if (!res.ok) return res;
+
+  revalidatePath('/painel/agendamentos');
+  revalidatePath(`/painel/agendamentos/${reservaId}`);
+  return { ok: true };
 }

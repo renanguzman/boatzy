@@ -36,6 +36,16 @@ export function buildR2Key(userId: string, embarcacaoId: string, filename: strin
 }
 
 /**
+ * Monta o caminho (key) da foto de um membro da equipe no R2.
+ * Estrutura: equipe/{gestorId}/{membroId}/{filename}
+ * — pasta `equipe` + pasta com o id do gestor, conforme especificado.
+ */
+export function buildEquipeKey(gestorId: string, membroId: string, filename: string): string {
+  const safeFilename = filename.replace(/[^a-zA-Z0-9._-]/g, '_');
+  return `equipe/${gestorId}/${membroId}/${safeFilename}`;
+}
+
+/**
  * Retorna a URL pública de um objeto dado seu key.
  */
 export function buildPublicUrl(key: string): string {

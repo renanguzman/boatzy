@@ -4,7 +4,9 @@ import Image from 'next/image';
 import {
   MapPin, Ship, Users, CalendarDays, ShoppingCart, Clock, MessageSquare,
   MessageCircle, Hourglass, CheckCircle2, XCircle, Compass, Ban, Flag,
+  User, Crown, Phone,
 } from 'lucide-react';
+import { applyPhoneMask, onlyDigits } from '@/lib/validators';
 import Header from '@/components/layout/Header';
 import Footer from '@/components/layout/Footer';
 import { createClient } from '@/lib/supabase/server';
@@ -44,6 +46,14 @@ type ReservaCliente = {
   } | null;
   embarcacao: { nome: string } | null;
   reserva_adicional: { id: string; descricao: string; valor: number; tipo: string }[];
+  reserva_atendente: {
+    equipe_membro: {
+      nome_completo: string;
+      foto_url: string | null;
+      telefone: string | null;
+      is_gestor: boolean;
+    } | null;
+  }[];
   avaliacao: AvaliacaoResumo | AvaliacaoResumo[] | null;
 };
 
@@ -101,6 +111,13 @@ function formatDateTime(iso: string): string {
   });
 }
 
+function formatTelefone(digits: string | null): string | null {
+  if (!digits) return null;
+  const d = onlyDigits(digits);
+  if (d.length < 10) return null;
+  return applyPhoneMask(d, d.length > 10 ? '(##) #####-####' : '(##) ####-####');
+}
+
 function thumb(r: ReservaCliente): string | null {
   const imgs = r.roteiro?.roteiro_imagens ?? [];
   return (imgs.find((i) => i.principal) ?? imgs[0])?.url_imagem ?? null;
@@ -125,6 +142,7 @@ export default async function MinhasReservasPage() {
        roteiro ( nome, municipios ( nome, estados ( uf ) ), roteiro_imagens ( url_imagem, principal ) ),
        embarcacao ( nome ),
        reserva_adicional ( id, descricao, valor, tipo ),
+       reserva_atendente ( equipe_membro ( nome_completo, foto_url, telefone, is_gestor ) ),
        avaliacao ( nota, comentario, created_at, status )`,
     )
     .eq('cliente_id', user.id)
@@ -178,9 +196,18 @@ export default async function MinhasReservasPage() {
                 : null;
               const img = thumb(r);
               const naoLidas = naoLidasPorGestor.get(r.owner_id) ?? 0;
+              // Conta que acumula as roles cliente+gestor não conversa consigo
+              // mesma (o chat recusa gestor_id = cliente_id → 404).
+              const chatIndisponivel = r.owner_id === user.id;
               // Embed 1:1 pode vir como objeto ou array conforme a detecção do PostgREST.
               const avaliacao = Array.isArray(r.avaliacao) ? (r.avaliacao[0] ?? null) : r.avaliacao;
               const podeCancelar = r.status === 'pendente' || r.status === 'confirmada';
+              const atendentes = (r.reserva_atendente ?? [])
+                .map((a) => a.equipe_membro)
+                .filter((m): m is NonNullable<typeof m> => m != null)
+                .sort((a, b) => Number(b.is_gestor) - Number(a.is_gestor));
+              const mostrarAtendentes =
+                (r.status === 'confirmada' || r.status === 'concluida') && atendentes.length > 0;
 
               return (
                 <article key={r.id} className="rounded-2xl border border-slate-200 bg-white shadow-sm overflow-hidden">
@@ -291,6 +318,51 @@ export default async function MinhasReservasPage() {
                     )}
                   </div>
 
+                  {/* Quem vai te atender */}
+                  {mostrarAtendentes && (
+                    <div className="px-4 pb-4">
+                      <div className="rounded-xl border border-slate-200 bg-slate-50/70 p-3.5">
+                        <div className="flex items-center gap-1.5 mb-2.5">
+                          <Users className="h-4 w-4 text-[#0B3D91]" />
+                          <span className="text-sm font-semibold text-[#0B2447]">Quem vai te atender</span>
+                        </div>
+                        <div className="flex flex-wrap gap-3">
+                          {atendentes.map((m, i) => {
+                            const tel = formatTelefone(m.telefone);
+                            return (
+                              <div key={i} className="flex items-center gap-2.5">
+                                <span className="w-9 h-9 rounded-full overflow-hidden bg-white border border-slate-200 shrink-0 flex items-center justify-center">
+                                  {m.foto_url ? (
+                                    <Image
+                                      src={m.foto_url}
+                                      alt={m.nome_completo}
+                                      width={36}
+                                      height={36}
+                                      className="w-full h-full object-cover"
+                                    />
+                                  ) : (
+                                    <User className="w-4 h-4 text-slate-300" />
+                                  )}
+                                </span>
+                                <div className="min-w-0">
+                                  <p className="text-sm text-slate-700 flex items-center gap-1">
+                                    {m.is_gestor && <Crown className="h-3.5 w-3.5 text-amber-500 shrink-0" />}
+                                    {m.is_gestor ? 'Gestor da embarcação' : m.nome_completo}
+                                  </p>
+                                  {tel && (
+                                    <p className="text-xs text-slate-400 flex items-center gap-1">
+                                      <Phone className="h-3 w-3" /> {tel}
+                                    </p>
+                                  )}
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
                   {/* Avaliação (reserva concluída) */}
                   {r.status === 'concluida' && (
                     <div className="px-4 pb-4">
@@ -300,20 +372,27 @@ export default async function MinhasReservasPage() {
 
                   {/* Ações: conversar com o gestor + cancelar + ver roteiro */}
                   <div className="border-t border-slate-100 px-4 py-3 flex items-center justify-between gap-3 flex-wrap">
-                    <Link
-                      href={`/minhas-reservas/${r.id}/chat`}
-                      className="inline-flex items-center gap-2 text-sm font-medium text-[#0B3D91] hover:text-[#0B2447] transition-colors"
-                    >
-                      <span className="relative inline-flex">
+                    {chatIndisponivel ? (
+                      <span className="inline-flex items-center gap-2 text-sm font-medium text-slate-300">
                         <MessageCircle className="h-4 w-4" />
-                        {naoLidas > 0 && (
-                          <span className="absolute -top-1.5 -right-1.5 min-w-[16px] h-[16px] px-1 flex items-center justify-center rounded-full bg-red-500 text-white text-[9px] font-bold leading-none">
-                            {naoLidas > 99 ? '99+' : naoLidas}
-                          </span>
-                        )}
+                        Conversar com o gestor
                       </span>
-                      Conversar com o gestor
-                    </Link>
+                    ) : (
+                      <Link
+                        href={`/minhas-reservas/${r.id}/chat`}
+                        className="inline-flex items-center gap-2 text-sm font-medium text-[#0B3D91] hover:text-[#0B2447] transition-colors"
+                      >
+                        <span className="relative inline-flex">
+                          <MessageCircle className="h-4 w-4" />
+                          {naoLidas > 0 && (
+                            <span className="absolute -top-1.5 -right-1.5 min-w-[16px] h-[16px] px-1 flex items-center justify-center rounded-full bg-red-500 text-white text-[9px] font-bold leading-none">
+                              {naoLidas > 99 ? '99+' : naoLidas}
+                            </span>
+                          )}
+                        </span>
+                        Conversar com o gestor
+                      </Link>
+                    )}
                     <div className="flex items-center gap-4">
                       {podeCancelar && <CancelarReservaButton reservaId={r.id} />}
                       {r.roteiro_id && (

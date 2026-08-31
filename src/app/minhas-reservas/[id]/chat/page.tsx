@@ -29,6 +29,11 @@ export default async function ChatGestorPage({ params }: { params: Promise<{ id:
 
   if (!reserva) notFound();
 
+  // Conta que acumula cliente + gestor: não há chat consigo mesma (a tabela
+  // `conversa` tem CHECK gestor_id <> cliente_id). Volta para a lista em vez
+  // de estourar um 404 confuso.
+  if (reserva.owner_id === user.id) redirect('/minhas-reservas');
+
   // Origem da conversa = o objeto da reserva (embarcação ou roteiro).
   const origemTipo = reserva.tipo === 'roteiro' ? 'roteiro' : 'embarcacao';
   const origemId = reserva.roteiro_id ?? reserva.embarcacao_id ?? null;

@@ -8,6 +8,7 @@ import { createClient } from '@/lib/supabase/server';
 import { supabaseAdmin } from '@/lib/supabase';
 import { formatCurrency } from '@/lib/utils';
 import { getDatasReservadasEmbarcacao, getDatasReservadasRoteiro } from '@/lib/reservas';
+import { getAtendenteOptions, getAtendentesDaReserva, resolveEmbarcacaoIdDaReserva } from '@/lib/equipe';
 import ReservaAcoes from './_components/ReservaAcoes';
 import AdicionarAoCalendario from './_components/AdicionarAoCalendario';
 
@@ -108,6 +109,19 @@ export default async function ReservaDetalhePage({ params }: { params: Promise<{
           });
     temConflito = datasIndisponiveis.includes(r.data_reserva);
   }
+  // Equipe: opções de atendente (gestor + membros vinculados à embarcação) e
+  // quem já está indicado nesta reserva.
+  const embarcacaoIdReserva = resolveEmbarcacaoIdDaReserva({
+    tipo: r.tipo,
+    embarcacao_id: r.embarcacao_id,
+    roteiro: r.roteiro ? { embarcacao_id: r.roteiro.embarcacao_id } : null,
+  });
+  const [atendenteOptions, atendentesAtuais] = await Promise.all([
+    getAtendenteOptions(user.id, embarcacaoIdReserva),
+    getAtendentesDaReserva(id),
+  ]);
+  const atendentesAtuaisIds = atendentesAtuais.map((a) => a.id);
+
   const TipoIcon = r.tipo === 'embarcacao' ? Ship : MapPin;
   const localidade = r.roteiro?.municipios
     ? r.roteiro.municipios.estados
@@ -127,6 +141,9 @@ export default async function ReservaDetalhePage({ params }: { params: Promise<{
     r.embarcacao ? `Embarcação: ${r.embarcacao.nome}` : null,
     r.reserva_adicional.length > 0
       ? `Adicionais: ${r.reserva_adicional.map((a) => a.descricao).join(', ')}`
+      : null,
+    atendentesAtuais.length > 0
+      ? `Atende: ${atendentesAtuais.map((a) => (a.is_gestor ? 'Você (gestor)' : a.nome_completo)).join(', ')}`
       : null,
     r.total_estimado != null ? `Total estimado: ${formatCurrency(r.total_estimado)}` : null,
   ]
@@ -314,7 +331,12 @@ export default async function ReservaDetalhePage({ params }: { params: Promise<{
             </div>
           )}
 
-          <ReservaAcoes reservaId={r.id} status={r.status} />
+          <ReservaAcoes
+            reservaId={r.id}
+            status={r.status}
+            atendenteOptions={atendenteOptions}
+            atendentesAtuais={atendentesAtuaisIds}
+          />
 
           <AdicionarAoCalendario
             titulo={tituloEvento}

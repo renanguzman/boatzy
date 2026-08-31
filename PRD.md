@@ -804,6 +804,37 @@ decisões de escopo: `docs/planejamento-vendas.md`.
 
 ---
 
+### 6.13 Equipe (funcionários da embarcação)
+
+**Status:** ✅ Implementado (relatório de atendimentos por membro/mês fica como to-do — ver
+Roadmap §12).
+
+Novo menu **Equipe** no painel do gestor (`/painel/equipe`). O gestor cadastra as pessoas que
+ajudam a cuidar das suas embarcações e, **ao confirmar uma reserva**, indica quem vai atender o
+cliente — pode ser um ou mais membros da equipe e/ou **ele próprio** ("Você (gestor)"). O cliente
+vê quem vai atendê-lo (nome, foto, telefone) em **Minhas reservas** assim que a reserva é
+confirmada — mais segurança e previsibilidade para quem contratou.
+
+**Cadastro de um membro:**
+- Nome completo (obrigatório);
+- CPF (obrigatório, validado);
+- E-mail (opcional);
+- Telefone (obrigatório);
+- Foto (opcional) — salva no Cloudflare R2 em `equipe/{id-do-gestor}/{id-do-membro}/`;
+- Embarcação(ões) em que o membro é sempre indicado como atendente (N:N, ≥ 1);
+- Vínculo opcional com uma conta da plataforma — para quando a pessoa já existe na Boatzy ou vier
+  a se tornar um gestor de embarcação (apenas identidade; não concede acesso).
+
+**Regras:**
+- Membro com histórico de atendimento não é excluído, apenas desativado.
+- A ficha "Você (gestor)" é criada automaticamente, sempre ativa, não editável/excluível.
+- Confirmar uma reserva exige pelo menos um atendente; a seleção pode ser ajustada depois enquanto
+  a reserva estiver confirmada/concluída.
+
+Detalhes técnicos: SPEC §32.
+
+---
+
 ## 7. Modelagem de Dados (Simplificada)
 
 ### users
@@ -868,6 +899,38 @@ user_id
 rating (1-5)
 comment
 created_at
+```
+
+### equipe_membro
+
+```
+id
+owner_id            (gestor dono do cadastro)
+user_id             (opcional — conta da plataforma vinculada)
+is_gestor           (linha do próprio gestor como atendente)
+nome_completo
+cpf
+email               (opcional)
+telefone
+foto_url            (Cloudflare R2)
+ativo
+created_at / updated_at
+```
+
+### equipe_membro_embarcacao  (N:N membro ↔ embarcação)
+
+```
+id
+equipe_membro_id
+embarcacao_id
+```
+
+### reserva_atendente  (quem atende a reserva)
+
+```
+id
+reserva_id
+equipe_membro_id
 ```
 
 ---
@@ -951,6 +1014,9 @@ A taxa padrão configurada inicialmente é **10%**. Admins podem alterá-la a qu
 - Seguro para locação
 - App mobile (React Native)
 - Sistema de reputação avançado
+- **Relatório de atendimentos da equipe** (§6.13): a nível de gestor, quantos atendimentos cada
+  membro (incluindo o próprio gestor) fez num determinado mês — `reserva_atendente ⨝ reserva`
+  agrupado por membro. Modelo de dados já preparado (índice `reserva_atendente_membro_idx`).
 
 ---
 
