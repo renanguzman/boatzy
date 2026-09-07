@@ -1,12 +1,12 @@
 'use client';
 
-import { useState, useTransition, useRef, useCallback } from 'react';
+import { useState, useEffect, useTransition, useRef, useCallback } from 'react';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import {
   Info, MapPin, ImageIcon, Upload, X, Star, DollarSign,
   Loader2, AlertCircle, CheckCircle, ChevronRight, CalendarDays,
-  Plus, ChevronDown, ChevronUp, Trash2, HelpCircle, BookOpen,
+  Plus, ChevronDown, ChevronUp, Trash2, HelpCircle, BookOpen, Check,
 } from 'lucide-react';
 import { MAX_IMAGE_SIZE_BYTES, MAX_IMAGE_SIZE_ERROR } from '@/lib/upload';
 import {
@@ -28,7 +28,7 @@ import MapaPicker from '../../../../embarcacoes/novo/_components/MapaPicker';
 import CatalogoSelector, { type CatalogoItem, type ItemSelecionado } from '../../../_components/CatalogoSelector';
 import DisponibilidadePicker from '@/components/painel/DisponibilidadePicker';
 import { horasParaPartes } from '@/lib/duracao';
-import type { PrecoRegraTipo } from '@/types/supabase';
+import type { PrecoRegraTipo, PrecoPessoaModoCapacidade } from '@/types/supabase';
 
 // ─── Constantes ───────────────────────────────────────────────────────────────
 
@@ -103,6 +103,14 @@ type RoteiroData = {
   latitude: number | null;
   longitude: number | null;
   preco_base: number | null;
+  preco_diaria_ativo: boolean;
+  preco_diaria_valor: number | null;
+  preco_diaria_minimo: number;
+  preco_pessoa_ativo: boolean;
+  preco_pessoa_valor: number | null;
+  preco_pessoa_capacidade_minima: number | null;
+  preco_pessoa_capacidade_maxima: number | null;
+  preco_pessoa_modo_capacidade: PrecoPessoaModoCapacidade;
   disponibilidade_dias_semana: number[] | null;
   estado_id: number | null;
   roteiro_imagens: RoteiroImagem[];
@@ -158,11 +166,11 @@ const inputCls = `w-full rounded-xl border border-slate-200 px-3.5 py-2.5 text-s
   focus:border-[#0B2447]/40 transition bg-white`;
 const selectCls = `${inputCls} appearance-none cursor-pointer`;
 
-function SectionCard({ icon: Icon, title, children }: {
-  icon: React.ElementType; title: string; children: React.ReactNode;
+function SectionCard({ id, icon: Icon, title, children }: {
+  id?: string; icon: React.ElementType; title: string; children: React.ReactNode;
 }) {
   return (
-    <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
+    <div id={id} className="scroll-mt-24 bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
       <div className="flex items-center gap-2.5 px-6 py-4 border-b border-slate-100 bg-slate-50/50">
         <Icon className="w-4 h-4 text-[#0B2447]" />
         <h2 className="text-sm font-bold text-[#0B2447] tracking-wide uppercase">{title}</h2>
@@ -171,6 +179,16 @@ function SectionCard({ icon: Icon, title, children }: {
     </div>
   );
 }
+
+// Atalhos (tabs-âncora) para as seções do formulário — mesmo padrão de `/minha-conta`.
+const SECOES_ROTEIRO = [
+  { id: 'informacoes-gerais', label: 'Informações gerais' },
+  { id: 'preco', label: 'Preço' },
+  { id: 'disponibilidade', label: 'Disponibilidade' },
+  { id: 'catalogo', label: 'Catálogo' },
+  { id: 'localizacao', label: 'Localização' },
+  { id: 'imagens', label: 'Imagens' },
+];
 
 function Field({ label, required, hint, children }: {
   label: string; required?: boolean; hint?: string; children: React.ReactNode;
@@ -254,6 +272,16 @@ export default function EditarRoteiroForm({ roteiro, estados, municipiosIniciais
     origem:             roteiro.origem ?? '',
     destino:            roteiro.destino ?? '',
     preco_base:         roteiro.preco_base != null ? String(roteiro.preco_base) : '',
+    preco_diaria_ativo: roteiro.preco_diaria_ativo,
+    preco_diaria_valor: roteiro.preco_diaria_valor != null ? String(roteiro.preco_diaria_valor) : '',
+    preco_diaria_minimo: String(roteiro.preco_diaria_minimo || 1),
+    preco_pessoa_ativo: roteiro.preco_pessoa_ativo,
+    preco_pessoa_valor: roteiro.preco_pessoa_valor != null ? String(roteiro.preco_pessoa_valor) : '',
+    preco_pessoa_capacidade_minima:
+      roteiro.preco_pessoa_capacidade_minima != null ? String(roteiro.preco_pessoa_capacidade_minima) : '',
+    preco_pessoa_capacidade_maxima:
+      roteiro.preco_pessoa_capacidade_maxima != null ? String(roteiro.preco_pessoa_capacidade_maxima) : '',
+    preco_pessoa_modo_capacidade: roteiro.preco_pessoa_modo_capacidade,
     estado_id:          roteiro.estado_id != null ? String(roteiro.estado_id) : '',
     municipio_id:       roteiro.municipio_id != null ? String(roteiro.municipio_id) : '',
     latitude:           roteiro.latitude  != null ? String(roteiro.latitude)  : '',
@@ -300,6 +328,32 @@ export default function EditarRoteiroForm({ roteiro, estados, municipiosIniciais
   const [submitting, setSubmitting] = useState(false);
   const [itensCatalogo, setItensCatalogo] = useState<ItemSelecionado[]>(catalogoIniciais);
   const [catalogo, setCatalogo] = useState<CatalogoItem[]>(catalogoInicial);
+
+  // Scroll-spy: destaca o atalho da seção visível.
+  const [secaoAtiva, setSecaoAtiva] = useState(SECOES_ROTEIRO[0].id);
+  useEffect(() => {
+    const alvos = SECOES_ROTEIRO
+      .map((s) => document.getElementById(s.id))
+      .filter((el): el is HTMLElement => el !== null);
+    if (alvos.length === 0) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        const visivel = entries
+          .filter((e) => e.isIntersecting)
+          .sort((a, b) => a.boundingClientRect.top - b.boundingClientRect.top)[0];
+        if (visivel) setSecaoAtiva(visivel.target.id);
+      },
+      { rootMargin: '-96px 0px -55% 0px', threshold: 0 },
+    );
+    alvos.forEach((el) => observer.observe(el));
+    return () => observer.disconnect();
+  }, []);
+
+  function irParaSecao(id: string) {
+    setSecaoAtiva(id);
+    document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
 
   /** Ao vincular uma embarcação, herda a capacidade dela como capacidade do roteiro. */
   function setEmbarcacao(embarcacaoId: string) {
@@ -526,6 +580,14 @@ export default function EditarRoteiroForm({ roteiro, estados, municipiosIniciais
       origem:             form.origem,
       destino:            form.destino,
       preco_base:         form.preco_base,
+      preco_diaria_ativo: form.preco_diaria_ativo,
+      preco_diaria_valor: form.preco_diaria_valor,
+      preco_diaria_minimo: form.preco_diaria_minimo,
+      preco_pessoa_ativo: form.preco_pessoa_ativo,
+      preco_pessoa_valor: form.preco_pessoa_valor,
+      preco_pessoa_capacidade_minima: form.preco_pessoa_capacidade_minima,
+      preco_pessoa_capacidade_maxima: form.preco_pessoa_capacidade_maxima,
+      preco_pessoa_modo_capacidade: form.preco_pessoa_modo_capacidade,
       municipio_id:       form.municipio_id,
       latitude:           form.latitude,
       longitude:          form.longitude,
@@ -612,8 +674,30 @@ export default function EditarRoteiroForm({ roteiro, estados, municipiosIniciais
   return (
     <form onSubmit={handleSubmit} className="space-y-6 max-w-4xl">
 
+      {/* Atalhos das seções (tabs-âncora) */}
+      <nav
+        aria-label="Seções do roteiro"
+        className="sticky top-4 z-10 -mx-1 flex gap-1 overflow-x-auto rounded-2xl border border-slate-100 bg-white/90 p-1.5 shadow-sm backdrop-blur"
+      >
+        {SECOES_ROTEIRO.map((s) => (
+          <button
+            key={s.id}
+            type="button"
+            onClick={() => irParaSecao(s.id)}
+            aria-current={secaoAtiva === s.id ? 'true' : undefined}
+            className={`whitespace-nowrap rounded-xl px-3.5 py-2 text-sm font-medium transition-colors ${
+              secaoAtiva === s.id
+                ? 'bg-[#0B2447] text-white shadow-sm'
+                : 'text-slate-500 hover:bg-slate-100 hover:text-slate-700'
+            }`}
+          >
+            {s.label}
+          </button>
+        ))}
+      </nav>
+
       {/* ── 1. Informações gerais ────────────────────────────────────────── */}
-      <SectionCard icon={Info} title="Informações gerais">
+      <SectionCard id="informacoes-gerais" icon={Info} title="Informações gerais">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
           <div className="md:col-span-2">
             <Field label="Nome do roteiro" required>
@@ -735,8 +819,134 @@ export default function EditarRoteiroForm({ roteiro, estados, municipiosIniciais
       </SectionCard>
 
       {/* ── 2. Preço ─────────────────────────────────────────────────────── */}
-      <SectionCard icon={DollarSign} title="Preço">
+      <SectionCard id="preco" icon={DollarSign} title="Preço">
+        {/* Modelo de cobrança */}
+        <div className="mb-6">
+          <p className="text-sm font-bold text-[#0B2447] mb-1">Modelo de cobrança</p>
+          <p className="text-xs text-slate-400 mb-4">
+            Ative quantos modelos quiser — o cliente vê e escolhe entre os que estiverem disponíveis ao reservar.
+          </p>
+
+          <div className="space-y-3">
+            {/* Roteiro — sempre disponível, configurado logo abaixo */}
+            <div className="flex items-start gap-3 rounded-xl border border-[#0B2447]/20 bg-[#0B2447]/[0.03] p-4">
+              <div className="mt-0.5 flex h-5 w-5 items-center justify-center rounded-md bg-[#0B2447] text-white shrink-0">
+                <Check className="w-3.5 h-3.5" />
+              </div>
+              <div>
+                <p className="text-sm font-semibold text-[#0B2447]">Roteiro (diária única)</p>
+                <p className="text-xs text-slate-500 mt-0.5">
+                  O cliente reserva o roteiro inteiro por um dia. Preço base e regras configurados logo abaixo.
+                </p>
+              </div>
+            </div>
+
+            {/* Por Diária */}
+            <button type="button" onClick={() => setField('preco_diaria_ativo', !form.preco_diaria_ativo)}
+              className={`w-full flex items-start gap-3 rounded-xl border p-4 text-left transition-colors ${
+                form.preco_diaria_ativo ? 'border-[#0B2447]/20 bg-[#0B2447]/[0.03]' : 'border-slate-200 hover:border-slate-300'
+              }`}>
+              <div className={`mt-0.5 flex h-5 w-5 items-center justify-center rounded-md border-2 shrink-0 ${
+                form.preco_diaria_ativo ? 'bg-[#0B2447] border-[#0B2447] text-white' : 'border-slate-300'
+              }`}>
+                {form.preco_diaria_ativo && <Check className="w-3.5 h-3.5" />}
+              </div>
+              <div>
+                <p className="text-sm font-semibold text-[#0B2447]">Por Diária</p>
+                <p className="text-xs text-slate-500 mt-0.5">
+                  Passeio de vários dias — o cliente escolhe a data de saída e quantas diárias quer.
+                </p>
+              </div>
+            </button>
+
+            {form.preco_diaria_ativo && (
+              <div className="ml-8 grid grid-cols-1 sm:grid-cols-2 gap-4 rounded-xl border border-slate-100 bg-slate-50/50 p-4">
+                <Field label="Valor da diária (R$)" required>
+                  <div className="relative">
+                    <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-sm text-slate-400 font-medium">R$</span>
+                    <input className={`${inputCls} pl-10`} type="number" min="0" step="0.01" placeholder="0,00"
+                      value={form.preco_diaria_valor} onChange={e => setField('preco_diaria_valor', e.target.value)} />
+                  </div>
+                </Field>
+                <Field label="Diárias mínimas" hint="Menor quantidade de diárias que o cliente pode reservar.">
+                  <input className={inputCls} type="number" min="1" step="1" placeholder="1"
+                    value={form.preco_diaria_minimo} onChange={e => setField('preco_diaria_minimo', e.target.value)} />
+                </Field>
+              </div>
+            )}
+
+            {/* Por Pessoa */}
+            <button type="button" onClick={() => setField('preco_pessoa_ativo', !form.preco_pessoa_ativo)}
+              className={`w-full flex items-start gap-3 rounded-xl border p-4 text-left transition-colors ${
+                form.preco_pessoa_ativo ? 'border-[#0B2447]/20 bg-[#0B2447]/[0.03]' : 'border-slate-200 hover:border-slate-300'
+              }`}>
+              <div className={`mt-0.5 flex h-5 w-5 items-center justify-center rounded-md border-2 shrink-0 ${
+                form.preco_pessoa_ativo ? 'bg-[#0B2447] border-[#0B2447] text-white' : 'border-slate-300'
+              }`}>
+                {form.preco_pessoa_ativo && <Check className="w-3.5 h-3.5" />}
+              </div>
+              <div>
+                <p className="text-sm font-semibold text-[#0B2447]">Por Pessoa</p>
+                <p className="text-xs text-slate-500 mt-0.5">
+                  Bilheteria — valor fixo por pessoa, ideal para eventos e passeios públicos com vagas.
+                </p>
+              </div>
+            </button>
+
+            {form.preco_pessoa_ativo && (
+              <div className="ml-8 space-y-4 rounded-xl border border-slate-100 bg-slate-50/50 p-4">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                  <Field label="Valor por pessoa (R$)" required>
+                    <div className="relative">
+                      <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-sm text-slate-400 font-medium">R$</span>
+                      <input className={`${inputCls} pl-10`} type="number" min="0" step="0.01" placeholder="0,00"
+                        value={form.preco_pessoa_valor} onChange={e => setField('preco_pessoa_valor', e.target.value)} />
+                    </div>
+                  </Field>
+                  <Field label="Capacidade mínima" hint="Grupo mínimo por reserva (opcional).">
+                    <input className={inputCls} type="number" min="1" step="1" placeholder="ex: 2"
+                      value={form.preco_pessoa_capacidade_minima}
+                      onChange={e => setField('preco_pessoa_capacidade_minima', e.target.value)} />
+                  </Field>
+                  <Field label="Capacidade máxima" required hint="Total de vagas disponíveis na data.">
+                    <input className={inputCls} type="number" min="1" step="1" placeholder="ex: 20"
+                      value={form.preco_pessoa_capacidade_maxima}
+                      onChange={e => setField('preco_pessoa_capacidade_maxima', e.target.value)} />
+                  </Field>
+                </div>
+
+                <div>
+                  <p className="text-xs font-medium text-slate-600 mb-2">Como a capacidade é controlada</p>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    {(['exclusivo', 'compartilhado'] as const).map(modo => (
+                      <button key={modo} type="button" onClick={() => setField('preco_pessoa_modo_capacidade', modo)}
+                        className={`text-left rounded-xl border p-3 transition-colors ${
+                          form.preco_pessoa_modo_capacidade === modo
+                            ? 'border-[#0B2447] bg-white shadow-sm'
+                            : 'border-slate-200 bg-white/60 hover:border-slate-300'
+                        }`}>
+                        <p className="text-xs font-bold text-[#0B2447]">
+                          {modo === 'exclusivo' ? 'Exclusivo' : 'Compartilhado'}
+                        </p>
+                        <p className="text-[11px] text-slate-500 mt-0.5 leading-relaxed">
+                          {modo === 'exclusivo'
+                            ? 'Uma reserva usa o roteiro inteiro na data — só muda a forma de cobrar, por pessoa.'
+                            : 'Vários clientes reservam a mesma data até atingir a capacidade máxima.'}
+                        </p>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+
+        <div className="border-t border-slate-100 mb-6" />
+
+        {/* Preço base (modelo Roteiro) */}
         <div className="max-w-xs mb-6">
+          <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">Roteiro (diária única)</p>
           <Field label="Preço base (R$ / dia)"
             hint="Aplicado quando nenhuma regra específica estiver vigente na data da reserva.">
             <div className="relative">
@@ -908,14 +1118,15 @@ export default function EditarRoteiroForm({ roteiro, estados, municipiosIniciais
             )}
 
             {rf.tipo === 'periodo_anual' && (
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <p className="text-xs font-medium text-slate-600 mb-2">Início <span className="text-red-500">*</span></p>
-                  <div className="flex gap-2">
-                    <select className={`${selectCls} flex-1`} value={rf.periodoMesInicio} onChange={e => setRfField('periodoMesInicio', parseInt(e.target.value))}>
+                  {/* Grid (não flex) para o mês nunca disputar largura com o dia — ver nota em selectCls. */}
+                  <div className="grid grid-cols-[1fr_5.5rem] gap-2">
+                    <select className={selectCls} value={rf.periodoMesInicio} onChange={e => setRfField('periodoMesInicio', parseInt(e.target.value))}>
                       {MESES.map((m, i) => <option key={i} value={i+1}>{m}</option>)}
                     </select>
-                    <select className={`${selectCls} w-20`} value={rf.periodoDiaInicio} onChange={e => setRfField('periodoDiaInicio', parseInt(e.target.value))}>
+                    <select className={selectCls} value={rf.periodoDiaInicio} onChange={e => setRfField('periodoDiaInicio', parseInt(e.target.value))}>
                       {Array.from({ length: DIAS_MES[rf.periodoMesInicio] }, (_, i) => i+1).map(d => (
                         <option key={d} value={d}>{String(d).padStart(2,'0')}</option>
                       ))}
@@ -924,25 +1135,25 @@ export default function EditarRoteiroForm({ roteiro, estados, municipiosIniciais
                 </div>
                 <div>
                   <p className="text-xs font-medium text-slate-600 mb-2">Fim <span className="text-red-500">*</span></p>
-                  <div className="flex gap-2">
-                    <select className={`${selectCls} flex-1`} value={rf.periodoMesFim} onChange={e => setRfField('periodoMesFim', parseInt(e.target.value))}>
+                  <div className="grid grid-cols-[1fr_5.5rem] gap-2">
+                    <select className={selectCls} value={rf.periodoMesFim} onChange={e => setRfField('periodoMesFim', parseInt(e.target.value))}>
                       {MESES.map((m, i) => <option key={i} value={i+1}>{m}</option>)}
                     </select>
-                    <select className={`${selectCls} w-20`} value={rf.periodoDiaFim} onChange={e => setRfField('periodoDiaFim', parseInt(e.target.value))}>
+                    <select className={selectCls} value={rf.periodoDiaFim} onChange={e => setRfField('periodoDiaFim', parseInt(e.target.value))}>
                       {Array.from({ length: DIAS_MES[rf.periodoMesFim] }, (_, i) => i+1).map(d => (
                         <option key={d} value={d}>{String(d).padStart(2,'0')}</option>
                       ))}
                     </select>
                   </div>
                 </div>
-                <p className="col-span-2 text-xs text-slate-400">
+                <p className="sm:col-span-2 text-xs text-slate-400">
                   💡 Para períodos que cruzam o ano (ex: Dez → Mar), o sistema identifica automaticamente.
                 </p>
               </div>
             )}
 
             {rf.tipo === 'data_fixa' && (
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <Field label="Data inicial" required>
                   <input className={inputCls} type="date" value={rf.dataInicio} onChange={e => setRfField('dataInicio', e.target.value)} />
                 </Field>
@@ -968,7 +1179,7 @@ export default function EditarRoteiroForm({ roteiro, estados, municipiosIniciais
       </SectionCard>
 
       {/* ── 3. Disponibilidade ───────────────────────────────────────────── */}
-      <SectionCard icon={CalendarDays} title="Disponibilidade">
+      <SectionCard id="disponibilidade" icon={CalendarDays} title="Disponibilidade">
         <p className="text-xs text-slate-400 mb-5">
           Defina os dias da semana em que o roteiro opera e bloqueie datas específicas em que ele não estará disponível para reserva.
         </p>
@@ -981,7 +1192,7 @@ export default function EditarRoteiroForm({ roteiro, estados, municipiosIniciais
       </SectionCard>
 
       {/* ── 4. Catálogo ──────────────────────────────────────────────────── */}
-      <SectionCard icon={BookOpen} title="Catálogo — Produtos e Serviços">
+      <SectionCard id="catalogo" icon={BookOpen} title="Catálogo — Produtos e Serviços">
         <p className="text-xs text-slate-400 mb-5">
           Selecione os produtos e serviços disponíveis neste roteiro. Você pode ajustar o valor de cada item especificamente para este roteiro.
         </p>
@@ -994,7 +1205,7 @@ export default function EditarRoteiroForm({ roteiro, estados, municipiosIniciais
       </SectionCard>
 
       {/* ── 4. Localização de partida ────────────────────────────────────── */}
-      <SectionCard icon={MapPin} title="Localização de partida">
+      <SectionCard id="localizacao" icon={MapPin} title="Localização de partida">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
           <div className="md:col-span-2">
             <label className="block text-sm font-medium text-slate-700 mb-1.5">CEP</label>
@@ -1068,7 +1279,7 @@ export default function EditarRoteiroForm({ roteiro, estados, municipiosIniciais
       </SectionCard>
 
       {/* ── 4. Imagens ──────────────────────────────────────────────────── */}
-      <SectionCard icon={ImageIcon} title="Imagens">
+      <SectionCard id="imagens" icon={ImageIcon} title="Imagens">
         {existingImages.length > 0 && (
           <div className="mb-5">
             <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">Imagens salvas</p>

@@ -4,7 +4,7 @@ import { createClient } from '@/lib/supabase/server';
 import { supabaseAdmin } from '@/lib/supabase';
 import { checkRoleInDb } from '@/lib/roles';
 import { duracaoParaHoras, duracaoTexto, type DuracaoUnidade } from '@/lib/duracao';
-import type { PrecoRegraTipo } from '@/types/supabase';
+import type { PrecoRegraTipo, PrecoPessoaModoCapacidade } from '@/types/supabase';
 
 // ─── Tipos ───────────────────────────────────────────────────────────────────
 
@@ -20,6 +20,16 @@ export type CriarRoteiroPayload = {
   destino: string;
   municipio_id: string;
   preco_base: string;
+  /** Modelo "Por Diária": passeio de vários dias, cobrado por diária. */
+  preco_diaria_ativo: boolean;
+  preco_diaria_valor: string;
+  preco_diaria_minimo: string;
+  /** Modelo "Por Pessoa": bilheteria, valor fixo por pessoa. */
+  preco_pessoa_ativo: boolean;
+  preco_pessoa_valor: string;
+  preco_pessoa_capacidade_minima: string;
+  preco_pessoa_capacidade_maxima: string;
+  preco_pessoa_modo_capacidade: PrecoPessoaModoCapacidade;
   latitude: string;
   longitude: string;
   cep: string;
@@ -68,6 +78,15 @@ export async function criarRoteiro(
 
   if (!payload.nome.trim())    return { ok: false, error: 'O nome do roteiro é obrigatório.' };
   if (!payload.descricao.trim()) return { ok: false, error: 'A descrição do roteiro é obrigatória.' };
+  if (payload.preco_diaria_ativo && !payload.preco_diaria_valor) {
+    return { ok: false, error: 'Informe o valor da diária no modelo "Por Diária".' };
+  }
+  if (payload.preco_pessoa_ativo && !payload.preco_pessoa_valor) {
+    return { ok: false, error: 'Informe o valor por pessoa no modelo "Por Pessoa".' };
+  }
+  if (payload.preco_pessoa_ativo && !payload.preco_pessoa_capacidade_maxima) {
+    return { ok: false, error: 'Informe a capacidade máxima no modelo "Por Pessoa".' };
+  }
 
   const autorizado = await checkRoleInDb(user.id, ['gestor', 'admin']);
   if (!autorizado) return { ok: false, error: 'Acesso não autorizado.' };
@@ -84,6 +103,18 @@ export async function criarRoteiro(
       nome:               payload.nome.trim(),
       descricao:          payload.descricao.trim(),
       preco_base:         payload.preco_base ? parseFloat(payload.preco_base) : null,
+      preco_diaria_ativo: payload.preco_diaria_ativo,
+      preco_diaria_valor: payload.preco_diaria_ativo && payload.preco_diaria_valor
+        ? parseFloat(payload.preco_diaria_valor) : null,
+      preco_diaria_minimo: Math.max(1, parseInt(payload.preco_diaria_minimo, 10) || 1),
+      preco_pessoa_ativo: payload.preco_pessoa_ativo,
+      preco_pessoa_valor: payload.preco_pessoa_ativo && payload.preco_pessoa_valor
+        ? parseFloat(payload.preco_pessoa_valor) : null,
+      preco_pessoa_capacidade_minima: payload.preco_pessoa_capacidade_minima
+        ? parseInt(payload.preco_pessoa_capacidade_minima, 10) : null,
+      preco_pessoa_capacidade_maxima: payload.preco_pessoa_ativo && payload.preco_pessoa_capacidade_maxima
+        ? parseInt(payload.preco_pessoa_capacidade_maxima, 10) : null,
+      preco_pessoa_modo_capacidade: payload.preco_pessoa_modo_capacidade,
       duracao:            duracaoTexto(duracaoHoras),
       duracao_horas:      duracaoHoras,
       quantidade_pessoas: payload.quantidade_pessoas ? parseInt(payload.quantidade_pessoas, 10) : null,

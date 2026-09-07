@@ -8,6 +8,7 @@ import { supabaseAdmin } from '@/lib/supabase';
 import { formatCurrency } from '@/lib/utils';
 import { getTaxaEfetiva } from '@/lib/taxas';
 import { buscarPrevisaoTempo } from '@/lib/weather';
+import { somarDiasISO } from '@/lib/reservas';
 import ConfirmarReserva from './_components/ConfirmarReserva';
 import PrevisaoTempoCard from './_components/PrevisaoTempoCard';
 
@@ -20,6 +21,10 @@ type SearchParams = {
   flex?: string;
   pessoas?: string;
   adicionais?: string;
+  /** Modelo de cobrança escolhido no BookingCard — só relevante para roteiro. */
+  modalidade?: string;
+  /** Quantidade de diárias — só quando `modalidade === 'diaria'`. */
+  diarias?: string;
 };
 
 function formatDateLabel(iso: string, flex: number): string {
@@ -51,6 +56,8 @@ export default async function NovaReservaPage({
   if (sp.flex) qs.set('flex', sp.flex);
   if (sp.pessoas) qs.set('pessoas', sp.pessoas);
   if (sp.adicionais) qs.set('adicionais', sp.adicionais);
+  if (sp.modalidade) qs.set('modalidade', sp.modalidade);
+  if (sp.diarias) qs.set('diarias', sp.diarias);
   const selfUrl = `/reservas/novo?${qs.toString()}`;
 
   // Parâmetros obrigatórios.
@@ -75,8 +82,14 @@ export default async function NovaReservaPage({
 
   // Carrega o alvo (roteiro ou embarcação) — deve estar ativo.
   let nome: string;
-  let preco: number | null;
+  let precoUnitario: number | null;
   let localidade: string | null = null;
+  // Modelo de cobrança efetivamente resolvido (validado contra os modelos
+  // ativos do roteiro — parâmetro de URL não é fonte confiável).
+  let modalidade: 'roteiro' | 'diaria' | 'pessoa' = 'roteiro';
+  let diarias: number | undefined;
+  let multiplicador = 1;
+  let rotuloLinha = 'Diária';
 
   // Adicionais só existem para roteiro.
   let adicionais: { id: string; descricao: string; valor: number; tipo: string }[] = [];
@@ -112,7 +125,7 @@ export default async function NovaReservaPage({
     };
     nome = emb.nome;
     ownerId = emb.owner_id;
-    preco = emb.preco_base != null ? Number(emb.preco_base) : null;
+    precoUnitario = emb.preco_base != null ? Number(emb.preco_base) : null;
     localidade = emb.municipios
       ? emb.municipios.estados
         ? `${emb.municipios.nome}, ${emb.municipios.estados.uf}`
@@ -123,9 +136,12 @@ export default async function NovaReservaPage({
   } else {
     const { data: roteiroRaw } = await supabaseAdmin
       .from('roteiro')
-      .select(
-        `id, owner_id, nome, preco_base, latitude, longitude, municipios ( nome, estados ( uf ), latitude, longitude )`,
-      )
+      .select(`
+        id, owner_id, nome, preco_base, latitude, longitude,
+        preco_diaria_ativo, preco_diaria_valor, preco_diaria_minimo,
+        preco_pessoa_ativo, preco_pessoa_valor,
+        municipios ( nome, estados ( uf ), latitude, longitude )
+      `)
       .eq('id', alvoId)
       .eq('ativo', true)
       .single();
@@ -136,13 +152,36 @@ export default async function NovaReservaPage({
       owner_id: string;
       nome: string;
       preco_base: number | null;
+      preco_diaria_ativo: boolean;
+      preco_diaria_valor: number | null;
+      preco_diaria_minimo: number;
+      preco_pessoa_ativo: boolean;
+      preco_pessoa_valor: number | null;
       latitude: number | null;
       longitude: number | null;
       municipios: { nome: string; estados: { uf: string } | null; latitude: number | null; longitude: number | null } | null;
     };
     nome = roteiro.nome;
     ownerId = roteiro.owner_id;
-    preco = roteiro.preco_base != null ? Number(roteiro.preco_base) : null;
+
+    // Resolve o modelo pedido pela URL contra os modelos realmente ativos
+    // do roteiro — cai para 'roteiro' quando inválido/indisponível.
+    if (sp.modalidade === 'diaria' && roteiro.preco_diaria_ativo && roteiro.preco_diaria_valor != null) {
+      modalidade = 'diaria';
+      diarias = Math.max(roteiro.preco_diaria_minimo || 1, parseInt(sp.diarias ?? '', 10) || roteiro.preco_diaria_minimo || 1);
+      multiplicador = diarias;
+      rotuloLinha = 'Diária';
+      precoUnitario = Number(roteiro.preco_diaria_valor);
+    } else if (sp.modalidade === 'pessoa' && roteiro.preco_pessoa_ativo && roteiro.preco_pessoa_valor != null) {
+      modalidade = 'pessoa';
+      multiplicador = pessoas;
+      rotuloLinha = 'Pessoa';
+      precoUnitario = Number(roteiro.preco_pessoa_valor);
+    } else {
+      modalidade = 'roteiro';
+      precoUnitario = roteiro.preco_base != null ? Number(roteiro.preco_base) : null;
+    }
+
     localidade = roteiro.municipios
       ? roteiro.municipios.estados
         ? `${roteiro.municipios.nome}, ${roteiro.municipios.estados.uf}`
@@ -228,8 +267,19 @@ export default async function NovaReservaPage({
                 <CalendarDays className="h-4 w-4 text-[#0B3D91]" />
               </div>
               <div>
-                <p className="text-[10px] text-slate-500 uppercase tracking-wider font-medium">Data</p>
-                <p className="text-sm font-semibold text-slate-800">{formatDateLabel(data, flex)}</p>
+                <p className="text-[10px] text-slate-500 uppercase tracking-wider font-medium">
+                  {modalidade === 'diaria' ? 'Período' : 'Data'}
+                </p>
+                {modalidade === 'diaria' && diarias ? (
+                  <p className="text-sm font-semibold text-slate-800">
+                    {formatDateLabel(data, 0)} → {formatDateLabel(somarDiasISO(data, diarias - 1), 0)}
+                    <span className="block text-xs font-normal text-slate-400">
+                      {diarias} diária{diarias > 1 ? 's' : ''}
+                    </span>
+                  </p>
+                ) : (
+                  <p className="text-sm font-semibold text-slate-800">{formatDateLabel(data, flex)}</p>
+                )}
               </div>
             </div>
             <div className="flex items-center gap-3">
@@ -275,7 +325,11 @@ export default async function NovaReservaPage({
           flex={flex}
           pessoas={pessoas}
           adicionaisIds={adicionalIds}
-          preco={preco}
+          modalidade={modalidade}
+          diarias={diarias}
+          precoUnitario={precoUnitario}
+          multiplicador={multiplicador}
+          rotuloLinha={rotuloLinha}
           totalAdicionais={totalAdicionais}
           taxaPercent={taxaPercent}
         />

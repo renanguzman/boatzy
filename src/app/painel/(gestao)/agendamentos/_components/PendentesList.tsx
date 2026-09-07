@@ -2,6 +2,8 @@ import Link from 'next/link';
 import { MapPin, Ship, Users, Clock } from 'lucide-react';
 import type { ReservaEvento } from './AgendamentosCalendar';
 
+const MODALIDADE_LABEL = { roteiro: null, diaria: 'Diária', pessoa: 'Pessoa' } as const;
+
 function formatData(iso: string): string {
   return new Date(iso + 'T12:00:00').toLocaleDateString('pt-BR', {
     day: '2-digit',
@@ -43,6 +45,11 @@ export default function PendentesList({ pendentes }: { pendentes: ReservaEvento[
                   <div className="mt-0.5 flex items-center gap-1.5 text-xs text-slate-500">
                     <Icon className="h-3 w-3 shrink-0" />
                     <span className="truncate">{p.item_nome}</span>
+                    {MODALIDADE_LABEL[p.modalidade_preco] && (
+                      <span className="shrink-0 rounded-full bg-slate-100 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-slate-500">
+                        {MODALIDADE_LABEL[p.modalidade_preco]}
+                      </span>
+                    )}
                   </div>
                   <div className="mt-1.5 flex items-center gap-3 text-[11px] text-slate-400">
                     <span className="flex items-center gap-1">

@@ -19,7 +19,8 @@ import GaleriaRoteiro from './_components/GaleriaRoteiro';
 import AvaliacoesSection, { type AvaliacaoPublica } from '@/components/avaliacoes/AvaliacoesSection';
 import { supabaseAdmin } from '@/lib/supabase';
 import { createClient } from '@/lib/supabase/server';
-import { getDatasReservadasRoteiro } from '@/lib/reservas';
+import { getDisponibilidadeRoteiro } from '@/lib/reservas';
+import type { PrecoPessoaModoCapacidade } from '@/types/supabase';
 
 type RoteiroDetalhe = {
   id: string;
@@ -32,6 +33,14 @@ type RoteiroDetalhe = {
   duracao: string | null;
   quantidade_pessoas: number | null;
   preco_base: number | null;
+  preco_diaria_ativo: boolean;
+  preco_diaria_valor: number | null;
+  preco_diaria_minimo: number;
+  preco_pessoa_ativo: boolean;
+  preco_pessoa_valor: number | null;
+  preco_pessoa_capacidade_minima: number | null;
+  preco_pessoa_capacidade_maxima: number | null;
+  preco_pessoa_modo_capacidade: PrecoPessoaModoCapacidade;
   disponibilidade_dias_semana: number[] | null;
   latitude: number | null;
   longitude: number | null;
@@ -76,6 +85,9 @@ export default async function RoteiroDetalhePage({
     .from('roteiro')
     .select(`
       id, owner_id, embarcacao_id, nome, descricao, origem, destino, duracao, quantidade_pessoas, preco_base,
+      preco_diaria_ativo, preco_diaria_valor, preco_diaria_minimo,
+      preco_pessoa_ativo, preco_pessoa_valor, preco_pessoa_capacidade_minima,
+      preco_pessoa_capacidade_maxima, preco_pessoa_modo_capacidade,
       disponibilidade_dias_semana,
       latitude, longitude, cep, bairro, logradouro, logradouro_numero, complemento,
       municipios ( nome, estados ( uf, nome ) ),
@@ -101,11 +113,14 @@ export default async function RoteiroDetalhePage({
 
   const roteiro = data as unknown as RoteiroDetalhe;
 
-  // Datas com reserva CONFIRMADA (do próprio roteiro ou da embarcação
-  // vinculada) — mescladas aos bloqueios manuais antes de ir ao BookingCard.
-  const datasReservadas = await getDatasReservadasRoteiro({
+  // Disponibilidade nos 3 modelos de cobrança: datas exclusivamente ocupadas
+  // (reserva confirmada do próprio roteiro, da embarcação vinculada, ou de
+  // outro roteiro que a compartilhe) + vagas já ocupadas do modelo Por
+  // Pessoa quando ele opera em capacidade compartilhada.
+  const disponibilidade = await getDisponibilidadeRoteiro({
     roteiroId: roteiro.id,
     embarcacaoId: roteiro.embarcacao_id,
+    pessoaModoCapacidade: roteiro.preco_pessoa_modo_capacidade,
   });
 
   // Avaliações de reservas concluídas deste roteiro (mais recentes primeiro).
@@ -416,11 +431,20 @@ export default async function RoteiroDetalhePage({
                 diasOperacao={roteiro.disponibilidade_dias_semana}
                 datasBloqueadas={[
                   ...(roteiro.roteiro_disponibilidade_bloqueio?.map((b) => b.data) ?? []),
-                  ...datasReservadas,
+                  ...disponibilidade.datasExclusivasOcupadas,
                 ]}
                 initialData={sp.data}
                 initialFlex={sp.flex ? parseInt(sp.flex) : undefined}
                 initialPessoas={sp.pessoas ? parseInt(sp.pessoas) : undefined}
+                precoDiariaAtivo={roteiro.preco_diaria_ativo}
+                precoDiariaValor={roteiro.preco_diaria_valor}
+                precoDiariaMinimo={roteiro.preco_diaria_minimo}
+                precoPessoaAtivo={roteiro.preco_pessoa_ativo}
+                precoPessoaValor={roteiro.preco_pessoa_valor}
+                precoPessoaCapacidadeMinima={roteiro.preco_pessoa_capacidade_minima}
+                precoPessoaCapacidadeMaxima={roteiro.preco_pessoa_capacidade_maxima}
+                precoPessoaModoCapacidade={roteiro.preco_pessoa_modo_capacidade}
+                vagasPessoaOcupadas={disponibilidade.vagasPessoaOcupadas}
               />
             </div>
           </div>

@@ -2,10 +2,10 @@
 
 import { createClient } from '@/lib/supabase/server';
 import { supabaseAdmin } from '@/lib/supabase';
-import { getDatasReservadasEmbarcacao, getDatasReservadasRoteiro } from '@/lib/reservas';
+import { getDatasReservadasEmbarcacao, getDisponibilidadeRoteiro, expandirIntervalo, somarDiasISO } from '@/lib/reservas';
 import { getTaxaEfetiva } from '@/lib/taxas';
 import { formatCurrencyPrecise } from '@/lib/utils';
-import type { CupomTipoDesconto } from '@/types/supabase';
+import type { CupomTipoDesconto, ReservaModalidadePreco, PrecoPessoaModoCapacidade } from '@/types/supabase';
 
 export type CriarReservaInput = {
   tipo: 'roteiro' | 'embarcacao';
@@ -16,6 +16,10 @@ export type CriarReservaInput = {
   pessoas: number;
   adicionaisIds: string[]; // ids de roteiro_catalogo (apenas roteiro)
   cupomCodigo?: string;
+  /** Modelo de cobrança escolhido (só se aplica a `tipo: 'roteiro'`). Padrão 'roteiro'. */
+  modalidade?: ReservaModalidadePreco;
+  /** Quantidade de diárias — obrigatório quando `modalidade === 'diaria'`. */
+  diarias?: number;
 };
 
 export type CriarReservaResult = { ok: true; reservaId: string } | { ok: false; error: string };
@@ -25,12 +29,23 @@ const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
 /** Dados resolvidos no servidor para montar a reserva, comuns aos dois tipos. */
 type AlvoResolvido = {
   nome: string;
-  precoBase: number | null;
   ownerId: string;
   roteiroId: string | null;
   embarcacaoId: string | null;
   /** Taxa de serviço efetiva (%) do gestor dono do alvo — específica ou geral (ver SPEC §14). */
   taxaPercent: number;
+  /** Modelo de cobrança efetivamente resolvido ('roteiro' sempre para `tipo: 'embarcacao'`). */
+  modalidade: ReservaModalidadePreco;
+  /** Valor unitário do modelo (dia, diária ou pessoa) — snapshot gravado em `reserva.preco_base`. */
+  precoUnitario: number | null;
+  /** Multiplicador do subtotal: diárias, pessoas, ou 1 (modelo Roteiro). */
+  multiplicador: number;
+  /** Diárias mínimas exigidas pelo roteiro no modelo Por Diária. */
+  precoDiariaMinimo: number;
+  /** Config do modelo Por Pessoa do roteiro — usada para validar grupo mínimo e capacidade. */
+  pessoaCapacidadeMinima: number | null;
+  pessoaCapacidadeMaxima: number | null;
+  pessoaModoCapacidade: PrecoPessoaModoCapacidade;
 };
 
 type Adicional = { roteiro_catalogo_id: string; descricao: string; valor: number; tipo: 'produto' | 'servico' };
@@ -40,6 +55,10 @@ type ResolverAlvoInput = {
   roteiroId?: string;
   embarcacaoId?: string;
   adicionaisIds: string[];
+  /** Modelo de cobrança escolhido (ignorado para `tipo: 'embarcacao'`, sempre 'roteiro'). */
+  modalidade: ReservaModalidadePreco;
+  diarias?: number;
+  pessoas: number;
 };
 
 type ResolverAlvoResult =
@@ -66,11 +85,17 @@ async function resolverAlvo(input: ResolverAlvoInput): Promise<ResolverAlvoResul
       ok: true,
       alvo: {
         nome: emb.nome,
-        precoBase: emb.preco_base != null ? Number(emb.preco_base) : null,
+        precoUnitario: emb.preco_base != null ? Number(emb.preco_base) : null,
+        multiplicador: 1,
         ownerId: emb.owner_id,
         roteiroId: null,
         embarcacaoId: emb.id,
         taxaPercent: await getTaxaEfetiva(emb.owner_id),
+        modalidade: 'roteiro',
+        precoDiariaMinimo: 1,
+        pessoaCapacidadeMinima: null,
+        pessoaCapacidadeMaxima: null,
+        pessoaModoCapacidade: 'exclusivo',
       },
       adicionais: [],
     };
@@ -79,19 +104,49 @@ async function resolverAlvo(input: ResolverAlvoInput): Promise<ResolverAlvoResul
   if (!input.roteiroId) return { ok: false, error: 'Roteiro inválido.' };
   const { data: roteiro, error: roteiroErr } = await supabaseAdmin
     .from('roteiro')
-    .select('id, nome, preco_base, owner_id, embarcacao_id, ativo')
+    .select(`
+      id, nome, preco_base, owner_id, embarcacao_id, ativo,
+      preco_diaria_ativo, preco_diaria_valor, preco_diaria_minimo,
+      preco_pessoa_ativo, preco_pessoa_valor,
+      preco_pessoa_capacidade_minima, preco_pessoa_capacidade_maxima, preco_pessoa_modo_capacidade
+    `)
     .eq('id', input.roteiroId)
     .eq('ativo', true)
     .single();
   if (roteiroErr || !roteiro) return { ok: false, error: 'Roteiro não encontrado ou indisponível.' };
 
+  if (input.modalidade === 'diaria' && !roteiro.preco_diaria_ativo) {
+    return { ok: false, error: 'Este roteiro não tem o modelo Por Diária disponível.' };
+  }
+  if (input.modalidade === 'pessoa' && !roteiro.preco_pessoa_ativo) {
+    return { ok: false, error: 'Este roteiro não tem o modelo Por Pessoa disponível.' };
+  }
+
+  const precoUnitario =
+    input.modalidade === 'diaria'
+      ? roteiro.preco_diaria_valor != null ? Number(roteiro.preco_diaria_valor) : null
+      : input.modalidade === 'pessoa'
+        ? roteiro.preco_pessoa_valor != null ? Number(roteiro.preco_pessoa_valor) : null
+        : roteiro.preco_base != null ? Number(roteiro.preco_base) : null;
+
+  const multiplicador =
+    input.modalidade === 'diaria' ? Math.max(1, input.diarias ?? 1)
+    : input.modalidade === 'pessoa' ? input.pessoas
+    : 1;
+
   const alvo: AlvoResolvido = {
     nome: roteiro.nome,
-    precoBase: roteiro.preco_base != null ? Number(roteiro.preco_base) : null,
+    precoUnitario,
+    multiplicador,
     ownerId: roteiro.owner_id,
     roteiroId: roteiro.id,
     embarcacaoId: roteiro.embarcacao_id,
     taxaPercent: await getTaxaEfetiva(roteiro.owner_id),
+    modalidade: input.modalidade,
+    precoDiariaMinimo: roteiro.preco_diaria_minimo || 1,
+    pessoaCapacidadeMinima: roteiro.preco_pessoa_capacidade_minima,
+    pessoaCapacidadeMaxima: roteiro.preco_pessoa_capacidade_maxima,
+    pessoaModoCapacidade: roteiro.preco_pessoa_modo_capacidade,
   };
 
   // Reconstrói os adicionais selecionados a partir dos ids (snapshot dos valores atuais).
@@ -217,6 +272,10 @@ export type ValidarCupomInput = {
   embarcacaoId?: string;
   adicionaisIds: string[];
   codigo: string;
+  /** Modelo de cobrança escolhido — afeta o subtotal usado para validar o cupom. Padrão 'roteiro'. */
+  modalidade?: ReservaModalidadePreco;
+  diarias?: number;
+  pessoas: number;
 };
 
 export type ValidarCupomResult =
@@ -238,16 +297,16 @@ export async function validarCupom(input: ValidarCupomInput): Promise<ValidarCup
     return { ok: false, error: MSG_BLOQUEADO, bloqueadoAte: bloqueio.bloqueadoAte! };
   }
 
-  const alvoResult = await resolverAlvo(input);
+  const alvoResult = await resolverAlvo({ ...input, modalidade: input.modalidade ?? 'roteiro' });
   if (!alvoResult.ok) return { ok: false, error: alvoResult.error };
 
   const { alvo, adicionais } = alvoResult;
-  if (alvo.precoBase == null) {
+  if (alvo.precoUnitario == null) {
     return { ok: false, error: 'Este item não tem um valor definido para aplicar cupom.' };
   }
 
   const totalAdicionais = adicionais.reduce((sum, a) => sum + Number(a.valor), 0);
-  const subtotal = alvo.precoBase + totalAdicionais;
+  const subtotal = alvo.precoUnitario * alvo.multiplicador + totalAdicionais;
 
   const resultado = await validarRegrasCupom(input.codigo, user.id, subtotal);
 
@@ -292,27 +351,65 @@ export async function criarReserva(input: CriarReservaInput): Promise<CriarReser
   if (!input.data || !ISO_DATE.test(input.data)) return { ok: false, error: 'Data inválida.' };
   if (!input.pessoas || input.pessoas < 1) return { ok: false, error: 'Informe o número de pessoas.' };
 
-  const alvoResult = await resolverAlvo(input);
+  const modalidade: ReservaModalidadePreco = input.tipo === 'embarcacao' ? 'roteiro' : (input.modalidade ?? 'roteiro');
+  if (modalidade === 'diaria' && (!input.diarias || input.diarias < 1)) {
+    return { ok: false, error: 'Informe a quantidade de diárias.' };
+  }
+
+  const alvoResult = await resolverAlvo({ ...input, modalidade, pessoas: input.pessoas });
   if (!alvoResult.ok) return { ok: false, error: alvoResult.error };
   const { alvo, adicionais } = alvoResult;
 
-  // Bloqueia a data se a embarcação (ou o roteiro, quando sem vínculo) já
-  // tiver uma reserva CONFIRMADA nesse dia — valida sempre pela embarcação
-  // quando ela existe, pois uma mesma embarcação pode atender vários roteiros.
-  const datasIndisponiveis =
-    input.tipo === 'embarcacao'
-      ? await getDatasReservadasEmbarcacao(alvo.embarcacaoId!)
-      : await getDatasReservadasRoteiro({ roteiroId: alvo.roteiroId!, embarcacaoId: alvo.embarcacaoId });
-  if (datasIndisponiveis.includes(input.data)) {
-    return { ok: false, error: 'Essa data não está mais disponível. Escolha outra data.' };
+  if (modalidade === 'diaria' && input.diarias! < alvo.precoDiariaMinimo) {
+    return {
+      ok: false,
+      error: `Este roteiro exige no mínimo ${alvo.precoDiariaMinimo} diária${alvo.precoDiariaMinimo > 1 ? 's' : ''}.`,
+    };
+  }
+  if (modalidade === 'pessoa' && alvo.pessoaCapacidadeMinima && input.pessoas < alvo.pessoaCapacidadeMinima) {
+    return { ok: false, error: `Este roteiro exige um grupo mínimo de ${alvo.pessoaCapacidadeMinima} pessoas.` };
+  }
+
+  const dataFim = modalidade === 'diaria' ? somarDiasISO(input.data, input.diarias! - 1) : null;
+
+  // Bloqueia a data (ou o intervalo, no modelo Por Diária) se a embarcação
+  // (ou o roteiro, quando sem vínculo) já tiver reserva CONFIRMADA que
+  // conflite — valida sempre pela embarcação quando ela existe, pois uma
+  // mesma embarcação pode atender vários roteiros. No modelo Por Pessoa
+  // compartilhado, só há conflito se ultrapassar a capacidade máxima.
+  if (input.tipo === 'embarcacao') {
+    const datasIndisponiveis = await getDatasReservadasEmbarcacao(alvo.embarcacaoId!);
+    if (datasIndisponiveis.includes(input.data)) {
+      return { ok: false, error: 'Essa data não está mais disponível. Escolha outra data.' };
+    }
+  } else {
+    const disponibilidade = await getDisponibilidadeRoteiro({
+      roteiroId: alvo.roteiroId!,
+      embarcacaoId: alvo.embarcacaoId,
+      pessoaModoCapacidade: alvo.pessoaModoCapacidade,
+    });
+    const intervalo = expandirIntervalo(input.data, dataFim ?? input.data);
+    const exclusivas = new Set(disponibilidade.datasExclusivasOcupadas);
+    if (intervalo.some((d) => exclusivas.has(d))) {
+      return { ok: false, error: 'Essa data não está mais disponível. Escolha outra data.' };
+    }
+    if (modalidade === 'pessoa' && alvo.pessoaModoCapacidade === 'compartilhado') {
+      const maxima = alvo.pessoaCapacidadeMaxima ?? 0;
+      const semVaga = intervalo.some(
+        (d) => (disponibilidade.vagasPessoaOcupadas[d] ?? 0) + input.pessoas > maxima,
+      );
+      if (semVaga) {
+        return { ok: false, error: 'Não há vagas suficientes nessa data. Escolha outra data ou reduza o número de pessoas.' };
+      }
+    }
   }
 
   // Cálculo (servidor) — mesma fórmula do resumo/BookingCard.
-  const precoBase = alvo.precoBase;
+  const precoUnitario = alvo.precoUnitario;
   const totalAdicionais = adicionais.reduce((sum, a) => sum + Number(a.valor), 0);
-  const subtotal = (precoBase ?? 0) + totalAdicionais;
-  const taxaServico = precoBase != null ? Math.round(subtotal * (alvo.taxaPercent / 100)) : null;
-  const totalBruto = precoBase != null && taxaServico != null ? subtotal + taxaServico : null;
+  const subtotal = (precoUnitario != null ? precoUnitario * alvo.multiplicador : 0) + totalAdicionais;
+  const taxaServico = precoUnitario != null ? Math.round(subtotal * (alvo.taxaPercent / 100)) : null;
+  const totalBruto = precoUnitario != null && taxaServico != null ? subtotal + taxaServico : null;
 
   // Cupom (opcional) — última validação antes de gravar; nunca confia na
   // pré-visualização feita pelo cliente em validarCupom.
@@ -320,7 +417,7 @@ export async function criarReserva(input: CriarReservaInput): Promise<CriarReser
   let descontoValor = 0;
 
   if (input.cupomCodigo && input.cupomCodigo.trim()) {
-    if (precoBase == null || totalBruto == null) {
+    if (precoUnitario == null || totalBruto == null) {
       return { ok: false, error: 'Este item não tem um valor definido para aplicar cupom.' };
     }
 
@@ -352,10 +449,13 @@ export async function criarReserva(input: CriarReservaInput): Promise<CriarReser
       cliente_id: user.id,
       owner_id: alvo.ownerId,
       data_reserva: input.data,
+      data_fim_reserva: dataFim,
+      modalidade_preco: modalidade,
+      quantidade_diarias: modalidade === 'diaria' ? input.diarias : null,
       flexibilidade: input.flex && input.flex > 0 ? input.flex : null,
       quantidade_pessoas: input.pessoas,
       item_nome: alvo.nome,
-      preco_base: precoBase,
+      preco_base: precoUnitario,
       total_adicionais: totalAdicionais,
       taxa_servico: taxaServico,
       taxa_percent: taxaServico != null ? alvo.taxaPercent : null,

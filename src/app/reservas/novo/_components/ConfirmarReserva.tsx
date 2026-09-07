@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { CheckCircle2, Loader2, Tag, X, AlertCircle, Clock } from 'lucide-react';
 import { criarReserva, validarCupom } from '../actions';
 import { formatCurrency } from '@/lib/utils';
-import type { CupomTipoDesconto } from '@/types/supabase';
+import type { CupomTipoDesconto, ReservaModalidadePreco } from '@/types/supabase';
 
 type Props = {
   tipo: 'roteiro' | 'embarcacao';
@@ -15,7 +15,16 @@ type Props = {
   flex: number;
   pessoas: number;
   adicionaisIds: string[];
-  preco: number | null;
+  /** Modelo de cobrança escolhido (BookingCard) — 'roteiro' sempre para reserva de embarcação. */
+  modalidade: ReservaModalidadePreco;
+  /** Quantidade de diárias — só relevante quando `modalidade === 'diaria'`. */
+  diarias?: number;
+  /** Valor unitário do modelo (dia, diária ou pessoa). */
+  precoUnitario: number | null;
+  /** Multiplicador do subtotal: diárias, pessoas, ou 1 (modelo Roteiro). */
+  multiplicador: number;
+  /** Rótulo da linha de preço no resumo — "Diária" ou "Pessoa". */
+  rotuloLinha: string;
   totalAdicionais: number;
   /** Taxa de serviço efetiva (%) do gestor dono do alvo — resolvida no servidor (ver SPEC §14). */
   taxaPercent: number;
@@ -42,7 +51,8 @@ function formatContagem(ms: number): string {
 }
 
 export default function ConfirmarReserva({
-  tipo, roteiroId, embarcacaoId, data, flex, pessoas, adicionaisIds, preco, totalAdicionais, taxaPercent,
+  tipo, roteiroId, embarcacaoId, data, flex, pessoas, adicionaisIds, modalidade, diarias,
+  precoUnitario, multiplicador, rotuloLinha, totalAdicionais, taxaPercent,
 }: Props) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -76,7 +86,9 @@ export default function ConfirmarReserva({
     if (validando || bloqueado || !cupomInput.trim()) return;
     setValidando(true);
     setErroCupom(null);
-    const result = await validarCupom({ tipo, roteiroId, embarcacaoId, adicionaisIds, codigo: cupomInput });
+    const result = await validarCupom({
+      tipo, roteiroId, embarcacaoId, adicionaisIds, codigo: cupomInput, modalidade, diarias, pessoas,
+    });
     setValidando(false);
     if (result.ok) {
       setCupomAplicado(result.cupom);
@@ -96,7 +108,7 @@ export default function ConfirmarReserva({
     setLoading(true);
     setError(null);
     const result = await criarReserva({
-      tipo, roteiroId, embarcacaoId, data, flex, pessoas, adicionaisIds,
+      tipo, roteiroId, embarcacaoId, data, flex, pessoas, adicionaisIds, modalidade, diarias,
       cupomCodigo: cupomAplicado?.codigo,
     });
     setLoading(false);
@@ -129,9 +141,10 @@ export default function ConfirmarReserva({
     );
   }
 
-  const subtotal = (preco ?? 0) + totalAdicionais;
-  const taxaServicoBruta = preco != null ? Math.round(subtotal * (taxaPercent / 100)) : null;
-  const totalBruto = preco != null && taxaServicoBruta != null ? subtotal + taxaServicoBruta : null;
+  const precoLinha = precoUnitario != null ? precoUnitario * multiplicador : null;
+  const subtotal = (precoLinha ?? 0) + totalAdicionais;
+  const taxaServicoBruta = precoUnitario != null ? Math.round(subtotal * (taxaPercent / 100)) : null;
+  const totalBruto = precoUnitario != null && taxaServicoBruta != null ? subtotal + taxaServicoBruta : null;
   const desconto = cupomAplicado?.descontoValor ?? 0;
   const totalFinal = totalBruto != null ? Math.max(0, totalBruto - desconto) : null;
 
@@ -140,12 +153,15 @@ export default function ConfirmarReserva({
       {/* Valores + cupom */}
       <div className="mt-6 rounded-2xl border border-slate-200 bg-white shadow-sm overflow-hidden">
         <div className="p-5">
-          {preco != null ? (
+          {precoUnitario != null ? (
             <div className="space-y-4">
               <div className="space-y-2">
                 <div className="flex items-center justify-between text-sm">
-                  <span className="text-slate-600">Diária</span>
-                  <span className="font-medium text-slate-800">{formatCurrency(preco)}</span>
+                  <span className="text-slate-600">
+                    {rotuloLinha}
+                    {multiplicador > 1 ? ` (${formatCurrency(precoUnitario)} × ${multiplicador})` : ''}
+                  </span>
+                  <span className="font-medium text-slate-800">{formatCurrency(precoLinha!)}</span>
                 </div>
                 {totalAdicionais > 0 && (
                   <div className="flex items-center justify-between text-sm">

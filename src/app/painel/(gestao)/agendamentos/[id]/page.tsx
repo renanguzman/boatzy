@@ -7,7 +7,7 @@ import {
 import { createClient } from '@/lib/supabase/server';
 import { supabaseAdmin } from '@/lib/supabase';
 import { formatCurrency } from '@/lib/utils';
-import { getDatasReservadasEmbarcacao, getDatasReservadasRoteiro } from '@/lib/reservas';
+import { getDatasReservadasEmbarcacao, haConflitoReservaRoteiro } from '@/lib/reservas';
 import { getAtendenteOptions, getAtendentesDaReserva, resolveEmbarcacaoIdDaReserva } from '@/lib/equipe';
 import ReservaAcoes from './_components/ReservaAcoes';
 import AdicionarAoCalendario from './_components/AdicionarAoCalendario';
@@ -18,6 +18,9 @@ type ReservaDetalhe = {
   roteiro_id: string | null;
   embarcacao_id: string | null;
   data_reserva: string;
+  data_fim_reserva: string | null;
+  modalidade_preco: 'roteiro' | 'diaria' | 'pessoa';
+  quantidade_diarias: number | null;
   flexibilidade: number | null;
   quantidade_pessoas: number;
   item_nome: string;
@@ -36,11 +39,19 @@ type ReservaDetalhe = {
   roteiro: {
     nome: string;
     embarcacao_id: string | null;
+    preco_pessoa_modo_capacidade: 'compartilhado' | 'exclusivo';
+    preco_pessoa_capacidade_maxima: number | null;
     municipios: { nome: string; estados: { uf: string } | null } | null;
   } | null;
   embarcacao: { nome: string } | null;
   reserva_adicional: { id: string; descricao: string; valor: number; tipo: string }[];
 };
+
+const MODALIDADE = {
+  roteiro: { label: 'Roteiro (diária única)', badge: 'bg-slate-100 text-slate-600' },
+  diaria:  { label: 'Por Diária',              badge: 'bg-sky-100 text-sky-700' },
+  pessoa:  { label: 'Por Pessoa',              badge: 'bg-violet-100 text-violet-700' },
+} as const;
 
 const STATUS = {
   pendente: { label: 'Pendente', badge: 'bg-amber-100 text-amber-700' },
@@ -78,11 +89,12 @@ export default async function ReservaDetalhePage({ params }: { params: Promise<{
   const { data } = await supabaseAdmin
     .from('reserva')
     .select(
-      `id, tipo, roteiro_id, embarcacao_id, data_reserva, flexibilidade, quantidade_pessoas, item_nome,
+      `id, tipo, roteiro_id, embarcacao_id, data_reserva, data_fim_reserva, modalidade_preco,
+       quantidade_diarias, flexibilidade, quantidade_pessoas, item_nome,
        preco_base, total_adicionais, taxa_servico, taxa_percent, total_estimado, cupom_codigo, desconto_valor,
        status, observacao_gestor, solicitado_em, respondido_em,
        cliente:users!reserva_cliente_id_fkey ( name, email, cpf_cnpj, avatar_url ),
-       roteiro ( nome, embarcacao_id, municipios ( nome, estados ( uf ) ) ),
+       roteiro ( nome, embarcacao_id, preco_pessoa_modo_capacidade, preco_pessoa_capacidade_maxima, municipios ( nome, estados ( uf ) ) ),
        embarcacao ( nome ),
        reserva_adicional ( id, descricao, valor, tipo )`,
     )
@@ -100,14 +112,19 @@ export default async function ReservaDetalhePage({ params }: { params: Promise<{
   // manual, o gestor decide.
   let temConflito = false;
   if (r.status === 'pendente') {
-    const datasIndisponiveis =
+    temConflito =
       r.tipo === 'embarcacao'
-        ? await getDatasReservadasEmbarcacao(r.embarcacao_id!)
-        : await getDatasReservadasRoteiro({
+        ? (await getDatasReservadasEmbarcacao(r.embarcacao_id!)).includes(r.data_reserva)
+        : await haConflitoReservaRoteiro({
             roteiroId: r.roteiro_id!,
             embarcacaoId: r.roteiro?.embarcacao_id ?? null,
+            pessoaModoCapacidade: r.roteiro?.preco_pessoa_modo_capacidade ?? 'exclusivo',
+            pessoaCapacidadeMaxima: r.roteiro?.preco_pessoa_capacidade_maxima ?? null,
+            modalidadePreco: r.modalidade_preco,
+            dataReserva: r.data_reserva,
+            dataFimReserva: r.data_fim_reserva,
+            quantidadePessoas: r.quantidade_pessoas,
           });
-    temConflito = datasIndisponiveis.includes(r.data_reserva);
   }
   // Equipe: opções de atendente (gestor + membros vinculados à embarcação) e
   // quem já está indicado nesta reserva.
@@ -166,6 +183,11 @@ export default async function ReservaDetalhePage({ params }: { params: Promise<{
           <div className="flex items-center gap-2 text-xs font-semibold text-slate-400 uppercase tracking-wider">
             <TipoIcon className="h-3.5 w-3.5" />
             {r.tipo === 'embarcacao' ? 'Reserva de embarcação' : 'Reserva de roteiro'}
+            {r.tipo === 'roteiro' && (
+              <span className={`normal-case rounded-full px-2 py-0.5 text-[10px] font-semibold tracking-normal ${MODALIDADE[r.modalidade_preco].badge}`}>
+                {MODALIDADE[r.modalidade_preco].label}
+              </span>
+            )}
           </div>
           <h1 className="mt-1 text-2xl font-bold text-[#0B2447]">{r.roteiro?.nome ?? r.item_nome}</h1>
           {localidade && (
@@ -208,8 +230,19 @@ export default async function ReservaDetalhePage({ params }: { params: Promise<{
               <div className="flex items-start gap-2.5">
                 <CalendarDays className="h-4 w-4 text-slate-400 shrink-0 mt-0.5" />
                 <div>
-                  <p className="text-[10px] uppercase tracking-wider text-slate-400 font-medium">Data</p>
-                  <p className="text-slate-700 capitalize">{formatData(r.data_reserva, r.flexibilidade)}</p>
+                  <p className="text-[10px] uppercase tracking-wider text-slate-400 font-medium">
+                    {r.modalidade_preco === 'diaria' ? 'Período' : 'Data'}
+                  </p>
+                  {r.modalidade_preco === 'diaria' && r.data_fim_reserva ? (
+                    <p className="text-slate-700 capitalize">
+                      {formatData(r.data_reserva, null)} → {formatData(r.data_fim_reserva, null)}
+                      {r.quantidade_diarias && (
+                        <span className="text-slate-400"> · {r.quantidade_diarias} diária{r.quantidade_diarias > 1 ? 's' : ''}</span>
+                      )}
+                    </p>
+                  ) : (
+                    <p className="text-slate-700 capitalize">{formatData(r.data_reserva, r.flexibilidade)}</p>
+                  )}
                 </div>
               </div>
               <div className="flex items-start gap-2.5">
@@ -281,8 +314,21 @@ export default async function ReservaDetalhePage({ params }: { params: Promise<{
             {r.preco_base != null ? (
               <div className="space-y-2 text-sm">
                 <div className="flex items-center justify-between">
-                  <span className="text-slate-500">Diária</span>
-                  <span className="font-medium text-slate-700">{formatCurrency(r.preco_base)}</span>
+                  <span className="text-slate-500">
+                    {r.modalidade_preco === 'diaria' && r.quantidade_diarias
+                      ? `Diária (${formatCurrency(r.preco_base)} × ${r.quantidade_diarias})`
+                      : r.modalidade_preco === 'pessoa'
+                        ? `Pessoa (${formatCurrency(r.preco_base)} × ${r.quantidade_pessoas})`
+                        : 'Diária'}
+                  </span>
+                  <span className="font-medium text-slate-700">
+                    {formatCurrency(
+                      r.preco_base *
+                        (r.modalidade_preco === 'diaria' ? r.quantidade_diarias ?? 1
+                          : r.modalidade_preco === 'pessoa' ? r.quantidade_pessoas
+                          : 1),
+                    )}
+                  </span>
                 </div>
                 {r.total_adicionais > 0 && (
                   <div className="flex items-center justify-between">

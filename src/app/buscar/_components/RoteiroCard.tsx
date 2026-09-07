@@ -15,6 +15,11 @@ export type RoteiroCardData = {
   descricao: string;
   quantidade_pessoas: number | null;
   preco_base: number | null;
+  /** Presentes só quando a consulta os inclui — cartões que ainda não buscam esses campos continuam funcionando (fallback "Consulte o preço"). */
+  preco_diaria_ativo?: boolean;
+  preco_diaria_valor?: number | null;
+  preco_pessoa_ativo?: boolean;
+  preco_pessoa_valor?: number | null;
   duracao: string | null;
   municipios: { nome: string; estados: { uf: string } | null } | null;
   roteiro_imagens: { url_imagem: string; principal: boolean }[];
@@ -27,6 +32,25 @@ function getPrimaryImage(imgs: RoteiroCardData['roteiro_imagens']): string | nul
 
 function formatPrice(value: number): string {
   return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 }).format(value);
+}
+
+/**
+ * Preço de exibição do card: prioriza o modelo Roteiro (preco_base); na
+ * ausência dele, cai para o menor valor entre Por Diária/Por Pessoa ativos,
+ * marcado como "a partir de" por ser um valor unitário, não o total do dia.
+ */
+function precoExibicaoRoteiro(
+  r: Pick<RoteiroCardData, 'preco_base' | 'preco_diaria_ativo' | 'preco_diaria_valor' | 'preco_pessoa_ativo' | 'preco_pessoa_valor'>,
+): { valor: number; unidade: string; aPartirDe: boolean } | null {
+  if (r.preco_base) return { valor: r.preco_base, unidade: '/dia', aPartirDe: false };
+
+  const candidatos: { valor: number; unidade: string }[] = [];
+  if (r.preco_diaria_ativo && r.preco_diaria_valor) candidatos.push({ valor: r.preco_diaria_valor, unidade: '/diária' });
+  if (r.preco_pessoa_ativo && r.preco_pessoa_valor) candidatos.push({ valor: r.preco_pessoa_valor, unidade: '/pessoa' });
+  if (candidatos.length === 0) return null;
+
+  const menor = candidatos.reduce((a, b) => (a.valor <= b.valor ? a : b));
+  return { ...menor, aPartirDe: true };
 }
 
 export default function RoteiroCard({
@@ -76,6 +100,7 @@ export default function RoteiroCard({
     : null;
 
   const href = query ? `/roteiros/${roteiro.id}?${query}` : `/roteiros/${roteiro.id}`;
+  const precoInfo = precoExibicaoRoteiro(roteiro);
 
   return (
     <Link
@@ -160,12 +185,15 @@ export default function RoteiroCard({
 
         {/* Price row */}
         <div className="flex items-end justify-between pt-3 border-t border-slate-50">
-          {roteiro.preco_base ? (
+          {precoInfo ? (
             <div>
+              {precoInfo.aPartirDe && (
+                <span className="block text-[9px] text-slate-400 uppercase tracking-wide">a partir de</span>
+              )}
               <span className="text-base font-bold text-[#0B3D91]">
-                {formatPrice(roteiro.preco_base)}
+                {formatPrice(precoInfo.valor)}
               </span>
-              <span className="text-xs text-slate-400 ml-1">/dia</span>
+              <span className="text-xs text-slate-400 ml-1">{precoInfo.unidade}</span>
             </div>
           ) : (
             <span className="text-xs text-slate-400 italic">Consulte o preço</span>

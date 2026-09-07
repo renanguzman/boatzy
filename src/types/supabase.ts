@@ -5,6 +5,10 @@ export type ModalidadeCapitao = 'sem_capitao' | 'com_capitao' | 'opcional';
 export type CatalogoTipo = 'produto' | 'servico';
 export type ReservaStatus = 'pendente' | 'confirmada' | 'recusada' | 'cancelada' | 'concluida';
 export type ReservaTipo = 'roteiro' | 'embarcacao';
+/** Modelo de cobrança usado na solicitação: Roteiro (diária única), Por Diária ou Por Pessoa. */
+export type ReservaModalidadePreco = 'roteiro' | 'diaria' | 'pessoa';
+/** Como a capacidade do modelo Por Pessoa é controlada — ver `roteiro.preco_pessoa_modo_capacidade`. */
+export type PrecoPessoaModoCapacidade = 'compartilhado' | 'exclusivo';
 export type AvaliacaoStatus = 'pendente' | 'aprovada';
 export type AnuncioVendaStatus = 'ativo' | 'pausado' | 'vendido' | 'cancelado';
 export type AnuncioInteracaoTipo =
@@ -31,6 +35,9 @@ export type Database = {
           quantidade_pessoas: number;
           item_nome: string;
           preco_base: number | null;
+          modalidade_preco: ReservaModalidadePreco;
+          quantidade_diarias: number | null;
+          data_fim_reserva: string | null;
           total_adicionais: number;
           taxa_servico: number | null;
           taxa_percent: number | null;
@@ -58,6 +65,9 @@ export type Database = {
           quantidade_pessoas: number;
           item_nome: string;
           preco_base?: number | null;
+          modalidade_preco?: ReservaModalidadePreco;
+          quantidade_diarias?: number | null;
+          data_fim_reserva?: string | null;
           total_adicionais?: number;
           taxa_servico?: number | null;
           taxa_percent?: number | null;
@@ -85,6 +95,9 @@ export type Database = {
           quantidade_pessoas?: number;
           item_nome?: string;
           preco_base?: number | null;
+          modalidade_preco?: ReservaModalidadePreco;
+          quantidade_diarias?: number | null;
+          data_fim_reserva?: string | null;
           total_adicionais?: number;
           taxa_servico?: number | null;
           taxa_percent?: number | null;
@@ -736,6 +749,14 @@ export type Database = {
           latitude: number | null;
           longitude: number | null;
           preco_base: number | null;
+          preco_diaria_ativo: boolean;
+          preco_diaria_valor: number | null;
+          preco_diaria_minimo: number;
+          preco_pessoa_ativo: boolean;
+          preco_pessoa_valor: number | null;
+          preco_pessoa_capacidade_minima: number | null;
+          preco_pessoa_capacidade_maxima: number | null;
+          preco_pessoa_modo_capacidade: PrecoPessoaModoCapacidade;
           disponibilidade_dias_semana: number[] | null;
           ativo: boolean;
           created_at: string;
@@ -761,6 +782,14 @@ export type Database = {
           latitude?: number | null;
           longitude?: number | null;
           preco_base?: number | null;
+          preco_diaria_ativo?: boolean;
+          preco_diaria_valor?: number | null;
+          preco_diaria_minimo?: number;
+          preco_pessoa_ativo?: boolean;
+          preco_pessoa_valor?: number | null;
+          preco_pessoa_capacidade_minima?: number | null;
+          preco_pessoa_capacidade_maxima?: number | null;
+          preco_pessoa_modo_capacidade?: PrecoPessoaModoCapacidade;
           disponibilidade_dias_semana?: number[] | null;
           ativo?: boolean;
           created_at?: string;
@@ -786,6 +815,14 @@ export type Database = {
           latitude?: number | null;
           longitude?: number | null;
           preco_base?: number | null;
+          preco_diaria_ativo?: boolean;
+          preco_diaria_valor?: number | null;
+          preco_diaria_minimo?: number;
+          preco_pessoa_ativo?: boolean;
+          preco_pessoa_valor?: number | null;
+          preco_pessoa_capacidade_minima?: number | null;
+          preco_pessoa_capacidade_maxima?: number | null;
+          preco_pessoa_modo_capacidade?: PrecoPessoaModoCapacidade;
           disponibilidade_dias_semana?: number[] | null;
           ativo?: boolean;
           updated_at?: string;

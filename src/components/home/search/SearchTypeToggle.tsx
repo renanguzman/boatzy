@@ -9,6 +9,8 @@ type Props = {
   onChange: (value: SearchType) => void;
   /** 'dark' para fundos escuros (hero), 'light' para fundos claros (página de resultados). */
   variant?: 'dark' | 'light';
+  /** Mostra a aba "Vendas" no seletor. Padrão true; a Home a esconde — Vendas já tem CTA próprio no Header. */
+  showVendas?: boolean;
 };
 
 const OPTIONS: { id: SearchType; label: string; icon: typeof MapPin }[] = [
@@ -17,15 +19,17 @@ const OPTIONS: { id: SearchType; label: string; icon: typeof MapPin }[] = [
   { id: 'venda', label: 'Vendas', icon: Tag },
 ];
 
-export default function SearchTypeToggle({ value, onChange, variant = 'dark' }: Props) {
+export default function SearchTypeToggle({ value, onChange, variant = 'dark', showVendas = true }: Props) {
   const containerClass =
     variant === 'dark'
       ? 'bg-white/15 backdrop-blur-sm'
       : 'bg-slate-100';
 
+  const options = showVendas ? OPTIONS : OPTIONS.filter((o) => o.id !== 'venda');
+
   return (
     <div className={`inline-flex items-center gap-1 rounded-full p-1 ${containerClass}`}>
-      {OPTIONS.map(({ id, label, icon: Icon }) => {
+      {options.map(({ id, label, icon: Icon }) => {
         const active = value === id;
         const activeClass = 'bg-white text-[#0B2447] shadow-sm';
         const inactiveClass =

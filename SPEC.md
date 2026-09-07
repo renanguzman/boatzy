@@ -2333,11 +2333,31 @@ quando há não lidas daquele gestor.
 **Roteiros** → `/buscar`, **Embarcações** → `/buscar?tipo=embarcacao`, **Vendas** → `/vendas`,
 **Experiências** → `#` (placeholder, página ainda não existe).
 
-**CTA "Anuncie sua embarcação"** (`Header`): substituiu o antigo seletor de idioma (globo + "PT").
-Link para `/painel` (login/cadastro de gestor), estilizado como pill — `bg-[#0B3D91]/10 text-[#0B3D91]`
-com hover sólido (`bg-[#0B3D91] text-white`) e ícone `Megaphone` (lucide-react), mesmo padrão de
-badge/tag usado em outras partes do design system. Renderizado no bloco de ações à direita (desktop,
-ao lado do botão "Entrar") e também no menu mobile, logo abaixo dos 3 links de navegação.
+**CTA "Anuncie sua embarcação" / "Minhas embarcações"** (`Header`): substituiu o antigo seletor de
+idioma (globo + "PT"). Link para `/painel` (login/cadastro de gestor), estilizado como pill —
+`bg-[#0B3D91]/10 text-[#0B3D91]` com hover sólido (`bg-[#0B3D91] text-white`) e ícone `Megaphone`
+(lucide-react), mesmo padrão de badge/tag usado em outras partes do design system. Renderizado no
+bloco de ações à direita (desktop, ao lado do botão "Entrar") e também no menu mobile, logo abaixo
+dos 3 links de navegação.
+
+Rótulo dinâmico: `Header` (client component) mantém `isGestor` em estado, resolvido num `useEffect`
+que dispara quando `user` muda — `supabase.from('user_roles').select('role').eq('user_id',
+user.id).eq('role', 'gestor').maybeSingle()`, permitido pela RLS `user_read_own_roles` (`user_id =
+auth.uid()`, migration `20260517_clerk_to_supabase_auth.sql`). Deslogado ou sem a role: mostra
+"Anuncie sua embarcação". Logado com a role `gestor`: mostra "Minhas embarcações" — mesmo link
+(`/painel`) e ícone nos dois casos, só o texto muda.
+
+**Selo do link Vendas** (`Header`): círculo de 16px `bg-gradient-to-br from-[#0B3D91] to-cyan-400`
+com o ícone `Tag` (lucide-react, `h-2.5 w-2.5`, branco) ao lado do texto "Vendas", nas duas versões
+do link (nav desktop e menu mobile) — mesmo ícone já usado para "Vendas" em `SearchTypeToggle` e no
+menu do painel (`Sidebar.tsx`), aqui como selo visual em vez de rótulo de aba.
+
+**`SearchTypeToggle` (`src/components/home/search/SearchTypeToggle.tsx`)**: ganhou a prop opcional
+`showVendas` (padrão `true`) — quando `false`, filtra a opção "Vendas" da lista de abas renderizada
+sem alterar `SearchType`/lógica de navegação (só oculta a aba; `searchType === 'venda'` continua um
+estado válido, apenas inatingível pela UI onde a aba está oculta). `HeroSection.tsx` (busca da Home)
+passa `showVendas={false}` — quem quer o vertical de Vendas usa o link do `Header`. `SearchBarCompact.tsx`
+(`/buscar`) e `VendasSearchBar.tsx` (`/vendas`) não passam a prop e continuam com as 3 abas.
 
 **Botão "Entrar" com duas portas de acesso** (`src/components/layout/EntrarMenu.tsx`): substitui o
 antigo link único `/entrar`. Mesmo padrão de dropdown do `UserMenu.tsx` (click-outside, ESC, `ChevronDown`
@@ -3123,7 +3143,7 @@ embarcação e depois criar um roteiro.
 | --- | --- |
 | `src/components/painel/TutorialPainel.tsx` | `TutorialProvider`, `useTutorial()`, `TutorialButton` e o overlay (`TutorialOverlay`) |
 | `src/app/painel/(gestao)/layout.tsx` | Envolve o painel com `<TutorialProvider>`; `<main data-tour="dashboard-content">` |
-| `src/components/painel/Sidebar.tsx` | `data-tour` em cada item do menu + no botão "Nova Embarcação" |
+| `src/components/painel/Sidebar.tsx` | `data-tour` em cada item do menu + no botão "Nova Embarcação". Rótulo do item `/painel/roteiros` (`nav-roteiros`) é **`ROTEIROS / PREÇOS`** (título do passo do tutorial: "Roteiros / Preços") |
 | `src/components/painel/Header.tsx` | Renderiza `<TutorialButton />` ao lado do `NotificacoesBell` |
 
 ### 28.2 Contrato dos componentes
@@ -3340,7 +3360,7 @@ Estrutura em `src/app/painel/(gestao)/vendas/` (protegida pelo layout `(gestao)`
 - `alterarStatusAnuncio(anuncioId, novoStatus)` — ativo ↔ pausado (toggle direto no grid);
   vendido/cancelado são terminais (modal de confirmação na UI; não há reabertura nem DELETE).
 
-**Sidebar/Tutorial:** item `VENDAS` (ícone `Tag`, `data-tour="nav-vendas"`) entre ROTEIROS e
+**Sidebar/Tutorial:** item `VENDAS` (ícone `Tag`, `data-tour="nav-vendas"`) entre ROTEIROS / PREÇOS e
 CATÁLOGO; novo passo no tutorial guiado (§28 — a sequência passou de 12 para **13 passos**, com
 o passo Vendas entre Roteiros e Catálogo; marcador `nav-vendas` adicionado à lista do §28.4).
 
@@ -3584,6 +3604,24 @@ vertical com gradiente) passou a renderizar, entre "Saída" (`origem`) e "Chegad
 um ponto por parada cadastrada, rotulado "Parada 1", "Parada 2", etc. A seção só aparece quando
 há origem, destino **ou** ao menos uma parada (antes só considerava origem/destino).
 
+### 30.5 Navegação por âncoras (cadastro e edição)
+
+`NovoRoteiroForm.tsx` e `EditarRoteiroForm.tsx` ganharam uma barra de atalhos fixa (`sticky
+top-4 z-10`, acima da primeira seção), no mesmo padrão de `/minha-conta`
+(`MinhaContaForm.tsx`), com um botão por seção do formulário, na ordem em que aparecem:
+
+**Informações gerais · Preço · Disponibilidade · Catálogo · Localização · Imagens**
+
+- Cada `SectionCard` recebeu um `id` (`informacoes-gerais`, `preco`, `disponibilidade`,
+  `catalogo`, `localizacao`, `imagens`) e a classe `scroll-mt-24`, para que o clique no atalho
+  role a página até o topo da seção sem escondê-la atrás da barra.
+- Clique no atalho chama `scrollIntoView({ behavior: 'smooth', block: 'start' })`.
+- Um `IntersectionObserver` (`rootMargin: '-96px 0px -55% 0px'`) faz o scroll-spy: destaca
+  (`aria-current`, fundo `#0B2447`) o atalho da seção atualmente visível enquanto o gestor rola a
+  página, mesma lógica usada em `MinhaContaForm.tsx`.
+- Só altera a navegação/UX do formulário — não muda campos, validações nem os payloads enviados
+  às actions.
+
 ## 31. Filtro de comodidades — busca de embarcações (`/buscar?tipo=embarcacao`)
 
 Permite ao cliente filtrar embarcações pelas comodidades desejadas (Ar-Condicionado, Churrasqueira,
@@ -3765,3 +3803,126 @@ Relatório a nível de gestor: nº de atendimentos por membro em um mês —
 `reserva_atendente ⨝ reserva` com `owner_id`, `status ∈ {confirmada, concluida}` e
 `data_reserva` no período, `GROUP BY equipe_membro_id` (inclui "Você (gestor)"). Índice
 `reserva_atendente_membro_idx` já preparado.
+
+## 33. Modelos de cobrança do roteiro — Roteiro / Por Diária / Por Pessoa
+
+Até aqui um roteiro só tinha um jeito de cobrar: **preço base** (R$/dia, + `roteiro_preco_regra`)
+com data única e capacidade exclusiva (1 reserva confirmada bloqueia o dia inteiro, na embarcação
+inteira). Esta seção acrescenta dois modelos novos, que o gestor ativa **independentemente** por
+roteiro — um roteiro pode oferecer os 3 ao mesmo tempo, e o cliente escolhe entre os que estiverem
+disponíveis ao reservar. Migration: `supabase/migrations/20260907_roteiro_modelos_cobranca.sql`.
+
+### 33.1 Os 3 modelos
+
+1. **Roteiro (diária única)** — já existia, sem mudança de comportamento: `roteiro.preco_base` +
+   `roteiro_preco_regra` (dia da semana/período anual/data fixa — cadastrados mas ainda **não**
+   resolvidos na exibição/cobrança, ver nota no fim de 33.5), 1 data, capacidade exclusiva.
+2. **Por Diária** — passeio de vários dias (ex.: saída com pernoite no destino). Cliente escolhe
+   a data de **check-in** e a **quantidade de diárias**; check-out = check-in + diárias − 1.
+   Sempre exclusivo: trava a embarcação no intervalo inteiro, igual ao modelo Roteiro só que
+   abrangendo várias datas seguidas.
+3. **Por Pessoa** — bilheteria: valor fixo por pessoa. A capacidade é controlada por
+   `roteiro.preco_pessoa_modo_capacidade`:
+   - `exclusivo` (padrão) — uma reserva usa o roteiro inteiro na data, só muda a forma de cobrar.
+   - `compartilhado` — várias reservas de clientes diferentes dividem a mesma data até atingir
+     `preco_pessoa_capacidade_maxima` (obrigatória quando o modelo está ativo); `preco_pessoa_capacidade_minima`
+     é o grupo mínimo por reserva (opcional).
+
+### 33.2 Modelo de dados
+
+`roteiro` ganhou `preco_diaria_ativo/valor/minimo` e `preco_pessoa_ativo/valor/capacidade_minima/capacidade_maxima/modo_capacidade`
+(o modelo Roteiro não tem flag própria — permanece implicitamente ativo quando há preço/regra,
+como antes). `reserva` ganhou `modalidade_preco` (enum `reserva_modalidade_preco`:
+`roteiro`|`diaria`|`pessoa`), `quantidade_diarias` e `data_fim_reserva` (checkout; só preenchidos
+no modo diária). `reserva.preco_base` passa a significar **valor unitário do modelo usado** (dia,
+diária ou pessoa) — o subtotal é `preco_base × multiplicador + total_adicionais`, onde o
+multiplicador é `quantidade_diarias` (diária), `quantidade_pessoas` (pessoa) ou `1` (roteiro).
+Reserva direta de embarcação (`tipo='embarcacao'`, sem roteiro) fica de fora — sempre
+`modalidade_preco='roteiro'`, só `embarcacao.preco_base`.
+
+### 33.3 Painel — cadastro e edição (`NovoRoteiroForm.tsx` / `EditarRoteiroForm.tsx`)
+
+Dentro da `SectionCard id="preco"`, antes do bloco "Preço base", um seletor **"Modelo de
+cobrança"**: card fixo "Roteiro (diária única)" (sempre disponível) + dois cards clicáveis
+("Por Diária", "Por Pessoa") que revelam os campos do modelo ao ativar. Por Pessoa inclui os dois
+botões "Exclusivo"/"Compartilhado" para `preco_pessoa_modo_capacidade`. Validado em
+`criarRoteiro`/`atualizarRoteiro` (`novo/actions.ts`, `[id]/editar/actions.ts`): modelo ativo exige
+valor preenchido; Por Pessoa ativo exige capacidade máxima.
+
+### 33.4 Disponibilidade e capacidade — `src/lib/reservas.ts`
+
+`getDisponibilidadeRoteiro({ roteiroId, embarcacaoId, pessoaModoCapacidade })` substitui a antiga
+`getDatasReservadasRoteiro`: busca as reservas **confirmadas** do roteiro OU da embarcação
+vinculada (mesmo critério de sempre — recurso físico compartilhado entre roteiros), expande cada
+uma pelo intervalo real (`data_reserva` → `data_fim_reserva ?? data_reserva`, via `expandirIntervalo`)
+e separa em:
+- `datasExclusivasOcupadas: string[]` — Roteiro, Diária, Pessoa-exclusivo, ou qualquer reserva de
+  OUTRO roteiro que compartilhe a embarcação.
+- `vagasPessoaOcupadas: Record<string, number>` — soma de `quantidade_pessoas` das reservas Por
+  Pessoa **deste** roteiro, só quando ele está em modo compartilhado.
+
+`haConflitoReservaRoteiro(...)` (usado ao confirmar uma solicitação pendente no painel) aplica a
+mesma lógica para checar se UMA reserva específica conflita com o que já está confirmado — no modo
+compartilhado, só conflita se ultrapassar a capacidade máxima somada. `somarDiasISO`/`expandirIntervalo`
+são os helpers de data (UTC-noon, sem depender de fuso) reaproveitados também em `reservas/novo/actions.ts`.
+
+### 33.5 Cliente — `/roteiros/[id]` + `BookingCard.tsx`
+
+A página busca `getDisponibilidadeRoteiro` (com `pessoaModoCapacidade` do roteiro) e mescla
+`datasExclusivasOcupadas` aos bloqueios manuais antes de passar como `datasBloqueadas` ao
+`BookingCard`, que também recebe `vagasPessoaOcupadas` e a config dos 3 modelos.
+
+`BookingCard` mostra uma aba por modelo ativo (nenhuma aba quando só há 1 modelo disponível).
+Cada aba reaproveita `DatePicker`/`GuestPicker` (generalizado com `label`/`min`/`max`/`singular`/`plural`
+para servir tanto "Pessoas" quanto "Diárias"): Roteiro é o fluxo de sempre; Diária soma um stepper
+de diárias (mínimo = `preco_diaria_minimo`) e mostra o check-out calculado; Pessoa desabilita datas
+esgotadas (`vagasRestantes = capacidade_maxima − ocupadas`, só quando compartilhado) e limita o
+`GuestPicker` a essas vagas. "Solicitar Reserva" acrescenta `modalidade` (+ `diarias` quando
+aplicável) na querystring para `/reservas/novo`.
+
+> **Achado registrado, não corrigido nesta fase:** `roteiro_preco_regra` (dia da semana/período
+> anual/data fixa do modelo Roteiro) é cadastrado no painel mas nunca é lido para resolver o preço
+> exibido/cobrado — tanto aqui quanto em `reservas/novo` sempre se usa `preco_base` puro. A
+> migration desta seção já criou `get_preco_roteiro(roteiro_id, data)` (mesmo padrão de
+> `get_preco_embarcacao`, migration 006) pronta para uso futuro, mas ela ainda não é chamada em
+> nenhum lugar do app.
+
+### 33.6 `/reservas/novo` — confirmação e criação
+
+`page.tsx` lê `modalidade`/`diarias` da query, valida contra os modelos realmente ativos do
+roteiro (cai para `'roteiro'` se inválido/indisponível — parâmetro de URL não é fonte confiável) e
+resolve `precoUnitario`/`multiplicador`/`rotuloLinha` para a prévia; mostra "Período" (check-in →
+check-out) em vez de "Data" no modo diária.
+
+`actions.ts`: `resolverAlvo` passou a receber `modalidade`/`diarias`/`pessoas`, valida o modelo
+contra os `*_ativo` do roteiro, resolve `precoUnitario`/`multiplicador` e devolve também
+`precoDiariaMinimo`/`pessoaCapacidadeMinima`/`pessoaCapacidadeMaxima`/`pessoaModoCapacidade` para
+validação. `criarReserva`: valida diárias mínimas / grupo mínimo, calcula `dataFim` (diária),
+checa disponibilidade via `getDisponibilidadeRoteiro` (intervalo inteiro no modo diária; capacidade
+somada no modo pessoa compartilhado) e grava `modalidade_preco`/`quantidade_diarias`/`data_fim_reserva`.
+`subtotal`/`taxa_servico`/cupom seguem a mesma fórmula de sempre, só trocando o preço fixo por
+`precoUnitario × multiplicador`. `validarCupom` (pré-visualização do cupom) segue a mesma resolução.
+`ConfirmarReserva.tsx` troca a prop única `preco` por `precoUnitario`/`multiplicador`/`rotuloLinha`
+e repassa `modalidade`/`diarias` às duas actions.
+
+### 33.7 Painel — exibição da modalidade nas reservas
+
+`agendamentos/actions.ts` e `agendamentos/[id]/page.tsx` usam `haConflitoReservaRoteiro` no lugar
+do antigo bloqueio por data única. `agendamentos/[id]/page.tsx` mostra um badge do modelo
+("Roteiro (diária única)"/"Por Diária"/"Por Pessoa") junto ao tipo da reserva, o período
+check-in→check-out quando é diária, e a linha de valor detalha `unitário × quantidade`
+("Diária (R$ 500 × 3)"/"Pessoa (R$ 80 × 8)"). `PendentesList.tsx` (sidebar de pendentes) mostra uma
+etiqueta curta "Diária"/"Pessoa" ao lado do nome do item (nada para o modelo Roteiro, que é o
+padrão).
+
+### 33.8 Cards de listagem — "a partir de"
+
+`RoteiroCard.tsx` (`precoExibicaoRoteiro`): quando o roteiro não tem `preco_base`, cai para o
+menor valor entre Por Diária/Por Pessoa ativos, com rótulo **"a partir de"** (é um valor unitário,
+não o total do dia) e a unidade correspondente (`/diária`, `/pessoa`). Os novos campos são
+opcionais no tipo `RoteiroCardData` — cartões que ainda não os buscam continuam mostrando "Consulte
+o preço" sem quebrar. Aplicado em `favoritos/page.tsx` e `embarcacoes/[id]/roteiros/page.tsx`
+(queries diretas em `roteiro`). **Não aplicado** à busca principal (`/buscar`, RPC `buscar_roteiros`)
+nem aos destaques da home (`src/lib/roteiros-top.ts`) — ambos continuam mostrando só o preço do
+modelo Roteiro ou "Consulte o preço"; estender a RPC `buscar_roteiros` (reescrita em 5 migrations,
+com filtros/distância/ordenação) fica para uma fase futura dedicada.

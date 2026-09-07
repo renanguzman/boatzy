@@ -78,7 +78,8 @@ Validar um marketplace de aluguel de embarcações, garantindo:
 
 - ✅ O `Header` (site público, desktop e mobile) tem 3 links de navegação: **Roteiros** (`/buscar`), **Embarcações** (`/buscar?tipo=embarcacao`) e **Vendas** (`/vendas`). Substituem os antigos rótulos "Charters"/"Destinos"/"Experiências", que apontavam para rotas inexistentes (`/charters`, `/destinations`, `/experiences`).
 - ✅ O `Footer`, bloco "Explorar", tem 4 links: **Roteiros** (`/buscar`), **Embarcações** (`/buscar?tipo=embarcacao`), **Vendas** (`/vendas`) e **Experiências** (`/experiencias`, ver 6.10).
-- ✅ No `Header`, o antigo seletor de idioma ("PT") foi substituído pelo CTA **"Anuncie sua embarcação"** (ícone `Megaphone`, pill azul `#0B3D91`/10 com hover sólido), que leva a `/painel`. Presente tanto no desktop (ao lado do botão "Entrar") quanto no menu mobile (abaixo dos links de navegação).
+- ✅ No `Header`, o antigo seletor de idioma ("PT") foi substituído pelo CTA (ícone `Megaphone`, pill azul `#0B3D91`/10 com hover sólido) que leva a `/painel`. Presente tanto no desktop (ao lado do botão "Entrar") quanto no menu mobile (abaixo dos links de navegação). O rótulo muda conforme quem está logado: **"Anuncie sua embarcação"** para visitante/cliente, **"Minhas embarcações"** quando o usuário logado também tem o perfil de gestor (dono de embarcação) — checado no cliente via `user_roles` (RLS permite o próprio usuário ler suas roles).
+- ✅ O link **Vendas** do `Header` (desktop e mobile) ganhou um selo circular pequeno com gradiente (azul → ciano) e o ícone `Tag`, ao lado do nome — o mesmo ícone já usado para "Vendas" em outros pontos do site (menu do painel, seletor de busca). O seletor de tipo de busca da Home (`SearchTypeToggle`, hero) deixou de mostrar a aba "Vendas" — quem quer anunciar/ver embarcações à venda usa o link do `Header`. O toggle da barra de busca compacta (`/buscar`) e o da própria página `/vendas` continuam mostrando as 3 abas normalmente.
 - ✅ O botão **"Entrar"** do `Header` (usuário deslogado) oferece duas portas de acesso, bem visíveis: **"Entrar como Cliente"** (`/entrar`) e **"Entrar como Proprietário"** (`/painel`). No desktop é um dropdown (mesmo padrão visual do menu do usuário logado); no mobile são dois botões sempre visíveis (sem precisar abrir submenu) dentro do menu hambúrguer.
 
 ### 6.1 Autenticação
@@ -507,6 +508,13 @@ Todos os números são do **gestor logado** (`owner_id`):
 - ✅ Melhoria de UX no bloco "Como funciona": a explicação da ordem de prioridade foi unificada em **uma única lista numerada (1→4)**, ordenada de cima para baixo pela prioridade real, eliminando a inconsistência anterior (chips e caixas em ordens opostas). Inclui exemplo de desempate.
 - ✅ As abas de "Nova regra" seguem a mesma ordem de prioridade (Data Específica → Período Anual → Dias da Semana).
 
+#### ✅ Implementado — Menu lateral do painel: item "Roteiros / Preços"
+
+- O item do menu lateral que leva a `/painel/roteiros` passou a se chamar **"Roteiros / Preços"**
+  (exibido em maiúsculas, como os demais itens), deixando claro ao gestor que é ali que se definem
+  os passeios **e** seus preços. A rota, o ícone e o passo correspondente do tutorial guiado
+  (título "Roteiros / Preços") não mudaram de posição.
+
 #### ✅ Implementado — Ativar/Desativar embarcação no grid (com cascade para roteiros)
 
 - A coluna **Status** no grid de embarcações (`/painel/embarcacoes`) virou um **toggle ativo/inativo**, acionável direto na listagem.
@@ -529,7 +537,7 @@ Todos os números são do **gestor logado** (`owner_id`):
   escurecido, destacando um elemento por vez (spotlight).
 - Sequência de 12 passos: boas-vindas → **destaque da área de conteúdo do Dashboard** (quais
   informações ele encontra ali) → **cada item do menu lateral** com uma breve descrição
-  (Dashboard, Agendamentos, Embarcações, Roteiros, Catálogo, Clientes, Receitas) → indução ao
+  (Dashboard, Agendamentos, Embarcações, Roteiros / Preços, Catálogo, Clientes, Receitas) → indução ao
   caminho inicial: **1) cadastrar uma embarcação** (botão que leva a `/painel/embarcacoes/novo`),
   **2) criar um roteiro** (botão que leva a `/painel/roteiros/novo`) → onde reabrir o tutorial.
 - Cada passo mostra **"Passo X de N"** com barra de progresso e os botões **Próximo/Concluir**,
@@ -588,6 +596,38 @@ Todos os números são do **gestor logado** (`owner_id`):
 - Novo bloco **"Paradas do itinerário"**, logo abaixo dos campos de partida/chegada: campo de texto + botão "Adicionar" inclui uma parada; cada parada da lista pode ser reordenada (mover para cima/baixo) ou removida.
 - No site, a página do roteiro (`/roteiros/[id]`) exibe a seção **"Itinerário"** com a timeline completa: Saída → Parada 1 → Parada 2 → ... → Chegada, refletindo exatamente o que o gestor cadastrou.
 - Detalhes técnicos: SPEC §30.
+
+#### ✅ Implementado — Navegação por âncoras no cadastro e na edição de roteiro
+
+- Assim como em **Minha conta**, os formulários de cadastro (`/painel/roteiros/novo`) e edição (`/painel/roteiros/[id]/editar`, também usada em `/administrator/roteiros/[id]/editar`) ganharam uma barra fixa no topo com um atalho para cada seção do formulário: **Informações gerais, Preço, Disponibilidade, Catálogo, Localização e Imagens**.
+- Clicar num atalho rola a página direto até aquela seção; o atalho da seção visível no momento fica destacado automaticamente enquanto o gestor rola a tela.
+- Apenas navegação — não altera campos, validações ou o que é salvo no roteiro.
+- Detalhes técnicos: SPEC §30.5.
+
+#### ✅ Implementado — Modelos de cobrança do roteiro: Roteiro, Por Diária e Por Pessoa
+
+- Além do modelo já existente (**Roteiro**, diária única — preço base + regras), o gestor pode
+  ativar independentemente, por roteiro, dois modelos novos, no cadastro (`/painel/roteiros/novo`)
+  e na edição (`/painel/roteiros/[id]/editar`):
+  - **Por Diária** — para passeios de vários dias (ex.: saída com pernoite no destino). O gestor
+    define o valor da diária e a **quantidade mínima de diárias**; o cliente escolhe a data de
+    saída e quantas diárias quer, e vê o check-out calculado automaticamente.
+  - **Por Pessoa** — para bilheteria (ex.: festa a bordo, passeio público com vagas). O gestor
+    define o valor por pessoa, a capacidade máxima (obrigatória) e, opcionalmente, um grupo
+    mínimo por reserva. Escolhe também se a capacidade é **Exclusiva** (uma reserva usa o
+    roteiro inteiro na data, como hoje) ou **Compartilhada** (vários clientes reservam a mesma
+    data até lotar a capacidade máxima — cada um paga só pelo seu grupo).
+- Um roteiro pode ter os 3 modelos ativos ao mesmo tempo. No site, o cliente que abre o roteiro
+  vê uma aba para cada modelo disponível e escolhe qual quer reservar; a aba só aparece se o
+  modelo estiver configurado.
+- **Por Diária** sempre trava a embarcação no período inteiro (check-in até check-in + diárias
+  − 1), como uma reserva exclusiva de vários dias. **Por Pessoa** no modo compartilhado permite
+  que várias reservas de clientes diferentes dividam a mesma data até a capacidade máxima —
+  diferente do restante do site, que continua com 1 reserva confirmada bloqueando o dia inteiro
+  da embarcação.
+- O resumo de "Confirmar solicitação de reserva" e a tela de detalhe do agendamento no painel
+  mostram qual modelo foi usado e a conta (ex.: "3 diárias × R$ 500" ou "8 pessoas × R$ 80").
+- Detalhes técnicos: SPEC §33.
 
 ### 6.10 Páginas Institucionais / Legais
 

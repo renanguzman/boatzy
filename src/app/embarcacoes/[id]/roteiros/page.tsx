@@ -14,7 +14,9 @@ type EmbarcacaoDetalhe = EmbarcacaoInfo & {
   embarcacao_imagens: { id: string; url_imagem: string; titulo: string | null; principal: boolean }[];
 };
 
-const ROTEIRO_SELECT = `id, nome, descricao, quantidade_pessoas, preco_base, duracao,
+const ROTEIRO_SELECT = `id, nome, descricao, quantidade_pessoas, preco_base,
+   preco_diaria_ativo, preco_diaria_valor, preco_pessoa_ativo, preco_pessoa_valor,
+   duracao,
    municipios ( nome, estados ( uf ) ),
    roteiro_imagens ( url_imagem, principal ),
    embarcacao ( embarcacao_tipo ( nome ) )`;

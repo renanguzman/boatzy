@@ -162,7 +162,7 @@ export default function HeroSection({ tiposEmbarcacao, tiposVenda, locaisVenda }
 
         {/* Tipo de busca */}
         <div className="mb-3">
-          <SearchTypeToggle value={searchType} onChange={setSearchType} variant="dark" />
+          <SearchTypeToggle value={searchType} onChange={setSearchType} variant="dark" showVendas={false} />
         </div>
 
         {/* Search Bar */}

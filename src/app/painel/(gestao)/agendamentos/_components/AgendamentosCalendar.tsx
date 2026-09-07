@@ -14,6 +14,7 @@ export type ReservaEvento = {
   status: 'pendente' | 'confirmada' | 'recusada' | 'cancelada' | 'concluida';
   item_nome: string;
   quantidade_pessoas: number;
+  modalidade_preco: 'roteiro' | 'diaria' | 'pessoa';
   cliente: { name: string } | null;
 };
 

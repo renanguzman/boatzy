@@ -11,6 +11,7 @@ import AddonsAccordion from './AddonsAccordion';
 import RoteiroAcoes from './RoteiroAcoes';
 
 type ActivePanel = 'date' | 'guests' | null;
+type Modalidade = 'roteiro' | 'diaria' | 'pessoa';
 
 type Props = {
   roteiroId: string;
@@ -18,17 +19,38 @@ type Props = {
   roteiroNome: string;
   /** Dono vendo o próprio roteiro: oculta o CTA de chat (não conversa consigo mesmo). */
   ehDono?: boolean;
+  /** Modelo "Roteiro": preço da diária única (`roteiro.preco_base`). */
   preco: number | null;
   /** Se o usuário logado já favoritou este roteiro (false quando deslogado). */
   initialFavorito?: boolean;
   /** Dias da semana em que o roteiro opera (0=Dom..6=Sáb). Vazio/null = todos os dias. */
   diasOperacao?: number[] | null;
-  /** Datas bloqueadas (exceções), em formato ISO 'yyyy-mm-dd'. */
+  /** Datas indisponíveis para qualquer reserva exclusiva (bloqueios manuais + reservas confirmadas). */
   datasBloqueadas?: string[];
   /** Pré-preenchimento vindo da busca: data ('yyyy-mm-dd'), flexibilidade e nº de pessoas. */
   initialData?: string;
   initialFlex?: number;
   initialPessoas?: number;
+
+  /** Modelo "Por Diária": passeio de vários dias, cobrado por diária. */
+  precoDiariaAtivo?: boolean;
+  precoDiariaValor?: number | null;
+  precoDiariaMinimo?: number;
+
+  /** Modelo "Por Pessoa": bilheteria, valor fixo por pessoa. */
+  precoPessoaAtivo?: boolean;
+  precoPessoaValor?: number | null;
+  precoPessoaCapacidadeMinima?: number | null;
+  precoPessoaCapacidadeMaxima?: number | null;
+  precoPessoaModoCapacidade?: 'compartilhado' | 'exclusivo';
+  /** Vagas já ocupadas por data (soma de pessoas de reservas confirmadas), só relevante no modo compartilhado. */
+  vagasPessoaOcupadas?: Record<string, number>;
+};
+
+const MODALIDADE_INFO: Record<Modalidade, { label: string; unidade: string; linha: string }> = {
+  roteiro: { label: 'Roteiro', unidade: '/dia', linha: 'Diária' },
+  diaria: { label: 'Por Diária', unidade: '/diária', linha: 'Diária' },
+  pessoa: { label: 'Por Pessoa', unidade: '/pessoa', linha: 'Pessoa' },
 };
 
 function toISO(d: Date): string {
@@ -42,6 +64,24 @@ function parseISO(iso?: string): Date | null {
   return new Date(y, m - 1, d, 12, 0, 0);
 }
 
+/** Soma `dias` dias a uma data ISO, devolvendo outra data ISO. */
+function somarDias(iso: string, dias: number): string {
+  const d = parseISO(iso)!;
+  d.setDate(d.getDate() + dias);
+  return toISO(d);
+}
+
+/** Expande um intervalo ISO (inclusive) dia a dia — só para validar no cliente. */
+function expandirIntervalo(inicio: string, fim: string): string[] {
+  const datas: string[] = [];
+  let atual = inicio;
+  while (atual <= fim) {
+    datas.push(atual);
+    atual = somarDias(atual, 1);
+  }
+  return datas;
+}
+
 export default function BookingCard({
   roteiroId,
   roteiroNome,
@@ -53,7 +93,29 @@ export default function BookingCard({
   initialData,
   initialFlex,
   initialPessoas,
+  precoDiariaAtivo = false,
+  precoDiariaValor = null,
+  precoDiariaMinimo = 1,
+  precoPessoaAtivo = false,
+  precoPessoaValor = null,
+  precoPessoaCapacidadeMinima = null,
+  precoPessoaCapacidadeMaxima = null,
+  precoPessoaModoCapacidade = 'exclusivo',
+  vagasPessoaOcupadas,
 }: Props) {
+  // Modelos disponíveis para este roteiro, na ordem em que aparecem nas abas.
+  const modalidadesDisponiveis: { id: Modalidade; label: string }[] = [
+    ...(preco != null ? [{ id: 'roteiro' as const, label: MODALIDADE_INFO.roteiro.label }] : []),
+    ...(precoDiariaAtivo && precoDiariaValor != null
+      ? [{ id: 'diaria' as const, label: MODALIDADE_INFO.diaria.label }]
+      : []),
+    ...(precoPessoaAtivo && precoPessoaValor != null
+      ? [{ id: 'pessoa' as const, label: MODALIDADE_INFO.pessoa.label }]
+      : []),
+  ];
+
+  const [modalidade, setModalidade] = useState<Modalidade>(modalidadesDisponiveis[0]?.id ?? 'roteiro');
+
   const initialDate = parseISO(initialData);
   const [date, setDate] = useState<DateValue | null>(
     initialDate
@@ -61,6 +123,7 @@ export default function BookingCard({
       : null,
   );
   const [guests, setGuests] = useState(initialPessoas && initialPessoas > 0 ? initialPessoas : 1);
+  const [diarias, setDiarias] = useState(Math.max(1, precoDiariaMinimo));
   const [active, setActive] = useState<ActivePanel>(null);
   const [error, setError] = useState<string | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -84,15 +147,42 @@ export default function BookingCard({
 
   const bloqueadasSet = new Set(datasBloqueadas ?? []);
   const operaTodos = !diasOperacao || diasOperacao.length === 0;
+  const compartilhado = precoPessoaModoCapacidade === 'compartilhado';
 
-  function isDateDisabled(d: Date): boolean {
-    if (!operaTodos && !diasOperacao!.includes(d.getDay())) return true;
-    return bloqueadasSet.has(toISO(d));
+  function diaOperacional(d: Date): boolean {
+    return operaTodos || diasOperacao!.includes(d.getDay());
   }
 
-  // A taxa de serviço não é exibida aqui — só na confirmação (/reservas/novo), que a
-  // recalcula no servidor a partir do dono do roteiro (ver SPEC §14).
-  const valorEstimado = preco ? preco + totalAdicionais : null;
+  /** Vagas restantes numa data do modelo Por Pessoa (null = sem teto de capacidade a checar aqui). */
+  function vagasRestantes(iso: string): number | null {
+    if (!compartilhado || precoPessoaCapacidadeMaxima == null) return null;
+    const ocupadas = vagasPessoaOcupadas?.[iso] ?? 0;
+    return Math.max(0, precoPessoaCapacidadeMaxima - ocupadas);
+  }
+
+  function isDateDisabled(d: Date): boolean {
+    if (!diaOperacional(d)) return true;
+    const iso = toISO(d);
+    if (bloqueadasSet.has(iso)) return true;
+    if (modalidade === 'pessoa') {
+      const restantes = vagasRestantes(iso);
+      if (restantes != null && restantes <= 0) return true;
+    }
+    return false;
+  }
+
+  const dateISO = date ? toISO(date.date) : null;
+  const restantesNaData = compartilhado && dateISO != null ? vagasRestantes(dateISO) : null;
+  const guestsMinPessoa = precoPessoaCapacidadeMinima ?? 1;
+
+  // Preço unitário e multiplicador do modelo escolhido — mesma fórmula do
+  // servidor (`/reservas/novo`), só para a prévia exibida aqui.
+  const unitario = modalidade === 'roteiro' ? preco : modalidade === 'diaria' ? precoDiariaValor : precoPessoaValor;
+  const multiplicador = modalidade === 'diaria' ? diarias : modalidade === 'pessoa' ? guests : 1;
+  const subtotalModelo = unitario != null ? unitario * multiplicador : null;
+  const valorEstimado = subtotalModelo != null ? subtotalModelo + totalAdicionais : null;
+
+  const checkout = modalidade === 'diaria' && dateISO ? somarDias(dateISO, diarias - 1) : null;
 
   function handleReserve() {
     // Data e Pessoas são obrigatórios para solicitar a reserva.
@@ -106,26 +196,75 @@ export default function BookingCard({
       setActive('guests');
       return;
     }
+
+    if (modalidade === 'diaria') {
+      const fim = somarDias(dateISO!, diarias - 1);
+      const intervalo = expandirIntervalo(dateISO!, fim);
+      if (intervalo.some((d) => bloqueadasSet.has(d) || !diaOperacional(parseISO(d)!))) {
+        setError('Este período inclui uma data indisponível. Escolha outra data ou reduza as diárias.');
+        setActive('date');
+        return;
+      }
+    }
+
+    if (modalidade === 'pessoa') {
+      if (guests < guestsMinPessoa) {
+        setError(`Este roteiro exige um grupo mínimo de ${guestsMinPessoa} pessoas.`);
+        setActive('guests');
+        return;
+      }
+      if (restantesNaData != null && guests > restantesNaData) {
+        setError(`Restam apenas ${restantesNaData} vaga${restantesNaData === 1 ? '' : 's'} nesta data.`);
+        setActive('guests');
+        return;
+      }
+    }
+
     setError(null);
 
-    const params = new URLSearchParams({ roteiro: roteiroId });
-    params.set('data', toISO(date.date));
+    const params = new URLSearchParams({ roteiro: roteiroId, modalidade });
+    params.set('data', dateISO!);
     if (date.flexibility) params.set('flex', String(date.flexibility));
     params.set('pessoas', String(guests));
+    if (modalidade === 'diaria') params.set('diarias', String(diarias));
     if (selectedAddons.length > 0) params.set('adicionais', selectedAddons.map((a) => a.id).join(','));
     window.location.href = `/reservas/novo?${params.toString()}`;
   }
 
   return (
     <div ref={containerRef} className="sticky top-24 space-y-4">
+      {/* Favoritar + Compartilhar */}
+      <RoteiroAcoes roteiroId={roteiroId} roteiroNome={roteiroNome} initialFavorito={initialFavorito} />
+
       {/* Price Card */}
       <div className="rounded-2xl border border-slate-200 p-6 shadow-sm">
+        {/* Abas de modelo de cobrança — só aparecem quando há mais de uma opção */}
+        {modalidadesDisponiveis.length > 1 && (
+          <div className="mb-5 flex gap-1 rounded-xl bg-slate-100 p-1">
+            {modalidadesDisponiveis.map((m) => (
+              <button
+                key={m.id}
+                type="button"
+                onClick={() => {
+                  setModalidade(m.id);
+                  setError(null);
+                }}
+                className={`flex-1 rounded-lg py-2 text-xs font-semibold transition-colors ${
+                  modalidade === m.id ? 'bg-white text-[#0B2447] shadow-sm' : 'text-slate-500 hover:text-slate-700'
+                }`}
+              >
+                {m.label}
+              </button>
+            ))}
+          </div>
+        )}
+
         {/* Price header */}
         <div className="flex items-baseline gap-1 mb-5">
-          {preco ? (
+          {unitario ? (
             <>
-              <span className="text-3xl font-bold text-[#0B2447]">{formatCurrency(preco)}</span>
-              <span className="text-sm text-slate-500">/dia</span>
+              <span className="text-3xl font-bold text-[#0B2447]">{formatCurrency(unitario)}</span>
+              <span className="text-sm text-slate-500">{MODALIDADE_INFO[modalidade].unidade}</span>
             </>
           ) : (
             <span className="text-lg font-semibold text-slate-500">Consulte o preço</span>
@@ -135,7 +274,7 @@ export default function BookingCard({
         {/* Date field */}
         <div className="mb-3">
           <p className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider mb-1.5">
-            Data
+            {modalidade === 'diaria' ? 'Check-in' : 'Data'}
           </p>
           <div className="border border-slate-200 rounded-xl overflow-visible">
             <DatePicker
@@ -150,7 +289,38 @@ export default function BookingCard({
               isDateDisabled={isDateDisabled}
             />
           </div>
+          {modalidade === 'diaria' && checkout && (
+            <p className="mt-1.5 text-xs text-slate-500">
+              Check-out em{' '}
+              <span className="font-medium text-slate-700">
+                {new Date(`${checkout}T12:00:00`).toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric' })}
+              </span>
+            </p>
+          )}
+          {modalidade === 'pessoa' && restantesNaData != null && (
+            <p className="mt-1.5 text-xs text-slate-500">
+              {restantesNaData > 0 ? `${restantesNaData} vaga${restantesNaData === 1 ? '' : 's'} restante${restantesNaData === 1 ? '' : 's'} nesta data.` : 'Data esgotada.'}
+            </p>
+          )}
         </div>
+
+        {/* Diárias (modelo Por Diária) */}
+        {modalidade === 'diaria' && (
+          <div className="mb-3 border border-slate-200 rounded-xl overflow-visible">
+            <GuestPicker
+              value={diarias}
+              onChange={setDiarias}
+              isOpen={false}
+              onOpen={() => {}}
+              onClose={() => {}}
+              inline
+              label="Diárias"
+              singular="diária"
+              plural="diárias"
+              min={Math.max(1, precoDiariaMinimo)}
+            />
+          </div>
+        )}
 
         {/* Guests field */}
         <div className="mb-4">
@@ -167,6 +337,8 @@ export default function BookingCard({
               isOpen={active === 'guests'}
               onOpen={() => open('guests')}
               onClose={() => setActive(null)}
+              min={modalidade === 'pessoa' ? guestsMinPessoa : 1}
+              max={modalidade === 'pessoa' ? restantesNaData ?? undefined : undefined}
             />
           </div>
         </div>
@@ -175,11 +347,14 @@ export default function BookingCard({
         <AddonsAccordion />
 
         {/* Price breakdown */}
-        {preco && (
+        {subtotalModelo != null && (
           <div className="space-y-2 py-4 border-t border-slate-100">
             <div className="flex items-center justify-between text-sm">
-              <span className="text-slate-600">Diária</span>
-              <span className="font-medium text-slate-800">{formatCurrency(preco)}</span>
+              <span className="text-slate-600">
+                {MODALIDADE_INFO[modalidade].linha}
+                {multiplicador > 1 ? ` (${formatCurrency(unitario!)} × ${multiplicador})` : ''}
+              </span>
+              <span className="font-medium text-slate-800">{formatCurrency(subtotalModelo)}</span>
             </div>
             {totalAdicionais > 0 && (
               <div className="flex items-center justify-between text-sm">
@@ -190,7 +365,7 @@ export default function BookingCard({
           </div>
         )}
 
-        {valorEstimado && (
+        {valorEstimado != null && (
           <div className="py-4 border-t border-slate-200">
             <div className="flex items-center justify-between">
               <span className="text-base font-bold text-[#0B2447]">Valor estimado</span>
@@ -229,6 +404,17 @@ export default function BookingCard({
         </div>
       </div>
 
+      {/* Chat com o dono */}
+      {!ehDono && (
+        <Link
+          href={`/roteiros/${roteiroId}/chat`}
+          className="w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-[#0B3D91] hover:bg-[#092E6E] text-white text-sm font-semibold transition-colors"
+        >
+          <MessageCircle className="h-4 w-4" />
+          Converse com o dono
+        </Link>
+      )}
+
       {/* Why Boatzy Card */}
       <div className="rounded-2xl bg-gradient-to-br from-[#0B3D91] to-[#0B2447] p-6 text-white">
         <h3 className="text-base font-bold mb-4">Por que reservar no Boatzy?</h3>
@@ -247,20 +433,6 @@ export default function BookingCard({
           ))}
         </div>
       </div>
-
-      {/* Chat com o dono */}
-      {!ehDono && (
-        <Link
-          href={`/roteiros/${roteiroId}/chat`}
-          className="w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-[#0B3D91] hover:bg-[#092E6E] text-white text-sm font-semibold transition-colors"
-        >
-          <MessageCircle className="h-4 w-4" />
-          Converse com o dono
-        </Link>
-      )}
-
-      {/* Favoritar + Compartilhar */}
-      <RoteiroAcoes roteiroId={roteiroId} roteiroNome={roteiroNome} initialFavorito={initialFavorito} />
     </div>
   );
 }

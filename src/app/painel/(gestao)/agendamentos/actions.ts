@@ -4,7 +4,7 @@ import { revalidatePath } from 'next/cache';
 import { createClient } from '@/lib/supabase/server';
 import { supabaseAdmin } from '@/lib/supabase';
 import { checkRoleInDb } from '@/lib/roles';
-import { getDatasReservadasEmbarcacao, getDatasReservadasRoteiro } from '@/lib/reservas';
+import { getDatasReservadasEmbarcacao, haConflitoReservaRoteiro } from '@/lib/reservas';
 import { getAtendenteOptions, resolveEmbarcacaoIdDaReserva } from '@/lib/equipe';
 
 type ActionResult = { ok: boolean; error?: string };
@@ -16,7 +16,14 @@ type ReservaParaChecagem = {
   roteiro_id: string | null;
   embarcacao_id: string | null;
   data_reserva: string;
-  roteiro: { embarcacao_id: string | null } | null;
+  data_fim_reserva: string | null;
+  modalidade_preco: 'roteiro' | 'diaria' | 'pessoa';
+  quantidade_pessoas: number;
+  roteiro: {
+    embarcacao_id: string | null;
+    preco_pessoa_modo_capacidade: 'compartilhado' | 'exclusivo';
+    preco_pessoa_capacidade_maxima: number | null;
+  } | null;
 };
 
 /**
@@ -70,7 +77,11 @@ async function responderReserva(
   // embarcação vinculada do roteiro depois (EditarRoteiroForm permite).
   const { data: reserva } = await supabaseAdmin
     .from('reserva')
-    .select('id, owner_id, status, tipo, roteiro_id, embarcacao_id, data_reserva, roteiro ( embarcacao_id )')
+    .select(`
+      id, owner_id, status, tipo, roteiro_id, embarcacao_id, data_reserva,
+      data_fim_reserva, modalidade_preco, quantidade_pessoas,
+      roteiro ( embarcacao_id, preco_pessoa_modo_capacidade, preco_pessoa_capacidade_maxima )
+    `)
     .eq('id', reservaId)
     .eq('owner_id', user.id)
     .single();
@@ -80,17 +91,25 @@ async function responderReserva(
   const r = reserva as unknown as ReservaParaChecagem & { id: string };
 
   // Ao CONFIRMAR: a embarcação (ou o roteiro, sempre) não pode já ter outra
-  // reserva confirmada na mesma data — a própria reserva ainda está
-  // pendente neste momento, então nunca aparece nesse resultado.
+  // reserva confirmada na mesma data (ou intervalo, no modelo Por Diária) —
+  // a própria reserva ainda está pendente neste momento, então nunca conta
+  // contra si mesma. No modelo Por Pessoa compartilhado, só há conflito se
+  // ultrapassar a capacidade máxima do roteiro.
   if (status === 'confirmada') {
-    const datasIndisponiveis =
+    const haConflito =
       r.tipo === 'embarcacao'
-        ? await getDatasReservadasEmbarcacao(r.embarcacao_id!)
-        : await getDatasReservadasRoteiro({
+        ? (await getDatasReservadasEmbarcacao(r.embarcacao_id!)).includes(r.data_reserva)
+        : await haConflitoReservaRoteiro({
             roteiroId: r.roteiro_id!,
             embarcacaoId: r.roteiro?.embarcacao_id ?? null,
+            pessoaModoCapacidade: r.roteiro?.preco_pessoa_modo_capacidade ?? 'exclusivo',
+            pessoaCapacidadeMaxima: r.roteiro?.preco_pessoa_capacidade_maxima ?? null,
+            modalidadePreco: r.modalidade_preco,
+            dataReserva: r.data_reserva,
+            dataFimReserva: r.data_fim_reserva,
+            quantidadePessoas: r.quantidade_pessoas,
           });
-    if (datasIndisponiveis.includes(r.data_reserva)) {
+    if (haConflito) {
       return { ok: false, error: CONFLITO_MSG };
     }
 

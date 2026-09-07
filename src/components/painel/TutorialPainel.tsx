@@ -55,7 +55,7 @@ const PASSOS: Passo[] = [
   },
   {
     alvo: '[data-tour="nav-roteiros"]',
-    titulo: 'Roteiros',
+    titulo: 'Roteiros / Preços',
     descricao:
       'Monte passeios prontos para venda — destino, duração, o que está incluso e a embarcação usada.',
   },

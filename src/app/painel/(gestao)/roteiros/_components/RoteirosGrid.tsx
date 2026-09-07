@@ -5,7 +5,7 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import {
-  Search, ChevronUp, ChevronDown, Eye, Pencil, Trash2, MapPin,
+  Search, ChevronUp, ChevronDown, DollarSign, Pencil, Trash2, MapPin,
   ChevronsLeft, ChevronsRight, ChevronLeft, ChevronRight, Loader2,
 } from 'lucide-react';
 import { alternarStatusRoteiro } from '../actions';
@@ -277,12 +277,13 @@ export default function RoteirosGrid({ roteiros }: { roteiros: RoteiroListItem[]
 
                       <td className="py-4 px-4 pr-6">
                         <div className="flex items-center justify-end gap-1">
-                          <button
-                            title="Visualizar"
+                          <Link
+                            href={`/painel/roteiros/${r.id}/editar#preco`}
+                            title="Preço"
                             className="w-8 h-8 flex items-center justify-center rounded-lg text-slate-400 hover:text-[#0B2447] hover:bg-slate-100 transition-colors"
                           >
-                            <Eye className="w-4 h-4" />
-                          </button>
+                            <DollarSign className="w-4 h-4" />
+                          </Link>
                           <Link
                             href={`/painel/roteiros/${r.id}/editar`}
                             title="Editar"

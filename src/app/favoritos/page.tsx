@@ -97,7 +97,9 @@ export default async function FavoritosPage() {
     .select(
       `id, created_at,
        roteiro (
-         id, nome, descricao, quantidade_pessoas, preco_base, duracao, ativo,
+         id, nome, descricao, quantidade_pessoas, preco_base,
+         preco_diaria_ativo, preco_diaria_valor, preco_pessoa_ativo, preco_pessoa_valor,
+         duracao, ativo,
          municipios ( nome, estados ( uf ) ),
          roteiro_imagens ( url_imagem, principal ),
          embarcacao ( embarcacao_tipo ( nome ) )

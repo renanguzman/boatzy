@@ -11,32 +11,57 @@ type Props = {
   compact?: boolean;
   /** Renderiza o seletor como stepper inline (número sempre visível, sem dropdown). */
   inline?: boolean;
+  /** Rótulo do campo — padrão "Pessoas". Usado também para "Diárias" no modelo Por Diária. */
+  label?: string;
+  /** Palavra no singular/plural do valor (ex: "diária"/"diárias"). Padrão "pessoa"/"pessoas". */
+  singular?: string;
+  plural?: string;
+  /** Valor mínimo permitido (padrão 0). */
+  min?: number;
+  /** Valor máximo permitido — sem teto quando omitido. */
+  max?: number;
 };
 
-export default function GuestPicker({ value, onChange, isOpen, onOpen, onClose, compact, inline }: Props) {
+export default function GuestPicker({
+  value,
+  onChange,
+  isOpen,
+  onOpen,
+  onClose,
+  compact,
+  inline,
+  label = 'Pessoas',
+  singular = 'pessoa',
+  plural = 'pessoas',
+  min = 0,
+  max,
+}: Props) {
   function decrement() {
-    onChange(Math.max(0, value - 1));
+    onChange(Math.max(min, value - 1));
   }
 
   function increment() {
-    onChange(value + 1);
+    onChange(max != null ? Math.min(max, value + 1) : value + 1);
   }
+
+  const podeDecrementar = value > min;
+  const podeIncrementar = max == null || value < max;
 
   // Modo inline: rótulo + stepper (- N +) sempre visível, ocupando a linha inteira.
   if (inline) {
     return (
       <div className="w-full flex items-center justify-between gap-3 rounded-2xl px-4 py-3 hover:bg-slate-50 transition-colors min-w-0">
         <span className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider shrink-0">
-          Pessoas
+          {label}
         </span>
         <div className="flex items-center gap-3 shrink-0">
           <button
             type="button"
             onClick={decrement}
-            disabled={value <= 0}
-            aria-label="Remover pessoa"
+            disabled={!podeDecrementar}
+            aria-label={`Remover ${singular}`}
             className={`h-8 w-8 rounded-full border-2 flex items-center justify-center transition-colors ${
-              value <= 0
+              !podeDecrementar
                 ? 'border-slate-200 text-slate-300 cursor-default'
                 : 'border-slate-400 text-slate-700 hover:border-slate-800 hover:text-slate-800'
             }`}
@@ -49,8 +74,13 @@ export default function GuestPicker({ value, onChange, isOpen, onOpen, onClose, 
           <button
             type="button"
             onClick={increment}
-            aria-label="Adicionar pessoa"
-            className="h-8 w-8 rounded-full border-2 border-slate-400 text-slate-700 flex items-center justify-center hover:border-slate-800 hover:text-slate-800 transition-colors"
+            disabled={!podeIncrementar}
+            aria-label={`Adicionar ${singular}`}
+            className={`h-8 w-8 rounded-full border-2 flex items-center justify-center transition-colors ${
+              !podeIncrementar
+                ? 'border-slate-200 text-slate-300 cursor-default'
+                : 'border-slate-400 text-slate-700 hover:border-slate-800 hover:text-slate-800'
+            }`}
           >
             <Plus className="h-4 w-4" />
           </button>
@@ -70,11 +100,11 @@ export default function GuestPicker({ value, onChange, isOpen, onOpen, onClose, 
         } ${isOpen ? 'ring-2 ring-slate-800 bg-white shadow-md' : 'hover:bg-slate-50'}`}
       >
         <span className={`block font-bold text-slate-500 uppercase tracking-wider mb-0.5 ${compact ? 'text-[9px]' : 'text-[10px]'}`}>
-          Pessoas
+          {label}
         </span>
         {value > 0 ? (
           <span className={`font-medium text-slate-800 whitespace-nowrap ${compact ? 'text-xs' : 'text-sm'}`}>
-            {value} {value === 1 ? 'pessoa' : 'pessoas'}
+            {value} {value === 1 ? singular : plural}
           </span>
         ) : (
           <span className={`text-slate-400 whitespace-nowrap ${compact ? 'text-xs' : 'text-sm'}`}>Quantas?</span>
@@ -89,9 +119,9 @@ export default function GuestPicker({ value, onChange, isOpen, onOpen, onClose, 
             <button
               type="button"
               onClick={decrement}
-              disabled={value <= 0}
+              disabled={!podeDecrementar}
               className={`h-9 w-9 rounded-full border-2 flex items-center justify-center transition-colors ${
-                value <= 0
+                !podeDecrementar
                   ? 'border-slate-200 text-slate-300 cursor-default'
                   : 'border-slate-400 text-slate-700 hover:border-slate-800 hover:text-slate-800'
               }`}
@@ -104,11 +134,19 @@ export default function GuestPicker({ value, onChange, isOpen, onOpen, onClose, 
             <button
               type="button"
               onClick={increment}
-              className="h-9 w-9 rounded-full border-2 border-slate-400 text-slate-700 flex items-center justify-center hover:border-slate-800 hover:text-slate-800 transition-colors"
+              disabled={!podeIncrementar}
+              className={`h-9 w-9 rounded-full border-2 flex items-center justify-center transition-colors ${
+                !podeIncrementar
+                  ? 'border-slate-200 text-slate-300 cursor-default'
+                  : 'border-slate-400 text-slate-700 hover:border-slate-800 hover:text-slate-800'
+              }`}
             >
               <Plus className="h-4 w-4" />
             </button>
           </div>
+          {max != null && (
+            <p className="mt-3 text-center text-xs text-slate-400">Máximo de {max} {max === 1 ? singular : plural}</p>
+          )}
         </div>
       )}
     </div>
