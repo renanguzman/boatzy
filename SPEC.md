@@ -3922,7 +3922,33 @@ menor valor entre Por Diária/Por Pessoa ativos, com rótulo **"a partir de"** (
 não o total do dia) e a unidade correspondente (`/diária`, `/pessoa`). Os novos campos são
 opcionais no tipo `RoteiroCardData` — cartões que ainda não os buscam continuam mostrando "Consulte
 o preço" sem quebrar. Aplicado em `favoritos/page.tsx` e `embarcacoes/[id]/roteiros/page.tsx`
-(queries diretas em `roteiro`). **Não aplicado** à busca principal (`/buscar`, RPC `buscar_roteiros`)
-nem aos destaques da home (`src/lib/roteiros-top.ts`) — ambos continuam mostrando só o preço do
-modelo Roteiro ou "Consulte o preço"; estender a RPC `buscar_roteiros` (reescrita em 5 migrations,
-com filtros/distância/ordenação) fica para uma fase futura dedicada.
+(queries diretas em `roteiro`). **Não aplicado** à busca principal (`/buscar`) nem aos destaques da
+home (`src/lib/roteiros-top.ts`) — a query de detalhe do card em `/buscar`
+(`ROTEIRO_SELECT`, `src/app/buscar/page.tsx`) ainda não busca os campos de Diária/Pessoa, então o
+card lá continua mostrando só o preço do modelo Roteiro ou "Consulte o preço"; estender isso
+(e os destaques da home) fica para uma fase futura. O filtro por modelo de cobrança do §33.9,
+porém, já funciona em `/buscar` independente disso — ele decide QUAIS roteiros aparecem, não como
+o preço é rotulado no card.
+
+### 33.9 Filtro "Modelo de cobrança" — busca de roteiros (`/buscar`)
+
+Migration `20260907b_buscar_roteiros_modelo_preco.sql`: `buscar_roteiros` ganhou
+`p_modelos_preco text[] DEFAULT NULL` — array com qualquer combinação de `'roteiro'` | `'diaria'` |
+`'pessoa'`. `NULL`/vazio = sem filtro (comportamento anterior). Com valores, um roteiro entra no
+resultado se tiver **pelo menos um** dos modelos selecionados ativo (`preco_base IS NOT NULL` /
+`preco_diaria_ativo` / `preco_pessoa_ativo` — OR entre os valores escolhidos, mesmo espírito do
+filtro de comodidades). Só existe em `buscar_roteiros` — `buscar_embarcacoes` não ganhou esse
+parâmetro (reserva direta de embarcação não tem esses submodelos, fora de escopo, ver §33).
+
+Contrato de URL: `src/app/buscar/_lib/filtros.ts` — `BuscaSearchParams.modelo_preco` (valores
+separados por vírgula, ex. `?modelo_preco=diaria,pessoa`), `MODELOS_PRECO` (rótulos: "Passeios
+(Roteiro)", "Por Diária", "Por Pessoa"), `parseModelosPreco()` (filtra só valores válidos) e
+`contarFiltrosAvancados()` atualizado para contar esse filtro.
+
+UI: dentro do dropdown **"Filtros"** já existente (`FiltrosAvancados.tsx`), nova seção "Modelo de
+cobrança" com um botão-pill por modelo (multi-seleção independente, mesmo estilo visual dos presets
+de duração) — só renderizada na aba Roteiros (`!abaEmbarcacao`, calculado de `params.tipo`/
+`params.tipo_embarcacao` como no resto da página). `buscar/page.tsx` passa
+`p_modelos_preco` na chamada da RPC, adiciona o chip "Cobrança: ..." (removível), inclui
+`modelo_preco` no reset "Limpar filtros" do estado vazio e em `filtrosPreservados` repassado ao
+`SearchBarCompact` (troca de destino/data/pessoas não derruba o filtro).

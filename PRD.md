@@ -195,6 +195,14 @@ Vale nas **duas abas** de `/buscar` (Roteiros e Embarcações), sempre resolvido
 - Os filtros e a ordenação viram **chips removíveis** e ficam na URL (link compartilhável), sobrevivem a uma nova busca e à troca de aba. Quando zeram o resultado, o estado vazio oferece **"Limpar preço e duração"**.
 - **Impacto no cadastro:** o campo "Duração" do roteiro (painel e admin) deixou de ser texto livre e passou a ser **número + unidade** (Horas/Dias) — é o que torna o filtro e a ordenação por duração possíveis. O rótulo exibido nos cards ("4 horas", "2 dias") passa a ser gerado a partir desse par. Roteiros já cadastrados tiveram a duração convertida automaticamente; os poucos cujo texto não tinha número reconhecível ficam sem duração e só não aparecem quando o filtro de duração está ativo. Detalhes técnicos em `SPEC.md` §18.3/§18.3-A/§18.6.
 
+#### ✅ Implementado — Filtro por Modelo de Cobrança (busca de roteiros)
+
+- No painel **"Filtros"** de `/buscar` (aba Roteiros), nova seção **"Modelo de cobrança"** com um botão para cada um dos 3 modelos do roteiro (ver 6.8 → Modelos de cobrança): **Passeios (Roteiro)**, **Por Diária**, **Por Pessoa**. Multi-seleção — pode marcar mais de um.
+- Nenhum selecionado = sem filtro (mostra roteiros com qualquer modelo). Com um ou mais marcados, só aparecem roteiros que tenham **pelo menos um** dos modelos escolhidos ativo.
+- Só existe na aba **Roteiros** — a aba Embarcações não tem esse filtro, pois a reserva direta de embarcação não tem esses submodelos.
+- Vira **chip removível** ("Cobrança: ...") e fica na URL, como os demais filtros avançados; sobrevive a uma nova busca de destino/data/pessoas.
+- Detalhes técnicos: SPEC §33.9.
+
 #### ✅ Implementado — Mapa dos resultados na busca (10/08/2026)
 
 - No rodapé de `/buscar` (abaixo da paginação), nas **duas abas**, um mapa do Google mostra os resultados **da página atual** — o mapa acompanha filtros, ordenação e paginação.

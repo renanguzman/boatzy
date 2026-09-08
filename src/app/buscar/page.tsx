@@ -19,8 +19,10 @@ import { faixaDuracaoLabel, faixaPrecoLabel } from '@/lib/duracao';
 import {
   buildBuscarUrl,
   contarFiltrosAvancados,
+  MODELOS_PRECO,
   normalizarOrdenacao,
   parseComodidadeIds,
+  parseModelosPreco,
   parseNumeroPositivo,
   type BuscaSearchParams as SearchParams,
 } from './_lib/filtros';
@@ -112,6 +114,8 @@ export default async function BuscarPage({ searchParams }: { searchParams: Promi
   const ordenar = normalizarOrdenacao(params.ordenar);
   // Comodidades: só filtra a busca de embarcações (é um atributo da embarcação).
   const comodidadeIds = parseComodidadeIds(params.comodidades);
+  // Modelo de cobrança: só filtra a busca de roteiros (embarcação não tem esses submodelos).
+  const modelosPreco = parseModelosPreco(params.modelo_preco);
 
   // Dois modos dentro da mesma página:
   //  - roteiro (default): busca de roteiros, como sempre foi.
@@ -200,6 +204,7 @@ export default async function BuscarPage({ searchParams }: { searchParams: Promi
       p_duracao_min: duracaoMin,
       p_duracao_max: duracaoMax,
       p_ordenar: ordenar,
+      p_modelos_preco: modelosPreco.length > 0 ? modelosPreco : null,
     });
 
     // Não silenciar falhas da RPC: um erro aqui deixa a busca vazia sem motivo
@@ -360,6 +365,13 @@ export default async function BuscarPage({ searchParams }: { searchParams: Promi
       removeKey: 'comodidades',
     });
   }
+  if (modelosPreco.length > 0) {
+    const rotulos = modelosPreco.map((v) => MODELOS_PRECO.find((m) => m.value === v)?.label ?? v);
+    chips.push({
+      label: `Cobrança: ${rotulos.join(', ')}`,
+      removeKey: 'modelo_preco',
+    });
+  }
 
   const filtrosAvancadosAtivos = contarFiltrosAvancados(params);
 
@@ -370,6 +382,7 @@ export default async function BuscarPage({ searchParams }: { searchParams: Promi
     duracao_min: null,
     duracao_max: null,
     comodidades: null,
+    modelo_preco: null,
     pagina: null,
   });
 
@@ -398,6 +411,7 @@ export default async function BuscarPage({ searchParams }: { searchParams: Promi
               ...(params.duracao_min ? { duracao_min: params.duracao_min } : {}),
               ...(params.duracao_max ? { duracao_max: params.duracao_max } : {}),
               ...(params.comodidades ? { comodidades: params.comodidades } : {}),
+              ...(params.modelo_preco ? { modelo_preco: params.modelo_preco } : {}),
               ...(params.ordenar ? { ordenar: params.ordenar } : {}),
             }}
           />
@@ -548,7 +562,7 @@ export default async function BuscarPage({ searchParams }: { searchParams: Promi
                   href={semFiltrosAvancadosHref}
                   className="px-5 py-2.5 border border-slate-300 text-slate-700 hover:bg-white text-sm font-semibold rounded-xl transition-colors"
                 >
-                  Limpar preço e duração
+                  Limpar filtros
                 </Link>
               )}
               {tipoNome && (

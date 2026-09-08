@@ -28,9 +28,19 @@ export type BuscaSearchParams = {
   duracao_max?: string;
   /** Comodidades desejadas (ids separados por vírgula) — só na aba Embarcações. */
   comodidades?: string;
+  /** Modelos de cobrança desejados ('roteiro'|'diaria'|'pessoa', separados por vírgula) — só na aba Roteiros. */
+  modelo_preco?: string;
   /** Critério de ordenação — ver ORDENACOES. */
   ordenar?: string;
 };
+
+export const MODELOS_PRECO = [
+  { value: 'roteiro', label: 'Passeios (Roteiro)' },
+  { value: 'diaria', label: 'Por Diária' },
+  { value: 'pessoa', label: 'Por Pessoa' },
+] as const;
+
+export type ModeloPreco = (typeof MODELOS_PRECO)[number]['value'];
 
 export const ORDENACOES = [
   { value: 'relevancia', label: 'Relevância' },
@@ -76,11 +86,12 @@ export function buildBuscarUrl(
   return qs ? `/buscar?${qs}` : '/buscar';
 }
 
-/** Quantos filtros avançados (preço/duração) estão ativos. */
+/** Quantos filtros avançados (preço/duração/modelo de cobrança) estão ativos. */
 export function contarFiltrosAvancados(params: BuscaSearchParams): number {
   let n = 0;
   if (params.preco_min || params.preco_max) n++;
   if (params.duracao_min || params.duracao_max) n++;
+  if (params.modelo_preco) n++;
   return n;
 }
 
@@ -88,4 +99,14 @@ export function contarFiltrosAvancados(params: BuscaSearchParams): number {
 export function parseComodidadeIds(valor: string | undefined): string[] {
   if (!valor) return [];
   return valor.split(',').map((v) => v.trim()).filter(Boolean);
+}
+
+/** Modelos de cobrança selecionados na URL (`?modelo_preco=roteiro,diaria`), só valores válidos. */
+export function parseModelosPreco(valor: string | undefined): ModeloPreco[] {
+  if (!valor) return [];
+  const validos = new Set(MODELOS_PRECO.map((m) => m.value));
+  return valor
+    .split(',')
+    .map((v) => v.trim())
+    .filter((v): v is ModeloPreco => validos.has(v as ModeloPreco));
 }

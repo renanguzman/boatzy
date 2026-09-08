@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { SlidersHorizontal } from 'lucide-react';
 import { DURACAO_PRESETS } from '@/lib/duracao';
-import { buildBuscarUrl, type BuscaSearchParams } from '../_lib/filtros';
+import { buildBuscarUrl, MODELOS_PRECO, parseModelosPreco, type BuscaSearchParams, type ModeloPreco } from '../_lib/filtros';
 
 type Props = {
   /** Params atuais da URL — vêm da página (Server Component), não de useSearchParams. */
@@ -32,6 +32,17 @@ export default function FiltrosAvancados({ params, ativos }: Props) {
   const [precoMax, setPrecoMax] = useState(params.preco_max ?? '');
   const [duracaoMin, setDuracaoMin] = useState(params.duracao_min ?? '');
   const [duracaoMax, setDuracaoMax] = useState(params.duracao_max ?? '');
+  const [modelosPreco, setModelosPreco] = useState<ModeloPreco[]>(() => parseModelosPreco(params.modelo_preco));
+
+  // O filtro de modelo de cobrança só existe para roteiros — embarcação não
+  // tem esses submodelos (reserva direta, sempre "diária única").
+  const abaEmbarcacao = params.tipo === 'embarcacao' || !!params.tipo_embarcacao;
+
+  function toggleModeloPreco(valor: ModeloPreco) {
+    setModelosPreco((atual) =>
+      atual.includes(valor) ? atual.filter((m) => m !== valor) : [...atual, valor],
+    );
+  }
 
   // Abrir sempre parte do que está na URL — inclusive depois de um chip ter
   // removido uma faixa (mesmo padrão do ValorVendaPicker da busca de Vendas).
@@ -44,6 +55,7 @@ export default function FiltrosAvancados({ params, ativos }: Props) {
     setPrecoMax(params.preco_max ?? '');
     setDuracaoMin(params.duracao_min ?? '');
     setDuracaoMax(params.duracao_max ?? '');
+    setModelosPreco(parseModelosPreco(params.modelo_preco));
     setAberto(true);
   }
 
@@ -74,6 +86,7 @@ export default function FiltrosAvancados({ params, ativos }: Props) {
         preco_max: pMax,
         duracao_min: dMin,
         duracao_max: dMax,
+        modelo_preco: modelosPreco.length > 0 ? modelosPreco.join(',') : null,
         pagina: null, // mudou o filtro: volta para a primeira página
       }),
     );
@@ -85,6 +98,7 @@ export default function FiltrosAvancados({ params, ativos }: Props) {
     setPrecoMax('');
     setDuracaoMin('');
     setDuracaoMax('');
+    setModelosPreco([]);
   }
 
   return (
@@ -205,6 +219,38 @@ export default function FiltrosAvancados({ params, ativos }: Props) {
             </div>
           </div>
           <p className="text-[11px] text-slate-400 mt-2">Em horas — 1 dia equivale a 24 h.</p>
+
+          {/* Modelo de cobrança — só na busca de roteiros (embarcação não tem esses submodelos). */}
+          {!abaEmbarcacao && (
+            <>
+              <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mt-5 mb-3">
+                Modelo de cobrança
+              </p>
+              <div className="flex flex-wrap gap-1.5">
+                {MODELOS_PRECO.map((modelo) => {
+                  const ativo = modelosPreco.includes(modelo.value);
+                  return (
+                    <button
+                      key={modelo.value}
+                      type="button"
+                      onClick={() => toggleModeloPreco(modelo.value)}
+                      aria-pressed={ativo}
+                      className={`text-xs font-medium rounded-full px-3 py-1.5 border transition-colors cursor-pointer ${
+                        ativo
+                          ? 'border-[#0B2447] bg-[#0B2447] text-white'
+                          : 'border-slate-200 text-slate-600 hover:bg-slate-50'
+                      }`}
+                    >
+                      {modelo.label}
+                    </button>
+                  );
+                })}
+              </div>
+              <p className="text-[11px] text-slate-400 mt-2">
+                Nenhum selecionado mostra roteiros com qualquer modelo de cobrança.
+              </p>
+            </>
+          )}
 
           <div className="flex items-center justify-between mt-4">
             <button
