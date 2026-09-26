@@ -9,6 +9,7 @@ import { formatCurrency } from '@/lib/utils';
 import { getTaxaEfetiva } from '@/lib/taxas';
 import { buscarPrevisaoTempo } from '@/lib/weather';
 import { somarDiasISO } from '@/lib/reservas';
+import { obterTermoParaAceite } from '@/lib/termos/aceite';
 import ConfirmarReserva from './_components/ConfirmarReserva';
 import PrevisaoTempoCard from './_components/PrevisaoTempoCard';
 
@@ -218,7 +219,11 @@ export default async function NovaReservaPage({
 
   // Previsão do tempo para a data escolhida (Open-Meteo) — só um complemento
   // informativo; sem coordenada, a seção simplesmente não é exibida.
-  const previsaoTempo = lat != null && lng != null ? await buscarPrevisaoTempo(lat, lng, data) : null;
+  const [previsaoTempo, termo] = await Promise.all([
+    lat != null && lng != null ? buscarPrevisaoTempo(lat, lng, data) : Promise.resolve(null),
+    // Termo que o cliente precisa aceitar para enviar a solicitação (null = sem versão vigente).
+    obterTermoParaAceite('reserva_cliente', user.id),
+  ]);
 
   return (
     <div className="min-h-screen flex flex-col bg-slate-50">
@@ -332,6 +337,7 @@ export default async function NovaReservaPage({
           rotuloLinha={rotuloLinha}
           totalAdicionais={totalAdicionais}
           taxaPercent={taxaPercent}
+          termo={termo}
         />
       </main>
 

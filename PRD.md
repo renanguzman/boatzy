@@ -762,6 +762,117 @@ Todos os números são do **gestor logado** (`owner_id`):
 - A lista de gestores tem busca (nome/e-mail), ordenação e paginação, no mesmo padrão dos outros módulos; cada linha mostra qual taxa está **realmente em vigor** para aquele gestor agora (geral ou específica), sinalizando quando existe uma taxa específica cadastrada mas fora de vigor.
 - **Onde isso é aplicado:** toda solicitação de reserva (roteiro ou embarcação, ver 6.5) resolve a taxa efetiva do **gestor dono do item** no momento da solicitação — nunca do cliente que reserva — e grava um snapshot dela na reserva, preservando o histórico mesmo que a taxa do gestor mude depois.
 
+#### ✅ Implementado — Gestão de Termos de Uso (`/administrator/termos`) — fase 1 (26/09/2026)
+
+Cadastro dos textos dos termos que os usuários aceitam em diferentes pontos da plataforma. Primeira
+fase de um escopo maior: **textos (feito)** → registro do aceite com evidências → tela de aceite →
+integração na reserva e no cadastro de embarcação.
+
+- Novo item **TERMOS DE USO** no menu lateral do admin, com CRUD no padrão da tela de Embarcações
+  (lista com busca, filtro por status, ordenação e paginação; cadastro, edição, visualização e exclusão).
+- **Identificadores fixos** (definidos no código) indicam onde cada termo é usado: *Reserva — cliente*,
+  *Cadastro de embarcação — gestor*, *Termos gerais da plataforma* e *Política de Privacidade*.
+  Cada identificador tem público-alvo (cliente, gestor ou todos).
+- **Versionamento com texto imutável** (decisão de produto, para o aceite ter valor de prova):
+  - o termo nasce como **rascunho**, que pode ser editado ou excluído;
+  - ao **publicar**, ele passa a ser a versão **vigente**, o texto fica congelado (garantido pelo banco)
+    e recebe uma impressão digital SHA-256 ("código de verificação");
+  - para mudar um texto vigente, cria-se uma **nova versão**; ao publicá-la, a anterior é arquivada
+    automaticamente e fica no histórico. Versões publicadas nunca são excluídas;
+  - no máximo uma versão vigente e um rascunho por identificador;
+  - o admin pode retirar um termo de vigência sem substituí-lo (com aviso de que os pontos que o
+    exigem ficam sem texto).
+- Conteúdo escrito em **Markdown**, com pré-visualização ao lado mostrando a formatação final.
+  Citações (`>`) viram **cláusulas em destaque**, para atender o CDC nas cláusulas que limitam direitos.
+- Cada termo define as exigências do aceite: leitura até o fim e confirmação digitada (nome
+  completo, ou CPF quando cadastrado). Elas serão aplicadas na tela de aceite.
+- A tela de visualização mostra o documento como o usuário o verá, os dados de autoria e publicação,
+  o hash completo e o histórico de versões.
+- Detalhes técnicos: SPEC §25.11.
+
+#### ✅ Implementado — Registro de aceite dos termos (fase 2, 26/09/2026)
+
+Base que guarda a prova de cada aceite. Ainda não há tela que a use: isso vem na fase 3.
+
+- **Um registro por aceite**, ligado à versão exata do termo e à ação em que foi aceito (ex.: a reserva).
+- **Evidências capturadas pelo servidor**, que o usuário não consegue falsificar: data e hora oficiais,
+  IP, sessão autenticada, navegador e dispositivo, localização aproximada pelo IP e a página de origem.
+- **Evidências do navegador:** tela, idioma, fuso horário, localização por GPS (pedida, mas opcional:
+  se o usuário recusar, o aceite segue e a recusa fica registrada), tempo de leitura e se o texto foi
+  lido até o fim.
+- **Confirmação digitada** (decisão de produto): o usuário digita o **CPF** (ou o **CNPJ**) do cadastro
+  ou, se não houver documento, o **nome completo** como está no cadastro. Se não conferir, o aceite é recusado.
+- Uma cópia dos dados do termo (versão e código de verificação) e do usuário (nome, e-mail, documento)
+  fica no próprio registro.
+- **Os registros não podem ser alterados nem apagados**, nem por administradores. Cada aceite é
+  encadeado ao anterior por um código (hash), e qualquer adulteração direta no banco é detectada por
+  uma auditoria da cadeia.
+- O aceite **continua existindo mesmo que o usuário exclua a conta**, porque é prova guardada por
+  obrigação legal (LGPD).
+- Só a versão vigente pode ser aceita. Se o termo for atualizado enquanto o usuário lê, ele precisa
+  ler a nova versão.
+- Detalhes técnicos: SPEC §25.11.7 e §25.11.8.
+
+#### ✅ Implementado — Aceite do termo na reserva (fase 3, 26/09/2026)
+
+- Na confirmação da reserva (`/reservas/novo`) aparece o bloco **"Ler e aceitar os termos"** com o
+  termo vigente *Reserva — cliente*. O botão **"Confirmar solicitação" fica bloqueado até o aceite**.
+- O termo abre num documento em tela cheia com apresentação formal: título, versão, data de
+  vigência, código de verificação, barra de progresso da leitura e cláusulas em destaque.
+- Para aceitar, o cliente precisa:
+  1. **ler até o final** (o progresso aparece, com um botão para avançar);
+  2. marcar **"Declaro que li integralmente e concordo"**;
+  3. **digitar o CPF** (ou CNPJ) do cadastro ou, se não houver documento, o **nome completo**. A
+     conferência é imediata e o dado esperado nunca é enviado ao navegador.
+- Ao abrir o termo, o navegador pede a **localização**. A recusa não impede o aceite e fica registrada.
+- O documento informa o que é registrado como comprovante (data, hora, IP, dispositivo e localização).
+- O aceite é validado antes de criar a reserva e gravado junto com ela: **não existe reserva sem
+  aceite válido**. Se o termo for atualizado durante a leitura, a página recarrega com a nova versão
+  para uma nova leitura.
+- Depois do envio, a tela de sucesso mostra a data e hora do aceite e um **número de protocolo**.
+- Se não houver versão vigente publicada do termo, a reserva segue sem aceite, para o fluxo não travar.
+- Componente reutilizável para os próximos pontos de aceite. Detalhes técnicos: SPEC §25.11.9.
+
+#### ✅ Implementado — Consulta de aceites e comprovante em PDF (fase 5, 26/09/2026)
+
+- Nova aba **Aceites** em Termos de Uso (`/administrator/termos/aceites`), ao lado de **Textos**.
+- Lista de todos os aceites com **um único campo de busca** (nome, e-mail, CPF/CNPJ, protocolo ou id
+  da reserva), filtro por termo, ordenação e paginação.
+- **Ficha de cada aceite** com todas as evidências coletadas: termo e versão, titular, ação vinculada
+  (com a situação atual da reserva), data, hora e sessão, rede e dispositivo, localização por IP e por
+  GPS (com link para o mapa), leitura e confirmação digitada, e integridade. Mostra também a íntegra
+  do texto aceito.
+- **Verificação de integridade** em dois níveis: o botão "Verificar integridade" audita a cadeia
+  inteira, e cada ficha mostra se aquele registro está íntegro e se o texto do termo corresponde
+  exatamente ao que foi aceito.
+- **Comprovante em PDF** para disputas e pedidos judiciais: ficha completa, declaração de
+  imutabilidade, anexo com a íntegra do termo e, em todas as páginas, protocolo, hash, data, hora e
+  autor da geração.
+- Detalhes técnicos: SPEC §25.11.10.
+
+#### ⏸️ Pendências — Termos de Uso (adiadas em 26/09/2026, para outro momento)
+
+Ordem sugerida: 1 → 2 → 3 → 4. Os três primeiros completam a cobertura jurídica do gestor.
+
+1. **Aceite do gestor no cadastro de embarcação** (identificador `cadastro_embarcacao_gestor`).
+   O componente `TermoAceite` e as funções `validarAceite`/`gravarAceite` já estão prontos; falta
+   ligá-los ao formulário de nova embarcação (`/painel/embarcacoes/novo`) e à action `criarEmbarcacao`
+   (contexto `embarcacao`), no mesmo padrão da reserva.
+2. **Novo aceite quando uma nova versão for publicada.** Quem aceitou uma versão anterior de um
+   termo de uso contínuo (ex.: gestor) precisa aceitar a nova no próximo acesso.
+3. **Comprovante por e-mail no momento do aceite** (Resend, já integrado), com o protocolo e o
+   código de verificação. Cria uma prova fora do nosso próprio banco.
+4. **Páginas `/terms` e `/privacy` lendo o texto vigente do banco** (identificadores
+   `termos_gerais_plataforma` e `politica_privacidade`). Hoje o texto delas está fixo no código.
+5. **"Meus aceites" na área do cliente e do gestor**, com a lista dos próprios aceites e o
+   comprovante. O banco já permite a leitura (RLS `user_select_own`).
+6. **Conteúdo e revisão jurídica:**
+   - republicar o termo *Reserva — cliente* como v2 com os títulos em Markdown (`## 1. ...`). A v1
+     foi colada como texto simples, e os títulos numerados viram lista e se juntam ao parágrafo seguinte;
+   - atualizar a Política de Privacidade (LGPD) para citar a coleta de localização (IP e GPS), IP,
+     dispositivo e CPF/nome no aceite;
+   - revisão por advogado dos textos dos termos e do aviso exibido no modal de aceite.
+
 #### 🔜 A implementar
 
 - Conteúdo dos demais módulos (Publicidade, Categorias, Configurações), cada um em separado.

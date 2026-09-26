@@ -1,3 +1,5 @@
+import type { ConfirmacaoTipo, DispositivoTipo, GeoGpsStatus } from '@/lib/termos/tipos';
+
 export type UserRole = 'admin' | 'gestor' | 'cliente';
 export type EmbarcacaoStatus = 'ativo' | 'inativo' | 'em_manutencao';
 export type PrecoRegraTipo = 'dia_semana' | 'periodo_anual' | 'data_fixa';
@@ -18,6 +20,7 @@ export type AnuncioInteracaoTipo =
   | 'compartilhou'
   | 'conversou';
 export type CupomTipoDesconto = 'percentual' | 'valor_fixo';
+export type TermoUsoStatus = 'rascunho' | 'publicado' | 'arquivado';
 
 export type Database = {
   public: {
@@ -1557,6 +1560,131 @@ export type Database = {
           },
         ];
       };
+      termos_uso_plataforma: {
+        Row: {
+          id: string;
+          identificador: string;
+          versao: number;
+          titulo: string;
+          conteudo: string;
+          conteudo_hash: string | null;
+          descricao_interna: string | null;
+          status: TermoUsoStatus;
+          exige_rolagem_completa: boolean;
+          exige_confirmacao_digitada: boolean;
+          criado_por: string | null;
+          publicado_por: string | null;
+          publicado_em: string | null;
+          arquivado_em: string | null;
+          data_cadastro: string;
+          data_atualizacao: string;
+        };
+        Insert: {
+          id?: string;
+          identificador: string;
+          versao?: number; // atribuída por trigger
+          titulo: string;
+          conteudo: string;
+          descricao_interna?: string | null;
+          status?: 'rascunho'; // sempre nasce rascunho (trigger)
+          exige_rolagem_completa?: boolean;
+          exige_confirmacao_digitada?: boolean;
+          criado_por?: string | null;
+        };
+        Update: {
+          titulo?: string;
+          conteudo?: string;
+          descricao_interna?: string | null;
+          status?: TermoUsoStatus; // transições validadas por trigger
+          exige_rolagem_completa?: boolean;
+          exige_confirmacao_digitada?: boolean;
+        };
+        Relationships: [];
+      };
+      // Append-only: UPDATE/DELETE recusados por trigger. Campos de snapshot,
+      // aceito_em, sequencia e hashes são preenchidos pelo banco (fora do Insert).
+      termos_uso_aceite: {
+        Row: {
+          id: string;
+          sequencia: number;
+          termo_id: string;
+          termo_identificador: string;
+          termo_versao: number;
+          termo_conteudo_hash: string;
+          user_id: string;
+          usuario_nome: string | null;
+          usuario_email: string | null;
+          usuario_cpf_cnpj: string | null;
+          contexto_tipo: string;
+          contexto_id: string | null;
+          aceito_em: string;
+          ip: string | null;
+          ip_cadeia: string | null;
+          user_agent: string | null;
+          sessao_id: string | null;
+          origem_url: string | null;
+          dispositivo_tipo: DispositivoTipo | null;
+          sistema_operacional: string | null;
+          navegador: string | null;
+          geo_ip_cidade: string | null;
+          geo_ip_regiao: string | null;
+          geo_ip_pais: string | null;
+          geo_ip_latitude: number | null;
+          geo_ip_longitude: number | null;
+          tela_resolucao: string | null;
+          idioma: string | null;
+          fuso_horario: string | null;
+          cliente_data_hora: string | null;
+          geo_gps_status: GeoGpsStatus;
+          geo_gps_latitude: number | null;
+          geo_gps_longitude: number | null;
+          geo_gps_precisao_m: number | null;
+          confirmacao_tipo: ConfirmacaoTipo | null;
+          confirmacao_valor: string | null;
+          confirmacao_confere: boolean | null;
+          termo_aberto_em: string | null;
+          tempo_leitura_seg: number | null;
+          rolou_ate_fim: boolean | null;
+          hash_formato: number;
+          hash_anterior: string | null;
+          evidencia_hash: string;
+        };
+        Insert: {
+          termo_id: string;
+          user_id: string;
+          contexto_tipo: string;
+          contexto_id?: string | null;
+          ip?: string | null;
+          ip_cadeia?: string | null;
+          user_agent?: string | null;
+          sessao_id?: string | null;
+          origem_url?: string | null;
+          dispositivo_tipo?: DispositivoTipo | null;
+          sistema_operacional?: string | null;
+          navegador?: string | null;
+          geo_ip_cidade?: string | null;
+          geo_ip_regiao?: string | null;
+          geo_ip_pais?: string | null;
+          geo_ip_latitude?: number | null;
+          geo_ip_longitude?: number | null;
+          tela_resolucao?: string | null;
+          idioma?: string | null;
+          fuso_horario?: string | null;
+          cliente_data_hora?: string | null;
+          geo_gps_status?: GeoGpsStatus;
+          geo_gps_latitude?: number | null;
+          geo_gps_longitude?: number | null;
+          geo_gps_precisao_m?: number | null;
+          confirmacao_tipo?: ConfirmacaoTipo | null;
+          confirmacao_valor?: string | null;
+          confirmacao_confere?: boolean | null;
+          termo_aberto_em?: string | null;
+          tempo_leitura_seg?: number | null;
+          rolou_ate_fim?: boolean | null;
+        };
+        Update: Record<string, never>;
+        Relationships: [];
+      };
     };
     Views: Record<string, never>;
     Functions: {
@@ -1711,6 +1839,14 @@ export type Database = {
         };
         Returns: boolean;
       };
+      publicar_termo_uso: {
+        Args: { p_termo_id: string; p_publicado_por: string | null };
+        Returns: undefined;
+      };
+      verificar_cadeia_termos_aceite: {
+        Args: Record<string, never>;
+        Returns: { sequencia: number; aceite_id: string; problema: string }[];
+      };
       vendas_locais: {
         Args: Record<string, never>;
         Returns: {
@@ -1746,6 +1882,7 @@ export type Database = {
       anuncio_venda_status: AnuncioVendaStatus;
       anuncio_interacao_tipo: AnuncioInteracaoTipo;
       cupom_tipo_desconto: CupomTipoDesconto;
+      termo_uso_status: TermoUsoStatus;
     };
     CompositeTypes: Record<string, never>;
   };

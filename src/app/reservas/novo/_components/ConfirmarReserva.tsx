@@ -2,9 +2,12 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { CheckCircle2, Loader2, Tag, X, AlertCircle, Clock } from 'lucide-react';
+import { useRouter } from 'next/navigation';
+import { CheckCircle2, Loader2, Tag, X, AlertCircle, Clock, ShieldCheck } from 'lucide-react';
 import { criarReserva, validarCupom } from '../actions';
 import { formatCurrency } from '@/lib/utils';
+import TermoAceite from '@/components/termos/TermoAceite';
+import type { AceiteTermoCliente, TermoParaAceite } from '@/lib/termos/tipos';
 import type { CupomTipoDesconto, ReservaModalidadePreco } from '@/types/supabase';
 
 type Props = {
@@ -28,6 +31,8 @@ type Props = {
   totalAdicionais: number;
   /** Taxa de serviço efetiva (%) do gestor dono do alvo — resolvida no servidor (ver SPEC §14). */
   taxaPercent: number;
+  /** Termo `reserva_cliente` vigente — quando presente, o aceite é obrigatório para enviar. */
+  termo: TermoParaAceite | null;
 };
 
 type CupomAplicado = {
@@ -52,11 +57,16 @@ function formatContagem(ms: number): string {
 
 export default function ConfirmarReserva({
   tipo, roteiroId, embarcacaoId, data, flex, pessoas, adicionaisIds, modalidade, diarias,
-  precoUnitario, multiplicador, rotuloLinha, totalAdicionais, taxaPercent,
+  precoUnitario, multiplicador, rotuloLinha, totalAdicionais, taxaPercent, termo,
 }: Props) {
+  const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [enviada, setEnviada] = useState(false);
+
+  // Aceite do termo da reserva (feito no modal do TermoAceite).
+  const [aceiteTermo, setAceiteTermo] = useState<AceiteTermoCliente | null>(null);
+  const [comprovanteAceite, setComprovanteAceite] = useState<{ evidenciaHash: string; aceitoEm: string } | null>(null);
 
   // Cupom — pré-visualização em tempo real (não recarrega a página).
   const [cupomInput, setCupomInput] = useState('');
@@ -110,16 +120,28 @@ export default function ConfirmarReserva({
     const result = await criarReserva({
       tipo, roteiroId, embarcacaoId, data, flex, pessoas, adicionaisIds, modalidade, diarias,
       cupomCodigo: cupomAplicado?.codigo,
+      aceiteTermo: aceiteTermo ?? undefined,
     });
     setLoading(false);
     if (result.ok) {
+      setComprovanteAceite(result.aceite);
       setEnviada(true);
+    } else if (result.aceiteCodigo) {
+      // Problema no aceite: exige nova leitura. Se o termo mudou (ou foi
+      // publicado agora), recarrega a página para exibir a versão vigente.
+      setError(result.error);
+      setAceiteTermo(null);
+      if (result.aceiteCodigo === 'versao_desatualizada' || result.aceiteCodigo === 'aceite_ausente') {
+        router.refresh();
+      }
     } else {
       setError(result.error);
       // Se o cupom deixou de valer entre a pré-visualização e o envio, não fica "aplicado" na tela.
       setCupomAplicado(null);
     }
   }
+
+  const aguardandoAceite = !!termo && !aceiteTermo;
 
   if (enviada) {
     return (
@@ -129,6 +151,17 @@ export default function ConfirmarReserva({
         <p className="text-sm text-emerald-700 mt-1">
           Sua reserva está <strong>pendente</strong>. O gestor vai analisar e responder em breve.
         </p>
+        {comprovanteAceite && (
+          <p className="mt-3 inline-flex items-center gap-1.5 rounded-full bg-white/70 border border-emerald-200 px-3 py-1 text-[11px] text-emerald-800">
+            <ShieldCheck className="h-3.5 w-3.5" />
+            Aceite dos termos registrado em{' '}
+            {new Date(comprovanteAceite.aceitoEm).toLocaleString('pt-BR', {
+              day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit',
+              timeZone: 'America/Sao_Paulo',
+            })}{' '}
+            · Protocolo <span className="font-mono">{comprovanteAceite.evidenciaHash.slice(0, 12).toUpperCase()}</span>
+          </p>
+        )}
         <div className="mt-5 flex items-center justify-center gap-3">
           <Link
             href="/buscar"
@@ -257,6 +290,19 @@ export default function ConfirmarReserva({
         </div>
       </div>
 
+      {termo && (
+        <div className="mt-6">
+          <TermoAceite
+            key={termo.id}
+            termo={termo}
+            aceite={aceiteTermo}
+            onAceitar={(a) => { setAceiteTermo(a); setError(null); }}
+            finalidade="para enviar sua solicitação de reserva"
+            disabled={loading}
+          />
+        </div>
+      )}
+
       <div className="mt-6">
         {error && (
           <p className="mb-3 text-sm font-medium text-red-600 text-center" role="alert">
@@ -265,7 +311,7 @@ export default function ConfirmarReserva({
         )}
         <button
           onClick={handleConfirm}
-          disabled={loading}
+          disabled={loading || aguardandoAceite}
           className="w-full bg-[#0B3D91] hover:bg-[#092E6E] disabled:opacity-60 disabled:cursor-not-allowed text-white font-semibold py-3.5 rounded-xl transition-all flex items-center justify-center gap-2"
         >
           {loading ? (
@@ -277,6 +323,11 @@ export default function ConfirmarReserva({
             'Confirmar solicitação'
           )}
         </button>
+        {aguardandoAceite && (
+          <p className="mt-2 text-xs font-medium text-slate-500 text-center">
+            Leia e aceite os termos acima para enviar a solicitação.
+          </p>
+        )}
         <p className="mt-2 text-xs text-slate-400 text-center">
           Você não será cobrado agora. A reserva só é efetivada após a confirmação do gestor.
         </p>

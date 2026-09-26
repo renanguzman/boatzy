@@ -13,6 +13,7 @@ import {
   Megaphone,
   Percent,
   Tags,
+  FileText,
   Settings,
   LogOut,
 } from 'lucide-react';
@@ -27,6 +28,7 @@ const navItems = [
   { href: '/administrator/publicidade', label: 'PUBLICIDADE', icon: Megaphone, exact: false },
   { href: '/administrator/taxas', label: 'TAXAS', icon: Percent, exact: false },
   { href: '/administrator/categorias', label: 'CATEGORIAS', icon: Tags, exact: false },
+  { href: '/administrator/termos', label: 'TERMOS DE USO', icon: FileText, exact: false },
   { href: '/administrator/configuracoes', label: 'CONFIGURAÇÕES', icon: Settings, exact: false },
 ];
 

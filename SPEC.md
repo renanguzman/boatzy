@@ -2730,6 +2730,17 @@ src/app/administrator/
       [id]/editar/page.tsx    → edição de cupom (CupomForm)
       _components/AdminCuponsGrid.tsx → tabela client (busca, ordenação, paginação, toggle, excluir)
       _components/CupomForm.tsx → form único (criar + editar), com modal de cadastro rápido de parceiro
+    termos/
+      page.tsx                → gestão dos termos de uso (lista de versões; busca, filtro de status, ordenação, paginação)
+      actions.ts              → criarTermo, atualizarTermo, publicarTermo, criarNovaVersao, arquivarTermo, excluirTermo
+      novo/page.tsx           → cadastro de rascunho (TermoForm)
+      [id]/page.tsx           → visualização (documento renderizado + detalhes, hash, ações, histórico de versões)
+      [id]/editar/page.tsx    → edição (só rascunho; publicado/arquivado redireciona para a visualização)
+      _components/AdminTermosGrid.tsx   → tabela client
+      _components/TermoForm.tsx         → form único (criar + editar) com editor Markdown + pré-visualização
+      _components/TermoAcoesPainel.tsx  → ações da tela de visualização
+      _components/useTermoAcoes.tsx     → hook das ações de ciclo de vida + modais de confirmação
+      _components/ConfirmModal.tsx, TermoStatusBadge.tsx
     publicidade/page.tsx      → placeholder
     taxas/page.tsx            → placeholder
     categorias/page.tsx       → placeholder
@@ -2767,6 +2778,7 @@ Renderiza 6 stat cards + grid de cards de acesso rápido aos 6 módulos.
 | `/administrator/publicidade` | Publicidade | 🔜 placeholder |
 | `/administrator/taxas` | Taxas | ✅ implementado |
 | `/administrator/categorias` | Categorias | 🔜 placeholder |
+| `/administrator/termos` | Termos de Uso | ✅ implementado |
 | `/administrator/configuracoes` | Configurações | 🔜 placeholder |
 
 ### 25.5 Tipos
@@ -3066,6 +3078,255 @@ Sem mudanças em `AdminSidebar.tsx` (item **TAXAS** já existia apontando pra c�
 `(admin)`.
 
 ---
+
+### 25.11 Módulo — Termos de Uso (`/administrator/termos`)
+
+Cadastro dos **textos** dos termos aceitos pelos usuários em diferentes pontos da plataforma
+(reserva do cliente, cadastro de embarcação do gestor, etc.). É a fase 1 de um escopo maior — ver
+§25.11.7–25.11.8 para o **registro de aceite** (fase 2).
+
+#### 25.11.1 Modelo de dados — migration `20260926_termos_uso_plataforma.sql`
+
+Enum `termo_uso_status`: `rascunho` | `publicado` | `arquivado`.
+
+Tabela `termos_uso_plataforma` — **cada linha é uma versão** de um termo:
+
+| Coluna | Tipo | Notas |
+|---|---|---|
+| `id` | uuid PK | |
+| `identificador` | text NOT NULL | agrupa as versões; `CHECK ~ '^[a-z0-9_]+$'`; lista fixa no código (§25.11.3) |
+| `versao` | int NOT NULL | atribuída pelo trigger de INSERT (`max + 1` por identificador, com `pg_advisory_xact_lock`); `UNIQUE (identificador, versao)` |
+| `titulo` | text NOT NULL | não vazio |
+| `conteudo` | text NOT NULL | Markdown, não vazio |
+| `conteudo_hash` | text | SHA-256 hex de `titulo || '\n\n' || conteudo`, calculado **pelo banco** na publicação |
+| `descricao_interna` | text | nota do admin, não exibida ao usuário |
+| `status` | termo_uso_status | default `rascunho` |
+| `exige_rolagem_completa` | bool, default true | consumido pelo componente de aceite (fase 3) |
+| `exige_confirmacao_digitada` | bool, default true | nome completo (ou CPF, quando cadastrado) — fase 3 |
+| `criado_por`, `publicado_por` | uuid → `users(id)` ON DELETE SET NULL | |
+| `publicado_em` | timestamptz | início da vigência (carimbado pelo trigger) |
+| `arquivado_em` | timestamptz | fim da vigência (carimbado pelo trigger) |
+| `data_cadastro`, `data_atualizacao` | timestamptz | |
+
+Constraints/índices: `termos_uso_publicacao_coerente` (rascunho ⇒ sem data/hash de publicação;
+publicado ⇒ com data+hash, sem arquivamento; arquivado ⇒ tudo preenchido); índices únicos parciais
+`termos_uso_um_publicado_idx` e `termos_uso_um_rascunho_idx` (no máx. **1 vigente e 1 rascunho por
+identificador**).
+
+#### 25.11.2 Regras garantidas no banco (triggers)
+
+- **INSERT** (`termos_uso_before_insert`): só aceita `status = 'rascunho'`; atribui `versao`; zera
+  campos de publicação; força `data_cadastro = now()`.
+- **UPDATE** (`termos_uso_before_update`): `identificador`, `versao`, `criado_por` e `data_cadastro`
+  imutáveis sempre. Rascunho: edição livre, ou transição → `publicado` (carimba `publicado_em` e
+  calcula `conteudo_hash`). Publicado/arquivado: título, conteúdo, hash, exigências e dados de
+  publicação **congelados** ("Termo publicado não pode ser alterado — crie uma nova versão.");
+  única transição permitida é `publicado → arquivado` (carimba `arquivado_em`). Qualquer outra
+  transição é recusada.
+- **DELETE** (`termos_uso_before_delete`): só rascunhos.
+- **RPC `publicar_termo_uso(p_termo_id, p_publicado_por)`**: numa transação, arquiva a versão vigente
+  do identificador e publica o rascunho. `EXECUTE` só para `service_role`.
+- **RLS**: `service_role_all`; `anon`/`authenticated` leem **apenas** `status = 'publicado'`
+  (necessário para exibir o termo antes do aceite).
+
+Validado em Postgres (PGlite) com smoke test: rascunho duplicado, insert publicado, identificador
+inválido, edição/exclusão de publicado, dupla publicação e `arquivado → publicado` recusados; hash
+confere; anon só vê a versão vigente e não executa a RPC.
+
+#### 25.11.3 Identificadores fixos — `src/lib/termos/identificadores.ts`
+
+`TERMOS_IDENTIFICADORES` (label, descrição, `publicoAlvo: 'cliente' | 'gestor' | 'todos'`):
+`reserva_cliente`, `cadastro_embarcacao_gestor`, `termos_gerais_plataforma`, `politica_privacidade`.
+Helpers: `isTermoIdentificador`, `termoIdentificadorLabel`, `TERMO_PUBLICO_ALVO_LABEL`. O público-alvo
+é propriedade do identificador (não coluna). Novo ponto de aceite = nova entrada aqui + integração no fluxo.
+
+#### 25.11.4 Server actions (`termos/actions.ts`)
+
+Todas exigem role `admin` (`requireAdmin`, que também devolve o `userId` para autoria).
+
+| Action | Comportamento |
+|---|---|
+| `criarTermo(payload)` | insere rascunho (`criado_por`); `23505` ⇒ "já existe um rascunho em andamento" |
+| `atualizarTermo(id, payload)` | update com `.eq('status','rascunho')`; 0 linhas ⇒ erro |
+| `publicarTermo(id)` | RPC `publicar_termo_uso` |
+| `criarNovaVersao(id)` | copia título/conteúdo/exigências/descrição para um novo rascunho do mesmo identificador |
+| `arquivarTermo(id)` | `publicado → arquivado` sem substituto |
+| `excluirTermo(id)` | só rascunho |
+
+`TermoPayload = { identificador, titulo, conteudo, descricaoInterna, exigeRolagemCompleta, exigeConfirmacaoDigitada }`.
+
+#### 25.11.5 Telas
+
+- **Lista** (`page.tsx` + `AdminTermosGrid`): mesmo padrão de Embarcações (URL params `q`, `status`,
+  `sort` ∈ identificador/titulo/versao/status/data_cadastro, `dir`, `page`, `per` ∈ 10/25/50; busca
+  com debounce 400 ms em título/identificador). Ações por linha: visualizar; se rascunho, editar/
+  publicar/excluir; senão, nova versão.
+- **Form** (`TermoForm`): identificador (select da lista fixa; desabilita os que já têm rascunho;
+  travado na edição), título, descrição interna, toggles de exigências, editor Markdown com
+  pré-visualização lado a lado (abas no mobile). Informa qual versão será criada. Salva sempre como
+  rascunho e redireciona para a visualização.
+- **Visualização** (`[id]/page.tsx`): documento renderizado com cabeçalho formal (título, versão,
+  vigência, código de verificação = 12 primeiros chars do hash), detalhes, hash SHA-256 completo,
+  ações (`TermoAcoesPainel`) e histórico de versões do identificador.
+- Modais de confirmação (`useTermoAcoes`): publicar (avisa da imutabilidade e do arquivamento
+  automático da vigente), retirar de vigência, excluir rascunho.
+
+#### 25.11.6 Renderização — `src/components/termos/TermoMarkdown.tsx`
+
+`react-markdown` + `remark-gfm` (tabelas). HTML cru é ignorado (sem XSS). Tipografia formal com
+componentes mapeados; `> citação` vira **cláusula em destaque** (caixa âmbar — CDC art. 54, §4º).
+Reutilizado pela tela de aceite nas próximas fases.
+
+#### 25.11.7 Registro de aceite — migration `20260926b_termos_uso_aceite.sql` (fase 2)
+
+Tabela `termos_uso_aceite` — **append-only**, uma linha por aceite:
+
+| Grupo | Colunas | Origem |
+|---|---|---|
+| Cadeia | `sequencia` (bigint, UNIQUE), `hash_formato` (=1), `hash_anterior`, `evidencia_hash` | trigger |
+| Termo | `termo_id` → `termos_uso_plataforma(id)` **ON DELETE RESTRICT**; snapshot `termo_identificador`, `termo_versao`, `termo_conteudo_hash` | app (id) / trigger (snapshot) |
+| Usuário | `user_id` (uuid **sem FK**); snapshot `usuario_nome`, `usuario_email`, `usuario_cpf_cnpj` | app (id) / trigger (snapshot de `users`) |
+| Contexto | `contexto_tipo` (`^[a-z_]+$`, ex. `reserva`, `embarcacao`), `contexto_id` (uuid) | app |
+| Servidor | `aceito_em` (forçado `now()`), `ip` (inet), `ip_cadeia` (x-forwarded-for), `user_agent`, `sessao_id` (claim `session_id` do JWT), `origem_url` (Referer), `dispositivo_tipo`/`sistema_operacional`/`navegador` (derivados do UA no servidor), `geo_ip_cidade`/`_regiao`/`_pais`/`_latitude`/`_longitude` (headers `x-vercel-ip-*`) | servidor |
+| Navegador | `tela_resolucao`, `idioma`, `fuso_horario`, `cliente_data_hora`, `geo_gps_status` (`concedida`/`negada`/`indisponivel`/`tempo_esgotado`/`erro`/`nao_solicitada`), `geo_gps_latitude`/`_longitude`/`_precisao_m`, `confirmacao_tipo` (`nome`/`cpf`/`cnpj`), `confirmacao_valor`, `confirmacao_confere`, `termo_aberto_em`, `tempo_leitura_seg` (calculado no servidor), `rolou_ate_fim` | navegador (sanitizado no servidor) |
+
+Constraints: GPS coerente (`concedida` ⇔ coordenadas presentes), confirmação coerente (as 3 colunas
+nulas juntas ou preenchidas juntas), dispositivo e status de GPS em listas fechadas.
+Índices: `(user_id, aceito_em DESC)`, `(contexto_tipo, contexto_id)`, `(termo_id)`.
+
+**Por que `user_id` sem FK:** a prova precisa sobreviver à exclusão da conta (LGPD art. 7º, VI e
+art. 16 — exercício regular de direitos); um `ON DELETE SET NULL` alteraria um registro imutável.
+A identidade fica também no snapshot de nome/e-mail/documento.
+
+**Trigger BEFORE INSERT** (`termos_uso_aceite_before_insert`): recusa termo que não esteja
+`publicado`; copia os snapshots do termo e do usuário (recusa usuário inexistente); força
+`aceito_em = now()`; sob `pg_advisory_xact_lock` global atribui `sequencia = última + 1` e
+`hash_anterior = evidencia_hash` do último; calcula `evidencia_hash`. Colunas preenchidas pelo trigger
+ficam fora do tipo `Insert` (os `NOT NULL` são checados depois do trigger).
+
+**Hash:** `evidencia_hash = SHA-256(termos_uso_aceite_canonico(r))`, em que a forma canônica v1 é um
+`jsonb_build_object` com **lista explícita** de campos (inclui `hash_anterior`), avaliado com
+`SET timezone = 'UTC'`. Colunas futuras não alteram hashes antigos (entrariam num `hash_formato` 2).
+
+**Imutabilidade:** triggers BEFORE UPDATE/DELETE (linha) e BEFORE TRUNCATE (statement) sempre
+lançam exceção, inclusive para o service role.
+
+**RPC `verificar_cadeia_termos_aceite()`** (só `service_role`): percorre por `sequencia` e retorna
+`(sequencia, aceite_id, problema)` para buraco na sequência, elo quebrado ou hash que não confere.
+Vazio = cadeia íntegra.
+
+**RLS:** `service_role_all`; `user_select_own` (authenticated lê só `user_id = auth.uid()`). Sem
+política de INSERT para clientes: só o servidor grava.
+
+Validado em Postgres (PGlite): aceite de rascunho recusado; cadeia encadeada; `aceito_em` forjado
+ignorado; UPDATE/DELETE/TRUNCATE recusados; cadeia íntegra também com outro fuso de sessão;
+exclusão do usuário mantém o aceite; RLS (lê só os próprios, não insere); adulteração e remoção
+feitas com triggers desligados são detectadas pela auditoria.
+
+#### 25.11.8 Camada de aplicação — `src/lib/termos/`
+
+| Arquivo | Conteúdo |
+|---|---|
+| `tipos.ts` | `EvidenciasCliente`, `GeoGps`/`GeoGpsStatus`, `ConfirmacaoTipo`, `DispositivoTipo`, `AceiteContexto` (`tipo: 'reserva' \| 'embarcacao'`, `id?`), `TermoParaAceite`, `AceiteErroCodigo` (puro) |
+| `confirmacao.ts` | `definirConfirmacao(user)` → CPF (11 dígitos) / CNPJ (14) de `users.cpf_cnpj`, senão nome; `confereConfirmacao` (documento: só dígitos; nome: sem acento, minúsculas, espaços colapsados) (puro) |
+| `dispositivo.ts` | `identificarDispositivo(ua, secChUaMobile)` → tipo/SO/navegador (puro) |
+| `evidencias-cliente.ts` | navegador: `coletarAmbienteNavegador()`, `solicitarGeolocalizacao(timeoutMs)` (nunca rejeita; recusa/timeout viram status) |
+| `aceite.ts` (`server-only`) | `obterTermoParaAceite`, `validarAceite`, `gravarAceite`, `registrarAceite` |
+
+Fluxo no servidor:
+1. `obterTermoParaAceite(identificador, userId)` → versão vigente + a confirmação exigida **deste**
+   usuário (`null` se o termo não exige), para a tela de aceite.
+2. `validarAceite({ identificador, termoId, userId, contexto, evidencias })` — **não grava**. Falhas
+   (`{ ok: false, codigo, error }`): `termo_indisponivel`, `versao_desatualizada` (`termoId` ≠
+   vigente: o termo mudou durante a leitura), `leitura_incompleta` (exige rolagem e
+   `rolouAteFim ≠ true`), `confirmacao_invalida`, `usuario_invalido`. Sanitiza tudo o que vem do
+   navegador (tamanhos, faixas de lat/lng, datas; `termoAbertoEm` fora de [agora − 24h, agora] é
+   descartado) e captura as evidências de servidor (IP válido via `net.isIP`, headers Vercel,
+   `getClaims()`).
+3. `gravarAceite(preparado, contextoId)` → `{ ok, aceiteId, evidenciaHash, aceitoEm }`.
+4. `registrarAceite(input)` = validar + gravar, quando o id do contexto já existe.
+
+Uso previsto na reserva (fase 3): `validarAceite` antes de criar a reserva e `gravarAceite` logo
+depois, com o id dela, para que não exista reserva sem aceite válido.
+
+#### 25.11.9 Tela de aceite + integração na reserva (fase 3)
+
+**Componente `src/components/termos/TermoAceite.tsx`** (client, reutilizável). Props: `termo:
+TermoParaAceite`, `aceite: AceiteTermoCliente | null` (controlado pelo pai), `onAceitar`,
+`finalidade` (texto do bloco), `disabled`. Usar com `key={termo.id}` (nova versão remonta e zera a leitura).
+- Bloco resumo: pendente (título, versão, vigência, botão "Ler e aceitar os termos") ou aceito
+  (verde, com versão e código de verificação, link "Ver termos").
+- Modal (tela cheia no mobile; `max-w-3xl` no desktop; trava a rolagem da página; ESC fecha):
+  cabeçalho navy formal (título, versão, vigência, código de verificação = 12 primeiros caracteres
+  de `conteudoHash`), barra de progresso da leitura, `TermoMarkdown`, marcador "Fim do documento".
+  Rodapé: enquanto não rolou até o fim (≥ 98% ou texto sem rolagem), mostra o progresso e um botão
+  para rolar; depois, a caixa "li integralmente e concordo" e, se `termo.confirmacao`, o campo de
+  confirmação (máscara de CPF/CNPJ ou nome). Aviso de transparência (LGPD) sobre o que é registrado.
+- Evidências: `termoAbertoEm` na 1ª abertura; `solicitarGeolocalizacao()` disparado em segundo plano
+  ao abrir (o pedido de permissão do navegador aparece aí); ao clicar "Li e aceito", confere a
+  confirmação via server action `conferirConfirmacaoDigitada` (`src/lib/termos/actions.ts`; retorna
+  só ok/erro — o valor esperado nunca vai ao navegador), aguarda o GPS e monta o
+  `AceiteTermoCliente { termoId, evidencias }` com `coletarAmbienteNavegador()`.
+
+**Reserva (`/reservas/novo`)**
+- `page.tsx` carrega `obterTermoParaAceite('reserva_cliente', user.id)` em paralelo com a previsão do
+  tempo e passa `termo` ao `ConfirmarReserva`.
+- `ConfirmarReserva` renderiza `TermoAceite` acima do botão, que fica desabilitado até o aceite
+  ("Leia e aceite os termos acima…"). Envia `aceiteTermo` no `criarReserva`. Com `aceiteCodigo` no
+  erro, limpa o aceite; em `versao_desatualizada`/`aceite_ausente` faz `router.refresh()` para
+  carregar a versão vigente. No sucesso, mostra "Aceite dos termos registrado em … · Protocolo XXXX"
+  (12 primeiros caracteres de `evidencia_hash`).
+- `criarReserva` (`CriarReservaInput.aceiteTermo?: AceiteTermoCliente`):
+  1. se há versão vigente de `reserva_cliente`: sem `aceiteTermo` ⇒ erro `aceite_ausente`; senão
+     `validarAceite` (contexto `reserva`) **antes** do cupom e da criação da reserva;
+  2. sem versão vigente publicada, a reserva segue sem aceite;
+  3. após inserir a reserva e os adicionais, `gravarAceite(preparado, reserva.id)`; se falhar, a
+     reserva é excluída (adicionais em cascade) e o erro retorna;
+  4. o aceite é gravado **antes** do uso do cupom: se o cupom falhar depois, a reserva é desfeita
+     mas o aceite permanece (imutável; `contexto_id` sem FK).
+- `CriarReservaResult`: sucesso com `aceite: { evidenciaHash, aceitoEm } | null`; erro com
+  `aceiteCodigo?: AceiteErroCodigo | 'aceite_ausente'`.
+
+#### 25.11.10 Consulta de aceites no admin (`/administrator/termos/aceites`) (fase 5)
+
+Abas **Textos | Aceites** (`termos/_components/TermosAbas.tsx`) no topo das duas listas.
+
+```
+termos/aceites/
+  page.tsx                          → lista (server): busca, filtro por termo, ordenação, paginação
+  actions.ts                        → verificarCadeiaAceites() (admin; RPC + contagem total)
+  [id]/page.tsx                     → ficha de evidências + integridade + íntegra do texto + PDF
+  _components/AdminAceitesGrid.tsx  → tabela client
+  _components/VerificarCadeiaButton.tsx → auditoria da cadeia inteira (painel com o resultado)
+  _components/BaixarComprovanteButton.tsx → gera o PDF no navegador (import dinâmico do jsPDF)
+  _lib/ficha.ts                     → montarFicha / montarComprovante (estrutura única tela + PDF)
+  _lib/comprovante-pdf.ts           → gerarComprovantePdf (jsPDF + jspdf-autotable)
+src/lib/termos/formato.ts           → formatarDataHoraBR (fuso America/Sao_Paulo), protocoloAceite
+```
+
+**Lista.** URL params: `q`, `termo` (identificador), `sort` ∈ `aceito_em` (ordena por `sequencia`) /
+`usuario_nome`, `dir`, `page`, `per`. A busca `q` monta um `or()`: `usuario_nome`/`usuario_email`
+ilike; se ≥ 3 dígitos, `usuario_cpf_cnpj` ilike; se hex (6–64), `evidencia_hash` ilike prefixo
+(protocolo); se UUID, `id`/`contexto_id`/`user_id` eq. Colunas: protocolo + sequência, data/hora,
+pessoa, termo + versão, ação (contexto), dispositivo/navegador, localização (IP; pino verde quando
+há GPS).
+
+**Ficha (`[id]`).** Carrega o aceite, a versão do termo, a reserva do contexto (item, data, status;
+se não existir, "desfeita após o aceite"), a auditoria da cadeia (RPC) e o admin logado. Duas
+verificações de integridade:
+1. cadeia: problemas da RPC com `aceite_id` deste registro (hash que não confere / elo quebrado);
+2. texto: `sha256(titulo + "\n\n" + conteudo)` calculado no Node (`node:crypto`) × `termo_conteudo_hash`
+   (validado: igual ao hash calculado pelo Postgres).
+Seções (`montarFicha`): Termo aceito · Titular · Ação vinculada · Data, hora e sessão · Rede e
+dispositivo · Localização (links para o Google Maps) · Leitura e confirmação · Integridade do
+registro. Lateral: botão do PDF, selo "Registro íntegro"/"Falha de integridade", link para a
+versão do termo. Rodapé: íntegra do texto (`<details>`).
+
+**Comprovante PDF** (A4): cabeçalho navy com protocolo; uma tabela por seção (valores técnicos em
+courier; destaques em verde/vermelho); declaração sobre imutabilidade e encadeamento; anexo com a
+íntegra do termo (títulos Markdown em negrito, citações recuadas); rodapé em todas as páginas com
+protocolo, hash completo, data e hora da geração, admin que gerou e paginação. Caracteres fora de
+WinAnsi (fonte padrão do jsPDF) são descartados; setas viram `->`. Arquivo `comprovante-aceite-<PROTOCOLO>.pdf`.
 
 ## 26. Cadastro rápido de item de catálogo no formulário de roteiro
 

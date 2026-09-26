@@ -6,6 +6,8 @@ import { getDatasReservadasEmbarcacao, getDisponibilidadeRoteiro, expandirInterv
 import { getTaxaEfetiva } from '@/lib/taxas';
 import { formatCurrencyPrecise } from '@/lib/utils';
 import type { CupomTipoDesconto, ReservaModalidadePreco, PrecoPessoaModoCapacidade } from '@/types/supabase';
+import { obterTermoParaAceite, validarAceite, gravarAceite, type AceitePreparado } from '@/lib/termos/aceite';
+import type { AceiteErroCodigo, AceiteTermoCliente } from '@/lib/termos/tipos';
 
 export type CriarReservaInput = {
   tipo: 'roteiro' | 'embarcacao';
@@ -20,9 +22,13 @@ export type CriarReservaInput = {
   modalidade?: ReservaModalidadePreco;
   /** Quantidade de diárias — obrigatório quando `modalidade === 'diaria'`. */
   diarias?: number;
+  /** Aceite do termo `reserva_cliente` feito na tela — obrigatório quando há versão vigente. */
+  aceiteTermo?: AceiteTermoCliente;
 };
 
-export type CriarReservaResult = { ok: true; reservaId: string } | { ok: false; error: string };
+export type CriarReservaResult =
+  | { ok: true; reservaId: string; aceite: { evidenciaHash: string; aceitoEm: string } | null }
+  | { ok: false; error: string; aceiteCodigo?: AceiteErroCodigo | 'aceite_ausente' };
 
 const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
 
@@ -411,6 +417,26 @@ export async function criarReserva(input: CriarReservaInput): Promise<CriarReser
   const taxaServico = precoUnitario != null ? Math.round(subtotal * (alvo.taxaPercent / 100)) : null;
   const totalBruto = precoUnitario != null && taxaServico != null ? subtotal + taxaServico : null;
 
+  // Termo da reserva: se há versão vigente, o aceite é obrigatório e é
+  // validado ANTES de criar a reserva (gravado logo após, com o id dela).
+  // Sem versão vigente publicada, a reserva segue sem aceite.
+  let aceitePreparado: AceitePreparado | null = null;
+  const termoVigente = await obterTermoParaAceite('reserva_cliente', user.id);
+  if (termoVigente) {
+    if (!input.aceiteTermo) {
+      return { ok: false, error: 'Leia e aceite os termos da reserva para continuar.', aceiteCodigo: 'aceite_ausente' };
+    }
+    const validacao = await validarAceite({
+      identificador: 'reserva_cliente',
+      termoId: input.aceiteTermo.termoId,
+      userId: user.id,
+      contexto: { tipo: 'reserva' },
+      evidencias: input.aceiteTermo.evidencias,
+    });
+    if (!validacao.ok) return { ok: false, error: validacao.error, aceiteCodigo: validacao.codigo };
+    aceitePreparado = validacao;
+  }
+
   // Cupom (opcional) — última validação antes de gravar; nunca confia na
   // pré-visualização feita pelo cliente em validarCupom.
   let cupomAplicado: { id: string; codigo: string } | null = null;
@@ -490,6 +516,19 @@ export async function criarReserva(input: CriarReservaInput): Promise<CriarReser
     }
   }
 
+  // Prova do aceite do termo, já vinculada à reserva. Sem prova, sem reserva.
+  // Gravada antes do cupom: se o cupom falhar depois, a reserva é desfeita mas
+  // o aceite permanece (registro imutável) — continua sendo um fato verdadeiro.
+  let aceite: { evidenciaHash: string; aceitoEm: string } | null = null;
+  if (aceitePreparado) {
+    const gravado = await gravarAceite(aceitePreparado, reserva.id);
+    if (!gravado.ok) {
+      await supabaseAdmin.from('reserva').delete().eq('id', reserva.id);
+      return { ok: false, error: gravado.error, aceiteCodigo: gravado.codigo };
+    }
+    aceite = { evidenciaHash: gravado.evidenciaHash, aceitoEm: gravado.aceitoEm };
+  }
+
   // Registro atômico do uso do cupom — trava final (lock + recheck) contra
   // corrida no limite de uso entre a pré-visualização e este momento.
   if (cupomAplicado) {
@@ -508,5 +547,5 @@ export async function criarReserva(input: CriarReservaInput): Promise<CriarReser
     }
   }
 
-  return { ok: true, reservaId: reserva.id };
+  return { ok: true, reservaId: reserva.id, aceite };
 }
