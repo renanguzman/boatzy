@@ -230,6 +230,8 @@ Clientes Supabase:
 - `createClient()` de `@/lib/supabase/server` — Server Components / Route Handlers, SSR com cookies
 - `supabaseAdmin` de `@/lib/supabase/admin` — server-only, service role, bypassa RLS
 
+GRANTs da Data API: desde 30/10/2026 o Supabase não concede acesso automático a tabelas novas em `public`. Toda migration que cria tabela deve incluir `GRANT SELECT, INSERT, UPDATE, DELETE ON public.<tabela> TO anon, authenticated, service_role` (e `GRANT USAGE, SELECT` na sequence, se houver identity/serial). O service role ignora RLS, mas não ignora GRANT. A migration `supabase/migrations/20260927_grants_data_api.sql` aplica esses grants a todas as tabelas e sequences já existentes (idempotente; em produção não altera nada, garante apenas que um banco recriado pelas migrations fique acessível).
+
 ---
 
 ## 12. Painel do Gestor (`/painel`)

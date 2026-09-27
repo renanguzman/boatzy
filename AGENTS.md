@@ -15,3 +15,15 @@ After implementing each feature:
 2. Update `PRD.md` to mark the feature as implemented and note any scope changes or decisions made during implementation.
 
 Keep both files as the source of truth — they should always reflect the current state of the product.
+
+# Supabase migrations — GRANTs obrigatórios
+
+Desde 30/10/2026 o Supabase não concede mais acesso automático da Data API a tabelas novas do schema `public`. Toda migration que cria uma tabela (`CREATE TABLE public.x`) deve, na mesma migration e logo após habilitar RLS, incluir os GRANTs:
+
+```sql
+GRANT SELECT, INSERT, UPDATE, DELETE ON public.x TO anon, authenticated, service_role;
+-- se houver coluna identity/serial:
+GRANT USAGE, SELECT ON SEQUENCE public.x_id_seq TO anon, authenticated, service_role;
+```
+
+Sem isso, o supabase-js retorna `permission denied`, inclusive no `supabaseAdmin` (service role ignora RLS, mas não ignora GRANT). O controle de acesso continua nas policies de RLS. Referência: `supabase/migrations/20260927_grants_data_api.sql`.
