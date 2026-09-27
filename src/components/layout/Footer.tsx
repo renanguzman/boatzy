@@ -10,10 +10,10 @@ export default function Footer() {
           {/* Brand */}
           <div className="md:col-span-1">
             <Image
-              src="/images/logo_name.png"
+              src="/images/logo-nome-horizontal.svg"
               alt="Boatzy"
-              width={755}
-              height={227}
+              width={299}
+              height={100}
               className="h-10 w-auto mb-4"
             />
             <p className="text-sm text-slate-300 leading-relaxed">
