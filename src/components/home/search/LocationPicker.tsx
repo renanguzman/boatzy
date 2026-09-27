@@ -15,6 +15,8 @@ type Props = {
   onOpen: () => void;
   onClose: () => void;
   compact?: boolean;
+  /** Oculta o rótulo interno (quando o campo já tem título por fora, como na lateral de filtros). */
+  semRotulo?: boolean;
 };
 
 const RECENT_KEY = 'boatzy_recent_locations';
@@ -45,7 +47,7 @@ function locationLabel(v: LocationValue) {
   return v.type === 'geo' ? v.label : `${v.nome}, ${v.uf}`;
 }
 
-export default function LocationPicker({ value, onChange, isOpen, onOpen, onClose, compact }: Props) {
+export default function LocationPicker({ value, onChange, isOpen, onOpen, onClose, compact, semRotulo }: Props) {
   const [query, setQuery] = useState('');
   const [suggestions, setSuggestions] = useState<LocalResult[]>([]);
   const [loading, setLoading] = useState(false);
@@ -132,9 +134,11 @@ export default function LocationPicker({ value, onChange, isOpen, onOpen, onClos
           compact ? 'px-3 py-2' : 'px-4 py-3'
         } ${isOpen ? 'ring-2 ring-slate-800 bg-white shadow-md' : 'hover:bg-slate-50'}`}
       >
-        <span className={`block font-bold text-slate-500 uppercase tracking-wider mb-0.5 ${compact ? 'text-[9px]' : 'text-[10px]'}`}>
-          Destino
-        </span>
+        {!semRotulo && (
+          <span className={`block font-bold text-slate-500 uppercase tracking-wider mb-0.5 ${compact ? 'text-[9px]' : 'text-[10px]'}`}>
+            Destino
+          </span>
+        )}
         {value ? (
           <span className={`font-medium text-slate-800 truncate block ${compact ? 'text-xs' : 'text-sm'}`}>
             {locationLabel(value)}

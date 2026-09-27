@@ -1165,6 +1165,43 @@ type Props = {
 
 ### 18.3 Página de Busca `/buscar`
 
+> **Layout atual (27/09/2026) — filtros em coluna lateral (`/buscar` e `/vendas`).** A barra
+> compacta sticky (`SearchBarCompact`, `VendasSearchBar`) e os popovers "Filtros"
+> (`FiltrosAvancados`) e "Comodidades" (`ComodidadesFiltro`) foram **removidos e substituídos** por
+> um painel lateral com todos os filtros visíveis. O contrato de querystring, as RPCs e os chips
+> não mudaram — as menções a esses componentes nas seções abaixo são histórico.
+>
+> - **Estrutura da página:** `Header` → título + contagem + abas (`AbasBusca`) → grid
+>   `lg:grid-cols-[18rem_minmax(0,1fr)]`: painel de filtros | resultados (faixa "Exibindo X–Y de N",
+>   `OrdenarSelect` em /buscar, chips removíveis, grade `sm:2 / xl:3` colunas, paginação e, em
+>   /buscar, `MapaResultados`). Tudo dentro de `NavegacaoBuscaProvider`.
+> - **Componentes compartilhados** (`src/components/busca/`):
+>   - `NavegacaoBusca.tsx` — `NavegacaoBuscaProvider` + `useNavegacaoBusca()` (`ir(url)` com
+>     `router.push(url, { scroll: false })` dentro de `useTransition`; `pendente`) e
+>     `AreaResultados` (esmaece a grade com `aria-busy` enquanto a nova busca carrega).
+>   - `PainelFiltros.tsx` — card lateral (≥ lg) / gaveta em tela cheia (< lg, botão "Filtros (N)",
+>     Esc fecha, trava a rolagem, rodapé "Ver N resultados"); cabeçalho com contagem de grupos
+>     ativos, "Limpar tudo" (mantém aba e ordenação) e spinner de "Atualizando".
+>   - `CamposFiltro.tsx` — `FiltroSecao` (título com ícone + ação "Limpar" por filtro),
+>     `ChipFiltro`, `CheckFiltro` (role checkbox), `ContadorFiltro` (−/+, 0 = "Qualquer"),
+>     `CampoFiltro` (moldura p/ pickers com dropdown) e `FaixaNumerica` (mín./máx.; aplica ao sair
+>     do campo, com Enter ou "Aplicar"; faixa invertida é normalizada).
+> - **`/buscar` — `FiltrosLaterais.tsx`:** Destino (`LocationPicker`, `semRotulo`), Data
+>   (`DatePicker`, `semRotulo`, `alinhamentoPainel="esquerda"`), Quantidade de pessoas (`ContadorFiltro`, aplica
+>   após 500 ms de pausa), **Tipo de embarcação** (chips; só aba Embarcações), Faixa de preço,
+>   Duração (presets `DURACAO_PRESETS` + faixa em horas), **Modelo de cobrança** (só aba Roteiros),
+>   **Comodidades** (só aba Embarcações: busca por nome, checkboxes, 8 visíveis + "Ver todas",
+>   selecionadas primeiro). Cada alteração vai direto para a URL (`buildBuscarUrl`, `pagina` zerada).
+> - **`AbasBusca.tsx`** (`src/app/buscar/_components/`): Roteiros ↔ Embarcações mantém os filtros
+>   comuns e descarta os exclusivos da outra aba (`modelo_preco` ↔ `tipo_embarcacao`/`comodidades`);
+>   Vendas navega para `/vendas`. Também usado em `/vendas` (`aba="venda"`).
+> - **`/vendas` — `FiltrosVendaLaterais.tsx`:** Tipo (chips "Todos" + tipos com anúncio ativo),
+>   Localização (selects nativos Estado → Cidade, com contagem de anúncios, derivados de
+>   `getFiltrosVenda().locais`), Ano do modelo e Valor (`FaixaNumerica`). URL por
+>   `src/app/vendas/_lib/filtros.ts` (`VendasSearchParams`, `buildVendasUrl`), usado também pela página.
+> - **Pickers da home — novas props opcionais** (sem efeito na home): `DatePicker.alinhamentoPainel`
+>   (`'centro'` padrão | `'esquerda'`) e `semRotulo` em `LocationPicker`/`DatePicker`.
+
 **Arquivo:** `src/app/buscar/page.tsx` (Server Component)
 
 **Query params:**

@@ -7,21 +7,15 @@ import { createClient } from '@/lib/supabase/server';
 import { getFiltrosVenda } from '@/lib/vendas-filtros';
 import { anoVendaLabel, valorVendaLabel } from '@/components/home/search/venda/labels';
 import type { LocalidadeVendaValue } from '@/components/home/search/venda/LocalidadeVendaPicker';
-import VendasSearchBar from './_components/VendasSearchBar';
+import FiltrosVendaLaterais from './_components/FiltrosVendaLaterais';
+import AbasBusca from '../buscar/_components/AbasBusca';
+import { NavegacaoBuscaProvider, AreaResultados } from '@/components/busca/NavegacaoBusca';
+import { buildVendasUrl, type VendasSearchParams } from './_lib/filtros';
 import AnuncioVendaCard, { type AnuncioVendaCardData } from './_components/AnuncioVendaCard';
 
 const POR_PAGINA = 24;
 
-type SearchParams = {
-  tipo?: string;
-  estado?: string;
-  cidade?: string;
-  ano_min?: string;
-  ano_max?: string;
-  preco_min?: string;
-  preco_max?: string;
-  pagina?: string;
-};
+type SearchParams = VendasSearchParams;
 
 type AnuncioDetalheRow = {
   id: string;
@@ -41,13 +35,7 @@ type AnuncioDetalheRow = {
 };
 
 function buildPageUrl(current: SearchParams, overrides: Partial<SearchParams>) {
-  const merged = { ...current, ...overrides };
-  const params = new URLSearchParams();
-  for (const [k, v] of Object.entries(merged)) {
-    if (v != null && v !== '') params.set(k, v);
-  }
-  const qs = params.toString();
-  return qs ? `/vendas?${qs}` : '/vendas';
+  return buildVendasUrl(current, overrides);
 }
 
 function getPageNumbers(current: number, total: number): (number | '…')[] {
@@ -221,141 +209,147 @@ export default async function VendasPage({ searchParams }: { searchParams: Promi
   if (anoLabel) chips.push({ label: `Ano: ${anoLabel}`, remove: { ano_min: undefined, ano_max: undefined } });
   if (valorLabel) chips.push({ label: `Valor: ${valorLabel}`, remove: { preco_min: undefined, preco_max: undefined } });
 
+  const inicioFaixa = total > 0 ? from + 1 : 0;
+  const fimFaixa = Math.min(from + POR_PAGINA, total);
+
   return (
     <div className="min-h-screen flex flex-col bg-slate-50">
       <Header />
 
-      {/* Search bar section */}
-      <div className="bg-white border-b border-slate-100 shadow-sm sticky top-0 z-40">
-        <div className="max-w-6xl mx-auto px-4 py-3 flex items-center justify-center gap-4">
-          <VendasSearchBar
-            tipos={filtros.tipos}
-            locais={filtros.locais}
-            initialTipo={tipo}
-            initialLocalidade={localSelecionado}
-            initialAno={{ min: params.ano_min ?? '', max: params.ano_max ?? '' }}
-            initialValor={{ min: params.preco_min ?? '', max: params.preco_max ?? '' }}
-          />
-        </div>
-      </div>
-
-      {/* Main content */}
-      <main className="flex-1 max-w-6xl mx-auto px-4 py-8 w-full">
-        {/* Filters row */}
-        <div className="flex items-center justify-between gap-4 mb-6 flex-wrap">
-          <div className="flex items-center gap-2 flex-wrap">
-            {chips.length > 0 && (
-              <span className="flex items-center gap-1.5 text-sm font-medium text-slate-600 border border-slate-300 rounded-full px-3 py-1.5">
-                <SlidersHorizontal className="h-3.5 w-3.5" />
-                Filtros
-                <span className="h-4 w-4 rounded-full bg-[#0B2447] text-white text-[10px] font-bold flex items-center justify-center">
-                  {chips.length}
-                </span>
-              </span>
-            )}
-
-            {chips.map((chip) => {
-              const removeParams: SearchParams = { ...params, ...chip.remove, pagina: undefined };
-              return (
-                <Link
-                  key={chip.label}
-                  href={buildPageUrl(removeParams, {})}
-                  className="flex items-center gap-1.5 text-sm text-slate-700 bg-white border border-slate-300 rounded-full px-3 py-1.5 hover:bg-slate-50 transition-colors group"
-                >
-                  {chip.label}
-                  <X className="h-3 w-3 text-slate-400 group-hover:text-slate-700 transition-colors" />
-                </Link>
-              );
-            })}
-          </div>
-
-          <p className="text-sm text-slate-500 shrink-0">
-            {total > 0 ? `${total} resultado${total !== 1 ? 's' : ''}` : 'Nenhum resultado'}
-          </p>
-        </div>
-
-        {/* Title */}
-        <div className="mb-6">
-          <h1 className="text-2xl font-bold text-[#0B2447]">{titulo}</h1>
-          {total > 0 && (
-            <p className="text-sm text-slate-500 mt-1">
-              Página {pagina} de {totalPaginas} · {total} anúncio{total !== 1 ? 's' : ''}
-            </p>
-          )}
-        </div>
-
-        {/* Results grid */}
-        {anuncios.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-24 text-center">
-            <div className="h-16 w-16 rounded-2xl bg-slate-100 flex items-center justify-center mb-4">
-              <SlidersHorizontal className="h-8 w-8 text-slate-300" />
+      <NavegacaoBuscaProvider>
+        <main className="flex-1 max-w-7xl mx-auto px-4 sm:px-6 py-6 md:py-8 w-full">
+          {/* Título + abas */}
+          <div className="mb-6 flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
+            <div className="min-w-0">
+              <h1 className="text-2xl md:text-3xl font-bold text-[#0B2447]">{titulo}</h1>
+              <p className="text-sm text-slate-500 mt-1">
+                {total > 0
+                  ? `${total} anúncio${total !== 1 ? 's' : ''} encontrado${total !== 1 ? 's' : ''}`
+                  : 'Nenhum resultado com os filtros atuais'}
+              </p>
             </div>
-            <h2 className="text-lg font-semibold text-slate-700 mb-2">
-              Nenhuma embarcação à venda encontrada
-            </h2>
-            <p className="text-sm text-slate-400 max-w-sm">
-              Tente outro tipo, ampliar a faixa de valor/ano ou explorar outras localidades.
-            </p>
-            {chips.length > 0 && (
-              <Link
-                href="/vendas"
-                className="mt-6 px-5 py-2.5 bg-[#0B3D91] hover:bg-[#0B2447] text-white text-sm font-semibold rounded-xl transition-colors"
-              >
-                Limpar filtros
-              </Link>
-            )}
+            <AbasBusca aba="venda" />
           </div>
-        ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
-            {anuncios.map((a) => (
-              <AnuncioVendaCard key={a.id} anuncio={a} initialFavorito={favoritosSet.has(a.id)} />
-            ))}
+
+          <div className="lg:grid lg:grid-cols-[18rem_minmax(0,1fr)] lg:gap-8 lg:items-start">
+            {/* Filtros — coluna lateral (gaveta no celular) */}
+            <FiltrosVendaLaterais
+              params={params}
+              tipos={filtros.tipos}
+              locais={filtros.locais}
+              totalResultados={total}
+            />
+
+            <section className="min-w-0" aria-label="Resultados">
+              {/* Barra de resultados: faixa exibida + chips ativos */}
+              <div className="mb-5 flex flex-col gap-3">
+                <p className="text-sm text-slate-500">
+                  {total > 0 ? (
+                    <>Exibindo <strong className="text-slate-700">{inicioFaixa}–{fimFaixa}</strong> de <strong className="text-slate-700">{total}</strong></>
+                  ) : (
+                    'Nenhum resultado'
+                  )}
+                </p>
+
+                {chips.length > 0 && (
+                  <div className="flex items-center gap-2 flex-wrap">
+                    {chips.map((chip) => {
+                      const removeParams: SearchParams = { ...params, ...chip.remove, pagina: undefined };
+                      return (
+                        <Link
+                          key={chip.label}
+                          href={buildPageUrl(removeParams, {})}
+                          scroll={false}
+                          aria-label={`Remover filtro ${chip.label}`}
+                          className="flex items-center gap-1.5 text-xs font-medium text-[#0B2447] bg-[#0B2447]/[0.06] border border-[#0B2447]/10 rounded-full pl-3 pr-2 py-1.5 hover:bg-[#0B2447]/10 transition-colors group"
+                        >
+                          {chip.label}
+                          <X className="h-3 w-3 text-[#0B2447]/50 group-hover:text-[#0B2447] transition-colors" />
+                        </Link>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+
+              <AreaResultados>
+                {/* Results grid */}
+                {anuncios.length === 0 ? (
+                  <div className="flex flex-col items-center justify-center py-24 text-center">
+                    <div className="h-16 w-16 rounded-2xl bg-slate-100 flex items-center justify-center mb-4">
+                      <SlidersHorizontal className="h-8 w-8 text-slate-300" />
+                    </div>
+                    <h2 className="text-lg font-semibold text-slate-700 mb-2">
+                      Nenhuma embarcação à venda encontrada
+                    </h2>
+                    <p className="text-sm text-slate-400 max-w-sm">
+                      Tente outro tipo, ampliar a faixa de valor/ano ou explorar outras localidades.
+                    </p>
+                    {chips.length > 0 && (
+                      <Link
+                        href="/vendas"
+                        className="mt-6 px-5 py-2.5 bg-[#0B3D91] hover:bg-[#0B2447] text-white text-sm font-semibold rounded-xl transition-colors"
+                      >
+                        Limpar filtros
+                      </Link>
+                    )}
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-5">
+                    {anuncios.map((a) => (
+                      <AnuncioVendaCard key={a.id} anuncio={a} initialFavorito={favoritosSet.has(a.id)} />
+                    ))}
+                  </div>
+                )}
+
+              </AreaResultados>
+
+                {/* Pagination */}
+                {totalPaginas > 1 && (
+                  <div className="mt-12 flex items-center justify-center gap-1">
+                    {pagina > 1 && (
+                      <Link
+                        href={buildPageUrl(params, { pagina: String(pagina - 1) })}
+                        className="h-9 w-9 flex items-center justify-center rounded-xl border border-slate-200 text-slate-600 hover:bg-white hover:shadow-sm transition-all text-sm"
+                      >
+                        ‹
+                      </Link>
+                    )}
+
+                    {getPageNumbers(pagina, totalPaginas).map((n, i) =>
+                      n === '…' ? (
+                        <span key={`e-${i}`} className="h-9 w-9 flex items-center justify-center text-sm text-slate-400">
+                          …
+                        </span>
+                      ) : (
+                        <Link
+                          key={n}
+                          href={buildPageUrl(params, { pagina: String(n) })}
+                          className={`h-9 w-9 flex items-center justify-center rounded-xl text-sm font-semibold transition-all ${
+                            n === pagina
+                              ? 'bg-[#0B2447] text-white shadow-md'
+                              : 'border border-slate-200 text-slate-600 hover:bg-white hover:shadow-sm'
+                          }`}
+                        >
+                          {n}
+                        </Link>
+                      ),
+                    )}
+
+                    {pagina < totalPaginas && (
+                      <Link
+                        href={buildPageUrl(params, { pagina: String(pagina + 1) })}
+                        className="h-9 w-9 flex items-center justify-center rounded-xl border border-slate-200 text-slate-600 hover:bg-white hover:shadow-sm transition-all text-sm"
+                      >
+                        ›
+                      </Link>
+                    )}
+                  </div>
+                )}
+            </section>
           </div>
-        )}
-
-        {/* Pagination */}
-        {totalPaginas > 1 && (
-          <div className="mt-12 flex items-center justify-center gap-1">
-            {pagina > 1 && (
-              <Link
-                href={buildPageUrl(params, { pagina: String(pagina - 1) })}
-                className="h-9 w-9 flex items-center justify-center rounded-xl border border-slate-200 text-slate-600 hover:bg-white hover:shadow-sm transition-all text-sm"
-              >
-                ‹
-              </Link>
-            )}
-
-            {getPageNumbers(pagina, totalPaginas).map((n, i) =>
-              n === '…' ? (
-                <span key={`e-${i}`} className="h-9 w-9 flex items-center justify-center text-sm text-slate-400">
-                  …
-                </span>
-              ) : (
-                <Link
-                  key={n}
-                  href={buildPageUrl(params, { pagina: String(n) })}
-                  className={`h-9 w-9 flex items-center justify-center rounded-xl text-sm font-semibold transition-all ${
-                    n === pagina
-                      ? 'bg-[#0B2447] text-white shadow-md'
-                      : 'border border-slate-200 text-slate-600 hover:bg-white hover:shadow-sm'
-                  }`}
-                >
-                  {n}
-                </Link>
-              ),
-            )}
-
-            {pagina < totalPaginas && (
-              <Link
-                href={buildPageUrl(params, { pagina: String(pagina + 1) })}
-                className="h-9 w-9 flex items-center justify-center rounded-xl border border-slate-200 text-slate-600 hover:bg-white hover:shadow-sm transition-all text-sm"
-              >
-                ›
-              </Link>
-            )}
-          </div>
-        )}
-      </main>
+        </main>
+      </NavegacaoBuscaProvider>
 
       <Footer />
     </div>

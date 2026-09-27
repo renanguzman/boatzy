@@ -15,8 +15,12 @@ type Props = {
   onOpen: () => void;
   onClose: () => void;
   compact?: boolean;
+  /** Oculta o rótulo interno (quando o campo já tem título por fora, como na lateral de filtros). */
+  semRotulo?: boolean;
   /** Datas para as quais retornar `true` ficam desabilitadas (além das datas passadas). */
   isDateDisabled?: (date: Date) => boolean;
+  /** Onde o calendário abre em relação ao campo — 'esquerda' para campos em coluna lateral. */
+  alinhamentoPainel?: 'centro' | 'esquerda';
 };
 
 const MESES = [
@@ -131,7 +135,7 @@ function MonthCalendar({ year, month, selected, flexibility, today, onSelect, is
   );
 }
 
-export default function DatePicker({ value, onChange, isOpen, onOpen, onClose, compact, isDateDisabled }: Props) {
+export default function DatePicker({ value, onChange, isOpen, onOpen, onClose, compact, semRotulo, isDateDisabled, alinhamentoPainel = 'centro' }: Props) {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
 
@@ -202,9 +206,11 @@ export default function DatePicker({ value, onChange, isOpen, onOpen, onClose, c
           compact ? 'px-3 py-2' : 'px-4 py-3'
         } ${isOpen ? 'ring-2 ring-slate-800 bg-white shadow-md' : 'hover:bg-slate-50'}`}
       >
-        <span className={`block font-bold text-slate-500 uppercase tracking-wider mb-0.5 ${compact ? 'text-[9px]' : 'text-[10px]'}`}>
-          Data
-        </span>
+        {!semRotulo && (
+          <span className={`block font-bold text-slate-500 uppercase tracking-wider mb-0.5 ${compact ? 'text-[9px]' : 'text-[10px]'}`}>
+            Data
+          </span>
+        )}
         {value ? (
           <span className={`font-medium text-slate-800 truncate block ${compact ? 'text-xs' : 'text-sm'}`}>
             {formatDateDisplay(value)}
@@ -216,7 +222,7 @@ export default function DatePicker({ value, onChange, isOpen, onOpen, onClose, c
 
       {/* Dropdown */}
       {isOpen && (
-        <div className="absolute top-full left-1/2 -translate-x-1/2 mt-2 bg-white rounded-2xl shadow-2xl border border-slate-100 z-50 w-[620px] max-w-[95vw] p-4">
+        <div className={`absolute top-full mt-2 bg-white rounded-2xl shadow-2xl border border-slate-100 z-50 w-[620px] max-w-[95vw] p-4 ${alinhamentoPainel === 'esquerda' ? 'left-0' : 'left-1/2 -translate-x-1/2'}`}>
           {/* Navigation header */}
           <div className="flex items-center justify-between mb-4">
             <button

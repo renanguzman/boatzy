@@ -1229,6 +1229,23 @@ A taxa padrão configurada inicialmente é **10%**. Admins podem alterá-la a qu
 - Todas as funcionalidades anteriores foram mantidas; o atalho de preço da listagem de roteiros
   abre direto na etapa Preço.
 
+### ✅ Busca com filtros em coluna lateral — Roteiros, Embarcações e Vendas (27/09/2026)
+
+- Os filtros das páginas de busca (`/buscar` — Roteiros e Embarcações — e `/vendas`) deixaram de
+  ficar escondidos em botões ("Filtros", "Comodidades") e na barra do topo: agora **todos ficam
+  visíveis numa coluna lateral**, aplicados na hora (sem botão "Buscar").
+  - Roteiros: destino, data (com flexibilidade), pessoas, faixa de preço, duração e modelo de
+    cobrança.
+  - Embarcações: destino, data, pessoas, tipo de embarcação, faixa de preço, duração e comodidades
+    (com busca e "Ver todas").
+  - Vendas: tipo, estado → cidade (com quantidade de anúncios), ano do modelo e valor.
+- Cabeçalho do painel com quantidade de filtros ativos e **"Limpar tudo"**; cada filtro tem seu
+  "Limpar". Chips removíveis continuam acima dos resultados, com "Exibindo X–Y de N" e ordenação.
+- Abas Roteiros | Embarcações | Vendas no topo da página; ao trocar entre Roteiros e Embarcações os
+  filtros em comum são mantidos.
+- No celular, o painel abre como gaveta ("Filtros (N)") com o botão "Ver N resultados".
+- Nenhuma funcionalidade foi removida: mesmos filtros, mapa, paginação, favoritos e avaliações.
+
 ## 11. Não Incluído no MVP
 
 - Chat em tempo real
