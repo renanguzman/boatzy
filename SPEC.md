@@ -583,10 +583,58 @@ mostra o título sobre a foto principal do carrossel, sobre as fotos laterais (d
 `EmbarcacaoFotosModal` (detalhe do roteiro) usa a mesma ordem e mostra o título em faixa com
 gradiente. Cards/listagens continuam usando a **principal** como capa.
 
+### Cadastro em etapas (wizard) — embarcação e roteiro
+
+Os quatro formulários (`NovaEmbarcacaoForm`, `EditarEmbarcacaoForm`, `NovoRoteiroForm`,
+`EditarRoteiroForm`; o admin reutiliza os de edição) são divididos em **7 etapas**. Continua sendo
+**um único `<form>`** com um único estado: cada grupo de seções fica num
+`<div hidden={etapas.atual !== N}>`, então nada é desmontado ao trocar de etapa (mapa, calendário,
+galeria e dados permanecem).
+
+| # | Embarcação (`ETAPAS_EMBARCACAO`) | Roteiro (`ETAPAS_ROTEIRO`) |
+|---|---|---|
+| 1 | Informações (nome*, descrição, tipo, capitão, status) | Informações (nome*, descrição*, embarcação, duração, capacidade, itinerário) |
+| 2 | Detalhes (especificações + comodidades) | Localização de partida |
+| 3 | Localização | Fotos |
+| 4 | Fotos | Preço (modelos de cobrança) |
+| 5 | Preço (base + regras) | Disponibilidade |
+| 6 | Disponibilidade | Adicionais (catálogo) |
+| 7 | Revisão | Revisão |
+
+Definições e montagem da revisão: `embarcacoes/_components/etapasEmbarcacao.ts`
+(`ETAPAS_EMBARCACAO`, `ETAPA_EMB`, `revisaoEmbarcacao`) e `roteiros/_components/etapasRoteiro.ts`
+(`ETAPAS_ROTEIRO`, `ETAPA_ROT`, `revisaoRoteiro`).
+
+Componentes compartilhados (`src/components/painel/etapas/`):
+- `useEtapas(total, { todasVisitadas?, ids? })` → `{ atual, visitadas, topoRef, ir, proxima, anterior,
+  ehPrimeira, ehUltima }`. Navegação livre; ao trocar rola até `topoRef`. Na edição todas começam
+  visitadas. `ids` habilita link direto por hash (`/painel/roteiros/[id]/editar#preco` — usado
+  pelo atalho de preço do `RoteirosGrid`).
+- `IndicadorEtapas({ etapas, atual, visitadas, onIr })` — desktop: trilha horizontal clicável
+  (✓ concluída, anel = atual, cinza = pendente); celular: etapa atual + barra segmentada + menu
+  "Ver etapas".
+- `RodapeEtapas` — rodapé `sticky bottom-0`: progresso, Voltar, Pré-visualizar, Próximo e o único
+  `type="submit"`. `modo="novo"`: avança e publica na última etapa ("Publicar embarcação/roteiro").
+  `modo="editar"`: **"Salvar alterações" em qualquer etapa** + avançar como botão secundário.
+  No celular, Voltar/Pré-visualizar viram ícones de 48 px.
+- `RevisaoChecklist({ itens: ItemRevisao[] })` — `status: 'ok' | 'aviso' | 'erro'` + "Editar"
+  (vai à etapa). Avisos não bloqueiam (ex.: menos de 5 fotos, sem preço, sem ponto no mapa).
+
+Etapa Revisão: checklist + **card real da busca** (`EmbarcacaoCard` / `RoteiroCard`, dentro de
+`<div inert>`) + botão Pré-visualizar.
+
+Validação: os campos obrigatórios não usam mais o atributo `required` (um campo obrigatório
+numa etapa oculta bloquearia o envio sem aviso). O `handleSubmit` valida (embarcação: nome;
+roteiro: nome e descrição), mostra o erro e leva à etapa 1. `Enter` em um `<input>` não envia o
+formulário (`bloquearEnter` no `onKeyDown` do form).
+
+Removidos: atalhos com scroll-spy dos roteiros (`SECOES_ROTEIRO`) e o banner de pré-visualização no
+topo dos forms (o botão agora fica no rodapé e na Revisão).
+
 ### Pré-visualização da publicação (embarcação e roteiro)
 
-Botão **"Pré-visualizar"** (`src/components/preview/BotaoPreview.tsx`) no topo e na barra de ações
-de `NovaEmbarcacaoForm`, `EditarEmbarcacaoForm`, `NovoRoteiroForm` e `EditarRoteiroForm` (e nas
+Botão **"Pré-visualizar"** no rodapé fixo das etapas (`RodapeEtapas`) e na etapa Revisão
+(`src/components/preview/BotaoPreview.tsx`) de `NovaEmbarcacaoForm`, `EditarEmbarcacaoForm`, `NovoRoteiroForm` e `EditarRoteiroForm` (e nas
 edições do admin, que reutilizam os forms). Mostra a página pública com os dados **ainda não
 salvos** (inclusive fotos novas, como URLs `blob:`).
 

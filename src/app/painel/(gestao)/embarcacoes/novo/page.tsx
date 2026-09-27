@@ -19,7 +19,7 @@ export default async function NovaEmbarcacaoPage() {
       <div className="mb-6">
         <h1 className="text-2xl font-bold text-[#0B2447]">Nova Embarcação</h1>
         <p className="text-sm text-slate-400 mt-1">
-          Preencha os dados da embarcação e faça upload das imagens.
+          Preencha em etapas — você pode ir e voltar entre elas quando quiser.
         </p>
       </div>
 

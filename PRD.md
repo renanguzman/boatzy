@@ -1212,6 +1212,23 @@ A taxa padrão configurada inicialmente é **10%**. Admins podem alterá-la a qu
   ficam desativados, com aviso.
 - Avaliações aparecem no estado vazio (a prévia não usa dados de clientes).
 
+### ✅ Cadastro em etapas — embarcação e roteiro (27/09/2026)
+
+- Os cadastros e edições de **embarcação** e de **roteiro** (painel e admin) passaram a ser feitos
+  em **7 etapas**, com indicador de progresso clicável e navegação livre (dá para ir e voltar a
+  qualquer etapa sem perder o que foi preenchido).
+  - Embarcação: Informações → Detalhes (especificações + comodidades) → Localização → Fotos →
+    Preço → Disponibilidade → Revisão.
+  - Roteiro: Informações → Localização → Fotos → Preço → Disponibilidade → Adicionais → Revisão.
+- **Rodapé fixo** com progresso, Voltar, Pré-visualizar e "Próximo: <etapa>". No cadastro novo,
+  a última etapa publica; na **edição, "Salvar alterações" fica disponível em qualquer etapa**.
+- **Revisão:** checklist por etapa com atalho "Editar", avisos que não bloqueiam (ex.: menos de 5
+  fotos, sem preço, sem ponto no mapa), o card exatamente como aparece na busca e acesso à
+  pré-visualização completa.
+- No celular: indicador compacto ("Etapa 3 de 7") com lista de etapas e botões grandes no rodapé.
+- Todas as funcionalidades anteriores foram mantidas; o atalho de preço da listagem de roteiros
+  abre direto na etapa Preço.
+
 ## 11. Não Incluído no MVP
 
 - Chat em tempo real

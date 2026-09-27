@@ -98,7 +98,7 @@ export default async function EditarRoteiroPage({
       <div className="mb-6">
         <h1 className="text-2xl font-bold text-[#0B2447]">Editar Roteiro</h1>
         <p className="text-sm text-slate-400 mt-1">
-          Atualize os dados e fotos do roteiro de passeio.
+          Navegue pelas etapas e salve as alterações a qualquer momento.
         </p>
       </div>
 

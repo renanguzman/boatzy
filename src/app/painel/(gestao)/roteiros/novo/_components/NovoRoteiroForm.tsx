@@ -3,8 +3,8 @@
 import { useState, useEffect, useTransition, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import {
-  Info, MapPin, ImageIcon, DollarSign,
-  Loader2, AlertCircle, CheckCircle, ChevronRight, CalendarDays,
+  Info, ClipboardCheck, MapPin, ImageIcon, DollarSign,
+  Loader2, AlertCircle, CheckCircle, CalendarDays,
   Plus, ChevronDown, ChevronUp, Trash2, HelpCircle, BookOpen, Check,
 } from 'lucide-react';
 import GaleriaImagensEditor, { type GaleriaItem } from '@/components/painel/GaleriaImagensEditor';
@@ -27,6 +27,12 @@ import BotaoPreview from '@/components/preview/BotaoPreview';
 import { montarPreviewRoteiro } from '@/components/preview/montar';
 import { buscarEmbarcacaoParaPreview } from '@/lib/preview-actions';
 import type { RoteiroDetalheDados } from '@/app/roteiros/[id]/_components/RoteiroDetalheView';
+import IndicadorEtapas from '@/components/painel/etapas/IndicadorEtapas';
+import RodapeEtapas from '@/components/painel/etapas/RodapeEtapas';
+import RevisaoChecklist from '@/components/painel/etapas/RevisaoChecklist';
+import { useEtapas } from '@/components/painel/etapas/useEtapas';
+import RoteiroCard from '@/app/buscar/_components/RoteiroCard';
+import { ETAPAS_ROTEIRO, ETAPA_ROT, revisaoRoteiro } from '../../_components/etapasRoteiro';
 
 // ─── Constantes ───────────────────────────────────────────────────────────────
 
@@ -102,16 +108,6 @@ function SectionCard({ id, icon: Icon, title, children }: {
     </div>
   );
 }
-
-// Atalhos (tabs-âncora) para as seções do formulário — mesmo padrão de `/minha-conta`.
-const SECOES_ROTEIRO = [
-  { id: 'informacoes-gerais', label: 'Informações gerais' },
-  { id: 'preco', label: 'Preço' },
-  { id: 'disponibilidade', label: 'Disponibilidade' },
-  { id: 'catalogo', label: 'Catálogo' },
-  { id: 'localizacao', label: 'Localização' },
-  { id: 'imagens', label: 'Imagens' },
-];
 
 function Field({ label, required, hint, children }: {
   label: string; required?: boolean; hint?: string; children: React.ReactNode;
@@ -205,6 +201,19 @@ export default function NovoRoteiroForm({ estados, embarcacoes, catalogo: catalo
 
   // ── Pré-visualização (mesmo layout da página pública) ──────────────────────
   const [previewAberto, setPreviewAberto] = useState(false);
+
+  // ── Etapas (wizard) ─────────────────────────────────────────────────────────
+  const etapas = useEtapas(ETAPAS_ROTEIRO.length, { ids: ETAPAS_ROTEIRO.map(e => e.id) });
+  const revisao = revisaoRoteiro({
+    form, embarcacoes, estados, municipios, paradas, imagens, diasOperacao, bloqueios,
+    totalAdicionais: itensCatalogo.length,
+    ir: etapas.ir,
+  });
+
+  // Enter num campo não envia o cadastro no meio das etapas.
+  function bloquearEnter(e: React.KeyboardEvent<HTMLFormElement>) {
+    if (e.key === 'Enter' && (e.target as HTMLElement).tagName === 'INPUT') e.preventDefault();
+  }
   // Embarcação vinculada no formato da página pública (buscada ao abrir a prévia).
   const [previewEmb, setPreviewEmb] = useState<{ id: string; dados: RoteiroDetalheDados['embarcacao'] } | null>(null);
   useEffect(() => {
@@ -224,32 +233,6 @@ export default function NovoRoteiroForm({ estados, embarcacoes, catalogo: catalo
         embarcacao: form.embarcacao_id ? previewEmb?.dados ?? null : null,
       })
     : null;
-
-  // Scroll-spy: destaca o atalho da seção visível.
-  const [secaoAtiva, setSecaoAtiva] = useState(SECOES_ROTEIRO[0].id);
-  useEffect(() => {
-    const alvos = SECOES_ROTEIRO
-      .map((s) => document.getElementById(s.id))
-      .filter((el): el is HTMLElement => el !== null);
-    if (alvos.length === 0) return;
-
-    const observer = new IntersectionObserver(
-      (entries) => {
-        const visivel = entries
-          .filter((e) => e.isIntersecting)
-          .sort((a, b) => a.boundingClientRect.top - b.boundingClientRect.top)[0];
-        if (visivel) setSecaoAtiva(visivel.target.id);
-      },
-      { rootMargin: '-96px 0px -55% 0px', threshold: 0 },
-    );
-    alvos.forEach((el) => observer.observe(el));
-    return () => observer.disconnect();
-  }, []);
-
-  function irParaSecao(id: string) {
-    setSecaoAtiva(id);
-    document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-  }
 
   function setField<K extends keyof typeof form>(k: K, v: typeof form[K]) {
     setForm(f => ({ ...f, [k]: v }));
@@ -410,6 +393,11 @@ export default function NovoRoteiroForm({ estados, embarcacoes, catalogo: catalo
     e.preventDefault();
     if (submitting) return;
     setFeedback(null);
+    if (!form.nome.trim() || !form.descricao.trim()) {
+      setFeedback({ type: 'error', msg: 'Informe o nome e a descrição do roteiro.' });
+      etapas.ir(ETAPA_ROT.informacoes);
+      return;
+    }
     setSubmitting(true);
 
     const result = await criarRoteiro({
@@ -505,49 +493,28 @@ export default function NovoRoteiroForm({ estados, embarcacoes, catalogo: catalo
   // ─── Render ───────────────────────────────────────────────────────────────
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-6 max-w-4xl">
-      <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-[#0B2447]/10 bg-[#0B2447]/[0.03] px-5 py-3">
-        <p className="text-sm text-slate-600">Veja como seu roteiro vai aparecer para os clientes.</p>
-        <BotaoPreview onClick={() => setPreviewAberto(true)} />
+    <form onSubmit={handleSubmit} onKeyDown={bloquearEnter} className="space-y-6 max-w-4xl">
+      <div ref={etapas.topoRef} className="scroll-mt-6">
+        <IndicadorEtapas etapas={ETAPAS_ROTEIRO} atual={etapas.atual} visitadas={etapas.visitadas} onIr={etapas.ir} />
       </div>
 
 
-      {/* Atalhos das seções (tabs-âncora) */}
-      <nav
-        aria-label="Seções do roteiro"
-        className="sticky top-4 z-10 -mx-1 flex gap-1 overflow-x-auto rounded-2xl border border-slate-100 bg-white/90 p-1.5 shadow-sm backdrop-blur"
-      >
-        {SECOES_ROTEIRO.map((s) => (
-          <button
-            key={s.id}
-            type="button"
-            onClick={() => irParaSecao(s.id)}
-            aria-current={secaoAtiva === s.id ? 'true' : undefined}
-            className={`whitespace-nowrap rounded-xl px-3.5 py-2 text-sm font-medium transition-colors ${
-              secaoAtiva === s.id
-                ? 'bg-[#0B2447] text-white shadow-sm'
-                : 'text-slate-500 hover:bg-slate-100 hover:text-slate-700'
-            }`}
-          >
-            {s.label}
-          </button>
-        ))}
-      </nav>
 
+      <div hidden={etapas.atual !== ETAPA_ROT.informacoes} className="space-y-6">
       {/* ── 1. Informações gerais ────────────────────────────────────────── */}
       <SectionCard id="informacoes-gerais" icon={Info} title="Informações gerais">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
           <div className="md:col-span-2">
             <Field label="Nome do roteiro" required>
               <input className={inputCls} placeholder="ex: Passeio à Ilha Grande"
-                value={form.nome} onChange={e => setField('nome', e.target.value)} required />
+                value={form.nome} onChange={e => setField('nome', e.target.value)} />
             </Field>
           </div>
           <div className="md:col-span-2">
             <Field label="Descrição" required>
               <textarea className={`${inputCls} resize-none`} rows={3}
                 placeholder="Descreva o roteiro, pontos turísticos, atrações e destaques..."
-                value={form.descricao} onChange={e => setField('descricao', e.target.value)} required />
+                value={form.descricao} onChange={e => setField('descricao', e.target.value)} />
             </Field>
           </div>
           <Field label="Embarcação vinculada" hint="Opcional — associe este roteiro a uma de suas embarcações.">
@@ -656,6 +623,9 @@ export default function NovoRoteiroForm({ estados, embarcacoes, catalogo: catalo
         </div>
       </SectionCard>
 
+      </div>
+
+      <div hidden={etapas.atual !== ETAPA_ROT.preco} className="space-y-6">
       {/* ── 2. Preço ─────────────────────────────────────────────────────── */}
       <SectionCard id="preco" icon={DollarSign} title="Preço">
         {/* Modelo de cobrança */}
@@ -982,6 +952,9 @@ export default function NovoRoteiroForm({ estados, embarcacoes, catalogo: catalo
         )}
       </SectionCard>
 
+      </div>
+
+      <div hidden={etapas.atual !== ETAPA_ROT.disponibilidade} className="space-y-6">
       {/* ── 3. Disponibilidade ───────────────────────────────────────────── */}
       <SectionCard id="disponibilidade" icon={CalendarDays} title="Disponibilidade">
         <p className="text-xs text-slate-400 mb-5">
@@ -995,6 +968,9 @@ export default function NovoRoteiroForm({ estados, embarcacoes, catalogo: catalo
         />
       </SectionCard>
 
+      </div>
+
+      <div hidden={etapas.atual !== ETAPA_ROT.adicionais} className="space-y-6">
       {/* ── 4. Catálogo ──────────────────────────────────────────────────── */}
       <SectionCard id="catalogo" icon={BookOpen} title="Catálogo — Produtos e Serviços">
         <p className="text-xs text-slate-400 mb-5">
@@ -1008,6 +984,9 @@ export default function NovoRoteiroForm({ estados, embarcacoes, catalogo: catalo
         />
       </SectionCard>
 
+      </div>
+
+      <div hidden={etapas.atual !== ETAPA_ROT.localizacao} className="space-y-6">
       {/* ── 4. Localização de partida ────────────────────────────────────── */}
       <SectionCard id="localizacao" icon={MapPin} title="Localização de partida">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
@@ -1082,6 +1061,9 @@ export default function NovoRoteiroForm({ estados, embarcacoes, catalogo: catalo
         </div>
       </SectionCard>
 
+      </div>
+
+      <div hidden={etapas.atual !== ETAPA_ROT.fotos} className="space-y-6">
       {/* ── 4. Imagens ──────────────────────────────────────────────────── */}
       <SectionCard id="imagens" icon={ImageIcon} title="Imagens">
         <GaleriaImagensEditor
@@ -1092,6 +1074,26 @@ export default function NovoRoteiroForm({ estados, embarcacoes, catalogo: catalo
           exemploTitulo="Vista do mirante"
         />
       </SectionCard>
+
+      </div>
+
+      {/* ── 7. Revisão ───────────────────────────────────────────────────── */}
+      <div hidden={etapas.atual !== ETAPA_ROT.revisao} className="space-y-6">
+        <SectionCard icon={ClipboardCheck} title="Revisão">
+          <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
+            <div className="lg:col-span-3">
+              <RevisaoChecklist itens={revisao.itens} />
+            </div>
+            <div className="lg:col-span-2">
+              <p className="text-xs font-semibold uppercase tracking-wider text-slate-500 mb-2">Como aparece na busca</p>
+              <div inert className="select-none">
+                <RoteiroCard roteiro={revisao.card} />
+              </div>
+              <BotaoPreview onClick={() => setPreviewAberto(true)} className="w-full mt-3" />
+            </div>
+          </div>
+        </SectionCard>
+      </div>
 
       {/* ── Feedback ─────────────────────────────────────────────────────── */}
       {feedback && (
@@ -1105,21 +1107,20 @@ export default function NovoRoteiroForm({ estados, embarcacoes, catalogo: catalo
         </div>
       )}
 
-      {/* ── Ações ────────────────────────────────────────────────────────── */}
-      <div className="flex flex-wrap items-center justify-end gap-3 pb-4">
-        <BotaoPreview onClick={() => setPreviewAberto(true)} className="mr-auto" />
-        <button type="button" onClick={() => router.push('/painel/roteiros')}
-          disabled={submitting}
-          className="px-5 py-2.5 rounded-xl border border-slate-200 text-sm font-semibold text-slate-600 hover:bg-slate-50 transition disabled:opacity-50">
-          Cancelar
-        </button>
-        <button type="submit" disabled={submitting || !form.nome.trim() || !form.descricao.trim()}
-          className="flex items-center gap-2 px-6 py-2.5 rounded-xl bg-[#0B2447] hover:bg-[#0B3D91] text-white text-sm font-semibold transition shadow-md shadow-[#0B2447]/10 disabled:opacity-50 disabled:cursor-not-allowed">
-          {submitting
-            ? <><Loader2 className="w-4 h-4 animate-spin" /> Salvando...</>
-            : <><ChevronRight className="w-4 h-4" /> Salvar roteiro</>}
-        </button>
-      </div>
+      {/* ── Rodapé fixo ─────────────────────────────────────────────────── */}
+      <RodapeEtapas
+        atual={etapas.atual}
+        total={ETAPAS_ROTEIRO.length}
+        labelAtual={ETAPAS_ROTEIRO[etapas.atual].label}
+        proximoLabel={etapas.ehUltima ? null : ETAPAS_ROTEIRO[etapas.atual + 1].label}
+        modo="novo"
+        rotuloSalvar="Publicar roteiro"
+        onVoltar={etapas.anterior}
+        onProximo={etapas.proxima}
+        onPreview={() => setPreviewAberto(true)}
+        submitting={submitting}
+        podeSalvar
+      />
 
       <PreviewPublicacaoModal
         aberto={previewAberto}

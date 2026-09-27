@@ -3,9 +3,9 @@
 import { useState, useTransition, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import {
-  Info, Ruler, DollarSign, MapPin, ImageIcon, Sparkles, CalendarDays,
+  Info, ClipboardCheck, Ruler, DollarSign, MapPin, ImageIcon, Sparkles, CalendarDays,
   Loader2, AlertCircle, CheckCircle,
-  ChevronRight, Plus, ChevronDown, ChevronUp, Trash2, HelpCircle,
+  Plus, ChevronDown, ChevronUp, Trash2, HelpCircle,
 } from 'lucide-react';
 import GaleriaImagensEditor, { itensDeImagensSalvas, type GaleriaItem } from '@/components/painel/GaleriaImagensEditor';
 import {
@@ -29,6 +29,12 @@ import { COMPRIMENTO_UNIDADES, type ComprimentoUnidade } from '@/lib/comprimento
 import PreviewPublicacaoModal from '@/components/preview/PreviewPublicacaoModal';
 import BotaoPreview from '@/components/preview/BotaoPreview';
 import { montarPreviewEmbarcacao } from '@/components/preview/montar';
+import IndicadorEtapas from '@/components/painel/etapas/IndicadorEtapas';
+import RodapeEtapas from '@/components/painel/etapas/RodapeEtapas';
+import RevisaoChecklist from '@/components/painel/etapas/RevisaoChecklist';
+import { useEtapas } from '@/components/painel/etapas/useEtapas';
+import EmbarcacaoCard from '@/components/ui/EmbarcacaoCard';
+import { ETAPAS_EMBARCACAO, ETAPA_EMB, revisaoEmbarcacao } from '../../../_components/etapasEmbarcacao';
 
 // ─── Constantes ───────────────────────────────────────────────────────────────
 
@@ -281,6 +287,19 @@ export default function EditarEmbarcacaoForm({
 
   // ── Pré-visualização (mesmo layout da página pública) ──────────────────────
   const [previewAberto, setPreviewAberto] = useState(false);
+
+  // ── Etapas (wizard) ─────────────────────────────────────────────────────────
+  const etapas = useEtapas(ETAPAS_EMBARCACAO.length, { todasVisitadas: true, ids: ETAPAS_EMBARCACAO.map(e => e.id) });
+  const revisao = revisaoEmbarcacao({
+    form, tipos, estados, municipios, comodidadesSelecionadas, imagens, diasOperacao, bloqueios,
+    totalRegras: existingRegras.filter(r => !r.markedForDelete).length + newRegras.length,
+    ir: etapas.ir,
+  });
+
+  // Enter num campo não envia o cadastro no meio das etapas.
+  function bloquearEnter(e: React.KeyboardEvent<HTMLFormElement>) {
+    if (e.key === 'Enter' && (e.target as HTMLElement).tagName === 'INPUT') e.preventDefault();
+  }
   const previewDados = previewAberto
     ? montarPreviewEmbarcacao({
         form, tipos, estados, municipios, comodidades, comodidadesSelecionadas,
@@ -421,6 +440,11 @@ export default function EditarEmbarcacaoForm({
     e.preventDefault();
     if (submitting) return;
     setFeedback(null);
+    if (!form.nome.trim()) {
+      setFeedback({ type: 'error', msg: 'Informe o nome da embarcação.' });
+      etapas.ir(ETAPA_EMB.informacoes);
+      return;
+    }
     setSubmitting(true);
 
     // 1. Atualizar campos base
@@ -505,20 +529,20 @@ export default function EditarEmbarcacaoForm({
   // ─── Render ────────────────────────────────────────────────────────────────
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-6 max-w-4xl">
-      <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-[#0B2447]/10 bg-[#0B2447]/[0.03] px-5 py-3">
-        <p className="text-sm text-slate-600">Veja como sua embarcação vai aparecer para os clientes.</p>
-        <BotaoPreview onClick={() => setPreviewAberto(true)} />
+    <form onSubmit={handleSubmit} onKeyDown={bloquearEnter} className="space-y-6 max-w-4xl">
+      <div ref={etapas.topoRef} className="scroll-mt-6">
+        <IndicadorEtapas etapas={ETAPAS_EMBARCACAO} atual={etapas.atual} visitadas={etapas.visitadas} onIr={etapas.ir} />
       </div>
 
 
+      <div hidden={etapas.atual !== ETAPA_EMB.informacoes} className="space-y-6">
       {/* ── 1. Informações gerais ──────────────────────────────────────────── */}
       <SectionCard icon={Info} title="Informações gerais">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
           <div className="md:col-span-2">
             <Field label="Nome da embarcação" required>
               <input className={inputCls} placeholder="ex: Lancha Azul Horizon"
-                value={form.nome} onChange={e => setField('nome', e.target.value)} required />
+                value={form.nome} onChange={e => setField('nome', e.target.value)} />
             </Field>
           </div>
           <div className="md:col-span-2">
@@ -554,6 +578,9 @@ export default function EditarEmbarcacaoForm({
         </div>
       </SectionCard>
 
+      </div>
+
+      <div hidden={etapas.atual !== ETAPA_EMB.detalhes} className="space-y-6">
       {/* ── 2. Especificações técnicas ─────────────────────────────────────── */}
       <SectionCard icon={Ruler} title="Especificações técnicas">
         <div className="grid grid-cols-2 md:grid-cols-3 gap-5">
@@ -630,6 +657,9 @@ export default function EditarEmbarcacaoForm({
         </SectionCard>
       )}
 
+      </div>
+
+      <div hidden={etapas.atual !== ETAPA_EMB.preco} className="space-y-6">
       {/* ── 4. Preço ──────────────────────────────────────────────────────── */}
       <SectionCard icon={DollarSign} title="Preço">
         <div className="max-w-xs mb-6">
@@ -868,6 +898,9 @@ export default function EditarEmbarcacaoForm({
         )}
       </SectionCard>
 
+      </div>
+
+      <div hidden={etapas.atual !== ETAPA_EMB.disponibilidade} className="space-y-6">
       {/* ── 5. Disponibilidade ────────────────────────────────────────────── */}
       <SectionCard icon={CalendarDays} title="Disponibilidade">
         <p className="text-xs text-slate-400 mb-5">
@@ -881,6 +914,9 @@ export default function EditarEmbarcacaoForm({
         />
       </SectionCard>
 
+      </div>
+
+      <div hidden={etapas.atual !== ETAPA_EMB.localizacao} className="space-y-6">
       {/* ── 6. Localização ────────────────────────────────────────────────── */}
       <SectionCard icon={MapPin} title="Localização" subtitle="Onde sua embarcação fica a maior parte do tempo">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
@@ -955,6 +991,9 @@ export default function EditarEmbarcacaoForm({
         </div>
       </SectionCard>
 
+      </div>
+
+      <div hidden={etapas.atual !== ETAPA_EMB.fotos} className="space-y-6">
       {/* ── 6. Imagens ────────────────────────────────────────────────────── */}
       <SectionCard icon={ImageIcon} title="Imagens">
         <GaleriaImagensEditor
@@ -965,6 +1004,26 @@ export default function EditarEmbarcacaoForm({
           exemploTitulo="Proa do iate"
         />
       </SectionCard>
+
+      </div>
+
+      {/* ── 7. Revisão ───────────────────────────────────────────────────── */}
+      <div hidden={etapas.atual !== ETAPA_EMB.revisao} className="space-y-6">
+        <SectionCard icon={ClipboardCheck} title="Revisão">
+          <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
+            <div className="lg:col-span-3">
+              <RevisaoChecklist itens={revisao.itens} />
+            </div>
+            <div className="lg:col-span-2">
+              <p className="text-xs font-semibold uppercase tracking-wider text-slate-500 mb-2">Como aparece na busca</p>
+              <div inert className="select-none">
+                <EmbarcacaoCard embarcacao={revisao.card} />
+              </div>
+              <BotaoPreview onClick={() => setPreviewAberto(true)} className="w-full mt-3" />
+            </div>
+          </div>
+        </SectionCard>
+      </div>
 
       {/* ── Feedback ──────────────────────────────────────────────────────── */}
       {feedback && (
@@ -978,21 +1037,20 @@ export default function EditarEmbarcacaoForm({
         </div>
       )}
 
-      {/* ── Ações ─────────────────────────────────────────────────────────── */}
-      <div className="flex flex-wrap items-center justify-end gap-3 pb-4">
-        <BotaoPreview onClick={() => setPreviewAberto(true)} className="mr-auto" />
-        <button type="button" onClick={() => router.push(voltarHref)}
-          disabled={submitting}
-          className="px-5 py-2.5 rounded-xl border border-slate-200 text-sm font-semibold text-slate-600 hover:bg-slate-50 transition disabled:opacity-50">
-          Cancelar
-        </button>
-        <button type="submit" disabled={submitting || !form.nome.trim()}
-          className="flex items-center gap-2 px-6 py-2.5 rounded-xl bg-[#0B2447] hover:bg-[#0B3D91] text-white text-sm font-semibold transition shadow-md shadow-[#0B2447]/10 disabled:opacity-50 disabled:cursor-not-allowed">
-          {submitting
-            ? <><Loader2 className="w-4 h-4 animate-spin" /> Salvando...</>
-            : <><ChevronRight className="w-4 h-4" /> Salvar alterações</>}
-        </button>
-      </div>
+      {/* ── Rodapé fixo ─────────────────────────────────────────────────── */}
+      <RodapeEtapas
+        atual={etapas.atual}
+        total={ETAPAS_EMBARCACAO.length}
+        labelAtual={ETAPAS_EMBARCACAO[etapas.atual].label}
+        proximoLabel={etapas.ehUltima ? null : ETAPAS_EMBARCACAO[etapas.atual + 1].label}
+        modo="editar"
+        rotuloSalvar="Salvar alterações"
+        onVoltar={etapas.anterior}
+        onProximo={etapas.proxima}
+        onPreview={() => setPreviewAberto(true)}
+        submitting={submitting}
+        podeSalvar
+      />
 
       <PreviewPublicacaoModal
         aberto={previewAberto}

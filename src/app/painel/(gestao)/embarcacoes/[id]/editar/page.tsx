@@ -79,7 +79,7 @@ export default async function EditarEmbarcacaoPage({
       <div className="mb-6">
         <h1 className="text-2xl font-bold text-[#0B2447]">Editar Embarcação</h1>
         <p className="text-sm text-slate-400 mt-1">
-          Atualize os dados, fotos e regras de preço da embarcação.
+          Navegue pelas etapas e salve as alterações a qualquer momento.
         </p>
       </div>
 
