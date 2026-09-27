@@ -6,6 +6,7 @@ import { Headphones, ShieldCheck, Heart, Share2, MessageCircle } from 'lucide-re
 import DatePicker, { type DateValue } from '@/components/home/search/DatePicker';
 import GuestPicker from '@/components/home/search/GuestPicker';
 import { formatCurrency } from '@/lib/utils';
+import { useModoPreview } from '@/components/preview/ModoPreview';
 
 type ActivePanel = 'date' | 'guests' | null;
 
@@ -56,6 +57,7 @@ export default function EmbarcacaoBookingCard({
   const [active, setActive] = useState<ActivePanel>(null);
   const [error, setError] = useState<string | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+  const preview = useModoPreview();
 
   function open(panel: ActivePanel) {
     setActive((p) => (p === panel ? null : panel));
@@ -102,6 +104,8 @@ export default function EmbarcacaoBookingCard({
     params.set('data', toISO(date.date));
     if (date.flexibility) params.set('flex', String(date.flexibility));
     params.set('pessoas', String(guests));
+    // Pré-visualização do painel: valida como no site, mas não reserva.
+    if (preview.ativo) { preview.avisar(); return; }
     window.location.href = `/reservas/novo?${params.toString()}`;
   }
 

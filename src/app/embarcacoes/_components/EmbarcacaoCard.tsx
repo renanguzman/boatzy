@@ -3,6 +3,7 @@
 import Image from 'next/image';
 import Link from 'next/link';
 import { Ship, Users, Ruler } from 'lucide-react';
+import { formatarComprimento } from '@/lib/comprimento';
 
 export type EmbarcacaoCardData = {
   id: string;
@@ -10,6 +11,7 @@ export type EmbarcacaoCardData = {
   descricao: string | null;
   capacidade: number | null;
   comprimento: number | null;
+  comprimento_unidade?: string | null;
   preco_base: number | null;
   embarcacao_tipo: { nome: string } | null;
   municipios: { nome: string; estados: { uf: string } | null } | null;
@@ -108,7 +110,7 @@ export default function EmbarcacaoCard({
           {embarcacao.comprimento && (
             <span className="flex items-center gap-1">
               <Ruler className="h-3 w-3" />
-              {embarcacao.comprimento}m
+              {formatarComprimento(embarcacao.comprimento, embarcacao.comprimento_unidade)}
             </span>
           )}
         </div>

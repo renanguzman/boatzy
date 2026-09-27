@@ -8,9 +8,8 @@ export default async function NovaEmbarcacaoPage() {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect('/painel/login');
 
-  const [{ data: tipos }, { data: categorias }, { data: estados }, { data: comodidades }] = await Promise.all([
+  const [{ data: tipos }, { data: estados }, { data: comodidades }] = await Promise.all([
     supabaseAdmin.from('embarcacao_tipo').select('id, nome').order('nome'),
-    supabaseAdmin.from('embarcacao_categoria').select('id, nome').order('nome'),
     supabaseAdmin.from('estados').select('id, uf, nome').order('nome'),
     supabaseAdmin.from('comodidade').select('id, nome').order('nome'),
   ]);
@@ -26,7 +25,6 @@ export default async function NovaEmbarcacaoPage() {
 
       <NovaEmbarcacaoForm
         tipos={tipos ?? []}
-        categorias={categorias ?? []}
         estados={estados ?? []}
         comodidades={comodidades ?? []}
       />

@@ -1,11 +1,11 @@
 import { Tags } from 'lucide-react';
 import ModuloEmConstrucao from '@/components/administrator/ModuloEmConstrucao';
 
-export default function AdminCategoriasPage() {
+export default function AdminTiposPage() {
   return (
     <ModuloEmConstrucao
-      titulo="Categorias"
-      descricao="Cadastro e organização das categorias e tipos de embarcação."
+      titulo="Tipos de embarcação"
+      descricao="Cadastro e organização dos tipos de embarcação."
       icon={Tags}
     />
   );

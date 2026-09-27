@@ -49,7 +49,7 @@ export default function AdministratorLoginPage() {
         <div className="absolute bottom-12 left-10 right-10 z-10">
           <p className="text-white/90 font-semibold text-lg italic mb-2">Comando central da plataforma.</p>
           <p className="text-white/60 text-sm leading-relaxed max-w-md">
-            Administração geral do Boatzy: avaliações, embarcações, taxas, categorias e parâmetros do sistema.
+            Administração geral do Boatzy: avaliações, embarcações, taxas, tipos de embarcação e parâmetros do sistema.
           </p>
           <p className="mt-6 text-xs font-bold tracking-[0.3em] text-cyan-400/80 uppercase">Área Restrita</p>
         </div>

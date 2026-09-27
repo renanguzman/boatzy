@@ -452,14 +452,11 @@ Seeds iniciais: Lancha, Iate, Jet Ski, Veleiro, Catamarã, Barco de Pesca, Escun
 
 ---
 
-### Tabela `embarcacao_categoria` (auxiliar)
+### ~~Tabela `embarcacao_categoria`~~ (removida)
 
-```sql
-id   uuid primary key default gen_random_uuid()
-nome text not null unique
-```
-
-Seeds iniciais: Passeio, Pesca, Esporte, Luxo, Familiar.
+Removida em `supabase/migrations/20260927b_remove_embarcacao_categoria.sql` (27/09/2026), junto com
+a coluna `embarcacao.embarcacao_categoria_id` e o índice `embarcacao_categoria_id_idx`. O tipo
+(`embarcacao_tipo`) é o único classificador da embarcação.
 
 ---
 
@@ -471,13 +468,12 @@ owner_id                uuid not null FK → users(id)
 nome                    text not null
 descricao               text
 capacidade              integer
-comprimento             numeric(6,2)          -- metros
-cabines                 integer
+comprimento             numeric(6,2)          -- valor como digitado, na unidade abaixo
+comprimento_unidade     text not null default 'm'  -- 'm' (metros) | 'pes' (pés); CHECK
 quartos                 integer
 suites                  integer
 tripulacao              integer
 embarcacao_tipo_id      uuid FK → embarcacao_tipo(id)
-embarcacao_categoria_id uuid FK → embarcacao_categoria(id)
 municipio_id            integer FK → municipios(id)
 latitude                numeric(10,7)         -- coordenada exata da atracação
 longitude               numeric(10,7)
@@ -495,6 +491,37 @@ RLS:
 - owner autenticado: SELECT / INSERT / UPDATE sobre seus próprios registros.
 - público: SELECT (listagem no hotsite).
 
+
+**Cabines → Quartos** (migration `20260927d_embarcacao_cabines_para_quartos.sql`, pós-deploy): a
+coluna `cabines` foi removida (valor copiado para `quartos` onde este estava vazio). O cadastro
+não tem mais o campo Cabines; as telas públicas (`EmbarcacaoInfoSection`, `/roteiros/[id]` e
+`EmbarcacaoFotosModal`, `/vendas/[id]`) mostram **Quartos**. Grid de "Especificações técnicas" do
+form: 3 colunas × 2 linhas — Capacidade (pessoas) · Tripulação · Comprimento / Quartos · Suítes ·
+Banheiros (no mobile, 2 colunas com Comprimento em largura total).
+
+**Seção "Localização" do cadastro/edição:** `SectionCard` (local a `NovaEmbarcacaoForm` e
+`EditarEmbarcacaoForm`) ganhou a prop opcional `subtitle`, exibida entre parênteses em fonte
+normal ao lado do título em caixa alta. Na Localização: "Onde sua embarcação fica a maior parte
+do tempo".
+
+**Comprimento em metros ou pés** (migration `20260927c_embarcacao_comprimento_unidade.sql`): o
+gestor escolhe a unidade num `<select>` ao lado do campo "Comprimento", no cadastro e na edição
+(`NovaEmbarcacaoForm` / `EditarEmbarcacaoForm`; payloads `CriarEmbarcacaoPayload` /
+`AtualizarEmbarcacaoPayload` ganharam `comprimento_unidade: ComprimentoUnidade`, validado na
+action com fallback `'m'`). Não há conversão: `comprimento` guarda o número digitado e
+`comprimento_unidade` diz em que unidade ele está. Registros anteriores ficaram com `'m'` (default).
+
+Helper `src/lib/comprimento.ts` (módulo puro):
+- `type ComprimentoUnidade = 'm' | 'pes'`, `COMPRIMENTO_UNIDADES` (opções do select),
+  `isComprimentoUnidade(v)`.
+- `formatarComprimento(valor, unidade)` → `"8,5 m"`, `"28 pés"`, `"1 pé"` (pt-BR, até 2 casas);
+  `null` para vazio/zero.
+
+Toda exibição de comprimento usa o helper: `EmbarcacaoInfoSection` (`/embarcacoes/[id]` e
+`/embarcacoes/[id]/roteiros`), detalhe do roteiro `/roteiros/[id]` (card de specs e
+`EmbarcacaoFotosModal`), `/vendas/[id]` e `AnuncioVendaCard` (nova prop `comprimentoUnidade`,
+preenchida em `/vendas` e `/favoritos`). Todos esses selects incluem `comprimento_unidade`.
+
 ---
 
 ### Tabela `embarcacao_imagens`
@@ -505,10 +532,14 @@ Migration: `supabase/migrations/003_embarcacao_imagens.sql`
 id             uuid primary key default gen_random_uuid()
 embarcacao_id  uuid not null FK → embarcacao(id) ON DELETE CASCADE
 url_imagem     text not null
-titulo         text
-principal      boolean not null default false
+titulo         text                    -- legenda exibida no site ("Proa do iate"), máx. 80
+principal      boolean not null default false   -- capa nos cards/listagens
+ordem          integer not null default 0       -- posição na galeria (0 = primeira)
 data_criacao   timestamptz not null default now()
 ```
+
+`roteiro_imagens` tem a mesma estrutura (`roteiro_id` no lugar de `embarcacao_id`), incluindo
+`titulo` e `ordem`.
 
 RLS:
 - service role: acesso total.
@@ -516,6 +547,85 @@ RLS:
 - owner autenticado: INSERT / UPDATE / DELETE sobre imagens das suas embarcações.
 
 > `data_criacao` foi adicionado também à tabela `embarcacao` (migration 003).
+
+### Galeria de imagens — título e ordem (embarcações e roteiros)
+
+Migration `supabase/migrations/20260927e_imagens_titulo_ordem.sql` (aditiva, **pré-deploy**):
+adiciona `ordem` em `embarcacao_imagens` e `roteiro_imagens`, faz o backfill (principal primeiro,
+depois `data_criacao` — a ordem que o site já mostrava), zera os títulos que eram nomes de
+arquivo (o upload antigo gravava `file.name` em `titulo`) e cria índices `(pai_id, ordem)`.
+
+**Editor (painel):** `src/components/painel/GaleriaImagensEditor.tsx` (client), usado em
+`NovaEmbarcacaoForm`, `EditarEmbarcacaoForm`, `NovoRoteiroForm` e `EditarRoteiroForm` (também nas
+edições do admin, que reutilizam esses forms).
+- Props: `items: GaleriaItem[]`, `onChange(items)`, `disabled?`, `onError?(msg)`, `exemploTitulo?`.
+- `GaleriaItem = { key; id?; url; file?; titulo; principal; status?: 'uploading'|'done'|'error' }`
+  — a **posição no array é a ordem**; `id` = imagem salva, `file` = nova (enviada no submit).
+- `itensDeImagensSalvas(rows)` converte as linhas do banco (ordenadas) em itens.
+- Lista vertical: alça de arraste (`@dnd-kit` — mouse, toque com `delay: 80ms`, teclado), setas
+  ↑/↓, campo de título (máx. `TITULO_IMAGEM_MAX` = 80), "Tornar principal", remover com
+  **Desfazer** (6 s). Sempre há exatamente uma principal quando há fotos.
+- Área de envio compacta quando já há fotos. Arquivos > 20 MB são recusados via `onError`.
+
+**Submit:** novo → upload na ordem da lista com `salvarImagem`/`salvarImagemRoteiro({ …, titulo,
+principal, ordem })`. Editar → (1) `excluirImagem*` para ids que saíram da lista; (2)
+`atualizarImagens(embarcacaoId, [{ id, titulo, ordem, principal }])` /
+`atualizarImagensRoteiro(roteiroId, …)` para as salvas (substituem `definirPrincipal*`, removidas);
+(3) upload das novas com a sua `ordem`. Títulos passam por `normalizarTituloImagem` no servidor.
+
+**Helper** `src/lib/galeria.ts` (puro): `TITULO_IMAGEM_MAX`, `normalizarTituloImagem`,
+`ordenarImagens` (`ordem` asc, principal desempata).
+
+**Site:** `/roteiros/[id]`, `/embarcacoes/[id]`, `/embarcacoes/[id]/roteiros` e `/vendas/[id]`
+selecionam `ordem` e ordenam com `ordenarImagens` (antes: principal primeiro). `GaleriaRoteiro`
+mostra o título sobre a foto principal do carrossel, sobre as fotos laterais (desktop,
+`LegendaLateral`) e em destaque no modal de tela cheia; miniaturas têm `title`/`aria-label`.
+`EmbarcacaoFotosModal` (detalhe do roteiro) usa a mesma ordem e mostra o título em faixa com
+gradiente. Cards/listagens continuam usando a **principal** como capa.
+
+### Pré-visualização da publicação (embarcação e roteiro)
+
+Botão **"Pré-visualizar"** (`src/components/preview/BotaoPreview.tsx`) no topo e na barra de ações
+de `NovaEmbarcacaoForm`, `EditarEmbarcacaoForm`, `NovoRoteiroForm` e `EditarRoteiroForm` (e nas
+edições do admin, que reutilizam os forms). Mostra a página pública com os dados **ainda não
+salvos** (inclusive fotos novas, como URLs `blob:`).
+
+**Fonte única do layout.** O conteúdo das páginas públicas foi extraído para views sem hooks nem
+imports de servidor, usadas tanto pela página real quanto pela prévia:
+- `src/app/embarcacoes/[id]/_components/EmbarcacaoDetalheView.tsx` — `EmbarcacaoDetalheDados` +
+  `{ avaliacoes, ehDono, datasBloqueadas, initialData?, initialFlex?, initialPessoas? }`.
+- `src/app/roteiros/[id]/_components/RoteiroDetalheView.tsx` — `RoteiroDetalheDados` +
+  `{ avaliacoes, ehDono, isFavorito, datasBloqueadas, vagasPessoaOcupadas, initial* }`.
+- `/embarcacoes/[id]/page.tsx` e `/roteiros/[id]/page.tsx` agora só buscam dados e renderizam
+  `Header` + view + `Footer`. Qualquer mudança de layout feita na view vale para a prévia.
+
+**Rotas de prévia** `/painel/preview/embarcacao` e `/painel/preview/roteiro` (protegidas pelo
+proxy do painel, `noindex`, sem sidebar): `Header` + `PreviewReceptor` + `Footer`.
+`PreviewReceptor` (`src/app/painel/preview/_components/`) faz o handshake e renderiza a view com
+avaliações vazias, sem favorito e `ehDono = false`.
+
+**Protocolo** (`src/components/preview/mensagens.ts`, `postMessage` mesma origem): iframe envia
+`boatzy:preview-pronto`; o pai responde `boatzy:preview-dados` com
+`PreviewDados = { tipo: 'embarcacao', embarcacao, datasBloqueadas } | { tipo: 'roteiro', roteiro, datasBloqueadas }`.
+
+**Modal** `PreviewPublicacaoModal` (`src/components/preview/`): tela cheia, alterna
+**Computador / Celular** (iframe com 392 px de largura em moldura de celular — breakpoints reais
+do site); barra de navegador fictícia no modo computador; Esc fecha. Em telas < 1024 px abre em
+modo celular e o seletor fica oculto abaixo de `md`.
+
+**Montagem dos dados** (`src/components/preview/montar.ts`): `montarPreviewEmbarcacao` e
+`montarPreviewRoteiro` convertem o estado do form (strings/ids/`GaleriaItem`) nas estruturas das
+views, espelhando as derivações das actions (duração via `duracaoParaHoras`/`duracaoTexto`,
+diária mínima ≥ 1, valores só com o modelo ativo, catálogo com `valor_customizado`).
+A embarcação vinculada ao roteiro vem de `buscarEmbarcacaoParaPreview(embarcacaoId)`
+(`src/lib/preview-actions.ts`, server action; gestor só as próprias, admin qualquer uma) e fica
+em cache enquanto a seleção não muda.
+
+**Ações desativadas na prévia:** contexto `ModoPreview` (`src/components/preview/ModoPreview.tsx`,
+`useModoPreview()`); `EmbarcacaoBookingCard`/`BookingCard` validam normalmente mas não navegam
+para `/reservas/novo`; `RoteiroAcoes` não favorita nem abre o compartilhar; o receptor bloqueia
+cliques em qualquer `<a href>` (header, voltar, chat). Em todos os casos aparece o aviso
+"Pré-visualização — ações e links ficam desativados". Fora da prévia não há provider (sem efeito).
 
 ### Upload de imagens (embarcações e roteiros)
 
@@ -1157,12 +1267,12 @@ type RoteiroCardData = {
   id, nome, descricao, origem, destino, duracao, quantidade_pessoas, preco_base,
   latitude, longitude,
   municipios ( nome, estados ( uf, nome ) ),
-  roteiro_imagens ( id, url_imagem, titulo, principal ),
+  roteiro_imagens ( id, url_imagem, titulo, principal, ordem ),
   embarcacao (
-    nome, capacidade, comprimento, cabines, tripulacao, modalidade_capitao,
+    nome, capacidade, comprimento, quartos, tripulacao, modalidade_capitao,
     embarcacao_tipo ( nome ),
     embarcacao_comodidades ( comodidade ( nome ) ),
-    embarcacao_imagens ( id, url_imagem, titulo, principal )
+    embarcacao_imagens ( id, url_imagem, titulo, principal, ordem )
   ),
   roteiro_catalogo ( id, valor_customizado, catalogo ( id, descricao, valor, tipo ) )
 `)
@@ -1191,7 +1301,7 @@ type RoteiroDetalhe = {
     nome: string;
     capacidade: number | null;
     comprimento: number | null;
-    cabines: number | null;
+    quartos: number | null;
     tripulacao: number | null;
     modalidade_capitao: string;
     embarcacao_tipo: { nome: string } | null;
@@ -1251,9 +1361,9 @@ Regras da função:
 
 **Arquivo:** `src/app/embarcacoes/[id]/page.tsx` (Server Component).
 
-Carrega a embarcação com tipo, categoria, município, comodidades e imagens. Reutiliza `GaleriaRoteiro` (com prop `voltarHref="/embarcacoes"`) e `LocalizacaoMap` de `roteiros/[id]/_components`.
+Carrega a embarcação com tipo, município, comodidades e imagens. Reutiliza `GaleriaRoteiro` (com prop `voltarHref="/embarcacoes"`) e `LocalizacaoMap` de `roteiros/[id]/_components`.
 
-Seções: `EmbarcacaoInfoSection` (badges tipo/categoria, título + localidade, descrição, grid de specs — capacidade, comprimento, cabines, suítes, banheiros, tripulação — e comodidades; ver §18.7-B), mapa + endereço, `AvaliacoesSection` (avaliações reais, agregadas de reservas de roteiros feitos na embarcação), e a sidebar de reserva `EmbarcacaoBookingCard` (data/pessoas obrigatórios, disponibilidade, preço/dia + taxa de serviço → `/reservas/novo?embarcacao=...`). Ver §20.7.
+Seções: `EmbarcacaoInfoSection` (badge de tipo, título + localidade, descrição, grid de specs — capacidade, comprimento, quartos, suítes, banheiros, tripulação — e comodidades; ver §18.7-B), mapa + endereço, `AvaliacoesSection` (avaliações reais, agregadas de reservas de roteiros feitos na embarcação), e a sidebar de reserva `EmbarcacaoBookingCard` (data/pessoas obrigatórios, disponibilidade, preço/dia + taxa de serviço → `/reservas/novo?embarcacao=...`). Ver §20.7.
 
 > A query lê `searchParams` (`data`/`flex`/`pessoas`) para pré-preencher o `EmbarcacaoBookingCard` quando o cliente chega pela busca, e inclui `disponibilidade_dias_semana` + `embarcacao_disponibilidade_bloqueio ( data )`.
 
@@ -1265,9 +1375,9 @@ Seções: `EmbarcacaoInfoSection` (badges tipo/categoria, título + localidade, 
 busca por embarcação (§18.3/§18.6) — v1, a ser refinada.
 
 - 404 nas mesmas condições de `/embarcacoes/[id]` (`status != 'ativo'`).
-- Query da embarcação: `id, nome, descricao, capacidade, comprimento, cabines, suites, banheiros,
-  tripulacao, embarcacao_tipo(nome), embarcacao_categoria(nome), municipios(nome, estados(uf)),
-  embarcacao_comodidades(comodidade(nome)), embarcacao_imagens(id, url_imagem, titulo, principal)`
+- Query da embarcação: `id, nome, descricao, capacidade, comprimento, quartos, suites, banheiros,
+  tripulacao, embarcacao_tipo(nome), municipios(nome, estados(uf)),
+  embarcacao_comodidades(comodidade(nome)), embarcacao_imagens(id, url_imagem, titulo, principal, ordem)`
   — mais enxuta que a de `/embarcacoes/[id]` (sem `preco_base`/disponibilidade/endereço, que só
   importam para a reserva direta).
 - Query dos roteiros: `roteiro` filtrando `embarcacao_id = :id AND ativo = true`, ordenados por
@@ -1284,9 +1394,9 @@ busca por embarcação (§18.3/§18.6) — v1, a ser refinada.
 
 **`EmbarcacaoInfoSection`** (`src/app/embarcacoes/[id]/_components/EmbarcacaoInfoSection.tsx`) —
 extraído de `/embarcacoes/[id]/page.tsx` para ser compartilhado pelas duas páginas: badges
-(tipo/categoria/"Embarcação Verificada"), título + localidade, descrição, specs row e comodidades.
-Props: só os campos que esse bloco usa (`nome`, `descricao`, `capacidade`, `comprimento`, `cabines`,
-`suites`, `banheiros`, `tripulacao`, `embarcacao_tipo`, `embarcacao_categoria`, `municipios`,
+(tipo/"Embarcação Verificada"), título + localidade, descrição, specs row e comodidades.
+Props: só os campos que esse bloco usa (`nome`, `descricao`, `capacidade`, `comprimento`, `quartos`,
+`suites`, `banheiros`, `tripulacao`, `embarcacao_tipo`, `municipios`,
 `embarcacao_comodidades`).
 
 **`RoteirosCarousel`** (`src/components/ui/RoteirosCarousel.tsx`, `'use client'`) — primeiro
@@ -1308,7 +1418,7 @@ type Props = {
     nome: string;
     capacidade: number | null;
     comprimento: number | null;
-    cabines: number | null;
+    quartos: number | null;
     tripulacao: number | null;
     modalidade_capitao: string;
     embarcacao_tipo: { nome: string } | null;
@@ -2745,7 +2855,7 @@ src/app/administrator/
       _components/ConfirmModal.tsx, TermoStatusBadge.tsx
     publicidade/page.tsx      → placeholder
     taxas/page.tsx            → placeholder
-    categorias/page.tsx       → placeholder
+    tipos/page.tsx            → placeholder (tipos de embarcação)
     configuracoes/page.tsx    → placeholder
 src/components/administrator/
   AdminSidebar.tsx            → menu (Client Component), sign out → /administrator/login
@@ -2779,7 +2889,7 @@ Renderiza 6 stat cards + grid de cards de acesso rápido aos 6 módulos.
 | `/administrator/cupons` | Cupons | ✅ implementado |
 | `/administrator/publicidade` | Publicidade | 🔜 placeholder |
 | `/administrator/taxas` | Taxas | ✅ implementado |
-| `/administrator/categorias` | Categorias | 🔜 placeholder |
+| `/administrator/tipos` | Tipos de embarcação | 🔜 placeholder |
 | `/administrator/termos` | Termos de Uso | ✅ implementado |
 | `/administrator/configuracoes` | Configurações | 🔜 placeholder |
 
@@ -2844,12 +2954,12 @@ query string (`q`, `page`, `per`, `sort`, `dir`) — apenas a página atual vem 
 - `per` ∈ {10, 25, 50} (padrão 10); `page` ≥ 1; desempate por `id` no `order` para paginação
   estável quando a coluna ordenada repete valores.
 - Colunas ordenáveis: apenas colunas diretas da tabela (`nome`, `status`, `capacidade`,
-  `created_at`) — colunas de embeds (gestor, tipo, categoria, localização) não são ordenáveis.
+  `created_at`) — colunas de embeds (gestor, tipo, localização) não são ordenáveis.
 - Busca: `or(nome.ilike.%q%, owner_id.in.(...))`, onde os `owner_ids` são resolvidos antes por
   uma query em `users` (`name`/`email` ilike, limit 100) — assim a busca cobre o gestor sem FK
   declarada no PostgREST. O termo é sanitizado (remove `,()"`) para não quebrar a sintaxe do
   `or()`.
-- Embeds da página atual: `embarcacao_tipo`, `embarcacao_categoria`, `municipios ( estados )`,
+- Embeds da página atual: `embarcacao_tipo`, `municipios ( estados )`,
   `embarcacao_imagens` e `roteiro`. Gestores resolvidos em segunda query apenas para os
   `owner_ids` da página e associados em memória (`gestor: { name, email } | null`).
 
@@ -2865,7 +2975,7 @@ apenas **Editar** → `/administrator/embarcacoes/[id]/editar`. Toggle chama
 cascade do painel (`roteiro.ativo` acompanha o status); revalida `/administrator/embarcacoes`.
 
 **`[id]/editar/page.tsx`** (Server Component): mesma carga de dados da página de edição do painel
-(embarcação sem filtro de `owner_id`, imagens, regras de preço, tipos, categorias, estados,
+(embarcação sem filtro de `owner_id`, imagens, regras de preço, tipos, estados,
 comodidades, bloqueios de disponibilidade), mais o gestor responsável (exibido no subtítulo).
 Reutiliza `EditarEmbarcacaoForm` do painel via import direto, passando o novo prop opcional
 `voltarHref="/administrator/embarcacoes"` (default `/painel/embarcacoes`), usado no botão
@@ -3595,8 +3705,8 @@ Ajustes de código correspondentes (todos os "locais necessários"):
 - **Cadastro:** `AnuncioForm`/`actions`/`novo`/`editar` exigem **tipo** quando a embarcação não
   tem (grava `embarcacao_tipo_id`); selects carregam `embarcacao_tipo`.
 - **Detalhe `/vendas/[id]`:** removido o badge de categoria (mostra só o tipo), para consistência.
-  A **categoria da embarcação permanece intacta** no banco e nos contextos de aluguel
-  (roteiros/embarcações) — a mudança é escopada ao módulo de Vendas.
+  _(27/09/2026: a categoria de embarcação foi depois removida do produto e do banco — ver
+  tabela `embarcacao_categoria` (removida).)_
 
 ### 29.5 Painel do gestor — módulo Vendas (`/painel/vendas`) — Fase 2
 

@@ -31,7 +31,6 @@ export type AdminEmbarcacaoListItem = {
   created_at: string;
   gestor: { name: string; email: string } | null;
   embarcacao_tipo: { nome: string } | null;
-  embarcacao_categoria: { nome: string } | null;
   municipios: { nome: string; estados: { uf: string } | null } | null;
   embarcacao_imagens: { url_imagem: string; principal: boolean }[];
   roteiro: { id: string; nome: string }[];
@@ -211,7 +210,6 @@ export default function AdminEmbarcacoesGrid({ embarcacoes, total, page, perPage
                   <ThSortable col="nome"       label="Embarcação" className="pl-6" sortKey={sortKey} sortDir={sortDir} onSort={handleSort} />
                   <ThPlain    label="Gestor" />
                   <ThPlain    label="Tipo" />
-                  <ThPlain    label="Categoria" />
                   <ThSortable col="status"     label="Status"     sortKey={sortKey} sortDir={sortDir} onSort={handleSort} />
                   <ThPlain    label="Localização" />
                   <ThSortable col="capacidade" label="Capacidade" sortKey={sortKey} sortDir={sortDir} onSort={handleSort} />
@@ -280,16 +278,6 @@ export default function AdminEmbarcacoesGrid({ embarcacoes, total, page, perPage
                         )}
                       </td>
 
-                      {/* Categoria */}
-                      <td className="py-4 px-4">
-                        {e.embarcacao_categoria ? (
-                          <span className="inline-block text-[11px] font-semibold px-2.5 py-1 rounded-full bg-indigo-50 text-indigo-700 whitespace-nowrap">
-                            {e.embarcacao_categoria.nome}
-                          </span>
-                        ) : (
-                          <span className="text-slate-300 text-xs">—</span>
-                        )}
-                      </td>
 
                       {/* Status — toggle ativo/inativo */}
                       <td className="py-4 px-4">

@@ -54,7 +54,6 @@ export default async function AdminEmbarcacoesPage({
       owner_id,
       created_at,
       embarcacao_tipo ( nome ),
-      embarcacao_categoria ( nome ),
       municipios ( nome, estados ( uf ) ),
       embarcacao_imagens ( url_imagem, principal ),
       roteiro ( id, nome )

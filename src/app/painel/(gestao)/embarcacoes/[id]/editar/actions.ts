@@ -5,6 +5,8 @@ import { supabaseAdmin } from '@/lib/supabase';
 import { checkRoleInDb } from '@/lib/roles';
 import { buildKeyFromUrl, deleteFromR2 } from '@/lib/r2';
 import type { EmbarcacaoStatus, ModalidadeCapitao } from '@/types/supabase';
+import { isComprimentoUnidade, type ComprimentoUnidade } from '@/lib/comprimento';
+import { normalizarTituloImagem } from '@/lib/galeria';
 
 // ─── Tipos ───────────────────────────────────────────────────────────────────
 
@@ -12,12 +14,11 @@ export type AtualizarEmbarcacaoPayload = {
   nome: string;
   descricao: string;
   embarcacao_tipo_id: string;
-  embarcacao_categoria_id: string;
   status: EmbarcacaoStatus;
   modalidade_capitao: ModalidadeCapitao;
   capacidade: string;
   comprimento: string;
-  cabines: string;
+  comprimento_unidade: ComprimentoUnidade;
   quartos: string;
   suites: string;
   banheiros: string;
@@ -79,12 +80,11 @@ export async function atualizarEmbarcacao(
       nome: payload.nome.trim(),
       descricao: payload.descricao.trim() || null,
       embarcacao_tipo_id: payload.embarcacao_tipo_id || null,
-      embarcacao_categoria_id: payload.embarcacao_categoria_id || null,
       status: payload.status,
       modalidade_capitao: payload.modalidade_capitao,
       capacidade: payload.capacidade ? parseInt(payload.capacidade, 10) : null,
       comprimento: payload.comprimento ? parseFloat(payload.comprimento) : null,
-      cabines: payload.cabines ? parseInt(payload.cabines, 10) : null,
+      comprimento_unidade: isComprimentoUnidade(payload.comprimento_unidade) ? payload.comprimento_unidade : 'm',
       quartos: payload.quartos ? parseInt(payload.quartos, 10) : null,
       suites: payload.suites ? parseInt(payload.suites, 10) : null,
       banheiros: payload.banheiros !== '' ? parseInt(payload.banheiros, 10) : null,
@@ -164,27 +164,41 @@ export async function excluirImagem(
   return { ok: true };
 }
 
-// ─── Action: definir imagem principal ────────────────────────────────────────
+// ─── Action: atualizar título, ordem e principal das imagens salvas ─────────
 
-export async function definirPrincipal(
+export type ImagemGaleriaUpdate = { id: string; titulo: string; ordem: number; principal: boolean };
+
+/**
+ * Grava a galeria editada no `GaleriaImagensEditor` para as imagens que já
+ * existiam: título, posição e qual é a principal. Imagens novas são inseridas
+ * depois via upload (com a própria `ordem`).
+ */
+export async function atualizarImagens(
   embarcacaoId: string,
-  imagemId: string,
+  imagens: ImagemGaleriaUpdate[],
 ): Promise<ActionResult> {
   const result = await getAuthorizedUser(embarcacaoId);
   if ('error' in result && result.error) return { ok: false, error: result.error };
 
-  await supabaseAdmin
-    .from('embarcacao_imagens')
-    .update({ principal: false })
-    .eq('embarcacao_id', embarcacaoId);
+  // Zera a principal antes para nunca existirem duas ao mesmo tempo.
+  if (imagens.some(i => i.principal)) {
+    await supabaseAdmin.from('embarcacao_imagens').update({ principal: false }).eq('embarcacao_id', embarcacaoId);
+  }
 
-  const { error } = await supabaseAdmin
-    .from('embarcacao_imagens')
-    .update({ principal: true })
-    .eq('id', imagemId)
-    .eq('embarcacao_id', embarcacaoId);
+  const results = await Promise.all(imagens.map(img =>
+    supabaseAdmin
+      .from('embarcacao_imagens')
+      .update({
+        titulo: normalizarTituloImagem(img.titulo),
+        ordem: Math.max(0, Math.trunc(img.ordem)),
+        principal: img.principal,
+      })
+      .eq('id', img.id)
+      .eq('embarcacao_id', embarcacaoId),
+  ));
 
-  if (error) return { ok: false, error: error.message };
+  const falha = results.find(r => r.error);
+  if (falha?.error) return { ok: false, error: falha.error.message };
   return { ok: true };
 }
 

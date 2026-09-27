@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { MapPin, Ship, Users, ArrowDownRight, Ruler } from 'lucide-react';
 import { alternarFavoritoAnuncio } from '@/lib/favoritos-actions';
+import { formatarComprimento } from '@/lib/comprimento';
 
 export type AnuncioVendaCardData = {
   id: string;
@@ -20,6 +21,7 @@ export type AnuncioVendaCardData = {
   localidade: string | null;
   capacidade: number | null;
   comprimento: number | null;
+  comprimentoUnidade: string | null;
   imagem: string | null;
 };
 
@@ -173,7 +175,7 @@ export default function AnuncioVendaCard({
           {anuncio.comprimento != null && (
             <span className="flex items-center gap-1 shrink-0">
               <Ruler className="h-3 w-3" />
-              {Number(anuncio.comprimento).toLocaleString('pt-BR', { maximumFractionDigits: 1 })} m
+              {formatarComprimento(anuncio.comprimento, anuncio.comprimentoUnidade)}
             </span>
           )}
         </div>

@@ -5,6 +5,7 @@ import { supabaseAdmin } from '@/lib/supabase';
 import { checkRoleInDb } from '@/lib/roles';
 import { duracaoParaHoras, duracaoTexto, type DuracaoUnidade } from '@/lib/duracao';
 import type { PrecoRegraTipo, PrecoPessoaModoCapacidade } from '@/types/supabase';
+import { normalizarTituloImagem } from '@/lib/galeria';
 
 // ─── Tipos ───────────────────────────────────────────────────────────────────
 
@@ -65,6 +66,8 @@ export type SalvarImagemRoteiroPayload = {
   urlImagem: string;
   titulo?: string;
   principal: boolean;
+  /** Posição na galeria (0 = primeira). */
+  ordem?: number;
 };
 
 // ─── Action: criar roteiro ────────────────────────────────────────────────────
@@ -172,8 +175,9 @@ export async function salvarImagemRoteiro(
   const { error } = await supabaseAdmin.from('roteiro_imagens').insert({
     roteiro_id: payload.roteiroId,
     url_imagem: payload.urlImagem,
-    titulo:     payload.titulo ?? null,
+    titulo:     normalizarTituloImagem(payload.titulo),
     principal:  payload.principal,
+    ordem:      Math.max(0, Math.trunc(payload.ordem ?? 0)),
   });
 
   if (error) return { ok: false, error: error.message };

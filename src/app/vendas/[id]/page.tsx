@@ -23,6 +23,8 @@ import AvaliacoesSection, { type AvaliacaoPublica } from '@/components/avaliacoe
 import VendaSidebar from './_components/VendaSidebar';
 import { supabaseAdmin } from '@/lib/supabase';
 import { createClient } from '@/lib/supabase/server';
+import { formatarComprimento } from '@/lib/comprimento';
+import { ordenarImagens } from '@/lib/galeria';
 
 type AnuncioDetalhe = {
   id: string;
@@ -38,7 +40,7 @@ type AnuncioDetalhe = {
     descricao: string | null;
     capacidade: number | null;
     comprimento: number | null;
-    cabines: number | null;
+    comprimento_unidade: string | null;
     quartos: number | null;
     suites: number | null;
     banheiros: number | null;
@@ -50,7 +52,7 @@ type AnuncioDetalhe = {
     embarcacao_tipo: { nome: string } | null;
     municipios: { nome: string; estados: { uf: string; nome: string } | null } | null;
     embarcacao_comodidades: { comodidade: { nome: string } | null }[];
-    embarcacao_imagens: { id: string; url_imagem: string; titulo: string | null; principal: boolean }[];
+    embarcacao_imagens: { id: string; url_imagem: string; titulo: string | null; principal: boolean; ordem: number }[];
   } | null;
 };
 
@@ -73,12 +75,12 @@ export default async function VendaDetalhePage({ params }: { params: Promise<{ i
     .select(`
       id, owner_id, fabricante, ano_modelo, ano_fabricacao, preco, descricao_venda,
       embarcacao (
-        id, nome, descricao, capacidade, comprimento, cabines, quartos, suites, banheiros,
+        id, nome, descricao, capacidade, comprimento, comprimento_unidade, quartos, suites, banheiros,
         tripulacao, latitude, longitude, bairro, status,
         embarcacao_tipo ( nome ),
         municipios ( nome, estados ( uf, nome ) ),
         embarcacao_comodidades ( comodidade ( nome ) ),
-        embarcacao_imagens ( id, url_imagem, titulo, principal )
+        embarcacao_imagens ( id, url_imagem, titulo, principal, ordem )
       )
     `)
     .eq('id', id)
@@ -118,9 +120,7 @@ export default async function VendaDetalhePage({ params }: { params: Promise<{ i
   const anterior = historico?.[1] ?? null;
   const reduzido = anterior != null && Number(anuncio.preco) < Number(anterior.preco);
 
-  const images = [...emb.embarcacao_imagens].sort((a, b) =>
-    a.principal === b.principal ? 0 : a.principal ? -1 : 1,
-  );
+  const images = ordenarImagens(emb.embarcacao_imagens);
 
   const localidade = emb.municipios
     ? emb.municipios.estados
@@ -229,8 +229,9 @@ export default async function VendaDetalhePage({ params }: { params: Promise<{ i
     { icon: CalendarRange, label: 'Ano modelo/fab.', value: `${anuncio.ano_modelo}/${anuncio.ano_fabricacao}` },
   ];
   if (emb.capacidade) specs.push({ icon: Users, label: 'Capacidade', value: `${emb.capacidade} pessoas` });
-  if (emb.comprimento) specs.push({ icon: Ruler, label: 'Comprimento', value: `${emb.comprimento}m` });
-  if (emb.cabines) specs.push({ icon: DoorOpen, label: 'Cabines', value: String(emb.cabines) });
+  const comprimento = formatarComprimento(emb.comprimento, emb.comprimento_unidade);
+  if (comprimento) specs.push({ icon: Ruler, label: 'Comprimento', value: comprimento });
+  if (emb.quartos) specs.push({ icon: DoorOpen, label: 'Quartos', value: String(emb.quartos) });
   if (emb.suites) specs.push({ icon: BedDouble, label: 'Suítes', value: String(emb.suites) });
   if (emb.banheiros) specs.push({ icon: Bath, label: 'Banheiros', value: String(emb.banheiros) });
   if (emb.tripulacao) specs.push({ icon: LifeBuoy, label: 'Tripulação', value: String(emb.tripulacao) });

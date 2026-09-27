@@ -91,7 +91,14 @@ export default function GaleriaRoteiro({ images, nome, voltarHref = '/buscar' }:
                   />
 
                   {/* Gradient overlay (bottom) */}
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/30 via-transparent to-transparent pointer-events-none" />
+                  <div className={`absolute inset-0 bg-gradient-to-t ${mainImg.titulo ? 'from-black/60 via-black/5' : 'from-black/30 via-transparent'} to-transparent pointer-events-none`} />
+
+                  {/* Título da foto — acima dos pontos/"Ver todas" no mobile */}
+                  {mainImg.titulo && (
+                    <p className="absolute left-4 right-4 lg:right-auto lg:max-w-[70%] bottom-12 lg:bottom-5 text-white text-sm md:text-base font-semibold drop-shadow-md line-clamp-2 pointer-events-none">
+                      {mainImg.titulo}
+                    </p>
+                  )}
 
                   {/* Dot indicators (mobile only) */}
                   {total > 1 && (
@@ -159,6 +166,7 @@ export default function GaleriaRoteiro({ images, nome, voltarHref = '/buscar' }:
                       className="object-cover group-hover:scale-105 transition-transform duration-300"
                       sizes="33vw"
                     />
+                    {side1.titulo && <LegendaLateral titulo={side1.titulo} />}
                   </div>
                 )}
 
@@ -175,6 +183,7 @@ export default function GaleriaRoteiro({ images, nome, voltarHref = '/buscar' }:
                       className="object-cover group-hover:scale-105 transition-transform duration-300"
                       sizes="33vw"
                     />
+                    {side2.titulo && <LegendaLateral titulo={side2.titulo} comBotao />}
 
                     {/* "Ver todas" — always visible on last side when there are photos */}
                     <button
@@ -253,9 +262,9 @@ export default function GaleriaRoteiro({ images, nome, voltarHref = '/buscar' }:
                 />
               </div>
 
-              {/* Caption */}
+              {/* Título da foto */}
               {images[modalIdx].titulo && (
-                <div className="absolute bottom-6 left-1/2 -translate-x-1/2 bg-black/60 text-white text-xs px-5 py-2 rounded-full backdrop-blur-sm pointer-events-none">
+                <div className="absolute bottom-6 left-1/2 -translate-x-1/2 max-w-[calc(100%-2rem)] md:max-w-2xl bg-black/65 text-white text-sm md:text-base font-medium text-center px-5 py-2.5 rounded-2xl backdrop-blur-sm pointer-events-none">
                   {images[modalIdx].titulo}
                 </div>
               )}
@@ -289,6 +298,8 @@ export default function GaleriaRoteiro({ images, nome, voltarHref = '/buscar' }:
                     <button
                       key={img.id}
                       onClick={() => setModalIdx(i)}
+                      title={img.titulo ?? undefined}
+                      aria-label={img.titulo ?? `Foto ${i + 1}`}
                       className={`relative h-14 w-20 rounded-lg overflow-hidden shrink-0 transition-all duration-150 ${
                         i === modalIdx
                           ? 'ring-2 ring-cyan-400 ring-offset-1 ring-offset-black opacity-100 scale-105'
@@ -311,5 +322,16 @@ export default function GaleriaRoteiro({ images, nome, voltarHref = '/buscar' }:
         </div>
       )}
     </>
+  );
+}
+
+/** Título sobre as fotos laterais (desktop). `comBotao` reserva espaço para o "Ver todas". */
+function LegendaLateral({ titulo, comBotao = false }: { titulo: string; comBotao?: boolean }) {
+  return (
+    <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/65 to-transparent px-3 pt-8 pb-3 pointer-events-none">
+      <p className={`text-white text-xs font-semibold drop-shadow truncate ${comBotao ? 'pr-32' : ''}`}>
+        {titulo}
+      </p>
+    </div>
   );
 }

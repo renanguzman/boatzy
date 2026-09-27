@@ -19,7 +19,6 @@ export default async function AdminEditarEmbarcacaoPage({
     { data: imagens },
     { data: regras },
     { data: tipos },
-    { data: categorias },
     { data: estados },
     { data: comodidades },
     { data: comodidadesVinculadas },
@@ -27,20 +26,20 @@ export default async function AdminEditarEmbarcacaoPage({
   ] = await Promise.all([
     supabaseAdmin
       .from('embarcacao')
-      .select('id, nome, descricao, owner_id, embarcacao_tipo_id, embarcacao_categoria_id, status, modalidade_capitao, capacidade, comprimento, cabines, quartos, suites, banheiros, tripulacao, preco_base, disponibilidade_dias_semana, municipio_id, latitude, longitude, cep, bairro, logradouro, logradouro_numero, complemento')
+      .select('id, nome, descricao, owner_id, embarcacao_tipo_id, status, modalidade_capitao, capacidade, comprimento, comprimento_unidade, quartos, suites, banheiros, tripulacao, preco_base, disponibilidade_dias_semana, municipio_id, latitude, longitude, cep, bairro, logradouro, logradouro_numero, complemento')
       .eq('id', id)
       .single(),
     supabaseAdmin
       .from('embarcacao_imagens')
-      .select('id, url_imagem, titulo, principal')
-      .eq('embarcacao_id', id),
+      .select('id, url_imagem, titulo, principal, ordem')
+      .eq('embarcacao_id', id)
+      .order('ordem'),
     supabaseAdmin
       .from('embarcacao_preco_regra')
       .select('id, nome, valor, tipo, prioridade, ativo, dias_semana, periodo_mes_inicio, periodo_dia_inicio, periodo_mes_fim, periodo_dia_fim, data_inicio, data_fim')
       .eq('embarcacao_id', id)
       .order('prioridade', { ascending: false }),
     supabaseAdmin.from('embarcacao_tipo').select('id, nome').order('nome'),
-    supabaseAdmin.from('embarcacao_categoria').select('id, nome').order('nome'),
     supabaseAdmin.from('estados').select('id, uf, nome').order('nome'),
     supabaseAdmin.from('comodidade').select('id, nome').order('nome'),
     supabaseAdmin.from('embarcacao_comodidades').select('comodidade_id').eq('embarcacao_id', id),
@@ -106,7 +105,6 @@ export default async function AdminEditarEmbarcacaoPage({
           }[],
         }}
         tipos={tipos ?? []}
-        categorias={categorias ?? []}
         estados={estados ?? []}
         municipiosIniciais={municipios}
         comodidades={comodidades ?? []}

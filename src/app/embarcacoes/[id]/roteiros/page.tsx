@@ -8,10 +8,11 @@ import { type RoteiroCardData } from '@/app/buscar/_components/RoteiroCard';
 import { supabaseAdmin } from '@/lib/supabase';
 import { createClient } from '@/lib/supabase/server';
 import { getAvaliacoesResumoPorRoteiro } from '@/lib/avaliacoes';
+import { ordenarImagens } from '@/lib/galeria';
 
 type EmbarcacaoDetalhe = EmbarcacaoInfo & {
   id: string;
-  embarcacao_imagens: { id: string; url_imagem: string; titulo: string | null; principal: boolean }[];
+  embarcacao_imagens: { id: string; url_imagem: string; titulo: string | null; principal: boolean; ordem: number }[];
 };
 
 const ROTEIRO_SELECT = `id, nome, descricao, quantidade_pessoas, preco_base,
@@ -35,12 +36,11 @@ export default async function RoteirosDaEmbarcacaoPage({
   const { data, error } = await supabaseAdmin
     .from('embarcacao')
     .select(`
-      id, nome, descricao, capacidade, comprimento, cabines, suites, banheiros, tripulacao,
+      id, nome, descricao, capacidade, comprimento, comprimento_unidade, quartos, suites, banheiros, tripulacao,
       embarcacao_tipo ( nome ),
-      embarcacao_categoria ( nome ),
       municipios ( nome, estados ( uf ) ),
       embarcacao_comodidades ( comodidade ( nome ) ),
-      embarcacao_imagens ( id, url_imagem, titulo, principal )
+      embarcacao_imagens ( id, url_imagem, titulo, principal, ordem )
     `)
     .eq('id', id)
     .eq('status', 'ativo')
@@ -50,9 +50,7 @@ export default async function RoteirosDaEmbarcacaoPage({
 
   const embarcacao = data as unknown as EmbarcacaoDetalhe;
 
-  const images = [...embarcacao.embarcacao_imagens].sort((a, b) =>
-    a.principal === b.principal ? 0 : a.principal ? -1 : 1,
-  );
+  const images = ordenarImagens(embarcacao.embarcacao_imagens);
 
   const { data: roteirosData, error: roteirosError } = await supabaseAdmin
     .from('roteiro')

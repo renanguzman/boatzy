@@ -14,15 +14,18 @@ import {
   Camera,
   ExternalLink,
 } from 'lucide-react';
+import { formatarComprimento } from '@/lib/comprimento';
+import { ordenarImagens } from '@/lib/galeria';
 
-type Imagem = { id: string; url_imagem: string; titulo: string | null; principal: boolean };
+type Imagem = { id: string; url_imagem: string; titulo: string | null; principal: boolean; ordem: number };
 
 type Props = {
   embarcacao: {
     nome: string;
     capacidade: number | null;
     comprimento: number | null;
-    cabines: number | null;
+    comprimento_unidade: string | null;
+    quartos: number | null;
     tripulacao: number | null;
     modalidade_capitao: string;
     embarcacao_tipo: { nome: string } | null;
@@ -40,10 +43,8 @@ export default function EmbarcacaoFotosModal({ embarcacao }: Props) {
   const [open, setOpen] = useState(false);
   const [current, setCurrent] = useState(0);
 
-  // Sort: principal first
-  const imagens = [...embarcacao.embarcacao_imagens].sort((a, b) =>
-    a.principal === b.principal ? 0 : a.principal ? -1 : 1,
-  );
+  // Ordem da galeria definida pelo gestor
+  const imagens = ordenarImagens(embarcacao.embarcacao_imagens);
   const total = imagens.length;
 
   const prev = useCallback(() => setCurrent((c) => (c - 1 + total) % total), [total]);
@@ -66,8 +67,8 @@ export default function EmbarcacaoFotosModal({ embarcacao }: Props) {
 
   const specs = [
     embarcacao.capacidade && { icon: Users, label: `${embarcacao.capacidade} pessoas` },
-    embarcacao.comprimento && { icon: Ruler, label: `${embarcacao.comprimento} m` },
-    embarcacao.cabines && { icon: Bed, label: `${embarcacao.cabines} ${embarcacao.cabines === 1 ? 'cabine' : 'cabines'}` },
+    embarcacao.comprimento && { icon: Ruler, label: formatarComprimento(embarcacao.comprimento, embarcacao.comprimento_unidade) ?? '' },
+    embarcacao.quartos && { icon: Bed, label: `${embarcacao.quartos} ${embarcacao.quartos === 1 ? 'quarto' : 'quartos'}` },
     embarcacao.tripulacao && { icon: Shield, label: `${embarcacao.tripulacao} tripulação` },
     { icon: Anchor, label: MODALIDADE[embarcacao.modalidade_capitao] ?? embarcacao.modalidade_capitao },
   ].filter(Boolean) as { icon: React.ElementType; label: string }[];
@@ -145,8 +146,10 @@ export default function EmbarcacaoFotosModal({ embarcacao }: Props) {
 
                 {/* Caption */}
                 {imagens[current].titulo && (
-                  <div className="absolute bottom-3 left-1/2 -translate-x-1/2 bg-black/60 text-white text-xs px-4 py-1.5 rounded-full backdrop-blur-sm">
-                    {imagens[current].titulo}
+                  <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/75 via-black/30 to-transparent px-5 pt-10 pb-4 pointer-events-none">
+                    <p className="text-white text-sm md:text-base font-semibold drop-shadow line-clamp-2">
+                      {imagens[current].titulo}
+                    </p>
                   </div>
                 )}
 
@@ -184,6 +187,8 @@ export default function EmbarcacaoFotosModal({ embarcacao }: Props) {
                   <button
                     key={img.id}
                     onClick={() => setCurrent(i)}
+                    title={img.titulo ?? undefined}
+                    aria-label={img.titulo ?? `Foto ${i + 1}`}
                     className={`relative h-14 w-20 rounded-lg overflow-hidden shrink-0 transition-all duration-150 ${
                       i === current
                         ? 'ring-2 ring-cyan-400 ring-offset-1 ring-offset-slate-950 opacity-100 scale-105'

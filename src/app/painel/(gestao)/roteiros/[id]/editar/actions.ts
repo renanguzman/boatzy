@@ -6,6 +6,7 @@ import { checkRoleInDb } from '@/lib/roles';
 import { buildKeyFromUrl, deleteFromR2 } from '@/lib/r2';
 import { duracaoParaHoras, duracaoTexto, type DuracaoUnidade } from '@/lib/duracao';
 import type { PrecoPessoaModoCapacidade } from '@/types/supabase';
+import { normalizarTituloImagem } from '@/lib/galeria';
 
 // ─── Tipos ───────────────────────────────────────────────────────────────────
 
@@ -266,26 +267,40 @@ export async function atualizarCatalogoRoteiro(
   return { ok: true };
 }
 
-// ─── Action: definir imagem principal ────────────────────────────────────────
+// ─── Action: atualizar título, ordem e principal das imagens salvas ─────────
 
-export async function definirPrincipalRoteiro(
+export type ImagemGaleriaUpdate = { id: string; titulo: string; ordem: number; principal: boolean };
+
+/**
+ * Grava a galeria editada no `GaleriaImagensEditor` para as imagens que já
+ * existiam: título, posição e qual é a principal. Imagens novas são inseridas
+ * depois via upload (com a própria `ordem`).
+ */
+export async function atualizarImagensRoteiro(
   roteiroId: string,
-  imagemId: string,
+  imagens: ImagemGaleriaUpdate[],
 ): Promise<ActionResult> {
   const result = await getAuthorizedUser(roteiroId);
   if ('error' in result && result.error) return { ok: false, error: result.error };
 
-  await supabaseAdmin
-    .from('roteiro_imagens')
-    .update({ principal: false })
-    .eq('roteiro_id', roteiroId);
+  // Zera a principal antes para nunca existirem duas ao mesmo tempo.
+  if (imagens.some(i => i.principal)) {
+    await supabaseAdmin.from('roteiro_imagens').update({ principal: false }).eq('roteiro_id', roteiroId);
+  }
 
-  const { error } = await supabaseAdmin
-    .from('roteiro_imagens')
-    .update({ principal: true })
-    .eq('id', imagemId)
-    .eq('roteiro_id', roteiroId);
+  const results = await Promise.all(imagens.map(img =>
+    supabaseAdmin
+      .from('roteiro_imagens')
+      .update({
+        titulo: normalizarTituloImagem(img.titulo),
+        ordem: Math.max(0, Math.trunc(img.ordem)),
+        principal: img.principal,
+      })
+      .eq('id', img.id)
+      .eq('roteiro_id', roteiroId),
+  ));
 
-  if (error) return { ok: false, error: error.message };
+  const falha = results.find(r => r.error);
+  if (falha?.error) return { ok: false, error: falha.error.message };
   return { ok: true };
 }

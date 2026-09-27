@@ -1,14 +1,13 @@
 'use client';
 
-import { useState, useTransition, useRef, useCallback } from 'react';
-import Image from 'next/image';
+import { useState, useTransition, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import {
   Info, Ruler, DollarSign, MapPin, ImageIcon, CalendarDays,
-  Upload, X, Star, Loader2, AlertCircle, CheckCircle,
+  Loader2, AlertCircle, CheckCircle,
   ChevronRight, Plus, ChevronDown, ChevronUp, Trash2, HelpCircle, Sparkles,
 } from 'lucide-react';
-import { MAX_IMAGE_SIZE_BYTES, MAX_IMAGE_SIZE_ERROR } from '@/lib/upload';
+import GaleriaImagensEditor, { type GaleriaItem } from '@/components/painel/GaleriaImagensEditor';
 import {
   criarEmbarcacao,
   criarRegra,
@@ -21,6 +20,10 @@ import {
 import MapaPicker from './MapaPicker';
 import DisponibilidadePicker from '@/components/painel/DisponibilidadePicker';
 import type { EmbarcacaoStatus, ModalidadeCapitao, PrecoRegraTipo } from '@/types/supabase';
+import { COMPRIMENTO_UNIDADES, type ComprimentoUnidade } from '@/lib/comprimento';
+import PreviewPublicacaoModal from '@/components/preview/PreviewPublicacaoModal';
+import BotaoPreview from '@/components/preview/BotaoPreview';
+import { montarPreviewEmbarcacao } from '@/components/preview/montar';
 
 // ─── Constantes ───────────────────────────────────────────────────────────────
 
@@ -59,11 +62,6 @@ type Tipo      = { id: string; nome: string };
 type Estado    = { id: number; uf: string; nome: string };
 type Municipio = { id: number; nome: string };
 
-type ImagePreview = {
-  file: File; previewUrl: string; principal: boolean;
-  uploading: boolean; uploaded: boolean; error?: string;
-};
-
 type RegraLocal = {
   localId: string;
   tipo: PrecoRegraTipo;
@@ -80,7 +78,7 @@ type RegraLocal = {
 
 type Comodidade = { id: string; nome: string };
 
-type Props = { tipos: Tipo[]; categorias: Tipo[]; estados: Estado[]; comodidades: Comodidade[] };
+type Props = { tipos: Tipo[]; estados: Estado[]; comodidades: Comodidade[] };
 
 // ─── Helpers de UI ────────────────────────────────────────────────────────────
 
@@ -89,25 +87,28 @@ const inputCls = `w-full rounded-xl border border-slate-200 px-3.5 py-2.5 text-s
   focus:border-[#0B2447]/40 transition bg-white`;
 const selectCls = `${inputCls} appearance-none cursor-pointer`;
 
-function SectionCard({ icon: Icon, title, children }: {
-  icon: React.ElementType; title: string; children: React.ReactNode;
+function SectionCard({ icon: Icon, title, subtitle, children }: {
+  icon: React.ElementType; title: string; subtitle?: string; children: React.ReactNode;
 }) {
   return (
     <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
-      <div className="flex items-center gap-2.5 px-6 py-4 border-b border-slate-100 bg-slate-50/50">
-        <Icon className="w-4 h-4 text-[#0B2447]" />
-        <h2 className="text-sm font-bold text-[#0B2447] tracking-wide uppercase">{title}</h2>
+      <div className="flex items-start gap-2.5 px-6 py-4 border-b border-slate-100 bg-slate-50/50">
+        <Icon className="w-4 h-4 mt-0.5 shrink-0 text-[#0B2447]" />
+        <h2 className="text-sm leading-5">
+          <span className="font-bold text-[#0B2447] tracking-wide uppercase">{title}</span>
+          {subtitle && <span className="ml-1.5 font-normal text-slate-500">({subtitle})</span>}
+        </h2>
       </div>
       <div className="p-6">{children}</div>
     </div>
   );
 }
 
-function Field({ label, required, hint, children }: {
-  label: string; required?: boolean; hint?: string; children: React.ReactNode;
+function Field({ label, required, hint, className, children }: {
+  label: string; required?: boolean; hint?: string; className?: string; children: React.ReactNode;
 }) {
   return (
-    <div>
+    <div className={className}>
       <label className="block text-sm font-medium text-slate-700 mb-1.5">
         {label}{required && <span className="text-red-500 ml-0.5">*</span>}
       </label>
@@ -146,10 +147,9 @@ const emptyRegra = (): Omit<RegraLocal, 'localId'> => ({
 
 // ─── Componente principal ─────────────────────────────────────────────────────
 
-export default function NovaEmbarcacaoForm({ tipos, categorias, estados, comodidades }: Props) {
+export default function NovaEmbarcacaoForm({ tipos, estados, comodidades }: Props) {
   const router = useRouter();
   const [, startTransition] = useTransition();
-  const fileInputRef   = useRef<HTMLInputElement>(null);
   const numeroInputRef = useRef<HTMLInputElement>(null);
 
   // ── Form base ────────────────────────────────────────────────────────────
@@ -157,10 +157,10 @@ export default function NovaEmbarcacaoForm({ tipos, categorias, estados, comodid
     municipio_id: string; estado_id: string;
   }>({
     nome: '', descricao: '',
-    embarcacao_tipo_id: '', embarcacao_categoria_id: '',
+    embarcacao_tipo_id: '',
     status: 'ativo',
     modalidade_capitao: 'sem_capitao' as ModalidadeCapitao,
-    capacidade: '', comprimento: '', cabines: '', quartos: '', suites: '', banheiros: '', tripulacao: '',
+    capacidade: '', comprimento: '', comprimento_unidade: 'm', quartos: '', suites: '', banheiros: '', tripulacao: '',
     preco_base: '',
     estado_id: '', municipio_id: '',
     latitude: '', longitude: '',
@@ -195,12 +195,20 @@ export default function NovaEmbarcacaoForm({ tipos, categorias, estados, comodid
   }
 
   // ── Imagens ───────────────────────────────────────────────────────────────
-  const [images, setImages]   = useState<ImagePreview[]>([]);
-  const [dragging, setDragging] = useState(false);
+  const [imagens, setImagens] = useState<GaleriaItem[]>([]);
 
   // ── Feedback ──────────────────────────────────────────────────────────────
   const [feedback, setFeedback] = useState<{ type: 'error' | 'success'; msg: string } | null>(null);
   const [submitting, setSubmitting] = useState(false);
+
+  // ── Pré-visualização (mesmo layout da página pública) ──────────────────────
+  const [previewAberto, setPreviewAberto] = useState(false);
+  const previewDados = previewAberto
+    ? montarPreviewEmbarcacao({
+        form, tipos, estados, municipios, comodidades, comodidadesSelecionadas,
+        imagens, diasOperacao, bloqueios,
+      })
+    : null;
 
   // ─── Helpers de form ──────────────────────────────────────────────────────
 
@@ -331,52 +339,20 @@ export default function NovaEmbarcacaoForm({ tipos, categorias, estados, comodid
 
   // ─── Imagens ──────────────────────────────────────────────────────────────
 
-  function addFiles(files: FileList | File[]) {
-    const imageFiles = Array.from(files).filter(f => f.type.startsWith('image/'));
-    const arr = imageFiles.filter(f => f.size <= MAX_IMAGE_SIZE_BYTES);
-    if (arr.length < imageFiles.length) {
-      setFeedback({ type: 'error', msg: MAX_IMAGE_SIZE_ERROR });
-    }
-    if (arr.length === 0) return;
-    setImages(prev => [
-      ...prev,
-      ...arr.map((file, i) => ({
-        file, previewUrl: URL.createObjectURL(file),
-        principal: prev.length === 0 && i === 0,
-        uploading: false, uploaded: false,
-      })),
-    ]);
-  }
-
-  function removeImage(idx: number) {
-    setImages(prev => {
-      const next = prev.filter((_, i) => i !== idx);
-      if (prev[idx].principal && next.length > 0) next[0].principal = true;
-      return next;
-    });
-  }
-
-  function setPrincipal(idx: number) {
-    setImages(prev => prev.map((img, i) => ({ ...img, principal: i === idx })));
-  }
-
-  const handleDrop = useCallback((e: React.DragEvent) => {
-    e.preventDefault();
-    setDragging(false);
-    addFiles(e.dataTransfer.files);
-  }, []);  
-
-  async function uploadImage(img: ImagePreview, embarcacaoId: string, isPrincipal: boolean) {
+  async function uploadImagem(item: GaleriaItem, embarcacaoId: string, ordem: number) {
+    if (!item.file) return null;
     const body = new FormData();
-    body.append('file', img.file);
+    body.append('file', item.file);
     body.append('embarcacaoId', embarcacaoId);
 
     const res = await fetch('/api/painel/embarcacoes/upload', { method: 'POST', body });
     if (!res.ok) return null;
 
     const { publicUrl } = await res.json();
-    await salvarImagem({ embarcacaoId, urlImagem: publicUrl, titulo: img.file.name, principal: isPrincipal });
-    return publicUrl as string;
+    const saved = await salvarImagem({
+      embarcacaoId, urlImagem: publicUrl, titulo: item.titulo, principal: item.principal, ordem,
+    });
+    return saved.ok ? (publicUrl as string) : null;
   }
 
   // ─── Submit ───────────────────────────────────────────────────────────────
@@ -391,11 +367,11 @@ export default function NovaEmbarcacaoForm({ tipos, categorias, estados, comodid
     const result = await criarEmbarcacao({
       nome: form.nome, descricao: form.descricao,
       embarcacao_tipo_id: form.embarcacao_tipo_id,
-      embarcacao_categoria_id: form.embarcacao_categoria_id,
       status: form.status as EmbarcacaoStatus,
       modalidade_capitao: form.modalidade_capitao,
       capacidade: form.capacidade, comprimento: form.comprimento,
-      cabines: form.cabines, quartos: form.quartos, suites: form.suites,
+      comprimento_unidade: form.comprimento_unidade,
+      quartos: form.quartos, suites: form.suites,
       banheiros: form.banheiros, tripulacao: form.tripulacao,
       preco_base: form.preco_base, municipio_id: form.municipio_id,
       latitude: form.latitude, longitude: form.longitude,
@@ -441,12 +417,12 @@ export default function NovaEmbarcacaoForm({ tipos, categorias, estados, comodid
     }
 
     // 4. Upload de imagens
-    for (let i = 0; i < images.length; i++) {
-      setImages(prev => prev.map((img, idx) => idx === i ? { ...img, uploading: true } : img));
-      const url = await uploadImage(images[i], embarcacaoId, images[i].principal);
-      setImages(prev => prev.map((img, idx) =>
-        idx === i ? { ...img, uploading: false, uploaded: !!url, error: url ? undefined : 'Falha no upload' } : img
-      ));
+    //    A posição na lista é a ordem da galeria.
+    for (let i = 0; i < imagens.length; i++) {
+      const item = imagens[i];
+      setImagens(prev => prev.map(it => it.key === item.key ? { ...it, status: 'uploading' } : it));
+      const url = await uploadImagem(item, embarcacaoId, i);
+      setImagens(prev => prev.map(it => it.key === item.key ? { ...it, status: url ? 'done' : 'error' } : it));
     }
 
     setFeedback({ type: 'success', msg: 'Embarcação cadastrada com sucesso!' });
@@ -458,6 +434,11 @@ export default function NovaEmbarcacaoForm({ tipos, categorias, estados, comodid
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6 max-w-4xl">
+      <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-[#0B2447]/10 bg-[#0B2447]/[0.03] px-5 py-3">
+        <p className="text-sm text-slate-600">Veja como sua embarcação vai aparecer para os clientes.</p>
+        <BotaoPreview onClick={() => setPreviewAberto(true)} />
+      </div>
+
 
       {/* ── 1. Informações gerais ────────────────────────────────────────── */}
       <SectionCard icon={Info} title="Informações gerais">
@@ -482,13 +463,6 @@ export default function NovaEmbarcacaoForm({ tipos, categorias, estados, comodid
               {tipos.map(t => <option key={t.id} value={t.id}>{t.nome}</option>)}
             </select>
           </Field>
-          <Field label="Categoria">
-            <select className={selectCls} value={form.embarcacao_categoria_id}
-              onChange={e => setField('embarcacao_categoria_id', e.target.value)}>
-              <option value="">Selecione a categoria</option>
-              {categorias.map(c => <option key={c.id} value={c.id}>{c.nome}</option>)}
-            </select>
-          </Field>
           <Field label="Capitão">
             <select className={selectCls} value={form.modalidade_capitao}
               onChange={e => setField('modalidade_capitao', e.target.value as ModalidadeCapitao)}>
@@ -510,22 +484,31 @@ export default function NovaEmbarcacaoForm({ tipos, categorias, estados, comodid
 
       {/* ── 2. Especificações técnicas ───────────────────────────────────── */}
       <SectionCard icon={Ruler} title="Especificações técnicas">
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-5">
-          <Field label="Capacidade" hint="Pessoas">
+        <div className="grid grid-cols-2 md:grid-cols-3 gap-5">
+          <Field label="Capacidade (pessoas)">
             <input className={inputCls} type="number" min="1" placeholder="ex: 12"
               value={form.capacidade} onChange={e => setField('capacidade', e.target.value)} />
-          </Field>
-          <Field label="Comprimento" hint="Metros">
-            <input className={inputCls} type="number" min="0" step="0.01" placeholder="ex: 8.50"
-              value={form.comprimento} onChange={e => setField('comprimento', e.target.value)} />
-          </Field>
-          <Field label="Cabines">
-            <input className={inputCls} type="number" min="0" placeholder="ex: 2"
-              value={form.cabines} onChange={e => setField('cabines', e.target.value)} />
           </Field>
           <Field label="Tripulação">
             <input className={inputCls} type="number" min="0" placeholder="ex: 3"
               value={form.tripulacao} onChange={e => setField('tripulacao', e.target.value)} />
+          </Field>
+          <Field label="Comprimento" className="col-span-2 md:col-span-1">
+            <div className="flex rounded-xl border border-slate-200 bg-white overflow-hidden transition
+              focus-within:ring-2 focus-within:ring-[#0B2447]/20 focus-within:border-[#0B2447]/40">
+              <input className="min-w-0 flex-1 bg-transparent px-3.5 py-2.5 text-sm text-slate-800
+                placeholder:text-slate-400 focus:outline-none"
+                type="number" min="0" step="0.01"
+                placeholder={form.comprimento_unidade === 'pes' ? 'ex: 28' : 'ex: 8.50'}
+                value={form.comprimento} onChange={e => setField('comprimento', e.target.value)} />
+              <select aria-label="Unidade do comprimento"
+                className="shrink-0 border-l border-slate-200 bg-slate-50 pl-3 pr-2 text-sm font-medium
+                  text-slate-700 cursor-pointer focus:outline-none"
+                value={form.comprimento_unidade}
+                onChange={e => setField('comprimento_unidade', e.target.value as ComprimentoUnidade)}>
+                {COMPRIMENTO_UNIDADES.map(u => <option key={u.value} value={u.value}>{u.label}</option>)}
+              </select>
+            </div>
           </Field>
           <Field label="Quartos">
             <input className={inputCls} type="number" min="0" placeholder="ex: 3"
@@ -825,7 +808,7 @@ export default function NovaEmbarcacaoForm({ tipos, categorias, estados, comodid
       </SectionCard>
 
       {/* ── 5. Localização ──────────────────────────────────────────────── */}
-      <SectionCard icon={MapPin} title="Localização">
+      <SectionCard icon={MapPin} title="Localização" subtitle="Onde sua embarcação fica a maior parte do tempo">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
 
           {/* CEP — linha inteira */}
@@ -914,82 +897,13 @@ export default function NovaEmbarcacaoForm({ tipos, categorias, estados, comodid
 
       {/* ── 5. Imagens ──────────────────────────────────────────────────── */}
       <SectionCard icon={ImageIcon} title="Imagens">
-        <div
-          onDragOver={e => { e.preventDefault(); setDragging(true); }}
-          onDragLeave={() => setDragging(false)}
-          onDrop={handleDrop}
-          onClick={() => fileInputRef.current?.click()}
-          className={`flex flex-col items-center justify-center gap-3 p-8 rounded-xl border-2 border-dashed cursor-pointer transition-colors ${
-            dragging ? 'border-[#0B2447] bg-[#0B2447]/5' : 'border-slate-200 hover:border-slate-300 hover:bg-slate-50/50'
-          }`}>
-          <Upload className="w-8 h-8 text-slate-300" />
-          <div className="text-center">
-            <p className="text-sm font-medium text-slate-600">
-              Arraste as imagens ou <span className="text-[#0B3D91] underline">clique para selecionar</span>
-            </p>
-            <p className="text-xs text-slate-400 mt-1">JPG, PNG ou WEBP • Máximo 20 MB por arquivo</p>
-          </div>
-          <input ref={fileInputRef} type="file" accept="image/jpeg,image/png,image/webp"
-            multiple className="hidden"
-            onChange={e => e.target.files && addFiles(e.target.files)} />
-        </div>
-
-        {images.length > 0 && (
-          <div className="mt-5 grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
-            {images.map((img, i) => (
-              <div key={i}
-                className={`relative group rounded-xl overflow-hidden border-2 transition-all ${
-                  img.principal ? 'border-[#0B2447]' : 'border-transparent'
-                }`}>
-                <div className="aspect-square bg-slate-100 relative">
-                  <Image src={img.previewUrl} alt={img.file.name} fill
-                    className="object-cover" unoptimized />
-                </div>
-                {img.uploading && (
-                  <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
-                    <Loader2 className="w-6 h-6 text-white animate-spin" />
-                  </div>
-                )}
-                {img.uploaded && (
-                  <div className="absolute top-1.5 right-1.5 w-5 h-5 rounded-full bg-emerald-500 flex items-center justify-center">
-                    <CheckCircle className="w-3 h-3 text-white" />
-                  </div>
-                )}
-                {img.error && (
-                  <div className="absolute top-1.5 right-1.5 w-5 h-5 rounded-full bg-red-500 flex items-center justify-center">
-                    <AlertCircle className="w-3 h-3 text-white" />
-                  </div>
-                )}
-                {img.principal && (
-                  <div className="absolute bottom-0 left-0 right-0 bg-[#0B2447]/80 py-1 text-center">
-                    <span className="text-[10px] font-bold text-white uppercase tracking-wider flex items-center justify-center gap-1">
-                      <Star className="w-2.5 h-2.5" /> Principal
-                    </span>
-                  </div>
-                )}
-                {!img.uploading && !img.uploaded && (
-                  <div className="absolute inset-0 bg-black/0 group-hover:bg-black/30 transition-all flex items-start justify-between p-1.5 opacity-0 group-hover:opacity-100">
-                    {!img.principal && (
-                      <button type="button" onClick={() => setPrincipal(i)} title="Definir como principal"
-                        className="w-7 h-7 rounded-lg bg-white/90 flex items-center justify-center hover:bg-white transition">
-                        <Star className="w-3.5 h-3.5 text-[#0B2447]" />
-                      </button>
-                    )}
-                    <button type="button" onClick={() => removeImage(i)} title="Remover"
-                      className="w-7 h-7 rounded-lg bg-white/90 flex items-center justify-center hover:bg-red-50 hover:text-red-600 transition ml-auto">
-                      <X className="w-3.5 h-3.5" />
-                    </button>
-                  </div>
-                )}
-              </div>
-            ))}
-          </div>
-        )}
-        {images.length > 0 && (
-          <p className="mt-3 text-xs text-slate-400">
-            Passe o mouse sobre a imagem para defini-la como principal ou removê-la.
-          </p>
-        )}
+        <GaleriaImagensEditor
+          items={imagens}
+          onChange={setImagens}
+          disabled={submitting}
+          onError={msg => setFeedback({ type: 'error', msg })}
+          exemploTitulo="Proa do iate"
+        />
       </SectionCard>
 
       {/* ── Feedback ─────────────────────────────────────────────────────── */}
@@ -1005,7 +919,8 @@ export default function NovaEmbarcacaoForm({ tipos, categorias, estados, comodid
       )}
 
       {/* ── Ações ────────────────────────────────────────────────────────── */}
-      <div className="flex items-center justify-end gap-3 pb-4">
+      <div className="flex flex-wrap items-center justify-end gap-3 pb-4">
+        <BotaoPreview onClick={() => setPreviewAberto(true)} className="mr-auto" />
         <button type="button" onClick={() => router.push('/painel/embarcacoes')}
           disabled={submitting}
           className="px-5 py-2.5 rounded-xl border border-slate-200 text-sm font-semibold text-slate-600 hover:bg-slate-50 transition disabled:opacity-50">
@@ -1018,6 +933,13 @@ export default function NovaEmbarcacaoForm({ tipos, categorias, estados, comodid
             : <><ChevronRight className="w-4 h-4" /> Salvar embarcação</>}
         </button>
       </div>
+
+      <PreviewPublicacaoModal
+        aberto={previewAberto}
+        onFechar={() => setPreviewAberto(false)}
+        tipo="embarcacao"
+        dados={previewDados}
+      />
     </form>
   );
 }

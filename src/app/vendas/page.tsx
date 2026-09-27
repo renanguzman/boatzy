@@ -33,6 +33,7 @@ type AnuncioDetalheRow = {
     nome: string;
     capacidade: number | null;
     comprimento: number | null;
+    comprimento_unidade: string | null;
     embarcacao_tipo: { nome: string } | null;
     municipios: { nome: string; estados: { uf: string } | null } | null;
     embarcacao_imagens: { url_imagem: string; principal: boolean }[];
@@ -128,7 +129,7 @@ export default async function VendasPage({ searchParams }: { searchParams: Promi
         .select(`
           id, fabricante, ano_modelo, ano_fabricacao, preco,
           embarcacao (
-            nome, capacidade, comprimento,
+            nome, capacidade, comprimento, comprimento_unidade,
             embarcacao_tipo ( nome ),
             municipios ( nome, estados ( uf ) ),
             embarcacao_imagens ( url_imagem, principal )
@@ -172,6 +173,7 @@ export default async function VendasPage({ searchParams }: { searchParams: Promi
         localidade: m ? (m.estados ? `${m.nome}, ${m.estados.uf}` : m.nome) : null,
         capacidade: d.embarcacao?.capacidade ?? null,
         comprimento: d.embarcacao?.comprimento != null ? Number(d.embarcacao.comprimento) : null,
+        comprimentoUnidade: d.embarcacao?.comprimento_unidade ?? null,
         imagem: (imgs.find((i) => i.principal) ?? imgs[0])?.url_imagem ?? null,
       }];
     });

@@ -19,7 +19,6 @@ export default async function EmbarcacoesPage() {
       capacidade,
       created_at,
       embarcacao_tipo ( nome ),
-      embarcacao_categoria ( nome ),
       municipios ( nome, estados ( uf ) ),
       embarcacao_imagens ( url_imagem, principal ),
       roteiro ( id, nome )

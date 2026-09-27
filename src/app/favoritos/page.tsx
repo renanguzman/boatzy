@@ -33,6 +33,7 @@ type AnuncioFavoritoRow = {
     nome: string;
     capacidade: number | null;
     comprimento: number | null;
+    comprimento_unidade: string | null;
     status: string;
     embarcacao_tipo: { nome: string } | null;
     municipios: { nome: string; estados: { uf: string } | null } | null;
@@ -63,6 +64,7 @@ function toAnuncioCardData(a: AnuncioFavoritoRow, precoAnterior: number | null):
     localidade: m ? (m.estados ? `${m.nome}, ${m.estados.uf}` : m.nome) : null,
     capacidade: a.embarcacao?.capacidade ?? null,
     comprimento: a.embarcacao?.comprimento != null ? Number(a.embarcacao.comprimento) : null,
+    comprimentoUnidade: a.embarcacao?.comprimento_unidade ?? null,
     imagem: (imgs.find((i) => i.principal) ?? imgs[0])?.url_imagem ?? null,
   };
 }
@@ -113,7 +115,7 @@ export default async function FavoritosPage() {
        anuncio_venda (
          id, fabricante, ano_modelo, ano_fabricacao, preco, status,
          embarcacao (
-           nome, capacidade, comprimento, status,
+           nome, capacidade, comprimento, comprimento_unidade, status,
            embarcacao_tipo ( nome ),
            municipios ( nome, estados ( uf ) ),
            embarcacao_imagens ( url_imagem, principal )

@@ -32,13 +32,12 @@ export type EmbarcacaoListItem = {
   capacidade: number | null;
   created_at: string;
   embarcacao_tipo: { nome: string } | null;
-  embarcacao_categoria: { nome: string } | null;
   municipios: { nome: string; estados: { uf: string } | null } | null;
   embarcacao_imagens: { url_imagem: string; principal: boolean }[];
   roteiro: { id: string; nome: string }[];
 };
 
-type SortKey = 'nome' | 'tipo' | 'categoria' | 'status' | 'localidade' | 'capacidade' | 'created_at';
+type SortKey = 'nome' | 'tipo' | 'status' | 'localidade' | 'capacidade' | 'created_at';
 type SortDir = 'asc' | 'desc';
 
 function getImage(imgs: { url_imagem: string; principal: boolean }[]): string | null {
@@ -54,7 +53,6 @@ function getSortValue(item: EmbarcacaoListItem, key: SortKey): string | number {
   switch (key) {
     case 'nome':      return item.nome.toLowerCase();
     case 'tipo':      return (item.embarcacao_tipo?.nome ?? '').toLowerCase();
-    case 'categoria': return (item.embarcacao_categoria?.nome ?? '').toLowerCase();
     case 'status':    return item.status;
     case 'localidade':return getLocalidade(item.municipios).toLowerCase();
     case 'capacidade':return item.capacidade ?? -1;
@@ -149,7 +147,6 @@ export default function EmbarcacoesGrid({ embarcacoes }: { embarcacoes: Embarcac
       (e) =>
         e.nome.toLowerCase().includes(q) ||
         (e.embarcacao_tipo?.nome ?? '').toLowerCase().includes(q) ||
-        (e.embarcacao_categoria?.nome ?? '').toLowerCase().includes(q) ||
         getLocalidade(e.municipios).toLowerCase().includes(q),
     );
   }, [embarcacoes, search]);
@@ -174,7 +171,7 @@ export default function EmbarcacoesGrid({ embarcacoes }: { embarcacoes: Embarcac
         <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
         <input
           type="text"
-          placeholder="Buscar por nome, tipo, categoria ou localização..."
+          placeholder="Buscar por nome, tipo ou localização..."
           value={search}
           onChange={(e) => { setSearch(e.target.value); setPage(1); }}
           className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-200 bg-white text-sm text-slate-700 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-[#0B2447]/20 focus:border-[#0B2447]/40 transition"
@@ -199,7 +196,6 @@ export default function EmbarcacoesGrid({ embarcacoes }: { embarcacoes: Embarcac
                 <tr className="border-b border-slate-100">
                   <ThSortable col="nome"       label="Embarcação"  className="pl-6" sortKey={sortKey} sortDir={sortDir} onSort={handleSort} />
                   <ThSortable col="tipo"       label="Tipo"        sortKey={sortKey} sortDir={sortDir} onSort={handleSort} />
-                  <ThSortable col="categoria"  label="Categoria"   sortKey={sortKey} sortDir={sortDir} onSort={handleSort} />
                   <ThSortable col="status"     label="Status"      sortKey={sortKey} sortDir={sortDir} onSort={handleSort} />
                   <ThSortable col="localidade" label="Localização" sortKey={sortKey} sortDir={sortDir} onSort={handleSort} />
                   <ThSortable col="capacidade" label="Capacidade"  sortKey={sortKey} sortDir={sortDir} onSort={handleSort} />
@@ -256,16 +252,6 @@ export default function EmbarcacoesGrid({ embarcacoes }: { embarcacoes: Embarcac
                         )}
                       </td>
 
-                      {/* Categoria */}
-                      <td className="py-4 px-4">
-                        {e.embarcacao_categoria ? (
-                          <span className="inline-block text-[11px] font-semibold px-2.5 py-1 rounded-full bg-indigo-50 text-indigo-700 whitespace-nowrap">
-                            {e.embarcacao_categoria.nome}
-                          </span>
-                        ) : (
-                          <span className="text-slate-300 text-xs">—</span>
-                        )}
-                      </td>
 
                       {/* Status — toggle ativo/inativo */}
                       <td className="py-4 px-4">

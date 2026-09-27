@@ -110,7 +110,7 @@ Campos:
 - Nome
 - Tipo (lancha, iate, jet ski)
 - Capacidade
-- Localização
+- Localização — onde a embarcação fica a maior parte do tempo (texto de apoio exibido no título da seção do cadastro)
 - Preço por dia
 - Descrição
 - Fotos
@@ -241,13 +241,13 @@ Exibir:
 - Modal: backdrop escuro + blur, painel `max-w-4xl`, header gradiente navy.
 - Navegação: setas ◀ ▶, teclado (ESC fecha, ← → navega), contador "N / total".
 - Thumbnails: strip no rodapé com ring cyan no ativo.
-- Footer de especificações: capacidade, comprimento, cabines, tripulação, modalidade do capitão.
+- Footer de especificações: capacidade, comprimento, quartos, tripulação, modalidade do capitão.
 
 #### ✅ Implementado (v1) — Página `/embarcacoes/[id]/roteiros`
 
 - Destino do card da embarcação na busca (aba Embarcações, ver 6.3): mostra a embarcação em
-  detalhe — galeria de fotos, badges (tipo/categoria), descrição, especificações técnicas
-  (capacidade, comprimento, cabines, suítes, banheiros, tripulação) e comodidades a bordo — no mesmo
+  detalhe — galeria de fotos, badge de tipo, descrição, especificações técnicas
+  (capacidade, comprimento, quartos, suítes, banheiros, tripulação) e comodidades a bordo — no mesmo
   visual da página de detalhe da embarcação (`/embarcacoes/[id]`).
 - Abaixo, um **carrossel** com todos os **roteiros ativos** que aquela embarcação realiza (setas de
   navegação; roteiros inativos nunca aparecem). Clicar num roteiro do carrossel leva ao detalhe
@@ -706,7 +706,7 @@ Todos os números são do **gestor logado** (`owner_id`):
   - **Roteiros** — ✅ implementado (ver abaixo)
   - **Publicidade** — 🔜 gestão de espaços de publicidade (placeholder)
   - **Taxas** — ✅ implementado (ver abaixo)
-  - **Categorias** — 🔜 cadastro de categorias (placeholder)
+  - **Tipos de embarcação** — 🔜 cadastro de tipos de embarcação (placeholder, `/administrator/tipos`)
   - **Configurações** — 🔜 parâmetros gerais da plataforma (placeholder)
 
 #### ✅ Implementado — Gestão de Avaliações (`/administrator/avaliacoes`)
@@ -724,7 +724,7 @@ Todos os números são do **gestor logado** (`owner_id`):
 
 - Lista geral de **todas** as embarcações da plataforma (de todos os gestores), no mesmo padrão visual da lista do `/painel`, com busca, ordenação por coluna e **paginação no servidor** (10/25/50 por página, padrão 10) — apenas a página atual é carregada do banco, para suportar grande volume de registros.
 - Busca (com debounce) por nome da embarcação ou gestor (nome/e-mail); ordenação disponível nas colunas Embarcação, Status e Capacidade.
-- Cada linha mostra: foto + nome + ID curto, **gestor responsável (nome + e-mail)**, tipo, categoria, status (toggle Ativo/Inativo), localização (município/UF) e capacidade.
+- Cada linha mostra: foto + nome + ID curto, **gestor responsável (nome + e-mail)**, tipo, status (toggle Ativo/Inativo), localização (município/UF) e capacidade.
 - Ações por embarcação:
   - **Ativar/Desativar** — toggle direto na lista; desativar exige confirmação e mostra os roteiros vinculados, que ficam inativos em cascata (reativar reativa os roteiros — mesmo comportamento do painel do gestor).
   - **Editar** — abre `/administrator/embarcacoes/[id]/editar`, reutilizando o formulário completo de edição do painel (dados, endereço/mapa, comodidades, fotos, regras de preço e disponibilidade). A página mostra o gestor responsável no cabeçalho.
@@ -875,7 +875,7 @@ Ordem sugerida: 1 → 2 → 3 → 4. Os três primeiros completam a cobertura ju
 
 #### 🔜 A implementar
 
-- Conteúdo dos demais módulos (Publicidade, Categorias, Configurações), cada um em separado.
+- Conteúdo dos demais módulos (Publicidade, Tipos de embarcação, Configurações), cada um em separado.
 - Cadastro completo de parceiros (tela própria) — hoje só existe o cadastro mínimo embutido no formulário de cupom.
 
 ---
@@ -923,7 +923,9 @@ decisões de escopo: `docs/planejamento-vendas.md`.
   > **Correção (13/07/2026):** o filtro primário era Categoria (Passeio/Pesca/Luxo — orientada a
   > passeio, fazia a busca parecer venda de passeio) e passou a ser o **Tipo** da embarcação, que
   > é o classificador correto para venda; ajustado em toda a cadeia (busca, cadastro, cards,
-  > detalhe). A categoria da embarcação segue intacta nos contextos de aluguel.
+  > detalhe).
+  > **Atualização (27/09/2026):** a categoria de embarcação foi removida do produto (ver
+  > "Remoção da categoria de embarcação").
   Resultado em página própria
   `/vendas` (não `/buscar`): barra compacta com os mesmos filtros, chips removíveis, título
   contextual, grid responsivo 1→2→3→4 de cards com selo **"Preço reduzido"** (preço anterior
@@ -934,7 +936,7 @@ decisões de escopo: `docs/planejamento-vendas.md`.
   - **Gate de login:** deslogado vê só o teaser (galeria, nome, categoria, preço + selo de
     redução) com CTA "Entrar ou criar conta"; a visualização anônima conta no contador, mas não
     gera lead. Logado vê tudo e registra o evento `visualizou` (estágio 1 — idempotente).
-  - **Conteúdo completo:** ficha técnica (fabricante, anos, capacidade, comprimento, cabines,
+  - **Conteúdo completo:** ficha técnica (fabricante, anos, capacidade, comprimento, quartos,
     suítes, banheiros, tripulação), "Sobre esta venda" + descrição da embarcação, comodidades,
     localização (mapa + bairro/cidade — endereço exato não é exposto), avaliações da embarcação
     e preço com "De R$ X por R$ Y · reduzido em DD/MM" (aumentos nunca aparecem).
@@ -1153,6 +1155,62 @@ A taxa padrão configurada inicialmente é **10%**. Admins podem alterá-la a qu
 - Nº de avaliações
 
 ---
+
+### ✅ Remoção da categoria de embarcação (27/09/2026)
+
+- O campo **Categoria** (Passeio, Pesca, Esporte, Luxo, Familiar) saiu do cadastro e da edição de
+  embarcação (painel do gestor e admin). O **Tipo** é o único classificador da embarcação.
+- Removido também de todos os outros pontos: coluna e busca da listagem do painel, coluna da
+  listagem do admin, badge da página pública da embarcação.
+- O módulo placeholder do admin "Categorias" virou **"Tipos de embarcação"** (`/administrator/tipos`).
+- Banco: coluna `embarcacao.embarcacao_categoria_id` e tabela `embarcacao_categoria` removidas
+  (dados descartados de forma permanente).
+
+### ✅ Comprimento da embarcação em metros ou pés (27/09/2026)
+
+- Em "Especificações técnicas" (cadastro e edição de embarcação, painel e admin), o campo
+  **Comprimento** ganhou um select de unidade: **Metros** (padrão) ou **Pés**.
+- O valor é guardado como digitado, junto com a unidade (sem conversão). Embarcações já
+  cadastradas ficam em metros.
+- Todas as telas públicas mostram o comprimento com a unidade escolhida ("8,5 m", "28 pés"):
+  página da embarcação, roteiros da embarcação, detalhe do roteiro (specs e modal de fotos),
+  anúncios de venda (cards e detalhe) e favoritos.
+
+### ✅ Cabines substituído por Quartos (27/09/2026)
+
+- O campo **Cabines** saiu do cadastro/edição de embarcação; fica só **Quartos**.
+- O site passa a mostrar "Quartos" ao cliente onde antes mostrava "Cabines": página da embarcação,
+  roteiros da embarcação, detalhe do roteiro (specs e modal de fotos) e detalhe do anúncio de venda.
+- "Especificações técnicas" reorganizada em 3 colunas × 2 linhas: Capacidade (pessoas) ·
+  Tripulação · Comprimento / Quartos · Suítes · Banheiros.
+- Banco: valores de `cabines` copiados para `quartos` (quando vazio) e coluna removida.
+
+### ✅ Galeria de imagens com título e ordem (27/09/2026)
+
+- No cadastro e na edição de **embarcação** e de **roteiro** (painel e admin), o componente de
+  imagens virou uma lista ordenável: cada foto tem um **título** (ex.: "Proa do iate", até 80
+  caracteres), pode ser **reordenada** arrastando pela alça (funciona no toque, no celular) ou
+  pelas setas ↑/↓, marcada como **principal** e removida com opção de **desfazer**.
+- A **ordem** definida é a sequência das fotos na galeria do site; a **principal** continua sendo
+  a capa dos cards e resultados de busca.
+- No site, o título aparece junto da foto: no carrossel da página (foto grande e laterais), na
+  galeria em tela cheia e no modal de fotos da embarcação dentro do roteiro — em roteiros,
+  embarcações e anúncios de venda.
+- Fotos já existentes mantêm a ordem que o site mostrava (principal primeiro). Os títulos antigos,
+  que eram o nome do arquivo ("IMG_1234.jpg"), foram limpos.
+
+### ✅ Pré-visualização da publicação (27/09/2026)
+
+- Nos cadastros e edições de **embarcação** e de **roteiro** (painel e admin), o botão
+  **"Pré-visualizar"** (no topo e ao lado de Salvar) abre a página exatamente como o cliente verá,
+  com os dados preenchidos **antes de salvar** — incluindo fotos recém-adicionadas, títulos e
+  ordem da galeria, preço, especificações, itinerário, mapa e card de reserva.
+- A prévia usa **os mesmos componentes da página pública**: qualquer evolução do layout do site
+  aparece automaticamente na prévia.
+- Alterna entre **Computador** e **Celular** (layout mobile real).
+- É interativa (galeria, calendário, pessoas), mas reservar, favoritar, compartilhar, chat e links
+  ficam desativados, com aviso.
+- Avaliações aparecem no estado vazio (a prévia não usa dados de clientes).
 
 ## 11. Não Incluído no MVP
 

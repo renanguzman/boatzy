@@ -1,16 +1,17 @@
 import { MapPin, Users, Anchor, Ruler, BedDouble, DoorOpen, Bath, LifeBuoy, BadgeCheck, Award, CheckCircle2 } from 'lucide-react';
+import { formatarComprimento } from '@/lib/comprimento';
 
 export type EmbarcacaoInfo = {
   nome: string;
   descricao: string | null;
   capacidade: number | null;
   comprimento: number | null;
-  cabines: number | null;
+  comprimento_unidade: string | null;
+  quartos: number | null;
   suites: number | null;
   banheiros: number | null;
   tripulacao: number | null;
   embarcacao_tipo: { nome: string } | null;
-  embarcacao_categoria: { nome: string } | null;
   municipios: { nome: string; estados: { uf: string } | null } | null;
   embarcacao_comodidades: { comodidade: { nome: string } | null }[];
 };
@@ -30,8 +31,9 @@ export default function EmbarcacaoInfoSection({ embarcacao }: { embarcacao: Emba
 
   const specs: { icon: typeof Users; label: string; value: string }[] = [];
   if (embarcacao.capacidade) specs.push({ icon: Users, label: 'Capacidade', value: `${embarcacao.capacidade} pessoas` });
-  if (embarcacao.comprimento) specs.push({ icon: Ruler, label: 'Comprimento', value: `${embarcacao.comprimento}m` });
-  if (embarcacao.cabines) specs.push({ icon: DoorOpen, label: 'Cabines', value: String(embarcacao.cabines) });
+  const comprimento = formatarComprimento(embarcacao.comprimento, embarcacao.comprimento_unidade);
+  if (comprimento) specs.push({ icon: Ruler, label: 'Comprimento', value: comprimento });
+  if (embarcacao.quartos) specs.push({ icon: DoorOpen, label: 'Quartos', value: String(embarcacao.quartos) });
   if (embarcacao.suites) specs.push({ icon: BedDouble, label: 'Suítes', value: String(embarcacao.suites) });
   if (embarcacao.banheiros) specs.push({ icon: Bath, label: 'Banheiros', value: String(embarcacao.banheiros) });
   if (embarcacao.tripulacao) specs.push({ icon: LifeBuoy, label: 'Tripulação', value: String(embarcacao.tripulacao) });
@@ -52,11 +54,6 @@ export default function EmbarcacaoInfoSection({ embarcacao }: { embarcacao: Emba
           <span className="inline-flex items-center gap-1 text-xs font-medium text-[#0B3D91] bg-[#0B3D91]/10 px-3 py-1.5 rounded-full">
             <Anchor className="h-3 w-3" />
             {embarcacao.embarcacao_tipo.nome}
-          </span>
-        )}
-        {embarcacao.embarcacao_categoria && (
-          <span className="inline-flex items-center gap-1 text-xs font-medium text-indigo-700 bg-indigo-50 px-3 py-1.5 rounded-full">
-            {embarcacao.embarcacao_categoria.nome}
           </span>
         )}
       </div>

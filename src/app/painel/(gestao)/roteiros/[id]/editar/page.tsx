@@ -33,8 +33,9 @@ export default async function EditarRoteiroPage({
       .single(),
     supabaseAdmin
       .from('roteiro_imagens')
-      .select('id, url_imagem, titulo, principal')
-      .eq('roteiro_id', id),
+      .select('id, url_imagem, titulo, principal, ordem')
+      .eq('roteiro_id', id)
+      .order('ordem'),
     supabaseAdmin
       .from('roteiro_preco_regra')
       .select('id, nome, valor, tipo, prioridade, ativo, dias_semana, periodo_mes_inicio, periodo_dia_inicio, periodo_mes_fim, periodo_dia_fim, data_inicio, data_fim')

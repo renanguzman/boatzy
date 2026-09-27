@@ -1,20 +1,19 @@
 'use client';
 
-import { useState, useTransition, useRef, useCallback } from 'react';
-import Image from 'next/image';
+import { useState, useTransition, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import {
   Info, Ruler, DollarSign, MapPin, ImageIcon, Sparkles, CalendarDays,
-  Upload, X, Star, Loader2, AlertCircle, CheckCircle,
+  Loader2, AlertCircle, CheckCircle,
   ChevronRight, Plus, ChevronDown, ChevronUp, Trash2, HelpCircle,
 } from 'lucide-react';
-import { MAX_IMAGE_SIZE_BYTES, MAX_IMAGE_SIZE_ERROR } from '@/lib/upload';
+import GaleriaImagensEditor, { itensDeImagensSalvas, type GaleriaItem } from '@/components/painel/GaleriaImagensEditor';
 import {
   atualizarEmbarcacao,
   atualizarComodidades,
   excluirImagem,
   excluirRegra,
-  definirPrincipal,
+  atualizarImagens,
   salvarBloqueiosEmbarcacao,
   type AtualizarEmbarcacaoPayload,
 } from '../actions';
@@ -26,6 +25,10 @@ import {
 import MapaPicker from '../../../novo/_components/MapaPicker';
 import DisponibilidadePicker from '@/components/painel/DisponibilidadePicker';
 import type { EmbarcacaoStatus, ModalidadeCapitao, PrecoRegraTipo } from '@/types/supabase';
+import { COMPRIMENTO_UNIDADES, type ComprimentoUnidade } from '@/lib/comprimento';
+import PreviewPublicacaoModal from '@/components/preview/PreviewPublicacaoModal';
+import BotaoPreview from '@/components/preview/BotaoPreview';
+import { montarPreviewEmbarcacao } from '@/components/preview/montar';
 
 // ─── Constantes ───────────────────────────────────────────────────────────────
 
@@ -65,19 +68,9 @@ type Estado    = { id: number; uf: string; nome: string };
 type Municipio = { id: number; nome: string };
 type Comodidade = { id: string; nome: string };
 
-type ExistingImage = {
-  id: string; url: string; titulo: string | null; principal: boolean;
-  markedForDelete: boolean;
-};
-
 type ExistingRegra = {
   id: string; tipo: PrecoRegraTipo; nome: string; valor: number; resumo: string;
   markedForDelete: boolean;
-};
-
-type NewImage = {
-  file: File; previewUrl: string; principal: boolean;
-  uploading: boolean; uploaded: boolean; error?: string;
 };
 
 type NewRegra = {
@@ -91,11 +84,12 @@ type NewRegra = {
 type EmbarcacaoData = {
   id: string;
   nome: string; descricao: string | null;
-  embarcacao_tipo_id: string | null; embarcacao_categoria_id: string | null;
+  embarcacao_tipo_id: string | null;
   status: EmbarcacaoStatus;
   modalidade_capitao: ModalidadeCapitao | null;
   capacidade: number | null; comprimento: number | null;
-  cabines: number | null; quartos: number | null; suites: number | null;
+  comprimento_unidade: ComprimentoUnidade | null;
+  quartos: number | null; suites: number | null;
   banheiros: number | null; tripulacao: number | null;
   preco_base: number | null;
   disponibilidade_dias_semana: number[] | null;
@@ -103,7 +97,7 @@ type EmbarcacaoData = {
   latitude: number | null; longitude: number | null;
   cep: string | null; bairro: string | null; logradouro: string | null;
   logradouro_numero: string | null; complemento: string | null;
-  embarcacao_imagens: { id: string; url_imagem: string; titulo: string | null; principal: boolean }[];
+  embarcacao_imagens: { id: string; url_imagem: string; titulo: string | null; principal: boolean; ordem: number }[];
   embarcacao_preco_regra: {
     id: string; nome: string; valor: number; tipo: string; prioridade: number; ativo: boolean;
     dias_semana: number[] | null;
@@ -115,7 +109,7 @@ type EmbarcacaoData = {
 
 type Props = {
   embarcacao: EmbarcacaoData;
-  tipos: Tipo[]; categorias: Tipo[]; estados: Estado[];
+  tipos: Tipo[]; estados: Estado[];
   municipiosIniciais: Municipio[];
   comodidades: Comodidade[];
   comodidadesIniciais: string[];
@@ -131,25 +125,28 @@ const inputCls = `w-full rounded-xl border border-slate-200 px-3.5 py-2.5 text-s
   focus:border-[#0B2447]/40 transition bg-white`;
 const selectCls = `${inputCls} appearance-none cursor-pointer`;
 
-function SectionCard({ icon: Icon, title, children }: {
-  icon: React.ElementType; title: string; children: React.ReactNode;
+function SectionCard({ icon: Icon, title, subtitle, children }: {
+  icon: React.ElementType; title: string; subtitle?: string; children: React.ReactNode;
 }) {
   return (
     <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
-      <div className="flex items-center gap-2.5 px-6 py-4 border-b border-slate-100 bg-slate-50/50">
-        <Icon className="w-4 h-4 text-[#0B2447]" />
-        <h2 className="text-sm font-bold text-[#0B2447] tracking-wide uppercase">{title}</h2>
+      <div className="flex items-start gap-2.5 px-6 py-4 border-b border-slate-100 bg-slate-50/50">
+        <Icon className="w-4 h-4 mt-0.5 shrink-0 text-[#0B2447]" />
+        <h2 className="text-sm leading-5">
+          <span className="font-bold text-[#0B2447] tracking-wide uppercase">{title}</span>
+          {subtitle && <span className="ml-1.5 font-normal text-slate-500">({subtitle})</span>}
+        </h2>
       </div>
       <div className="p-6">{children}</div>
     </div>
   );
 }
 
-function Field({ label, required, hint, children }: {
-  label: string; required?: boolean; hint?: string; children: React.ReactNode;
+function Field({ label, required, hint, className, children }: {
+  label: string; required?: boolean; hint?: string; className?: string; children: React.ReactNode;
 }) {
   return (
-    <div>
+    <div className={className}>
       <label className="block text-sm font-medium text-slate-700 mb-1.5">
         {label}{required && <span className="text-red-500 ml-0.5">*</span>}
       </label>
@@ -200,13 +197,12 @@ const emptyNewRegra = (): Omit<NewRegra, 'localId'> => ({
 // ─── Componente principal ─────────────────────────────────────────────────────
 
 export default function EditarEmbarcacaoForm({
-  embarcacao, tipos, categorias, estados, municipiosIniciais,
+  embarcacao, tipos, estados, municipiosIniciais,
   comodidades, comodidadesIniciais, bloqueiosIniciais,
   voltarHref = '/painel/embarcacoes',
 }: Props) {
   const router = useRouter();
   const [, startTransition] = useTransition();
-  const fileInputRef   = useRef<HTMLInputElement>(null);
   const numeroInputRef = useRef<HTMLInputElement>(null);
 
   // ── Form base ──────────────────────────────────────────────────────────────
@@ -216,12 +212,11 @@ export default function EditarEmbarcacaoForm({
     nome:        embarcacao.nome,
     descricao:   embarcacao.descricao   ?? '',
     embarcacao_tipo_id:      embarcacao.embarcacao_tipo_id      ?? '',
-    embarcacao_categoria_id: embarcacao.embarcacao_categoria_id ?? '',
     status:      embarcacao.status,
     modalidade_capitao: embarcacao.modalidade_capitao ?? 'sem_capitao',
     capacidade:  embarcacao.capacidade  != null ? String(embarcacao.capacidade)  : '',
     comprimento: embarcacao.comprimento != null ? String(embarcacao.comprimento) : '',
-    cabines:     embarcacao.cabines     != null ? String(embarcacao.cabines)     : '',
+    comprimento_unidade: embarcacao.comprimento_unidade ?? 'm',
     quartos:     embarcacao.quartos     != null ? String(embarcacao.quartos)     : '',
     suites:      embarcacao.suites      != null ? String(embarcacao.suites)      : '',
     banheiros:   embarcacao.banheiros   != null ? String(embarcacao.banheiros)   : '',
@@ -253,17 +248,10 @@ export default function EditarEmbarcacaoForm({
     );
   }
 
-  // ── Imagens existentes ─────────────────────────────────────────────────────
-  const [existingImages, setExistingImages] = useState<ExistingImage[]>(
-    embarcacao.embarcacao_imagens.map(img => ({
-      id: img.id, url: img.url_imagem, titulo: img.titulo,
-      principal: img.principal, markedForDelete: false,
-    })),
+  // ── Imagens (salvas + novas, na ordem da galeria) ──────────────────────────
+  const [imagens, setImagens] = useState<GaleriaItem[]>(
+    () => itensDeImagensSalvas(embarcacao.embarcacao_imagens),
   );
-
-  // ── Novas imagens ──────────────────────────────────────────────────────────
-  const [newImages, setNewImages]   = useState<NewImage[]>([]);
-  const [dragging, setDragging]     = useState(false);
 
   // ── Regras existentes ──────────────────────────────────────────────────────
   const [existingRegras, setExistingRegras] = useState<ExistingRegra[]>(
@@ -290,6 +278,15 @@ export default function EditarEmbarcacaoForm({
   // ── Feedback ───────────────────────────────────────────────────────────────
   const [feedback,   setFeedback]   = useState<{ type: 'error' | 'success'; msg: string } | null>(null);
   const [submitting, setSubmitting] = useState(false);
+
+  // ── Pré-visualização (mesmo layout da página pública) ──────────────────────
+  const [previewAberto, setPreviewAberto] = useState(false);
+  const previewDados = previewAberto
+    ? montarPreviewEmbarcacao({
+        form, tipos, estados, municipios, comodidades, comodidadesSelecionadas,
+        imagens, diasOperacao, bloqueios,
+      })
+    : null;
 
   // ─── Helpers de form ───────────────────────────────────────────────────────
 
@@ -372,66 +369,20 @@ export default function EditarEmbarcacaoForm({
     });
   }
 
-  // ─── Imagens existentes ────────────────────────────────────────────────────
+  // ─── Imagens ───────────────────────────────────────────────────────────────
 
-  function toggleDeleteExisting(id: string) {
-    setExistingImages(prev => prev.map(img =>
-      img.id === id ? { ...img, markedForDelete: !img.markedForDelete } : img,
-    ));
-  }
-
-  function setPrincipalExisting(id: string) {
-    setExistingImages(prev => prev.map(img => ({ ...img, principal: img.id === id })));
-  }
-
-  // ─── Novas imagens ─────────────────────────────────────────────────────────
-
-  function addFiles(files: FileList | File[]) {
-    const imageFiles = Array.from(files).filter(f => f.type.startsWith('image/'));
-    const arr = imageFiles.filter(f => f.size <= MAX_IMAGE_SIZE_BYTES);
-    if (arr.length < imageFiles.length) {
-      setFeedback({ type: 'error', msg: MAX_IMAGE_SIZE_ERROR });
-    }
-    if (arr.length === 0) return;
-    const hasExistingPrincipal = existingImages.some(i => i.principal && !i.markedForDelete);
-    setNewImages(prev => [
-      ...prev,
-      ...arr.map((file, i) => ({
-        file, previewUrl: URL.createObjectURL(file),
-        principal: !hasExistingPrincipal && prev.length === 0 && i === 0,
-        uploading: false, uploaded: false,
-      })),
-    ]);
-  }
-
-  function removeNewImage(idx: number) {
-    setNewImages(prev => {
-      const next = prev.filter((_, i) => i !== idx);
-      if (prev[idx].principal && next.length > 0) next[0].principal = true;
-      return next;
-    });
-  }
-
-  function setPrincipalNew(idx: number) {
-    setExistingImages(prev => prev.map(img => ({ ...img, principal: false })));
-    setNewImages(prev => prev.map((img, i) => ({ ...img, principal: i === idx })));
-  }
-
-  const handleDrop = useCallback((e: React.DragEvent) => {
-    e.preventDefault();
-    setDragging(false);
-    addFiles(e.dataTransfer.files);
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
-
-  async function uploadNewImage(img: NewImage, embarcacaoId: string, isPrincipal: boolean) {
+  async function uploadImagem(item: GaleriaItem, embarcacaoId: string, ordem: number) {
+    if (!item.file) return null;
     const body = new FormData();
-    body.append('file', img.file);
+    body.append('file', item.file);
     body.append('embarcacaoId', embarcacaoId);
     const res = await fetch('/api/painel/embarcacoes/upload', { method: 'POST', body });
     if (!res.ok) return null;
     const { publicUrl } = await res.json();
-    await salvarImagem({ embarcacaoId, urlImagem: publicUrl, titulo: img.file.name, principal: isPrincipal });
-    return publicUrl as string;
+    const saved = await salvarImagem({
+      embarcacaoId, urlImagem: publicUrl, titulo: item.titulo, principal: item.principal, ordem,
+    });
+    return saved.ok ? (publicUrl as string) : null;
   }
 
   // ─── Regras novas ──────────────────────────────────────────────────────────
@@ -476,11 +427,11 @@ export default function EditarEmbarcacaoForm({
     const result = await atualizarEmbarcacao(embarcacao.id, {
       nome: form.nome, descricao: form.descricao,
       embarcacao_tipo_id: form.embarcacao_tipo_id,
-      embarcacao_categoria_id: form.embarcacao_categoria_id,
       status: form.status as EmbarcacaoStatus,
       modalidade_capitao: form.modalidade_capitao as ModalidadeCapitao,
       capacidade: form.capacidade, comprimento: form.comprimento,
-      cabines: form.cabines, quartos: form.quartos, suites: form.suites,
+      comprimento_unidade: form.comprimento_unidade,
+      quartos: form.quartos, suites: form.suites,
       banheiros: form.banheiros, tripulacao: form.tripulacao,
       preco_base: form.preco_base, municipio_id: form.municipio_id,
       latitude: form.latitude, longitude: form.longitude,
@@ -501,26 +452,26 @@ export default function EditarEmbarcacaoForm({
     // Substituir o conjunto de datas bloqueadas
     await salvarBloqueiosEmbarcacao(embarcacao.id, bloqueios);
 
-    // 3. Excluir imagens marcadas
-    for (const img of existingImages.filter(i => i.markedForDelete)) {
+    // 3. Excluir as imagens salvas que saíram da galeria
+    const idsMantidos = new Set(imagens.map(i => i.id).filter(Boolean));
+    for (const img of embarcacao.embarcacao_imagens.filter(i => !idsMantidos.has(i.id))) {
       await excluirImagem(embarcacao.id, img.id);
     }
 
-    // 4. Atualizar principal de imagens existentes (não deletadas)
-    const principalExisting = existingImages.find(i => i.principal && !i.markedForDelete);
-    if (principalExisting) {
-      await definirPrincipal(embarcacao.id, principalExisting.id);
-    }
+    // 4. Título, ordem e principal das imagens salvas (a posição na lista é a ordem)
+    await atualizarImagens(
+      embarcacao.id,
+      imagens.flatMap((it, ordem) =>
+        it.id ? [{ id: it.id, titulo: it.titulo, ordem, principal: it.principal }] : []),
+    );
 
-    // 5. Upload de novas imagens
-    const hasPrincipal = !!principalExisting;
-    for (let i = 0; i < newImages.length; i++) {
-      setNewImages(prev => prev.map((img, idx) => idx === i ? { ...img, uploading: true } : img));
-      const isPrincipal = newImages[i].principal || (!hasPrincipal && i === 0);
-      const url = await uploadNewImage(newImages[i], embarcacao.id, isPrincipal);
-      setNewImages(prev => prev.map((img, idx) =>
-        idx === i ? { ...img, uploading: false, uploaded: !!url, error: url ? undefined : 'Falha no upload' } : img,
-      ));
+    // 5. Upload das novas, cada uma já com a sua posição
+    for (let ordem = 0; ordem < imagens.length; ordem++) {
+      const item = imagens[ordem];
+      if (!item.file) continue;
+      setImagens(prev => prev.map(it => it.key === item.key ? { ...it, status: 'uploading' } : it));
+      const url = await uploadImagem(item, embarcacao.id, ordem);
+      setImagens(prev => prev.map(it => it.key === item.key ? { ...it, status: url ? 'done' : 'error' } : it));
     }
 
     // 6. Excluir regras marcadas
@@ -555,6 +506,11 @@ export default function EditarEmbarcacaoForm({
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6 max-w-4xl">
+      <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-[#0B2447]/10 bg-[#0B2447]/[0.03] px-5 py-3">
+        <p className="text-sm text-slate-600">Veja como sua embarcação vai aparecer para os clientes.</p>
+        <BotaoPreview onClick={() => setPreviewAberto(true)} />
+      </div>
+
 
       {/* ── 1. Informações gerais ──────────────────────────────────────────── */}
       <SectionCard icon={Info} title="Informações gerais">
@@ -579,13 +535,6 @@ export default function EditarEmbarcacaoForm({
               {tipos.map(t => <option key={t.id} value={t.id}>{t.nome}</option>)}
             </select>
           </Field>
-          <Field label="Categoria">
-            <select className={selectCls} value={form.embarcacao_categoria_id}
-              onChange={e => setField('embarcacao_categoria_id', e.target.value)}>
-              <option value="">Selecione a categoria</option>
-              {categorias.map(c => <option key={c.id} value={c.id}>{c.nome}</option>)}
-            </select>
-          </Field>
           <Field label="Capitão">
             <select className={selectCls} value={form.modalidade_capitao}
               onChange={e => setField('modalidade_capitao', e.target.value as ModalidadeCapitao)}>
@@ -607,22 +556,31 @@ export default function EditarEmbarcacaoForm({
 
       {/* ── 2. Especificações técnicas ─────────────────────────────────────── */}
       <SectionCard icon={Ruler} title="Especificações técnicas">
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-5">
-          <Field label="Capacidade" hint="Pessoas">
+        <div className="grid grid-cols-2 md:grid-cols-3 gap-5">
+          <Field label="Capacidade (pessoas)">
             <input className={inputCls} type="number" min="1" placeholder="ex: 12"
               value={form.capacidade} onChange={e => setField('capacidade', e.target.value)} />
-          </Field>
-          <Field label="Comprimento" hint="Metros">
-            <input className={inputCls} type="number" min="0" step="0.01" placeholder="ex: 8.50"
-              value={form.comprimento} onChange={e => setField('comprimento', e.target.value)} />
-          </Field>
-          <Field label="Cabines">
-            <input className={inputCls} type="number" min="0" placeholder="ex: 2"
-              value={form.cabines} onChange={e => setField('cabines', e.target.value)} />
           </Field>
           <Field label="Tripulação">
             <input className={inputCls} type="number" min="0" placeholder="ex: 3"
               value={form.tripulacao} onChange={e => setField('tripulacao', e.target.value)} />
+          </Field>
+          <Field label="Comprimento" className="col-span-2 md:col-span-1">
+            <div className="flex rounded-xl border border-slate-200 bg-white overflow-hidden transition
+              focus-within:ring-2 focus-within:ring-[#0B2447]/20 focus-within:border-[#0B2447]/40">
+              <input className="min-w-0 flex-1 bg-transparent px-3.5 py-2.5 text-sm text-slate-800
+                placeholder:text-slate-400 focus:outline-none"
+                type="number" min="0" step="0.01"
+                placeholder={form.comprimento_unidade === 'pes' ? 'ex: 28' : 'ex: 8.50'}
+                value={form.comprimento} onChange={e => setField('comprimento', e.target.value)} />
+              <select aria-label="Unidade do comprimento"
+                className="shrink-0 border-l border-slate-200 bg-slate-50 pl-3 pr-2 text-sm font-medium
+                  text-slate-700 cursor-pointer focus:outline-none"
+                value={form.comprimento_unidade}
+                onChange={e => setField('comprimento_unidade', e.target.value as ComprimentoUnidade)}>
+                {COMPRIMENTO_UNIDADES.map(u => <option key={u.value} value={u.value}>{u.label}</option>)}
+              </select>
+            </div>
           </Field>
           <Field label="Quartos">
             <input className={inputCls} type="number" min="0" placeholder="ex: 3"
@@ -924,7 +882,7 @@ export default function EditarEmbarcacaoForm({
       </SectionCard>
 
       {/* ── 6. Localização ────────────────────────────────────────────────── */}
-      <SectionCard icon={MapPin} title="Localização">
+      <SectionCard icon={MapPin} title="Localização" subtitle="Onde sua embarcação fica a maior parte do tempo">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
           <div className="md:col-span-2">
             <label className="block text-sm font-medium text-slate-700 mb-1.5">CEP</label>
@@ -999,125 +957,13 @@ export default function EditarEmbarcacaoForm({
 
       {/* ── 6. Imagens ────────────────────────────────────────────────────── */}
       <SectionCard icon={ImageIcon} title="Imagens">
-
-        {/* Imagens existentes */}
-        {existingImages.length > 0 && (
-          <div className="mb-6">
-            <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">
-              Fotos salvas ({existingImages.filter(i => !i.markedForDelete).length} de {existingImages.length})
-            </p>
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
-              {existingImages.map(img => (
-                <div key={img.id}
-                  className={`relative group rounded-xl overflow-hidden border-2 transition-all ${
-                    img.markedForDelete ? 'opacity-40 border-red-200' :
-                    img.principal ? 'border-[#0B2447]' : 'border-transparent'
-                  }`}>
-                  <div className="aspect-square bg-slate-100 relative">
-                    <Image src={img.url} alt={img.titulo ?? 'foto'} fill className="object-cover" unoptimized />
-                    {img.markedForDelete && (
-                      <div className="absolute inset-0 bg-red-500/20 flex items-center justify-center">
-                        <X className="w-8 h-8 text-red-600" />
-                      </div>
-                    )}
-                  </div>
-                  {img.principal && !img.markedForDelete && (
-                    <div className="absolute bottom-0 left-0 right-0 bg-[#0B2447]/80 py-1 text-center">
-                      <span className="text-[10px] font-bold text-white uppercase tracking-wider flex items-center justify-center gap-1">
-                        <Star className="w-2.5 h-2.5" /> Principal
-                      </span>
-                    </div>
-                  )}
-                  <div className="absolute inset-0 bg-black/0 group-hover:bg-black/30 transition-all flex items-start justify-between p-1.5 opacity-0 group-hover:opacity-100">
-                    {!img.principal && !img.markedForDelete && (
-                      <button type="button" onClick={() => setPrincipalExisting(img.id)} title="Definir como principal"
-                        className="w-7 h-7 rounded-lg bg-white/90 flex items-center justify-center hover:bg-white transition">
-                        <Star className="w-3.5 h-3.5 text-[#0B2447]" />
-                      </button>
-                    )}
-                    <button type="button" onClick={() => toggleDeleteExisting(img.id)}
-                      title={img.markedForDelete ? 'Cancelar remoção' : 'Remover foto'}
-                      className={`w-7 h-7 rounded-lg bg-white/90 flex items-center justify-center transition ml-auto ${
-                        img.markedForDelete ? 'hover:bg-emerald-50 hover:text-emerald-600' : 'hover:bg-red-50 hover:text-red-600'
-                      }`}>
-                      {img.markedForDelete ? <CheckCircle className="w-3.5 h-3.5" /> : <X className="w-3.5 h-3.5" />}
-                    </button>
-                  </div>
-                </div>
-              ))}
-            </div>
-            <p className="mt-2 text-xs text-slate-400">Passe o mouse para remover ou definir a principal.</p>
-          </div>
-        )}
-
-        {/* Upload de novas fotos */}
-        <div
-          onDragOver={e => { e.preventDefault(); setDragging(true); }}
-          onDragLeave={() => setDragging(false)}
-          onDrop={handleDrop}
-          onClick={() => fileInputRef.current?.click()}
-          className={`flex flex-col items-center justify-center gap-3 p-8 rounded-xl border-2 border-dashed cursor-pointer transition-colors ${
-            dragging ? 'border-[#0B2447] bg-[#0B2447]/5' : 'border-slate-200 hover:border-slate-300 hover:bg-slate-50/50'
-          }`}>
-          <Upload className="w-8 h-8 text-slate-300" />
-          <div className="text-center">
-            <p className="text-sm font-medium text-slate-600">
-              Adicionar mais fotos —{' '}
-              <span className="text-[#0B3D91] underline">clique ou arraste</span>
-            </p>
-            <p className="text-xs text-slate-400 mt-1">JPG, PNG ou WEBP • Máximo 20 MB por arquivo</p>
-          </div>
-          <input ref={fileInputRef} type="file" accept="image/jpeg,image/png,image/webp"
-            multiple className="hidden"
-            onChange={e => e.target.files && addFiles(e.target.files)} />
-        </div>
-
-        {newImages.length > 0 && (
-          <div className="mt-5 grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
-            {newImages.map((img, i) => (
-              <div key={i}
-                className={`relative group rounded-xl overflow-hidden border-2 transition-all ${
-                  img.principal ? 'border-[#0B2447]' : 'border-transparent'
-                }`}>
-                <div className="aspect-square bg-slate-100 relative">
-                  <Image src={img.previewUrl} alt={img.file.name} fill className="object-cover" unoptimized />
-                </div>
-                <div className="absolute top-1 left-1 bg-emerald-500 text-white text-[9px] font-bold px-1.5 py-0.5 rounded">NOVA</div>
-                {img.uploading && (
-                  <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
-                    <Loader2 className="w-6 h-6 text-white animate-spin" />
-                  </div>
-                )}
-                {img.uploaded && (
-                  <div className="absolute top-1.5 right-1.5 w-5 h-5 rounded-full bg-emerald-500 flex items-center justify-center">
-                    <CheckCircle className="w-3 h-3 text-white" />
-                  </div>
-                )}
-                {img.principal && (
-                  <div className="absolute bottom-0 left-0 right-0 bg-[#0B2447]/80 py-1 text-center">
-                    <span className="text-[10px] font-bold text-white uppercase tracking-wider flex items-center justify-center gap-1">
-                      <Star className="w-2.5 h-2.5" /> Principal
-                    </span>
-                  </div>
-                )}
-                {!img.uploading && !img.uploaded && (
-                  <div className="absolute inset-0 bg-black/0 group-hover:bg-black/30 transition-all flex items-start justify-between p-1.5 opacity-0 group-hover:opacity-100">
-                    {!img.principal && (
-                      <button type="button" onClick={() => setPrincipalNew(i)} title="Definir como principal"
-                        className="w-7 h-7 rounded-lg bg-white/90 flex items-center justify-center hover:bg-white transition">
-                        <Star className="w-3.5 h-3.5 text-[#0B2447]" />
-                      </button>
-                    )}
-                    <button type="button" onClick={() => removeNewImage(i)} title="Remover"
-                      className="w-7 h-7 rounded-lg bg-white/90 flex items-center justify-center hover:bg-red-50 hover:text-red-600 transition ml-auto">
-                      <X className="w-3.5 h-3.5" />
-                    </button>
-                  </div>
-                )}
-              </div>
-            ))}
-          </div>
-        )}
+        <GaleriaImagensEditor
+          items={imagens}
+          onChange={setImagens}
+          disabled={submitting}
+          onError={msg => setFeedback({ type: 'error', msg })}
+          exemploTitulo="Proa do iate"
+        />
       </SectionCard>
 
       {/* ── Feedback ──────────────────────────────────────────────────────── */}
@@ -1133,7 +979,8 @@ export default function EditarEmbarcacaoForm({
       )}
 
       {/* ── Ações ─────────────────────────────────────────────────────────── */}
-      <div className="flex items-center justify-end gap-3 pb-4">
+      <div className="flex flex-wrap items-center justify-end gap-3 pb-4">
+        <BotaoPreview onClick={() => setPreviewAberto(true)} className="mr-auto" />
         <button type="button" onClick={() => router.push(voltarHref)}
           disabled={submitting}
           className="px-5 py-2.5 rounded-xl border border-slate-200 text-sm font-semibold text-slate-600 hover:bg-slate-50 transition disabled:opacity-50">
@@ -1146,6 +993,13 @@ export default function EditarEmbarcacaoForm({
             : <><ChevronRight className="w-4 h-4" /> Salvar alterações</>}
         </button>
       </div>
+
+      <PreviewPublicacaoModal
+        aberto={previewAberto}
+        onFechar={() => setPreviewAberto(false)}
+        tipo="embarcacao"
+        dados={previewDados}
+      />
     </form>
   );
 }

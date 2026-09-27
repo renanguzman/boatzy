@@ -128,9 +128,9 @@ export default async function AdministratorDashboardPage() {
       icon: Percent,
     },
     {
-      href: '/administrator/categorias',
-      titulo: 'Categorias',
-      descricao: 'Cadastre e organize as categorias e tipos de embarcação.',
+      href: '/administrator/tipos',
+      titulo: 'Tipos de embarcação',
+      descricao: 'Cadastre e organize os tipos de embarcação.',
       icon: Tags,
     },
     {

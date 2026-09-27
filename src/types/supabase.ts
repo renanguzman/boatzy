@@ -514,12 +514,6 @@ export type Database = {
         Update: { id?: string; nome?: string };
         Relationships: [];
       };
-      embarcacao_categoria: {
-        Row: { id: string; nome: string };
-        Insert: { id?: string; nome: string };
-        Update: { id?: string; nome?: string };
-        Relationships: [];
-      };
       embarcacao: {
         Row: {
           id: string;
@@ -528,13 +522,12 @@ export type Database = {
           descricao: string | null;
           capacidade: number | null;
           comprimento: number | null;
-          cabines: number | null;
+          comprimento_unidade: 'm' | 'pes';
           quartos: number | null;
           suites: number | null;
           banheiros: number | null;
           tripulacao: number | null;
           embarcacao_tipo_id: string | null;
-          embarcacao_categoria_id: string | null;
           municipio_id: number | null;
           cep: string | null;
           bairro: string | null;
@@ -558,13 +551,12 @@ export type Database = {
           descricao?: string | null;
           capacidade?: number | null;
           comprimento?: number | null;
-          cabines?: number | null;
+          comprimento_unidade?: 'm' | 'pes';
           quartos?: number | null;
           suites?: number | null;
           banheiros?: number | null;
           tripulacao?: number | null;
           embarcacao_tipo_id?: string | null;
-          embarcacao_categoria_id?: string | null;
           municipio_id?: number | null;
           cep?: string | null;
           bairro?: string | null;
@@ -588,13 +580,12 @@ export type Database = {
           descricao?: string | null;
           capacidade?: number | null;
           comprimento?: number | null;
-          cabines?: number | null;
+          comprimento_unidade?: 'm' | 'pes';
           quartos?: number | null;
           suites?: number | null;
           banheiros?: number | null;
           tripulacao?: number | null;
           embarcacao_tipo_id?: string | null;
-          embarcacao_categoria_id?: string | null;
           municipio_id?: number | null;
           cep?: string | null;
           bairro?: string | null;
@@ -699,6 +690,7 @@ export type Database = {
           url_imagem: string;
           titulo: string | null;
           principal: boolean;
+          ordem: number;
           data_criacao: string;
         };
         Insert: {
@@ -707,6 +699,7 @@ export type Database = {
           url_imagem: string;
           titulo?: string | null;
           principal?: boolean;
+          ordem?: number;
           data_criacao?: string;
         };
         Update: {
@@ -715,6 +708,7 @@ export type Database = {
           url_imagem?: string;
           titulo?: string | null;
           principal?: boolean;
+          ordem?: number;
           data_criacao?: string;
         };
         Relationships: [];
@@ -943,6 +937,7 @@ export type Database = {
           url_imagem: string;
           titulo: string | null;
           principal: boolean;
+          ordem: number;
           data_criacao: string;
         };
         Insert: {
@@ -951,6 +946,7 @@ export type Database = {
           url_imagem: string;
           titulo?: string | null;
           principal?: boolean;
+          ordem?: number;
           data_criacao?: string;
         };
         Update: {
@@ -959,6 +955,7 @@ export type Database = {
           url_imagem?: string;
           titulo?: string | null;
           principal?: boolean;
+          ordem?: number;
           data_criacao?: string;
         };
         Relationships: [];

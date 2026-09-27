@@ -1,14 +1,13 @@
 'use client';
 
-import { useState, useEffect, useTransition, useRef, useCallback } from 'react';
-import Image from 'next/image';
+import { useState, useEffect, useTransition, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import {
-  Info, MapPin, ImageIcon, Upload, X, Star, DollarSign,
+  Info, MapPin, ImageIcon, DollarSign,
   Loader2, AlertCircle, CheckCircle, ChevronRight, CalendarDays,
   Plus, ChevronDown, ChevronUp, Trash2, HelpCircle, BookOpen, Check,
 } from 'lucide-react';
-import { MAX_IMAGE_SIZE_BYTES, MAX_IMAGE_SIZE_ERROR } from '@/lib/upload';
+import GaleriaImagensEditor, { type GaleriaItem } from '@/components/painel/GaleriaImagensEditor';
 import {
   criarRoteiro,
   criarRegraRoteiro,
@@ -23,6 +22,11 @@ import MapaPicker from '../../../embarcacoes/novo/_components/MapaPicker';
 import CatalogoSelector, { type CatalogoItem, type ItemSelecionado } from '../../_components/CatalogoSelector';
 import DisponibilidadePicker from '@/components/painel/DisponibilidadePicker';
 import type { PrecoRegraTipo } from '@/types/supabase';
+import PreviewPublicacaoModal from '@/components/preview/PreviewPublicacaoModal';
+import BotaoPreview from '@/components/preview/BotaoPreview';
+import { montarPreviewRoteiro } from '@/components/preview/montar';
+import { buscarEmbarcacaoParaPreview } from '@/lib/preview-actions';
+import type { RoteiroDetalheDados } from '@/app/roteiros/[id]/_components/RoteiroDetalheView';
 
 // ─── Constantes ───────────────────────────────────────────────────────────────
 
@@ -59,11 +63,6 @@ const PRECO_NIVEIS = [
 type Estado     = { id: number; uf: string; nome: string };
 type Municipio  = { id: number; nome: string };
 type Embarcacao = { id: string; nome: string; capacidade: number | null };
-
-type ImagePreview = {
-  file: File; previewUrl: string; principal: boolean;
-  uploading: boolean; uploaded: boolean; error?: string;
-};
 
 type ParadaLocal = { localId: string; nome: string };
 
@@ -160,7 +159,6 @@ const emptyRegra = (): Omit<RegraLocal, 'localId'> => ({
 export default function NovoRoteiroForm({ estados, embarcacoes, catalogo: catalogoInicial }: Props) {
   const router = useRouter();
   const [, startTransition] = useTransition();
-  const fileInputRef   = useRef<HTMLInputElement>(null);
   const numeroInputRef = useRef<HTMLInputElement>(null);
 
   const [form, setForm] = useState<Omit<CriarRoteiroPayload, 'municipio_id' | 'disponibilidade_dias_semana'> & {
@@ -199,12 +197,33 @@ export default function NovoRoteiroForm({ estados, embarcacoes, catalogo: catalo
   const [paradas, setParadas]     = useState<ParadaLocal[]>([]);
   const [novaParada, setNovaParada] = useState('');
 
-  const [images, setImages]     = useState<ImagePreview[]>([]);
-  const [dragging, setDragging] = useState(false);
+  const [imagens, setImagens]   = useState<GaleriaItem[]>([]);
   const [feedback, setFeedback] = useState<{ type: 'error' | 'success'; msg: string } | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [itensCatalogo, setItensCatalogo] = useState<ItemSelecionado[]>([]);
   const [catalogo, setCatalogo] = useState<CatalogoItem[]>(catalogoInicial);
+
+  // ── Pré-visualização (mesmo layout da página pública) ──────────────────────
+  const [previewAberto, setPreviewAberto] = useState(false);
+  // Embarcação vinculada no formato da página pública (buscada ao abrir a prévia).
+  const [previewEmb, setPreviewEmb] = useState<{ id: string; dados: RoteiroDetalheDados['embarcacao'] } | null>(null);
+  useEffect(() => {
+    const id = form.embarcacao_id;
+    if (!previewAberto || !id || previewEmb?.id === id) return;
+    let cancelado = false;
+    buscarEmbarcacaoParaPreview(id).then(dados => {
+      if (!cancelado) setPreviewEmb({ id, dados });
+    });
+    return () => { cancelado = true; };
+  }, [previewAberto, form.embarcacao_id, previewEmb?.id]);
+  const embarcacaoPronta = !form.embarcacao_id || previewEmb?.id === form.embarcacao_id;
+  const previewDados = previewAberto && embarcacaoPronta
+    ? montarPreviewRoteiro({
+        form, estados, municipios, imagens, diasOperacao, bloqueios,
+        paradas, itensCatalogo, catalogo,
+        embarcacao: form.embarcacao_id ? previewEmb?.dados ?? null : null,
+      })
+    : null;
 
   // Scroll-spy: destaca o atalho da seção visível.
   const [secaoAtiva, setSecaoAtiva] = useState(SECOES_ROTEIRO[0].id);
@@ -371,50 +390,18 @@ export default function NovoRoteiroForm({ estados, embarcacoes, catalogo: catalo
 
   // ─── Imagens ──────────────────────────────────────────────────────────────
 
-  function addFiles(files: FileList | File[]) {
-    const imageFiles = Array.from(files).filter(f => f.type.startsWith('image/'));
-    const arr = imageFiles.filter(f => f.size <= MAX_IMAGE_SIZE_BYTES);
-    if (arr.length < imageFiles.length) {
-      setFeedback({ type: 'error', msg: MAX_IMAGE_SIZE_ERROR });
-    }
-    if (arr.length === 0) return;
-    setImages(prev => [
-      ...prev,
-      ...arr.map((file, i) => ({
-        file, previewUrl: URL.createObjectURL(file),
-        principal: prev.length === 0 && i === 0,
-        uploading: false, uploaded: false,
-      })),
-    ]);
-  }
-
-  function removeImage(idx: number) {
-    setImages(prev => {
-      const next = prev.filter((_, i) => i !== idx);
-      if (prev[idx].principal && next.length > 0) next[0].principal = true;
-      return next;
-    });
-  }
-
-  function setPrincipal(idx: number) {
-    setImages(prev => prev.map((img, i) => ({ ...img, principal: i === idx })));
-  }
-
-  const handleDrop = useCallback((e: React.DragEvent) => {
-    e.preventDefault();
-    setDragging(false);
-    addFiles(e.dataTransfer.files);
-  }, []);  
-
-  async function uploadImage(img: ImagePreview, roteiroId: string, isPrincipal: boolean) {
+  async function uploadImagem(item: GaleriaItem, roteiroId: string, ordem: number) {
+    if (!item.file) return null;
     const body = new FormData();
-    body.append('file', img.file);
+    body.append('file', item.file);
     body.append('roteiroId', roteiroId);
     const res = await fetch('/api/painel/roteiros/upload', { method: 'POST', body });
     if (!res.ok) return null;
     const { publicUrl } = await res.json();
-    await salvarImagemRoteiro({ roteiroId, urlImagem: publicUrl, titulo: img.file.name, principal: isPrincipal });
-    return publicUrl as string;
+    const saved = await salvarImagemRoteiro({
+      roteiroId, urlImagem: publicUrl, titulo: item.titulo, principal: item.principal, ordem,
+    });
+    return saved.ok ? (publicUrl as string) : null;
   }
 
   // ─── Submit ───────────────────────────────────────────────────────────────
@@ -502,12 +489,12 @@ export default function NovoRoteiroForm({ estados, embarcacoes, catalogo: catalo
     }
 
     // Upload de imagens
-    for (let i = 0; i < images.length; i++) {
-      setImages(prev => prev.map((img, idx) => idx === i ? { ...img, uploading: true } : img));
-      const url = await uploadImage(images[i], roteiroId, images[i].principal);
-      setImages(prev => prev.map((img, idx) =>
-        idx === i ? { ...img, uploading: false, uploaded: !!url, error: url ? undefined : 'Falha no upload' } : img,
-      ));
+    // (a posição na lista é a ordem da galeria)
+    for (let i = 0; i < imagens.length; i++) {
+      const item = imagens[i];
+      setImagens(prev => prev.map(it => it.key === item.key ? { ...it, status: 'uploading' } : it));
+      const url = await uploadImagem(item, roteiroId, i);
+      setImagens(prev => prev.map(it => it.key === item.key ? { ...it, status: url ? 'done' : 'error' } : it));
     }
 
     setFeedback({ type: 'success', msg: 'Roteiro cadastrado com sucesso!' });
@@ -519,6 +506,11 @@ export default function NovoRoteiroForm({ estados, embarcacoes, catalogo: catalo
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6 max-w-4xl">
+      <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-[#0B2447]/10 bg-[#0B2447]/[0.03] px-5 py-3">
+        <p className="text-sm text-slate-600">Veja como seu roteiro vai aparecer para os clientes.</p>
+        <BotaoPreview onClick={() => setPreviewAberto(true)} />
+      </div>
+
 
       {/* Atalhos das seções (tabs-âncora) */}
       <nav
@@ -1092,79 +1084,13 @@ export default function NovoRoteiroForm({ estados, embarcacoes, catalogo: catalo
 
       {/* ── 4. Imagens ──────────────────────────────────────────────────── */}
       <SectionCard id="imagens" icon={ImageIcon} title="Imagens">
-        <div
-          onDragOver={e => { e.preventDefault(); setDragging(true); }}
-          onDragLeave={() => setDragging(false)}
-          onDrop={handleDrop}
-          onClick={() => fileInputRef.current?.click()}
-          className={`flex flex-col items-center justify-center gap-3 p-8 rounded-xl border-2 border-dashed cursor-pointer transition-colors ${
-            dragging ? 'border-[#0B2447] bg-[#0B2447]/5' : 'border-slate-200 hover:border-slate-300 hover:bg-slate-50/50'
-          }`}>
-          <Upload className="w-8 h-8 text-slate-300" />
-          <div className="text-center">
-            <p className="text-sm font-medium text-slate-600">
-              Arraste as imagens ou <span className="text-[#0B3D91] underline">clique para selecionar</span>
-            </p>
-            <p className="text-xs text-slate-400 mt-1">JPG, PNG ou WEBP • Máximo 20 MB por arquivo</p>
-          </div>
-          <input ref={fileInputRef} type="file" accept="image/jpeg,image/png,image/webp"
-            multiple className="hidden"
-            onChange={e => e.target.files && addFiles(e.target.files)} />
-        </div>
-
-        {images.length > 0 && (
-          <div className="mt-5 grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
-            {images.map((img, i) => (
-              <div key={i}
-                className={`relative group rounded-xl overflow-hidden border-2 transition-all ${
-                  img.principal ? 'border-[#0B2447]' : 'border-transparent'
-                }`}>
-                <div className="aspect-square bg-slate-100 relative">
-                  <Image src={img.previewUrl} alt={img.file.name} fill className="object-cover" unoptimized />
-                </div>
-                {img.uploading && (
-                  <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
-                    <Loader2 className="w-6 h-6 text-white animate-spin" />
-                  </div>
-                )}
-                {img.uploaded && (
-                  <div className="absolute top-1.5 right-1.5 w-5 h-5 rounded-full bg-emerald-500 flex items-center justify-center">
-                    <CheckCircle className="w-3 h-3 text-white" />
-                  </div>
-                )}
-                {img.error && (
-                  <div className="absolute top-1.5 right-1.5 w-5 h-5 rounded-full bg-red-500 flex items-center justify-center">
-                    <AlertCircle className="w-3 h-3 text-white" />
-                  </div>
-                )}
-                {img.principal && (
-                  <div className="absolute bottom-0 left-0 right-0 bg-[#0B2447]/80 py-1 text-center">
-                    <span className="text-[10px] font-bold text-white uppercase tracking-wider flex items-center justify-center gap-1">
-                      <Star className="w-2.5 h-2.5" /> Principal
-                    </span>
-                  </div>
-                )}
-                {!img.uploading && !img.uploaded && (
-                  <div className="absolute inset-0 bg-black/0 group-hover:bg-black/30 transition-all flex items-start justify-between p-1.5 opacity-0 group-hover:opacity-100">
-                    {!img.principal && (
-                      <button type="button" onClick={() => setPrincipal(i)} title="Definir como principal"
-                        className="w-7 h-7 rounded-lg bg-white/90 flex items-center justify-center hover:bg-white transition">
-                        <Star className="w-3.5 h-3.5 text-[#0B2447]" />
-                      </button>
-                    )}
-                    <button type="button" onClick={() => removeImage(i)} title="Remover"
-                      className="w-7 h-7 rounded-lg bg-white/90 flex items-center justify-center hover:bg-red-50 hover:text-red-600 transition ml-auto">
-                      <X className="w-3.5 h-3.5" />
-                    </button>
-                  </div>
-                )}
-              </div>
-            ))}
-          </div>
-        )}
-        {images.length > 0 && (
-          <p className="mt-3 text-xs text-slate-400">Passe o mouse sobre a imagem para defini-la como principal ou removê-la.</p>
-        )}
+        <GaleriaImagensEditor
+          items={imagens}
+          onChange={setImagens}
+          disabled={submitting}
+          onError={msg => setFeedback({ type: 'error', msg })}
+          exemploTitulo="Vista do mirante"
+        />
       </SectionCard>
 
       {/* ── Feedback ─────────────────────────────────────────────────────── */}
@@ -1180,7 +1106,8 @@ export default function NovoRoteiroForm({ estados, embarcacoes, catalogo: catalo
       )}
 
       {/* ── Ações ────────────────────────────────────────────────────────── */}
-      <div className="flex items-center justify-end gap-3 pb-4">
+      <div className="flex flex-wrap items-center justify-end gap-3 pb-4">
+        <BotaoPreview onClick={() => setPreviewAberto(true)} className="mr-auto" />
         <button type="button" onClick={() => router.push('/painel/roteiros')}
           disabled={submitting}
           className="px-5 py-2.5 rounded-xl border border-slate-200 text-sm font-semibold text-slate-600 hover:bg-slate-50 transition disabled:opacity-50">
@@ -1193,6 +1120,13 @@ export default function NovoRoteiroForm({ estados, embarcacoes, catalogo: catalo
             : <><ChevronRight className="w-4 h-4" /> Salvar roteiro</>}
         </button>
       </div>
+
+      <PreviewPublicacaoModal
+        aberto={previewAberto}
+        onFechar={() => setPreviewAberto(false)}
+        tipo="roteiro"
+        dados={previewDados}
+      />
     </form>
   );
 }

@@ -4,6 +4,7 @@ import { useEffect, useRef, useState, useTransition } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import { Heart, Share2, Link2, Check, MessageCircle } from 'lucide-react';
 import { alternarFavorito } from '@/lib/favoritos-actions';
+import { useModoPreview } from '@/components/preview/ModoPreview';
 
 // Ícones de marca (a lucide-react removeu os brand icons).
 function FacebookIcon({ className }: { className?: string }) {
@@ -36,6 +37,7 @@ export default function RoteiroAcoes({ roteiroId, roteiroNome, initialFavorito }
   const router = useRouter();
   const pathname = usePathname();
   const [, startTransition] = useTransition();
+  const preview = useModoPreview();
 
   // Favoritar (otimista: alterna na hora e reverte se a action falhar)
   const [favorito, setFavorito] = useState(initialFavorito);
@@ -54,6 +56,7 @@ export default function RoteiroAcoes({ roteiroId, roteiroNome, initialFavorito }
   }, []);
 
   function handleFavoritar() {
+    if (preview.ativo) { preview.avisar(); return; }
     const anterior = favorito;
     setFavorito(!anterior);
     startTransition(async () => {
@@ -131,7 +134,7 @@ export default function RoteiroAcoes({ roteiroId, roteiroNome, initialFavorito }
       <div className="relative flex-1" ref={shareRef}>
         <button
           type="button"
-          onClick={() => setShareOpen((o) => !o)}
+          onClick={() => (preview.ativo ? preview.avisar() : setShareOpen((o) => !o))}
           aria-haspopup="menu"
           aria-expanded={shareOpen}
           className="w-full flex items-center justify-center gap-2 py-3 rounded-xl border border-slate-200 text-sm font-medium text-slate-700 hover:bg-slate-50 transition-colors"

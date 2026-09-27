@@ -9,6 +9,7 @@ import { formatCurrency } from '@/lib/utils';
 import { useCart } from './CartContext';
 import AddonsAccordion from './AddonsAccordion';
 import RoteiroAcoes from './RoteiroAcoes';
+import { useModoPreview } from '@/components/preview/ModoPreview';
 
 type ActivePanel = 'date' | 'guests' | null;
 type Modalidade = 'roteiro' | 'diaria' | 'pessoa';
@@ -127,6 +128,7 @@ export default function BookingCard({
   const [active, setActive] = useState<ActivePanel>(null);
   const [error, setError] = useState<string | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+  const preview = useModoPreview();
   const { selectedAddons, totalAdicionais } = useCart();
 
   function open(panel: ActivePanel) {
@@ -228,6 +230,8 @@ export default function BookingCard({
     params.set('pessoas', String(guests));
     if (modalidade === 'diaria') params.set('diarias', String(diarias));
     if (selectedAddons.length > 0) params.set('adicionais', selectedAddons.map((a) => a.id).join(','));
+    // Pré-visualização do painel: valida como no site, mas não reserva.
+    if (preview.ativo) { preview.avisar(); return; }
     window.location.href = `/reservas/novo?${params.toString()}`;
   }
 

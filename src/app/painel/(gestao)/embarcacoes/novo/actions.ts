@@ -4,6 +4,8 @@ import { createClient } from '@/lib/supabase/server';
 import { supabaseAdmin } from '@/lib/supabase';
 import { checkRoleInDb } from '@/lib/roles';
 import type { EmbarcacaoStatus, ModalidadeCapitao, PrecoRegraTipo } from '@/types/supabase';
+import { isComprimentoUnidade, type ComprimentoUnidade } from '@/lib/comprimento';
+import { normalizarTituloImagem } from '@/lib/galeria';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Tipos
@@ -13,12 +15,11 @@ export type CriarEmbarcacaoPayload = {
   nome: string;
   descricao: string;
   embarcacao_tipo_id: string;
-  embarcacao_categoria_id: string;
   status: EmbarcacaoStatus;
   modalidade_capitao: ModalidadeCapitao;
   capacidade: string;
   comprimento: string;
-  cabines: string;
+  comprimento_unidade: ComprimentoUnidade;
   quartos: string;
   suites: string;
   banheiros: string;
@@ -45,6 +46,8 @@ export type SalvarImagemPayload = {
   urlImagem: string;
   titulo?: string;
   principal: boolean;
+  /** Posição na galeria (0 = primeira). */
+  ordem?: number;
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -72,12 +75,11 @@ export async function criarEmbarcacao(
       nome: payload.nome.trim(),
       descricao: payload.descricao.trim() || null,
       embarcacao_tipo_id: payload.embarcacao_tipo_id || null,
-      embarcacao_categoria_id: payload.embarcacao_categoria_id || null,
       status: payload.status,
       modalidade_capitao: payload.modalidade_capitao,
       capacidade: payload.capacidade ? parseInt(payload.capacidade, 10) : null,
       comprimento: payload.comprimento ? parseFloat(payload.comprimento) : null,
-      cabines: payload.cabines ? parseInt(payload.cabines, 10) : null,
+      comprimento_unidade: isComprimentoUnidade(payload.comprimento_unidade) ? payload.comprimento_unidade : 'm',
       quartos: payload.quartos ? parseInt(payload.quartos, 10) : null,
       suites: payload.suites ? parseInt(payload.suites, 10) : null,
       banheiros: payload.banheiros !== '' ? parseInt(payload.banheiros, 10) : null,
@@ -137,8 +139,9 @@ export async function salvarImagem(
   const { error } = await supabaseAdmin.from('embarcacao_imagens').insert({
     embarcacao_id: payload.embarcacaoId,
     url_imagem: payload.urlImagem,
-    titulo: payload.titulo ?? null,
+    titulo: normalizarTituloImagem(payload.titulo),
     principal: payload.principal,
+    ordem: Math.max(0, Math.trunc(payload.ordem ?? 0)),
   });
 
   if (error) return { ok: false, error: error.message };
