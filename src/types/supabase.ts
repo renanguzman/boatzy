@@ -21,6 +21,10 @@ export type AnuncioInteracaoTipo =
   | 'conversou';
 export type CupomTipoDesconto = 'percentual' | 'valor_fixo';
 export type TermoUsoStatus = 'rascunho' | 'publicado' | 'arquivado';
+/** Estado de processamento de um evento de webhook do Asaas — ver SPEC §34. */
+export type AsaasWebhookEventoStatus = 'pendente' | 'processando' | 'processado' | 'ignorado' | 'erro';
+
+export type Json = string | number | boolean | null | { [key: string]: Json | undefined } | Json[];
 
 export type Database = {
   public: {
@@ -1598,6 +1602,52 @@ export type Database = {
         };
         Relationships: [];
       };
+      // Fila/idempotência dos webhooks do Asaas (migration 20260930_asaas_webhook_evento).
+      asaas_webhook_evento: {
+        Row: {
+          id: string;
+          evento: string;
+          recurso_tipo: string | null;
+          recurso_id: string | null;
+          payload: Json;
+          criado_asaas_em: string | null;
+          recebido_em: string;
+          status: AsaasWebhookEventoStatus;
+          tentativas: number;
+          erro: string | null;
+          processado_em: string | null;
+          atualizado_em: string;
+        };
+        Insert: {
+          id: string;
+          evento: string;
+          recurso_tipo?: string | null;
+          recurso_id?: string | null;
+          payload: Json;
+          criado_asaas_em?: string | null;
+          recebido_em?: string;
+          status?: AsaasWebhookEventoStatus;
+          tentativas?: number;
+          erro?: string | null;
+          processado_em?: string | null;
+          atualizado_em?: string;
+        };
+        Update: {
+          id?: string;
+          evento?: string;
+          recurso_tipo?: string | null;
+          recurso_id?: string | null;
+          payload?: Json;
+          criado_asaas_em?: string | null;
+          recebido_em?: string;
+          status?: AsaasWebhookEventoStatus;
+          tentativas?: number;
+          erro?: string | null;
+          processado_em?: string | null;
+          atualizado_em?: string;
+        };
+        Relationships: [];
+      };
       // Append-only: UPDATE/DELETE recusados por trigger. Campos de snapshot,
       // aceito_em, sequencia e hashes são preenchidos pelo banco (fora do Insert).
       termos_uso_aceite: {
@@ -1688,6 +1738,10 @@ export type Database = {
       get_taxa_usuario: {
         Args: { p_user_id: string };
         Returns: number;
+      };
+      asaas_webhook_evento_reservar: {
+        Args: { p_id: string; p_minutos_travado?: number };
+        Returns: Database['public']['Tables']['asaas_webhook_evento']['Row'][];
       };
       buscar_embarcacoes: {
         Args: {

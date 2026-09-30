@@ -15,6 +15,7 @@ import {
   Tags,
   FileText,
   Settings,
+  Wallet,
   LogOut,
 } from 'lucide-react';
 import clsx from 'clsx';
@@ -27,6 +28,7 @@ const navItems = [
   { href: '/administrator/cupons', label: 'CUPONS', icon: TicketPercent, exact: false },
   { href: '/administrator/publicidade', label: 'PUBLICIDADE', icon: Megaphone, exact: false },
   { href: '/administrator/taxas', label: 'TAXAS', icon: Percent, exact: false },
+  { href: '/administrator/financeiro', label: 'FINANCEIRO', icon: Wallet, exact: false },
   { href: '/administrator/tipos', label: 'TIPOS', icon: Tags, exact: false },
   { href: '/administrator/termos', label: 'TERMOS DE USO', icon: FileText, exact: false },
   { href: '/administrator/configuracoes', label: 'CONFIGURAÇÕES', icon: Settings, exact: false },

@@ -18,7 +18,7 @@
 - Database: Supabase (PostgreSQL)
 - Auth: Supabase Auth (OAuth: Google, Facebook, Apple; email/senha)
 - Storage: Supabase Storage
-- Payments: Stripe Connect
+- Payments: Asaas (intermediação + repasse ao gestor — em implantação por fases, ver §34)
 
 ---
 
@@ -32,7 +32,7 @@ Supabase Auth (Sessions / OAuth)
         ↓
 Supabase (DB + Storage)
         ↓
-Stripe (Payments)
+Asaas (Payments — cobrança, webhooks, repasses)
 
 ---
 
@@ -138,12 +138,16 @@ GET /api/reviews/:boat_id
 
 ---
 
-## 6. Integração com Stripe
+## 6. Integração de pagamentos (Asaas)
 
-Split automático calculado em runtime:
+O Stripe Connect previsto originalmente foi substituído pelo **Asaas**. A integração está em
+implantação por fases — contrato técnico em **§34** e planejamento completo em
+`docs/planejamento-pagamentos-asaas.md`.
 
-- Owner: `100% - taxa_efetiva`
-- Boatzy: `taxa_efetiva` (resolvida via `get_taxa_usuario`)  
+A comissão da plataforma continua vindo do mecanismo de taxas já existente (§14): `taxa_efetiva`
+resolvida via `get_taxa_usuario` do **gestor** e gravada como snapshot em `reserva.taxa_percent` /
+`reserva.taxa_servico`. As regras de como essa comissão se combina com tarifa do Asaas, cupom e
+repasse ainda serão definidas (decisão D7 do planejamento).
 
 ---
 
@@ -186,7 +190,7 @@ Variáveis:
 SUPABASE_URL  
 SUPABASE_KEY  
 CLERK_API_KEY  
-STRIPE_SECRET_KEY  
+ASAAS_API_KEY / ASAAS_API_URL / ASAAS_WEBHOOK_TOKEN (ver §34.1)  
 
 ---
 
@@ -1823,7 +1827,7 @@ trocar a lista global pela localizada.
 - Antifraude
 - Tela do cliente para acompanhar suas reservas (status + observação do gestor) — ver §20
 - Reserva de **embarcação** pelo site (hoje só roteiro — ver §20)
-- Pagamento na reserva (Stripe) — hoje a reserva é apenas solicitação sem cobrança
+- Pagamento na reserva (Asaas — em implantação por fases, ver §34) — hoje a reserva ainda é apenas solicitação sem cobrança
 - Filtros adicionais na busca (tipo de embarcação, faixa de preço)
 - Visualização em mapa no `/buscar`
 - Avaliações reais em `/roteiros/[id]`
@@ -2938,6 +2942,13 @@ src/app/administrator/
       _components/TermoAcoesPainel.tsx  → ações da tela de visualização
       _components/useTermoAcoes.tsx     → hook das ações de ciclo de vida + modais de confirmação
       _components/ConfirmModal.tsx, TermoStatusBadge.tsx
+    financeiro/
+      page.tsx                → redireciona para integracao/ (dashboard financeiro entra na Fase 4)
+      integracao/
+        page.tsx              → conexão com o Asaas, webhooks da conta e fila de eventos (§34.7)
+        actions.ts            → testarConexaoAsaas, cadastrarWebhookAsaas, reativarWebhookAsaas,
+                                reprocessarEventoAsaas, reprocessarPendentesAsaas
+        _components/ConexaoAsaasCard.tsx, WebhooksAsaasCard.tsx, EventosWebhookGrid.tsx
     publicidade/page.tsx      → placeholder
     taxas/page.tsx            → placeholder
     tipos/page.tsx            → placeholder (tipos de embarcação)
@@ -2974,6 +2985,7 @@ Renderiza 6 stat cards + grid de cards de acesso rápido aos 6 módulos.
 | `/administrator/cupons` | Cupons | ✅ implementado |
 | `/administrator/publicidade` | Publicidade | 🔜 placeholder |
 | `/administrator/taxas` | Taxas | ✅ implementado |
+| `/administrator/financeiro` | Financeiro | 🟡 Fase 0 — só a tela Integração (§34.7) |
 | `/administrator/tipos` | Tipos de embarcação | 🔜 placeholder |
 | `/administrator/termos` | Termos de Uso | ✅ implementado |
 | `/administrator/configuracoes` | Configurações | 🔜 placeholder |
@@ -4410,3 +4422,136 @@ de duração) — só renderizada na aba Roteiros (`!abaEmbarcacao`, calculado d
 `p_modelos_preco` na chamada da RPC, adiciona o chip "Cobrança: ..." (removível), inclui
 `modelo_preco` no reset "Limpar filtros" do estado vazio e em `filtrosPreservados` repassado ao
 `SearchBarCompact` (troca de destino/data/pessoas não derruba o filtro).
+
+---
+
+## 34. Pagamentos — Asaas (em implantação por fases)
+
+Planejamento completo (fatos da documentação do Asaas, modelo de dinheiro, regras, decisões
+pendentes e fases): `docs/planejamento-pagamentos-asaas.md`. Esta seção registra só o que **já está
+implementado**.
+
+| Fase | Entrega | Status |
+|------|---------|--------|
+| 0 — Fundação | Env vars, `src/lib/asaas/`, fila de webhooks, endpoint, cron, tela Integração no admin | ✅ 30/09/2026 |
+| 1 — Cobrança | Aceite do gestor → cobrança Pix/cartão, confirmação por webhook, expiração | 🔜 |
+| 2 — Cancelamento e estornos | Política configurável, estornos | 🔜 |
+| 3 — Repasses | Recebedor, job de repasse, validação de saque | 🔜 (depende de D1–D4) |
+| 4 — Controle total | Dashboard, conciliação, disputas, auditoria | 🔜 |
+| 5 — Produção | Chaves e webhooks de produção, homologação | 🔜 |
+
+### 34.1 Variáveis de ambiente
+
+```
+ASAAS_API_KEY=\$aact_hmlg_...     # "\$" obrigatório: sem ele o Next expande "$aact_…" como variável
+ASAAS_API_URL=https://api-sandbox.asaas.com/v3   # opcional — padrão deduzido do prefixo da chave
+ASAAS_WEBHOOK_TOKEN=...           # 32–255 caracteres, sem espaços (ex.: openssl rand -hex 32)
+```
+
+- **Ambiente** deduzido do prefixo da chave: `$aact_hmlg_` = sandbox, `$aact_prod_` = produção.
+  Se `ASAAS_API_URL` for informada e não bater com o ambiente da chave (chave de produção apontando
+  para o sandbox ou o contrário), a configuração é recusada.
+- Chave que não começa com `$aact_` → erro explícito sugerindo o escape do `$`. Uma barra inicial
+  literal (`\$aact_…`, comum ao colar no painel da Vercel, onde o `$` **não** precisa de escape) é
+  removida antes da validação — as duas formas funcionam.
+- Sem `ASAAS_WEBHOOK_TOKEN` válido o endpoint de webhook recusa tudo (401 — fail-safe).
+
+### 34.2 Módulo `src/lib/asaas/` (todo `server-only`, exceto `tipos.ts`)
+
+| Arquivo | Conteúdo |
+|---------|----------|
+| `config.ts` | `lerAsaasConfig()` → `{ ok, config: { apiUrl, apiKey, ambiente } }` ou `{ ok: false, erro }`; `lerTokenWebhook()`; `urlWebhookSugerida()` (`NEXT_PUBLIC_APP_URL` + `/api/webhooks/asaas`) |
+| `client.ts` | `asaasRequest<T>(caminho, { metodo, corpo, query, timeoutMs })` — headers `access_token` + `User-Agent: Boatzy/1.0 (Next.js; <ambiente>)`, timeout 15s, `cache: 'no-store'`. Erros viram `AsaasError { status, codigo, erros[], esperarSegundos }`: `429` não repete (lê `RateLimit-Reset`); timeout → `codigo = 'timeout'` (em POST, **consultar antes de repetir**). Nunca loga chave nem corpo. `mensagemErroAsaas(err)` para exibir ao admin |
+| `tipos.ts` | `AsaasLista<T>`, `AsaasSaldo`, `AsaasWebhookConfig`, `AsaasEventoPayload` |
+| `financeiro.ts` | `consultarSaldo()` → `GET /finance/balance` |
+| `webhooks.ts` | `EVENTOS_ASSINADOS` (PAYMENT_* e TRANSFER_* relevantes), `listarWebhooks()` (`GET /webhooks`), `criarWebhook({ url, email, authToken })` (`POST /webhooks`, `sendType: SEQUENTIALLY`, `apiVersion: 3`), `reativarFilaWebhook(id)` (`PUT /webhooks/{id}` com `interrupted: false`) |
+| `eventos.ts` | Fila de eventos — ver §34.4 |
+
+### 34.3 Tabela `asaas_webhook_evento` — migration `20260930_asaas_webhook_evento.sql`
+
+```sql
+id               text PK            -- id do evento no Asaas (chave de idempotência)
+evento           text NOT NULL      -- ex.: 'PAYMENT_RECEIVED'
+recurso_tipo     text               -- chave do objeto no payload: 'payment', 'transfer'…
+recurso_id       text               -- id do objeto (pay_…, id da transferência)
+payload          jsonb NOT NULL     -- corpo recebido, sem alteração
+criado_asaas_em  timestamptz        -- dateCreated (horário de Brasília → -03:00)
+recebido_em      timestamptz NOT NULL DEFAULT now()
+status           text NOT NULL DEFAULT 'pendente'  -- pendente | processando | processado | ignorado | erro
+tentativas       integer NOT NULL DEFAULT 0
+erro             text
+processado_em    timestamptz
+atualizado_em    timestamptz NOT NULL DEFAULT now()
+```
+
+Índices: `(status, recebido_em)`, `(recurso_id)`, `(evento, recebido_em DESC)`. RLS: só
+`service_role_all`; GRANTs explícitos da Data API (AGENTS.md).
+
+**Função `asaas_webhook_evento_reservar(p_id text, p_minutos_travado int DEFAULT 10)`** →
+`SETOF asaas_webhook_evento`: `UPDATE … SET status = 'processando', tentativas = tentativas + 1`
+só se o evento estiver `pendente`/`erro` ou travado em `processando` há mais de N minutos. É a
+trava que impede o `after()` do endpoint e o cron de processarem o mesmo evento ao mesmo tempo.
+`EXECUTE` só para `service_role`.
+
+Tipo TS: `AsaasWebhookEventoStatus` e a tabela/função em `src/types/supabase.ts` (+ tipo `Json`).
+
+### 34.4 Processamento — `src/lib/asaas/eventos.ts`
+
+- `validarPayloadEvento(corpo)` — exige `id` (string ≤ 255) e `event` (`^[A-Z_]{3,80}$`).
+- `registrarEvento(payload)` — `upsert … onConflict: 'id', ignoreDuplicates: true`; identifica
+  `recurso_tipo`/`recurso_id` pelo primeiro objeto com `id` no payload. Lança erro se o banco
+  falhar.
+- `processarEvento(id)` — reserva via RPC; executa o handler do tipo de evento; grava `processado`
+  / `ignorado` / `erro` (mensagem truncada em 2000 caracteres). Devolve o status final ou `null`
+  (não elegível).
+- **Registro de handlers** `HANDLERS: Partial<Record<evento, HandlerEventoAsaas>>` — **vazio na
+  Fase 0**: todo evento é gravado e marcado `ignorado`. Handlers precisam ser idempotentes no
+  negócio (transições guardadas) e podem devolver `'ignorado'` quando o evento não se aplica.
+- `reprocessarPendentes(limite = 50)` — sequencial, em ordem de chegada: `pendente`, `erro` com
+  `tentativas < MAX_TENTATIVAS_AUTOMATICAS` (8) e `processando` travado há mais de 10 min.
+- `reprocessarEventoManual(id)` — admin: volta `erro`/`ignorado` para `pendente` e processa na hora
+  (ignora o limite de tentativas). `processado` nunca é reprocessado.
+
+### 34.5 Endpoint — `POST /api/webhooks/asaas` (`src/app/api/webhooks/asaas/route.ts`)
+
+1. Header `asaas-access-token` comparado com `ASAAS_WEBHOOK_TOKEN` em tempo constante (SHA-256 +
+   `timingSafeEqual`). Inválido ou token não configurado → `401`.
+2. JSON inválido ou payload fora do formato → `400`.
+3. `registrarEvento` → falha no banco → `500` (o Asaas reenvia).
+4. `after(() => processarEvento(id))` — também em duplicatas, para recuperar um evento que ficou
+   pendente. Responde `200 { ok: true }`.
+
+`maxDuration = 60`. O proxy (`src/proxy.ts`) passa pela rota sem redirecionar (só protege
+`/painel` e `/administrator`).
+
+### 34.6 Cron — `GET|POST /api/cron/asaas-webhooks`
+
+Mesmo padrão de `/api/cron/notificar-conversas` (`Authorization: Bearer <CRON_SECRET>`, fail-safe
+sem secret). Chama `reprocessarPendentes()` e responde o resumo
+`{ total, processados, ignorados, erros }`. Agendado em `vercel.json` **1×/dia** (`30 9 * * *`) —
+limite do plano Hobby. A partir da Fase 1 precisa rodar a cada ~10 min (Vercel Pro ou `pg_cron` +
+`pg_net` no Supabase).
+
+### 34.7 Admin — `/administrator/financeiro/integracao`
+
+`/administrator/financeiro` redireciona para cá até existir o dashboard (Fase 4). Novo item
+**FINANCEIRO** (ícone `Wallet`) no `AdminSidebar`, depois de Taxas.
+
+- **ConexaoAsaasCard** — ambiente (badge Sandbox/Produção), URL da API, chave e token do webhook
+  configurados (sim/não — nunca exibe valores), erro de configuração e botão **Testar conexão**
+  (`testarConexaoAsaas` → saldo da conta + latência).
+- **WebhooksAsaasCard** — webhooks cadastrados na conta (lidos da API a cada render): situação
+  (Ativo / Fila pausada / Desativado), nº de eventos, tipo de envio, token, falhas penalizadas, aviso
+  se a URL difere da deste ambiente. **Cadastrar** (`cadastrarWebhookAsaas`: exige token
+  configurado, URL `https` pública — recusa localhost —, e-mail válido e URL ainda não cadastrada;
+  antes de cadastrar faz um `POST` sem token na URL com `redirect: 'manual'` e só aceita o `401
+  { error: 'unauthorized' }` do próprio endpoint — recusa redirecionamento (ex.: `www` → domínio
+  sem `www`, que o Asaas não segue), `404` (código não publicado) e qualquer outra resposta)
+  e **Reativar fila** quando `interrupted` (`reativarWebhookAsaas`, com confirmação).
+- **EventosWebhookGrid** — totais por status (clicáveis como filtro), busca (id do evento, id do
+  recurso, tipo), paginação 10/25/50 no servidor, linha expansível com datas, erro e payload JSON;
+  **Reprocessar** por evento (`erro`/`ignorado`/`pendente`) e **Reprocessar pendentes** (lote).
+
+Todas as actions exigem sessão + role `admin` (`checkRoleInDb`). Cadastro de webhook e reativação
+de fila são logados no servidor; a trilha de auditoria em banco (`financeiro_auditoria`) entra junto
+com as ações que movem dinheiro (Fase 1+).

@@ -41,7 +41,7 @@ Validar um marketplace de aluguel de embarcações, garantindo:
 - **Banco de Dados:** Supabase (PostgreSQL)
 - **Autenticação:** Supabase Auth (OAuth: Google, Facebook, Apple; email/senha)
 - **Hospedagem:** Vercel
-- **Pagamentos:** Stripe Connect (Marketplace)
+- **Pagamentos:** Asaas — a plataforma recebe do cliente e repassa ao gestor (em implantação por fases, ver 6.6)
 
 ---
 
@@ -390,16 +390,53 @@ gestor. Detalhes técnicos: SPEC §20.4–20.5.
   (`/painel/agendamentos/[id]`).
 - Detalhes técnicos: `SPEC.md` §20.8.
 
-**Próximos passos:** refinamentos do calendário (filtros por tipo/status); pagamento (Stripe).
+**Próximos passos:** refinamentos do calendário (filtros por tipo/status); pagamento (Asaas, ver 6.6).
 
 ---
 
 ### 6.6 Pagamentos
 
-- Integração com Stripe Connect
-- Split automático:
-  - Comissão da plataforma
-  - Repasse ao dono
+Gateway: **Asaas** (substitui o Stripe Connect previsto originalmente). O Boatzy passa a
+intermediar o pagamento: o cliente paga pela plataforma (Pix ou cartão), o valor fica sob controle
+do Boatzy e, **48h após o passeio** (sem disputa), o valor do gestor é repassado; a comissão fica
+com a plataforma. Tudo controlável pelo painel admin (cobranças, estornos, repasses, disputas,
+conciliação e auditoria).
+
+Planejamento completo — fatos da documentação do Asaas, modelo de dinheiro recomendado (custódia
+Boatzy + repasse por Pix), regras de negócio, decisões pendentes e fases:
+`docs/planejamento-pagamentos-asaas.md`. Implantação **por fases**, cada uma deployável.
+
+#### ✅ Implementado — Fase 0: Fundação (30/09/2026)
+
+- Conexão com o Asaas configurada só por variáveis de ambiente do servidor (sandbox ou produção,
+  deduzido da chave; configuração incoerente é recusada).
+- Recebimento de eventos do Asaas (webhook) com token de autenticação, gravação única por evento
+  (o Asaas pode reenviar o mesmo evento) e processamento depois da resposta, com reprocessamento
+  automático diário e manual pelo admin.
+- Admin → **Financeiro → Integração**: testar a conexão (mostra o saldo da conta), ver e cadastrar o
+  webhook do Boatzy na conta Asaas, reativar a fila quando o Asaas a pausar, e acompanhar/reprocessar
+  os eventos recebidos.
+- **Ainda não há cobrança**: nesta fase os eventos são só registrados (ficam como "ignorados") — a
+  reserva continua sendo uma solicitação sem pagamento.
+- Detalhes técnicos: SPEC §34.
+
+#### 🔜 Próximas fases
+
+1. **Cobrança** — aceite do gestor gera a cobrança (Pix na própria página, cartão pela fatura do
+   Asaas), confirmação por webhook, prazo para pagar, bloqueio de data enquanto aguarda pagamento.
+2. **Cancelamento e estornos** — política configurável e reembolso total/parcial.
+3. **Repasses** — cadastro/validação da chave Pix do gestor, repasse automático 48h após o passeio,
+   fila de repasses no admin (reter/liberar/ajustar).
+4. **Controle total** — dashboard financeiro, conciliação diária, disputas/chargeback, auditoria.
+5. **Produção** — chaves e webhooks de produção, homologação com o Asaas.
+
+#### ⏳ Decisões pendentes (ver planejamento §12)
+
+- **Regras de comissão da plataforma no fluxo de pagamento (D7).** A comissão já existe e é
+  configurável (Admin → Taxas: taxa geral + taxa específica por gestor, snapshot gravado em cada
+  reserva — ver 6.11). Falta definir como ela se combina com a tarifa do Asaas, o cupom e o repasse.
+- Modelo aceito pelo Asaas (D1), tributação (D2), cartão/parcelamento (D3), IP fixo para repasses
+  automáticos (D4), política de cancelamento (D5) e marco das 48h (D6).
 
 ---
 
@@ -485,7 +522,7 @@ Todos os números são do **gestor logado** (`owner_id`):
 
 #### ✅ Implementado — Menu **Receitas** (`/painel/receitas`)
 
-- Tela financeira do gestor: filtros por **período** (com atalhos: Este mês, Últimos 30 dias, Últimos 6 meses, Este ano), **embarcação**, **roteiro**, **cliente** e **status** (default: Confirmada + Concluída — é a base da receita, já que não há Stripe integrado; o gestor pode ampliar para ver pendentes/canceladas).
+- Tela financeira do gestor: filtros por **período** (com atalhos: Este mês, Últimos 30 dias, Últimos 6 meses, Este ano), **embarcação**, **roteiro**, **cliente** e **status** (default: Confirmada + Concluída — é a base da receita, já que ainda não há pagamento integrado; o gestor pode ampliar para ver pendentes/canceladas).
 - **KPIs:** receita no período, variação % vs. período anterior (mesma duração, imediatamente anterior), ticket médio, nº de reservas confirmadas, valor pendente (informativo).
 - **Gráficos:** receita por mês (tendência), receita por embarcação (top 8) e por roteiro (top 8), top clientes por receita.
 - **Grid de reservas** do período filtrado: ordenável por qualquer coluna, paginado (10/página), com exportação para **Excel** e **PDF** (refletindo o filtro e a ordenação atuais).
@@ -644,7 +681,7 @@ Todos os números são do **gestor logado** (`owner_id`):
 - Página estática institucional acessível pelo item "Sobre Nós" no rodapé (antes apontava para `/about`, rota inexistente/404; corrigido para `/sobre`).
 - Conteúdo editorial (não jurídico) em 6 blocos: Hero ("Tornar o mar acessível."), origem em Florianópolis, "Dois lados, uma plataforma" (cliente x proprietário), princípios ("O que nos guia": Simplicidade, Acesso, Confiança), plano de expansão nacional e chamada final com 2 CTAs ("Ver embarcações" → `/buscar`, "Quero anunciar" → `/painel`) e e-mail de contato institucional `adm@boatzy.app`.
 - `export const metadata` com `title`/`description` fornecidos pelo usuário.
-- **Ressalva do próprio texto-fonte, repassada aqui:** a afirmação de "pagamento protegido" no bloco de princípios ("Confiança") descreve a visão de produto — a integração de pagamentos (Stripe Connect, split automático) consta no roadmap (§6.6) mas **ainda não está implementada**. Revisar esse texto (ou adiantar a entrega da funcionalidade) antes de tratar a página como descrição 100% fiel do MVP atual.
+- **Ressalva do próprio texto-fonte, repassada aqui:** a afirmação de "pagamento protegido" no bloco de princípios ("Confiança") descreve a visão de produto — a integração de pagamentos (Asaas, com repasse ao gestor) está em implantação por fases (§6.6) e **ainda não cobra reservas**. Revisar esse texto (ou adiantar a entrega da funcionalidade) antes de tratar a página como descrição 100% fiel do MVP atual.
 - Detalhes técnicos: SPEC §18.8.
 
 #### ✅ Implementado — Política de Privacidade `/privacy`
@@ -706,6 +743,7 @@ Todos os números são do **gestor logado** (`owner_id`):
   - **Roteiros** — ✅ implementado (ver abaixo)
   - **Publicidade** — 🔜 gestão de espaços de publicidade (placeholder)
   - **Taxas** — ✅ implementado (ver abaixo)
+  - **Financeiro** — 🟡 Fase 0: tela de integração com o Asaas (ver 6.6)
   - **Tipos de embarcação** — 🔜 cadastro de tipos de embarcação (placeholder, `/administrator/tipos`)
   - **Configurações** — 🔜 parâmetros gerais da plataforma (placeholder)
 
