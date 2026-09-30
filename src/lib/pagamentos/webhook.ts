@@ -37,9 +37,12 @@ const TIPO_TRANSACAO: Record<string, string> = {
   PAYMENT_AWAITING_CHARGEBACK_REVERSAL: 'chargeback_revertido',
 };
 
-/** Status normalizado do pagamento a partir do evento e do status cru da cobrança. */
-function statusDoPagamento(evento: string, statusAsaas: string): PagamentoStatus | null {
-  if (evento === 'PAYMENT_DELETED') return 'cancelado';
+/**
+ * Status normalizado do pagamento a partir do evento e do status cru da cobrança.
+ * `evento` é null na sincronização manual (admin) — aí vale só a cobrança.
+ */
+function statusDoPagamento(evento: string | null, statusAsaas: string, removida = false): PagamentoStatus | null {
+  if (evento === 'PAYMENT_DELETED' || (evento === null && removida)) return 'cancelado';
   if (evento === 'PAYMENT_REPROVED_BY_RISK_ANALYSIS' || evento === 'PAYMENT_CREDIT_CARD_CAPTURE_REFUSED') return 'recusado';
   if (evento === 'PAYMENT_PARTIALLY_REFUNDED') return 'estornado_parcial';
   switch (statusAsaas) {
@@ -123,13 +126,40 @@ export async function tratarEventoCobranca(evento: EventoAsaasRow): Promise<'pro
   const payload = evento.payload as Record<string, unknown>;
   const cobranca = payload.payment as AsaasCobranca | undefined;
   if (!cobranca?.id) return 'ignorado';
+  const r = await aplicarCobranca(cobranca, {
+    evento: evento.evento,
+    eventoId: evento.id,
+    ocorridoEm: evento.criado_asaas_em ?? evento.recebido_em,
+  });
+  return r.resultado;
+}
 
+export type ResultadoAplicacao = {
+  resultado: 'processado' | 'ignorado';
+  pagamentoId?: string;
+  statusAnterior?: PagamentoStatus;
+  statusNovo?: PagamentoStatus;
+};
+
+/**
+ * Aplica o estado de uma cobrança do Asaas ao pagamento correspondente
+ * (status, valores, datas, cartão, parcelas) e os efeitos no pedido/reserva.
+ * Usado pelo webhook (com evento → registra o movimento no histórico) e pela
+ * sincronização manual do admin (sem evento → não registra movimento; a
+ * alteração fica na auditoria).
+ */
+export async function aplicarCobranca(
+  cobranca: AsaasCobranca,
+  contexto: { evento: string | null; eventoId: string | null; ocorridoEm: string | null },
+): Promise<ResultadoAplicacao> {
   const pagamento = await localizarPagamento(cobranca);
-  if (!pagamento) return 'ignorado'; // cobrança criada fora do checkout do Boatzy
+  if (!pagamento) return { resultado: 'ignorado' }; // cobrança criada fora do checkout do Boatzy
 
   const parcelado = pagamento.numero_parcelas > 1 && !!cobranca.installment;
   const ehParcelaPrincipal = !parcelado || cobranca.id === pagamento.asaas_payment_id || (cobranca.installmentNumber ?? 1) === 1;
-  const novoStatus = statusDoPagamento(evento.evento, cobranca.status);
+  const novoStatus = statusDoPagamento(contexto.evento, cobranca.status, cobranca.deleted === true);
+  const statusAnterior = pagamento.status as PagamentoStatus;
+  let statusAplicado: PagamentoStatus = statusAnterior;
 
   // Parcelas (cartão parcelado): cada parcela é uma cobrança no Asaas.
   let parcelaId: string | null = null;
@@ -175,7 +205,10 @@ export async function tratarEventoCobranca(evento: EventoAsaasRow): Promise<'pro
     if (novoStatus === 'recebido') {
       atualizacao.recebido_em = dataParaIso(cobranca.paymentDate ?? cobranca.clientPaymentDate) ?? new Date().toISOString();
     }
-    if (novoStatus && podeTransitar(pagamento.status as PagamentoStatus, novoStatus)) atualizacao.status = novoStatus;
+    if (novoStatus && podeTransitar(statusAnterior, novoStatus)) {
+      atualizacao.status = novoStatus;
+      statusAplicado = novoStatus;
+    }
     // Campos `undefined` não vão no JSON — não sobrescrevem o que já existe.
     await supabaseAdmin.from('pagamento').update(atualizacao).eq('id', pagamento.id);
   }
@@ -204,20 +237,22 @@ export async function tratarEventoCobranca(evento: EventoAsaasRow): Promise<'pro
       .upsert({ pagamento_id: pagamento.id, bandeira, ultimos_digitos: final }, { onConflict: 'pagamento_id', ignoreDuplicates: true });
   }
 
-  // Histórico de movimentos (1 linha por evento).
-  await supabaseAdmin.from('pagamento_transacao').upsert(
-    {
-      pagamento_id: pagamento.id,
-      parcela_id: parcelaId,
-      tipo: TIPO_TRANSACAO[evento.evento] ?? evento.evento.replace(/^PAYMENT_/, '').toLowerCase(),
-      status_asaas: cobranca.status,
-      valor: Number(cobranca.value),
-      ocorrido_em: evento.criado_asaas_em ?? evento.recebido_em,
-      asaas_evento_id: evento.id,
-      payload: cobranca as unknown as Json,
-    },
-    { onConflict: 'asaas_evento_id', ignoreDuplicates: true },
-  );
+  // Histórico de movimentos (1 linha por evento; a sincronização manual não gera movimento).
+  if (contexto.evento && contexto.eventoId) {
+    await supabaseAdmin.from('pagamento_transacao').upsert(
+      {
+        pagamento_id: pagamento.id,
+        parcela_id: parcelaId,
+        tipo: TIPO_TRANSACAO[contexto.evento] ?? contexto.evento.replace(/^PAYMENT_/, '').toLowerCase(),
+        status_asaas: cobranca.status,
+        valor: Number(cobranca.value),
+        ocorrido_em: contexto.ocorridoEm ?? new Date().toISOString(),
+        asaas_evento_id: contexto.eventoId,
+        payload: cobranca as unknown as Json,
+      },
+      { onConflict: 'asaas_evento_id', ignoreDuplicates: true },
+    );
+  }
 
   // Pedido/reserva.
   if (ehParcelaPrincipal && (novoStatus === 'confirmado' || novoStatus === 'recebido')) {
@@ -237,5 +272,5 @@ export async function tratarEventoCobranca(evento: EventoAsaasRow): Promise<'pro
       .in('status', ['pago', 'reembolsado_parcial', 'em_disputa']);
   }
 
-  return 'processado';
+  return { resultado: 'processado', pagamentoId: pagamento.id, statusAnterior, statusNovo: statusAplicado };
 }

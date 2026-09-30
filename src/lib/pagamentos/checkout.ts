@@ -193,7 +193,22 @@ export async function iniciarPagamento(input: {
         cobranca = await buscarCobrancaPorReferencia(pagamento.id).catch(() => null);
       }
       if (!cobranca) {
+        // Guarda o motivo no histórico da tentativa (aparece em Admin → Pedidos).
         await supabaseAdmin.from('pagamento').update({ status: 'cancelado' }).eq('id', pagamento.id);
+        await supabaseAdmin.from('pagamento_transacao').insert({
+          pagamento_id: pagamento.id,
+          tipo: 'falha_criacao',
+          valor: valorTotal,
+          payload: {
+            erro: mensagemErroAsaas(err),
+            codigo: err instanceof AsaasError ? err.codigo : null,
+            status_http: err instanceof AsaasError ? err.status : null,
+          },
+        });
+        if (err instanceof AsaasError && input.forma === 'pix' && /chave pix/i.test(err.message)) {
+          console.error('[pagamentos/checkout] conta Asaas sem chave Pix ativa:', err.message);
+          return { ok: false, error: 'O pagamento por Pix está indisponível no momento. Use o cartão de crédito ou tente mais tarde.' };
+        }
         throw err;
       }
     }

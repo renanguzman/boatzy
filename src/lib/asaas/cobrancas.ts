@@ -94,3 +94,11 @@ export async function removerCobranca(input: { paymentId: string; parcelamentoId
 export async function obterQrCodePix(paymentId: string): Promise<AsaasPixQrCode> {
   return asaasRequest<AsaasPixQrCode>(`/payments/${encodeURIComponent(paymentId)}/pixQrCode`);
 }
+
+/** Todas as parcelas (cobranças) de um parcelamento — `GET /payments?installment=…`. */
+export async function listarCobrancasDoParcelamento(parcelamentoId: string): Promise<AsaasCobranca[]> {
+  const lista = await asaasRequest<AsaasLista<AsaasCobranca>>('/payments', {
+    query: { installment: parcelamentoId, limit: 100 },
+  });
+  return lista.data ?? [];
+}

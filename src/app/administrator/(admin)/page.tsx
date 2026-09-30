@@ -13,6 +13,7 @@ import {
   Settings,
   ChevronRight,
   UserCog,
+  Receipt,
 } from 'lucide-react';
 import { createClient } from '@/lib/supabase/server';
 import { supabaseAdmin } from '@/lib/supabase';
@@ -97,6 +98,12 @@ export default async function AdministratorDashboardPage() {
   ];
 
   const modulos = [
+    {
+      href: '/administrator/pedidos',
+      titulo: 'Pedidos',
+      descricao: 'Todos os pedidos com pagamentos, transações no Asaas, linha do tempo e controle manual.',
+      icon: Receipt,
+    },
     {
       href: '/administrator/avaliacoes',
       titulo: 'Avaliações',

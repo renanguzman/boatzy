@@ -96,3 +96,13 @@ export type AsaasPixQrCode = {
   payload: string; // copia-e-cola
   expirationDate?: string | null; // "AAAA-MM-DD HH:mm:ss" (horário de Brasília)
 };
+
+/** Chave Pix da conta (`/pix/addressKeys`). */
+export type AsaasChavePix = {
+  id: string;
+  key: string;
+  type: string; // EVP | CPF | CNPJ | EMAIL | PHONE
+  status: string; // ACTIVE | AWAITING_ACTIVATION | AWAITING_DELETION | …
+  dateCreated?: string;
+  canBeDeleted?: boolean;
+};

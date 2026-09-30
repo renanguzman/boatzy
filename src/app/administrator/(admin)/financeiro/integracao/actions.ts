@@ -7,6 +7,8 @@ import { lerAsaasConfig, lerTokenWebhook, type AsaasAmbiente } from '@/lib/asaas
 import { mensagemErroAsaas } from '@/lib/asaas/client';
 import { consultarSaldo } from '@/lib/asaas/financeiro';
 import { criarWebhook, listarWebhooks, reativarFilaWebhook } from '@/lib/asaas/webhooks';
+import { criarChavePixAleatoria, listarChavesPix } from '@/lib/asaas/pix';
+import { registrarAuditoria } from '@/lib/financeiro/auditoria';
 import {
   reprocessarEventoManual,
   reprocessarPendentes,
@@ -167,4 +169,34 @@ export async function reprocessarPendentesAsaas(): Promise<ActionResult<{ resumo
   } catch (err) {
     return { ok: false, error: err instanceof Error ? err.message : 'Erro ao reprocessar.' };
   }
+}
+
+/**
+ * Cria uma chave Pix aleatória (EVP) na conta Asaas do ambiente atual. Sem
+ * chave ativa o Asaas recusa cobranças Pix. Só cria se ainda não houver
+ * nenhuma chave ativa ou aguardando ativação.
+ */
+export async function criarChavePixAsaas(): Promise<ActionResult> {
+  const auth = await requireAdmin();
+  if (!auth.ok) return auth;
+
+  try {
+    const existentes = await listarChavesPix();
+    if (existentes.some((k) => k.status === 'ACTIVE' || k.status === 'AWAITING_ACTIVATION')) {
+      return { ok: false, error: 'A conta já tem uma chave Pix ativa ou aguardando ativação.' };
+    }
+    const chave = await criarChavePixAleatoria();
+    await registrarAuditoria({
+      adminId: auth.userId,
+      acao: 'asaas.chave_pix.criar',
+      entidade: 'asaas_chave_pix',
+      entidadeId: chave.id,
+      depois: { id: chave.id, type: chave.type, status: chave.status },
+    });
+  } catch (err) {
+    return { ok: false, error: mensagemErroAsaas(err) };
+  }
+
+  revalidatePath(CAMINHO);
+  return { ok: true };
 }

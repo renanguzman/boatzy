@@ -2954,6 +2954,14 @@ src/app/administrator/
       _components/TermoAcoesPainel.tsx  → ações da tela de visualização
       _components/useTermoAcoes.tsx     → hook das ações de ciclo de vida + modais de confirmação
       _components/ConfirmModal.tsx, TermoStatusBadge.tsx
+    pedidos/                  → §34.15
+      page.tsx                → lista de todos os pedidos + indicadores (seguem os filtros)
+      actions.ts              → exportarPedidos, sincronizarPedido, prorrogarPrazo, expirarPedidoAgora,
+                                cancelarCobranca, reenviarEmail, anotarPedido
+      [id]/page.tsx           → detalhe completo do pedido
+      [id]/_components/PedidoAcoes.tsx, CancelarCobrancaButton.tsx, CopiarValor.tsx
+      _components/AdminPedidosGrid.tsx → tabela client (busca, filtros, ordenação, paginação, exportação XLSX)
+      _lib/consulta.ts (server-only), detalhe.ts (server-only), linha.ts (tipos/helpers), rotulos.ts
     financeiro/
       page.tsx                → redireciona para integracao/ (dashboard financeiro entra na Fase 4)
       _components/FinanceiroAbas.tsx → abas Integração | Configurações
@@ -3002,6 +3010,7 @@ Renderiza 6 stat cards + grid de cards de acesso rápido aos 6 módulos.
 | `/administrator/cupons` | Cupons | ✅ implementado |
 | `/administrator/publicidade` | Publicidade | 🔜 placeholder |
 | `/administrator/taxas` | Taxas | ✅ implementado |
+| `/administrator/pedidos` | Pedidos | ✅ implementado (§34.15) |
 | `/administrator/financeiro` | Financeiro | 🟡 Integração (§34.7) e Configurações (§34.9) |
 | `/administrator/tipos` | Tipos de embarcação | 🔜 placeholder |
 | `/administrator/termos` | Termos de Uso | ✅ implementado |
@@ -4454,7 +4463,7 @@ implementado**.
 | 1.1 — Modelo + configuração | Tabelas `pedido`/`pagamento`/…, `financeiro_config`, `financeiro_auditoria`, admin Financeiro → Configurações | ✅ 30/09/2026 |
 | 1.2 — Aceite → pedido → cobrança | Status novos da reserva, aceite gera pedido, página de pagamento do cliente | ✅ 30/09/2026 |
 | 1.3 — Confirmação por webhook | Handlers `PAYMENT_*`, pedido pago → reserva confirmada, expiração, e-mails | ✅ 30/09/2026 (ledger adiado para a Fase 3) |
-| 1.4 — Admin: Pedidos | Lista/detalhe de pedidos no admin | 🔜 |
+| 1.4 — Admin: Pedidos | Menu Pedidos: lista com indicadores/filtros/exportação + detalhe completo com controles do admin | ✅ 30/09/2026 |
 | 2 — Cancelamento e estornos | Política configurável, estornos | 🔜 |
 | 3 — Repasses | Recebedor, job de repasse, validação de saque | 🔜 (depende de D1–D4) |
 | 4 — Controle total | Dashboard, conciliação, disputas, auditoria | 🔜 |
@@ -4584,6 +4593,11 @@ checagem de disponibilidade em `criarReserva`.
   { error: 'unauthorized' }` do próprio endpoint — recusa redirecionamento (ex.: `www` → domínio
   sem `www`, que o Asaas não segue), `404` (código não publicado) e qualquer outra resposta)
   e **Reativar fila** quando `interrupted` (`reativarWebhookAsaas`, com confirmação).
+- **ChavesPixCard** — chaves Pix da conta (`GET /pix/addressKeys`, `src/lib/asaas/pix.ts`) com status
+  (ativa / aguardando ativação / excluída) e alerta quando não há chave ativa (o Asaas recusa cobrança
+  Pix com "Não há nenhuma chave Pix disponível para receber cobranças"). Botão **Criar chave
+  aleatória** (`criarChavePixAsaas` → `POST /pix/addressKeys { type: 'EVP' }`, só se não houver chave
+  ativa/pendente; auditado como `asaas.chave_pix.criar`).
 - **EventosWebhookGrid** — totais por status (clicáveis como filtro), busca (id do evento, id do
   recurso, tipo), paginação 10/25/50 no servidor, linha expansível com datas, erro e payload JSON;
   **Reprocessar** por evento (`erro`/`ignorado`/`pendente`) e **Reprocessar pendentes** (lote).
@@ -4769,7 +4783,10 @@ por parcela e R$5 por parcela). Recusa se já há pagamento confirmado. Reaprove
 pendente da mesma forma/parcelas; senão remove as pendentes (`cancelarCobrancasPendentes`) e cria
 outra. CPF: `users.cpf_cnpj` válido ou o informado (validado e salvo). Grava o `pagamento` **antes**
 da cobrança (`externalReference = pagamento.id`); em timeout/erro de rede consulta o Asaas pela
-referência antes de desistir. Registra movimento `criacao`. `retomarPixPendente(pedidoId)` devolve
+referência antes de desistir. Registra movimento `criacao`. Se a cobrança não puder ser criada, a
+tentativa fica `cancelado` e ganha um movimento `falha_criacao` com a mensagem do Asaas no payload
+(visível em Admin → Pedidos); Pix recusado por falta de chave Pix na conta → mensagem ao cliente
+"Pix indisponível no momento, use o cartão". `retomarPixPendente(pedidoId)` devolve
 o QR do Pix pendente para a página já abrir com ele.
 
 **Webhooks → `src/lib/pagamentos/webhook.ts`** (`tratarEventoCobranca`, registrado em
@@ -4843,3 +4860,82 @@ o QR do Pix pendente para a página já abrir com ele.
 - Cupom limitado ao valor da comissão (D7c) aplicado na solicitação (`validarCupom`/`criarReserva`,
   com aviso "limitado ao valor da taxa de serviço"; cupom sem efeito em reserva sem taxa é recusado)
   e no aceite.
+
+### 34.15 Admin — Pedidos (`/administrator/pedidos`) — Fase 1.4
+
+Menu **PEDIDOS** (ícone `Receipt`) no `AdminSidebar`, antes de Financeiro; card de acesso no dashboard.
+Pedido não é criado nem excluído pelo admin: nasce do aceite do gestor e é registro financeiro
+(FKs `RESTRICT`); os controles abaixo cobrem as intervenções seguras.
+
+**Lista** (`page.tsx` + `_lib/consulta.ts` + `_components/AdminPedidosGrid.tsx`)
+
+- Consulta única com embeds: pedido + cliente/gestor (`users!pedido_*_fkey`) + reserva
+  (`reserva:reserva_id`) + pagamentos (com `pagamento_cartao`) + `pedido_desconto`. Traz **todos** os
+  pedidos que batem com os filtros (até 5.000, aviso se truncar) e faz indicadores, ordenação e
+  paginação em memória — por isso dá para ordenar por cliente/gestor e os indicadores seguem os
+  filtros. Transição lazy de expiração antes de listar.
+- **Busca livre** (debounce 400ms): nº do pedido (`#1001` ou `1001`), UUID (pedido, reserva, cliente,
+  gestor), nome/e-mail de cliente ou gestor, nome do item, ids do Asaas (`pay_…`, `cus_…`,
+  parcelamento) e código de cupom — resolvida em cláusulas `or()` a partir de consultas auxiliares.
+- **Filtros**: status do pedido, forma de pagamento (pedidos com ao menos uma tentativa nessa forma),
+  período de criação (de/até, horário de Brasília). **Ordenação**: nº, criação, cliente, gestor, data
+  do passeio, total, status. **Paginação**: 10/25/50/100 (padrão 25). Linha inteira clicável.
+- **Indicadores**: pedidos (e expirados/cancelados), aguardando (qtd + R$), pagos, recebido (GMV),
+  valor dos gestores, comissão líquida (comissão − desconto), tarifas Asaas, margem Boatzy (comissão
+  líquida − tarifas; vermelho se negativa).
+- **Colunas**: pedido (nº + id curto), cliente, gestor, item/tipo/data/pessoas, pagamento (forma,
+  parcelas, sandbox, cartão mascarado, nº de tentativas), valores (total, gestor, comissão, desconto +
+  cupom, tarifa), status do pedido + do pagamento principal (o pago ou a tentativa mais recente), datas
+  (criação, prazo, pago, encerrado).
+- **Exportar Excel** (`exportarPedidos(querystring)` → linhas planas → `xlsx` no navegador): mesmos
+  filtros da tela, ~30 colunas (pessoas, reserva, valores, cupom, forma, cartão, status, ids do Asaas,
+  ambiente, tarifa, líquido, prazo, pago em, crédito previsto).
+
+**Detalhe** (`[id]/page.tsx` + `_lib/detalhe.ts`)
+
+- Cabeçalho: nº, status do pedido e da reserva, selo Sandbox, criado/atualizado, id copiável e a barra
+  de ações.
+- **Resumo financeiro**: preço × multiplicador, adicionais, valor dos itens (gestor), taxa (%), desconto,
+  total; recebido líquido no Asaas, tarifa, a repassar ao gestor, receita Boatzy (comissão − desconto),
+  **margem** (− tarifa); prazo, pago em, encerrado em + motivo, crédito previsto; taxa congelada ×
+  taxa que valeria hoje para o gestor (geral/específica).
+- **Pagamentos e transações** (uma seção por tentativa, mais recente primeiro): forma, parcelas,
+  ambiente, status normalizado + cru; valor, líquido, tarifa; criação, vencimento, confirmação,
+  recebimento, crédito previsto, atualização; nº da fatura; ids copiáveis (pagamento = externalReference,
+  cobrança, parcelamento, cliente Asaas, transação Pix), QR válido até, copia-e-cola; cartão
+  (bandeira •••• final); links da fatura e do comprovante; parcelas (tabela); **movimentos**
+  (`pagamento_transacao`, com link para o evento na fila de integração e payload); estornos; último
+  estado JSON da cobrança. Botão **Cancelar cobrança** nas tentativas pendentes/em análise/vencidas.
+- **Linha do tempo unificada** (cliente/gestor/Asaas/sistema/admin): solicitação, aceite do termo,
+  aceite do gestor, cada movimento de cada tentativa, estornos, pagamento, expiração/cancelamento,
+  cancelamento pelo cliente e ações do admin.
+- **Eventos recebidos do Asaas**: `asaas_webhook_evento` das cobranças/parcelas do pedido, com status de
+  processamento, datas, tentativas, erro e payload.
+- Laterais: **Cliente** e **Gestor** (avatar, e-mail, telefone, CPF/CNPJ, id, desde; cliente no Asaas
+  por ambiente), **Reserva** (item com links para roteiro/embarcação no admin, localidade, status,
+  modalidade, período, pessoas, diárias, flexibilidade, duração, embarcação, datas de
+  solicitação/aceite/cancelamento/expiração, adicionais, atendentes, observação do gestor, link para as
+  evidências do aceite do termo), **Descontos e cupom** (registro do desconto, cupom cadastrado, uso
+  registrado, link para o cupom), **Anotações internas**, **Auditoria** (ação, admin, data, motivo,
+  antes/depois).
+
+**Controles do admin** (`actions.ts` → `src/lib/pagamentos/admin.ts`; todos exigem role `admin` e gravam
+`financeiro_auditoria` com `entidade = 'pedido'`; os que mudam o pedido exigem motivo ≥ 5 caracteres)
+
+| Ação | O que faz | Auditoria |
+|---|---|---|
+| Sincronizar com o Asaas | `sincronizarPedidoComAsaas`: consulta cada cobrança (parcelado: `GET /payments?installment=`) e aplica o estado atual com a mesma lógica do webhook (`aplicarCobranca`, sem gerar movimento); cobrança 404 ainda pendente → cancelada | `pedido.sincronizar` (resumo das alterações) |
+| Prorrogar prazo | `prorrogarPrazoPedido`: novo prazo = max(prazo, agora) + N horas (1–168), limitado ao fim do dia do passeio | `pedido.prorrogar` (antes/depois) + motivo |
+| Expirar agora | `expirarPedido` (mesma rotina do cron): remove as cobranças, pedido `expirado`, reserva `expirada`, e-mail; se já havia pagamento confirmado, confirma em vez de expirar | `pedido.expirar` + motivo |
+| Cancelar cobrança | `cancelarPagamentoPendente`: remove no Asaas uma tentativa não paga | `pagamento.cancelar` + motivo |
+| Reenviar e-mail | "pague até…" (aguardando) ou "pagamento confirmado" (pago) | `pedido.reenviar_email` |
+| Anotação | Nota interna livre (até 2.000 caracteres) | `pedido.anotacao` |
+
+Estorno pelo admin entra na Fase 2 (política de cancelamento).
+
+**Refatorações de apoio**: `src/lib/pagamentos/webhook.ts` expõe `aplicarCobranca(cobranca, {evento,
+eventoId, ocorridoEm})` (usada pelo webhook e pela sincronização; com `evento = null`, cobrança
+`deleted` → cancelado e nenhum movimento é gravado); `src/lib/pagamentos/pedidos.ts` expõe
+`expirarPedido(pedidoId, motivo)` (o lote `expirarPedidosVencidos` usa essa função) e
+`dadosParaEmail`; `src/lib/asaas/cobrancas.ts` ganhou `listarCobrancasDoParcelamento`; tipos com a
+relação `pagamento_estorno → pagamento`.

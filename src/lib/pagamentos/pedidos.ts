@@ -71,7 +71,7 @@ export async function cancelarCobrancasPendentes(
   return erro ? { ok: false, erro } : { ok: true };
 }
 
-async function dadosParaEmail(pedidoId: string) {
+export async function dadosParaEmail(pedidoId: string) {
   const { data } = await supabaseAdmin
     .from('pedido')
     .select(
@@ -141,16 +141,72 @@ export async function confirmarPedidoPago(pedidoId: string): Promise<boolean> {
   return true;
 }
 
+export type ResultadoExpiracao = 'expirado' | 'confirmado' | 'cobranca_nao_removida' | 'nao_aguardando';
+
 /**
- * Encerra pedidos cujo prazo de pagamento passou: remove as cobranças no Asaas
- * (para não poderem mais ser pagas), marca pedido `expirado` e reserva
- * `expirada` (libera a data) e avisa o cliente. Pedido com pagamento já
- * confirmado (webhook ainda não aplicado) é confirmado em vez de expirado.
+ * Encerra UM pedido aguardando pagamento: remove as cobranças no Asaas (para
+ * não poderem mais ser pagas), marca pedido `expirado` e reserva `expirada`
+ * (libera a data) e avisa o cliente. Se já existe pagamento confirmado
+ * (webhook ainda não aplicado), confirma o pedido em vez de expirar. Se alguma
+ * cobrança não pôde ser removida, não encerra (tenta de novo depois).
  */
+export async function expirarPedido(pedidoId: string, motivo: string): Promise<ResultadoExpiracao> {
+  const { data: pedido } = await supabaseAdmin
+    .from('pedido')
+    .select('id, reserva_id, status')
+    .eq('id', pedidoId)
+    .maybeSingle();
+  if (!pedido || pedido.status !== 'aguardando_pagamento') return 'nao_aguardando';
+
+  const { count: pagos } = await supabaseAdmin
+    .from('pagamento')
+    .select('id', { count: 'exact', head: true })
+    .eq('pedido_id', pedido.id)
+    .in('status', PAGAMENTO_PAGO);
+  if (pagos) {
+    await confirmarPedidoPago(pedido.id);
+    return 'confirmado';
+  }
+
+  const cancelamento = await cancelarCobrancasPendentes(pedido.id);
+  if (!cancelamento.ok) return 'cobranca_nao_removida';
+
+  const agora = new Date().toISOString();
+  const { data: expirado } = await supabaseAdmin
+    .from('pedido')
+    .update({ status: 'expirado', cancelado_em: agora, motivo_cancelamento: motivo })
+    .eq('id', pedido.id)
+    .eq('status', 'aguardando_pagamento')
+    .select('id')
+    .maybeSingle();
+  if (!expirado) return 'nao_aguardando';
+
+  await supabaseAdmin
+    .from('reserva')
+    .update({ status: 'expirada', expirada_em: agora })
+    .eq('id', pedido.reserva_id)
+    .eq('status', 'aguardando_pagamento');
+
+  const d = await dadosParaEmail(pedido.id);
+  if (d?.reserva) {
+    await emailPedidoExpirado({
+      reservaId: d.reserva_id,
+      pedidoNumero: d.numero,
+      itemNome: d.reserva.item_nome,
+      dataReserva: d.reserva.data_reserva,
+      valorTotal: Number(d.valor_total),
+      para: d.cliente?.email ?? '',
+      nome: d.cliente?.name ?? '',
+    });
+  }
+  return 'expirado';
+}
+
+/** Encerra os pedidos cujo prazo de pagamento passou (cron + chamadas lazy). */
 export async function expirarPedidosVencidos(limite = 25): Promise<number> {
   const { data: vencidos, error } = await supabaseAdmin
     .from('pedido')
-    .select('id, reserva_id')
+    .select('id')
     .eq('status', 'aguardando_pagamento')
     .lt('expira_em', new Date().toISOString())
     .order('expira_em')
@@ -162,48 +218,7 @@ export async function expirarPedidosVencidos(limite = 25): Promise<number> {
 
   let expirados = 0;
   for (const pedido of vencidos ?? []) {
-    const { count: pagos } = await supabaseAdmin
-      .from('pagamento')
-      .select('id', { count: 'exact', head: true })
-      .eq('pedido_id', pedido.id)
-      .in('status', PAGAMENTO_PAGO);
-    if (pagos) {
-      await confirmarPedidoPago(pedido.id);
-      continue;
-    }
-
-    const cancelamento = await cancelarCobrancasPendentes(pedido.id);
-    if (!cancelamento.ok) continue; // tenta de novo na próxima rodada
-
-    const agora = new Date().toISOString();
-    const { data: expirado } = await supabaseAdmin
-      .from('pedido')
-      .update({ status: 'expirado', cancelado_em: agora, motivo_cancelamento: 'Prazo de pagamento expirado' })
-      .eq('id', pedido.id)
-      .eq('status', 'aguardando_pagamento')
-      .select('id')
-      .maybeSingle();
-    if (!expirado) continue;
-
-    await supabaseAdmin
-      .from('reserva')
-      .update({ status: 'expirada', expirada_em: agora })
-      .eq('id', pedido.reserva_id)
-      .eq('status', 'aguardando_pagamento');
-    expirados++;
-
-    const d = await dadosParaEmail(pedido.id);
-    if (d?.reserva) {
-      await emailPedidoExpirado({
-        reservaId: d.reserva_id,
-        pedidoNumero: d.numero,
-        itemNome: d.reserva.item_nome,
-        dataReserva: d.reserva.data_reserva,
-        valorTotal: Number(d.valor_total),
-        para: d.cliente?.email ?? '',
-        nome: d.cliente?.name ?? '',
-      });
-    }
+    if ((await expirarPedido(pedido.id, 'Prazo de pagamento expirado')) === 'expirado') expirados++;
   }
   return expirados;
 }

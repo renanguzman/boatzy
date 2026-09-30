@@ -2097,7 +2097,15 @@ export type Database = {
           concluido_em?: string | null;
           atualizado_em?: string;
         };
-        Relationships: [];
+        Relationships: [
+          {
+            foreignKeyName: 'pagamento_estorno_pagamento_id_fkey';
+            columns: ['pagamento_id'];
+            isOneToOne: false;
+            referencedRelation: 'pagamento';
+            referencedColumns: ['id'];
+          },
+        ];
       };
       // Parâmetros do financeiro (singleton).
       financeiro_config: {

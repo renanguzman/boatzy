@@ -470,11 +470,31 @@ Boatzy + repasse por Pix), regras de negócio, decisões pendentes e fases:
 - Textos públicos (FAQ e página de solicitação) atualizados para o novo fluxo.
 - Detalhes técnicos: SPEC §34.11–34.14.
 
+#### ✅ Implementado — Fase 1.4: Admin → Pedidos (30/09/2026)
+
+- Novo menu **Pedidos** no admin com **todos os pedidos da plataforma**: indicadores no topo
+  (aguardando, pagos, total recebido, valor dos gestores, comissão, tarifas do Asaas e margem do
+  Boatzy — seguem os filtros), busca por nº do pedido, cliente, gestor, e-mail, item, cupom ou ids do
+  Asaas, filtros por status, forma de pagamento e período, ordenação, paginação e **exportação para
+  Excel**.
+- **Detalhe do pedido** com tudo o que aconteceu: resumo financeiro (quanto o cliente pagou, quanto é
+  do gestor, comissão, desconto, tarifa do Asaas e margem), cada tentativa de pagamento com todos os
+  dados da transação (ids do Asaas, datas, valores líquidos, cartão mascarado, parcelas, Pix, fatura e
+  comprovante, histórico de movimentos, estornos), os eventos recebidos do Asaas, uma **linha do
+  tempo** única (cliente, gestor, Asaas, sistema e admin), dados completos do cliente, do gestor e da
+  reserva (com adicionais, atendentes e o aceite do termo) e o cupom usado.
+- **Controle do admin**: sincronizar com o Asaas, prorrogar o prazo de pagamento, expirar o pedido,
+  cancelar uma cobrança pendente, reenviar o e-mail ao cliente e registrar anotações internas — tudo
+  registrado na auditoria, com motivo obrigatório nas ações que alteram o pedido. Pedidos não são
+  criados nem excluídos manualmente (nascem do aceite do gestor e são registro financeiro).
+- Admin → Financeiro → Integração passou a mostrar as **chaves Pix** da conta Asaas (com botão para
+  criar uma chave aleatória): sem chave ativa, o Asaas recusa pagamentos por Pix — o cliente agora vê
+  "Pix indisponível, use o cartão" e a falha fica registrada no pedido.
+- Detalhes técnicos: SPEC §34.15.
+
 #### 🔜 Próximas etapas
 
-1. **Fase 1.4 — Admin: Pedidos:** lista e detalhe dos pedidos (linha do tempo dos pagamentos,
-   cartão mascarado, parcelas, eventos do Asaas) para acompanhamento e conciliação.
-2. **Agendador do Supabase** a cada ~10 min para expirar pedidos e reprocessar webhooks (hoje:
+1. **Agendador do Supabase** a cada ~10 min para expirar pedidos e reprocessar webhooks (hoje:
    1×/dia + automaticamente quando cliente/gestor abrem as telas de reservas).
 3. Fases 2 (cancelamento/estornos), 3 (repasses — inclui a confirmação de realização pelo gestor e o
    livro-razão financeiro), 4 (controle total) e 5 (produção).
@@ -789,6 +809,7 @@ Todos os números são do **gestor logado** (`owner_id`):
   - **Roteiros** — ✅ implementado (ver abaixo)
   - **Publicidade** — 🔜 gestão de espaços de publicidade (placeholder)
   - **Taxas** — ✅ implementado (ver abaixo)
+  - **Pedidos** — ✅ todos os pedidos com pagamentos, transações e controles (ver 6.6)
   - **Financeiro** — 🟡 Integração com o Asaas e Configurações (ver 6.6)
   - **Tipos de embarcação** — 🔜 cadastro de tipos de embarcação (placeholder, `/administrator/tipos`)
   - **Configurações** — 🔜 parâmetros gerais da plataforma (placeholder)

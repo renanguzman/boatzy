@@ -5,11 +5,13 @@ import { supabaseAdmin } from '@/lib/supabase';
 import { lerAsaasConfig, lerTokenWebhook, urlWebhookSugerida } from '@/lib/asaas/config';
 import { mensagemErroAsaas } from '@/lib/asaas/client';
 import { listarWebhooks } from '@/lib/asaas/webhooks';
-import type { AsaasWebhookConfig } from '@/lib/asaas/tipos';
+import { listarChavesPix } from '@/lib/asaas/pix';
+import type { AsaasChavePix, AsaasWebhookConfig } from '@/lib/asaas/tipos';
 import type { AsaasWebhookEventoStatus } from '@/types/supabase';
 import FinanceiroAbas from '../_components/FinanceiroAbas';
 import ConexaoAsaasCard from './_components/ConexaoAsaasCard';
 import WebhooksAsaasCard from './_components/WebhooksAsaasCard';
+import ChavesPixCard from './_components/ChavesPixCard';
 import EventosWebhookGrid, { type EventoWebhookItem } from './_components/EventosWebhookGrid';
 
 const PAGE_SIZES = [10, 25, 50] as const;
@@ -39,12 +41,14 @@ export default async function AdminFinanceiroIntegracaoPage({
 
   let webhooks: AsaasWebhookConfig[] = [];
   let webhooksErro: string | null = null;
+  let chavesPix: AsaasChavePix[] = [];
+  let chavesPixErro: string | null = null;
   if (cfg.ok) {
-    try {
-      webhooks = await listarWebhooks();
-    } catch (err) {
-      webhooksErro = mensagemErroAsaas(err);
-    }
+    const [w, c] = await Promise.allSettled([listarWebhooks(), listarChavesPix()]);
+    if (w.status === 'fulfilled') webhooks = w.value;
+    else webhooksErro = mensagemErroAsaas(w.reason);
+    if (c.status === 'fulfilled') chavesPix = c.value;
+    else chavesPixErro = mensagemErroAsaas(c.reason);
   }
 
   let query = supabaseAdmin
@@ -98,6 +102,7 @@ export default async function AdminFinanceiroIntegracaoPage({
           emailSugerido={user.email ?? ''}
           tokenWebhookConfigurado={tokenConfigurado}
         />
+        <ChavesPixCard habilitado={cfg.ok} chaves={chavesPix} erro={chavesPixErro} />
       </div>
 
       <EventosWebhookGrid
