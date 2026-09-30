@@ -9,6 +9,7 @@ import { formatCurrencyPrecise } from '@/lib/utils';
 import type { CupomTipoDesconto, ReservaModalidadePreco, PrecoPessoaModoCapacidade } from '@/types/supabase';
 import { obterTermoParaAceite, validarAceite, gravarAceite, type AceitePreparado } from '@/lib/termos/aceite';
 import type { AceiteErroCodigo, AceiteTermoCliente } from '@/lib/termos/tipos';
+import { hojeISO } from '@/lib/datas';
 
 export type CriarReservaInput = {
   tipo: 'roteiro' | 'embarcacao';
@@ -214,7 +215,7 @@ async function validarRegrasCupom(codigoBruto: string, clienteId: string, subtot
   if (!cupom) return { ok: false, error: 'Cupom inválido.' };
   if (!cupom.ativo) return { ok: false, error: 'Este cupom não está mais disponível.' };
 
-  const hoje = new Date().toISOString().slice(0, 10);
+  const hoje = hojeISO(); // horário de Brasília (o servidor roda em UTC)
   if (cupom.data_inicio && cupom.data_inicio > hoje) return { ok: false, error: 'Este cupom ainda não é válido.' };
   if (cupom.data_fim && cupom.data_fim < hoje) return { ok: false, error: 'Este cupom expirou.' };
 

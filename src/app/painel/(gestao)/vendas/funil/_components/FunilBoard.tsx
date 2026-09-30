@@ -13,6 +13,7 @@ import {
   TrendingUp,
   Filter,
 } from 'lucide-react';
+import { FUSO_HORARIO } from '@/lib/datas';
 
 export type AnuncioFunil = {
   id: string;
@@ -59,7 +60,7 @@ function tempoRelativo(iso: string): string {
   if (h < 24) return `há ${h} h`;
   const d = Math.floor(h / 24);
   if (d < 30) return `há ${d} dia${d > 1 ? 's' : ''}`;
-  return new Date(iso).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' });
+  return new Date(iso).toLocaleDateString('pt-BR', { timeZone: FUSO_HORARIO, day: '2-digit', month: '2-digit', year: 'numeric' });
 }
 
 export default function FunilBoard({

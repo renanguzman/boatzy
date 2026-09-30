@@ -1,11 +1,12 @@
 import Link from 'next/link';
 import { MapPin, Ship, Users, Clock } from 'lucide-react';
 import type { ReservaEvento } from './AgendamentosCalendar';
+import { FUSO_HORARIO } from '@/lib/datas';
 
 const MODALIDADE_LABEL = { roteiro: null, diaria: 'Diária', pessoa: 'Pessoa' } as const;
 
 function formatData(iso: string): string {
-  return new Date(iso + 'T12:00:00').toLocaleDateString('pt-BR', {
+  return new Date(iso + 'T12:00:00').toLocaleDateString('pt-BR', { timeZone: FUSO_HORARIO, 
     day: '2-digit',
     month: 'short',
     year: 'numeric',

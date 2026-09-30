@@ -1,6 +1,7 @@
 import 'server-only';
 
 import { sendEmail } from '@/lib/email';
+import { FUSO_HORARIO } from '@/lib/datas';
 
 /**
  * E-mails do fluxo de pagamento (mesmo layout do aviso de conversas —
@@ -19,7 +20,7 @@ function baseUrl(): string {
 const brl = (v: number) => v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 
 function dataBR(iso: string): string {
-  return new Date(`${iso}T12:00:00`).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' });
+  return new Date(`${iso}T12:00:00`).toLocaleDateString('pt-BR', { timeZone: FUSO_HORARIO, day: '2-digit', month: '2-digit', year: 'numeric' });
 }
 
 function dataHoraBR(iso: string): string {

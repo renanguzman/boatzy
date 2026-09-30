@@ -4939,3 +4939,48 @@ eventoId, ocorridoEm})` (usada pelo webhook e pela sincronização; com `evento 
 `expirarPedido(pedidoId, motivo)` (o lote `expirarPedidosVencidos` usa essa função) e
 `dadosParaEmail`; `src/lib/asaas/cobrancas.ts` ganhou `listarCobrancasDoParcelamento`; tipos com a
 relação `pagamento_estorno → pagamento`.
+
+---
+
+## 35. Datas e fuso horário (01/10/2026)
+
+**Regra:** toda data/hora exibida e todo "hoje" calculado seguem o **horário de Brasília**
+(`America/Sao_Paulo`). O servidor (Vercel) e o Postgres do Supabase rodam em **UTC** — sem fuso
+explícito, um horário aparecia 3h adiantado (ex.: "Solicitada em 23:39" para 20:39) e
+`new Date().toISOString().slice(0, 10)` virava o dia seguinte entre 21h e meia-noite.
+
+**`src/lib/datas.ts`** (sem dependências; funciona no servidor e no navegador):
+
+| Função | Uso |
+|---|---|
+| `FUSO_HORARIO` | `'America/Sao_Paulo'` — passar como `timeZone` em qualquer `toLocale*String`/`Intl.DateTimeFormat` de data |
+| `formatarData(valor, opts?)` | Data (padrão `30/09/2026`); aceita timestamp ISO ou `'AAAA-MM-DD'` |
+| `formatarDataHora(valor, { segundos? })` | `30/09/2026, 20:39` |
+| `formatarHora(valor)` | `20:39` |
+| `hojeISO()` / `dataISONoFuso(date)` | `'AAAA-MM-DD'` de hoje / de um instante, em Brasília |
+| `partesNoFuso(date)` | `{ ano, mes (0–11), dia }` em Brasília (agrupamentos por mês) |
+| `paraData(valor)` | Campo só de data (`data_reserva`, `data_validade`…) vira meio-dia UTC — nunca cai no dia anterior |
+
+(`src/lib/termos/formato.ts` → `formatarDataHoraBR` e `src/lib/reservas.ts` → `hojeBrasil` já seguiam
+a regra.)
+
+**Ajustado em 01/10/2026** — exibição: detalhe do agendamento (solicitada/respondida), "Minhas
+reservas", página de pagamento, confirmação de reserva, busca, cards e seção de avaliações, chat
+(hora das mensagens e separadores "Hoje/Ontem"), sino de notificações, "Minhas conversas", Minha
+conta, dashboard do gestor, clientes, receitas (grid, exportação, períodos), agendamentos pendentes,
+usuários da equipe, vendas (formulário, funil, página do anúncio), admin (avaliações, taxas), e-mails
+de pagamento, descrição da cobrança no Asaas, `formatDate` de `src/lib/utils.ts`. Lógica: vigência do
+cupom em `/reservas/novo` (`hojeISO`), janela da previsão do tempo, vigência da taxa específica no
+grid do admin, gráfico mensal do dashboard do gestor (`partesNoFuso`), data máxima de nascimento,
+nomes dos arquivos exportados, e a data enviada pela busca da home (partes locais do DatePicker em vez
+de `toISOString()`).
+
+**Banco** — migration `20261001_funcoes_fuso_brasilia.sql`: `get_taxa_usuario` (vigência da taxa
+específica) e `registrar_uso_cupom` (vigência do cupom) usam `CURRENT_DATE`; passaram a rodar com
+`SET timezone = 'America/Sao_Paulo'` (só dentro da função — o resto do banco segue em UTC). Validado
+em Postgres local: dentro da função, 02:30 UTC de 01/10 é 30/09.
+
+**Não alterado (de propósito):** calendários e seletores de data no navegador (`DatePicker`,
+`BookingCard`, `DisponibilidadePicker`, `AgendamentosCalendar`) trabalham com datas de calendário no
+fuso de quem usa; `src/lib/reservas.ts` faz aritmética de datas ao meio-dia UTC (seguro). Datas
+enviadas ao banco continuam em ISO/UTC (`timestamptz`).

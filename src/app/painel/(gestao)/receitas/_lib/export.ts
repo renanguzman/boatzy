@@ -4,9 +4,10 @@ import autoTable from 'jspdf-autotable';
 import { formatCurrencyPrecise } from '@/lib/utils';
 import { STATUS_LABEL, TIPO_LABEL } from './constants';
 import type { ReservaReceita } from './types';
+import { FUSO_HORARIO } from '@/lib/datas';
 
 function formatDataCurta(iso: string): string {
-  return new Date(iso.length === 10 ? `${iso}T12:00:00` : iso).toLocaleDateString('pt-BR', {
+  return new Date(iso.length === 10 ? `${iso}T12:00:00` : iso).toLocaleDateString('pt-BR', { timeZone: FUSO_HORARIO, 
     day: '2-digit',
     month: '2-digit',
     year: 'numeric',

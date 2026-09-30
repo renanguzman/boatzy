@@ -11,6 +11,7 @@ import { getFormasPagamento } from '@/lib/financeiro/config';
 import type { FormaPagamentoCodigo, Json } from '@/types/supabase';
 import { cancelarCobrancasPendentes, PAGAMENTO_PAGO } from './pedidos';
 import { opcoesParcelas, VALOR_MINIMO_COBRANCA } from './valores';
+import { FUSO_HORARIO } from '@/lib/datas';
 
 export type PixParaPagar = { imagem: string; payload: string; expiraEm: string | null };
 
@@ -174,7 +175,7 @@ export async function iniciarPagamento(input: {
       .single();
     if (errPagamento || !pagamento) return { ok: false, error: 'Não foi possível iniciar o pagamento.' };
 
-    const dataPasseio = new Date(`${reserva.data_reserva}T12:00:00`).toLocaleDateString('pt-BR');
+    const dataPasseio = new Date(`${reserva.data_reserva}T12:00:00`).toLocaleDateString('pt-BR', { timeZone: FUSO_HORARIO });
     let cobranca: AsaasCobranca | null = null;
     try {
       cobranca = await criarCobranca({

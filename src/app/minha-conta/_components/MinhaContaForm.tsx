@@ -27,6 +27,7 @@ import {
 import { isStrongPassword, isValidCPF, isValidBirthday, maskCPF, maskCEP } from '@/lib/validators';
 import PhoneInput, { type PhoneValue } from '@/components/auth/PhoneInput';
 import PasswordRequirements from '@/components/auth/PasswordRequirements';
+import { FUSO_HORARIO, hojeISO } from '@/lib/datas';
 
 type Estado = { id: number; uf: string; nome: string };
 type Municipio = { id: number; nome: string };
@@ -370,7 +371,7 @@ export default function MinhaContaForm({
             <p className="truncate text-sm text-slate-500">{email}</p>
             <p className="mt-0.5 text-xs text-slate-400">
               Cliente desde{' '}
-              {new Date(createdAt).toLocaleDateString('pt-BR', {
+              {new Date(createdAt).toLocaleDateString('pt-BR', { timeZone: FUSO_HORARIO, 
                 day: '2-digit',
                 month: 'long',
                 year: 'numeric',
@@ -466,7 +467,7 @@ export default function MinhaContaForm({
                 id="birthday"
                 type="date"
                 value={birthday}
-                max={new Date().toISOString().slice(0, 10)}
+                max={hojeISO()}
                 onChange={(e) => setBirthday(e.target.value)}
                 className={`${inputClass} ${birthdayInvalid ? 'border-red-300' : 'border-slate-200'}`}
               />

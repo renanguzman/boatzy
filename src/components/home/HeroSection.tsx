@@ -109,7 +109,8 @@ export default function HeroSection({ tiposEmbarcacao, tiposVenda, locaisVenda }
       }
     }
     if (date) {
-      params.set('data', date.date.toISOString().slice(0, 10));
+      const d = date.date; // meia-noite local do DatePicker — toISOString() poderia virar o dia
+      params.set('data', `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`);
       if (date.flexibility > 0) params.set('flex', String(date.flexibility));
     }
     if (guests > 0) params.set('pessoas', String(guests));

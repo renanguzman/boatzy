@@ -10,6 +10,7 @@ import { useCart } from './CartContext';
 import AddonsAccordion from './AddonsAccordion';
 import RoteiroAcoes from './RoteiroAcoes';
 import { useModoPreview } from '@/components/preview/ModoPreview';
+import { FUSO_HORARIO } from '@/lib/datas';
 
 type ActivePanel = 'date' | 'guests' | null;
 type Modalidade = 'roteiro' | 'diaria' | 'pessoa';
@@ -297,7 +298,7 @@ export default function BookingCard({
             <p className="mt-1.5 text-xs text-slate-500">
               Check-out em{' '}
               <span className="font-medium text-slate-700">
-                {new Date(`${checkout}T12:00:00`).toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric' })}
+                {new Date(`${checkout}T12:00:00`).toLocaleDateString('pt-BR', { timeZone: FUSO_HORARIO, day: '2-digit', month: 'long', year: 'numeric' })}
               </span>
             </p>
           )}

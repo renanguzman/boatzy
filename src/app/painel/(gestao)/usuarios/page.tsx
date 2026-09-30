@@ -3,6 +3,7 @@ import { redirect } from 'next/navigation';
 import { supabaseAdmin } from '@/lib/supabase';
 import { Users, UserPlus } from 'lucide-react';
 import CreateUserForm from './CreateUserForm';
+import { FUSO_HORARIO } from '@/lib/datas';
 
 const roleLabel: Record<string, string> = {
   admin: 'Admin',
@@ -95,7 +96,7 @@ export default async function UsuariosPage() {
                         </div>
                       </td>
                       <td className="px-6 py-3 text-slate-500">
-                        {new Intl.DateTimeFormat('pt-BR').format(new Date(user.created_at))}
+                        {new Intl.DateTimeFormat('pt-BR', { timeZone: FUSO_HORARIO }).format(new Date(user.created_at))}
                       </td>
                     </tr>
                   );

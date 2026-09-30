@@ -19,6 +19,7 @@ import {
 } from 'lucide-react';
 import { alternarFavoritoAnuncio } from '@/lib/favoritos-actions';
 import { revelarContatoVendedor, registrarCompartilhamentoAnuncio } from '@/lib/vendas-actions';
+import { FUSO_HORARIO } from '@/lib/datas';
 
 // Ícones de marca (a lucide-react removeu os brand icons).
 function FacebookIcon({ className }: { className?: string }) {
@@ -168,7 +169,7 @@ export default function VendaSidebar({
   }
 
   const dataReducao = reduzidoEm
-    ? new Date(reduzidoEm).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' })
+    ? new Date(reduzidoEm).toLocaleDateString('pt-BR', { timeZone: FUSO_HORARIO, day: '2-digit', month: '2-digit', year: 'numeric' })
     : null;
 
   return (

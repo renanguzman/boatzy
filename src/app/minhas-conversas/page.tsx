@@ -6,6 +6,7 @@ import Header from '@/components/layout/Header';
 import Footer from '@/components/layout/Footer';
 import { createClient } from '@/lib/supabase/server';
 import { supabaseAdmin } from '@/lib/supabase';
+import { FUSO_HORARIO } from '@/lib/datas';
 
 function tempoRelativo(iso: string): string {
   const diff = Date.now() - new Date(iso).getTime();
@@ -16,7 +17,7 @@ function tempoRelativo(iso: string): string {
   if (h < 24) return `há ${h} h`;
   const d = Math.floor(h / 24);
   if (d < 7) return `há ${d} dia${d > 1 ? 's' : ''}`;
-  return new Date(iso).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' });
+  return new Date(iso).toLocaleDateString('pt-BR', { timeZone: FUSO_HORARIO, day: '2-digit', month: '2-digit', year: 'numeric' });
 }
 
 export default async function MinhasConversasPage() {

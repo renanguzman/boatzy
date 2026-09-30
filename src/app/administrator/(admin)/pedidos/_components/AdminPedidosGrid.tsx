@@ -13,6 +13,7 @@ import { formatarDataHoraBR } from '@/lib/termos/formato';
 import { cartaoDe, pagamentoPrincipal, type PedidoLinha } from '../_lib/linha';
 import { FORMA_LABEL, PAGAMENTO_STATUS, PEDIDO_STATUS, formatarDataCurta } from '../_lib/rotulos';
 import { exportarPedidos } from '../actions';
+import { hojeISO } from '@/lib/datas';
 
 type SortKey = 'numero' | 'criado_em' | 'cliente' | 'gestor' | 'data_passeio' | 'valor_total' | 'status';
 
@@ -109,7 +110,7 @@ export default function AdminPedidosGrid({ pedidos, total, page, perPage, pageSi
     const sheet = XLSX.utils.json_to_sheet(r.linhas);
     const workbook = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(workbook, sheet, 'Pedidos');
-    XLSX.writeFile(workbook, `pedidos-boatzy-${new Date().toISOString().slice(0, 10)}.xlsx`);
+    XLSX.writeFile(workbook, `pedidos-boatzy-${hojeISO()}.xlsx`);
   }
 
   const totalPages = Math.max(1, Math.ceil(total / perPage));

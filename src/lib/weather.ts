@@ -1,4 +1,5 @@
 import 'server-only';
+import { hojeISO } from '@/lib/datas';
 
 /**
  * Previsão do tempo para a página de confirmação de reserva (`/reservas/novo`),
@@ -96,9 +97,9 @@ export async function buscarPrevisaoTempo(
   lng: number,
   dataISO: string,
 ): Promise<ResultadoPrevisao> {
-  const hojeISO = new Date().toISOString().slice(0, 10);
+  const hoje = hojeISO(); // horário de Brasília (o servidor roda em UTC)
   const diffDias = Math.round(
-    (new Date(`${dataISO}T12:00:00`).getTime() - new Date(`${hojeISO}T12:00:00`).getTime()) /
+    (new Date(`${dataISO}T12:00:00`).getTime() - new Date(`${hoje}T12:00:00`).getTime()) /
       86_400_000,
   );
 

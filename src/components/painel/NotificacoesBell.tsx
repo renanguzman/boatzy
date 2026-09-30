@@ -7,6 +7,7 @@ import { Bell, MessageCircle, ChevronRight } from 'lucide-react';
 import type { RealtimeChannel } from '@supabase/supabase-js';
 import { createClient } from '@/lib/supabase/client';
 import { authorizeRealtime } from '@/lib/supabase/realtime';
+import { FUSO_HORARIO } from '@/lib/datas';
 
 type ConversaNaoLida = {
   conversa_id: string;
@@ -25,7 +26,7 @@ function formatQuando(iso: string): string {
   if (diffMin < 60) return `há ${diffMin} min`;
   const diffH = Math.floor(diffMin / 60);
   if (diffH < 24) return `há ${diffH} h`;
-  return data.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
+  return data.toLocaleDateString('pt-BR', { timeZone: FUSO_HORARIO, day: '2-digit', month: '2-digit' });
 }
 
 /**

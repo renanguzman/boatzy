@@ -9,6 +9,7 @@ import { createClient } from '@/lib/supabase/client';
 import { authorizeRealtime } from '@/lib/supabase/realtime';
 import { enviarMensagem, marcarConversaComoLida, confirmarAvisoChat } from '@/lib/chat-actions';
 import { origemTipoLabel, type ConversaOrigem } from '@/lib/conversa-origem';
+import { FUSO_HORARIO, dataISONoFuso } from '@/lib/datas';
 
 export type Mensagem = {
   id: string;
@@ -21,18 +22,15 @@ export type Mensagem = {
 type Interlocutor = { name: string; email: string; avatar_url: string | null };
 
 function formatHora(iso: string): string {
-  return new Date(iso).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+  return new Date(iso).toLocaleTimeString('pt-BR', { timeZone: FUSO_HORARIO, hour: '2-digit', minute: '2-digit' });
 }
 
 function formatDiaSeparador(iso: string): string {
   const d = new Date(iso);
-  const hoje = new Date();
-  const ontem = new Date();
-  ontem.setDate(hoje.getDate() - 1);
-  const sameDay = (a: Date, b: Date) => a.toDateString() === b.toDateString();
-  if (sameDay(d, hoje)) return 'Hoje';
-  if (sameDay(d, ontem)) return 'Ontem';
-  return d.toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric' });
+  const dia = dataISONoFuso(d);
+  if (dia === dataISONoFuso(new Date())) return 'Hoje';
+  if (dia === dataISONoFuso(new Date(Date.now() - 86_400_000))) return 'Ontem';
+  return d.toLocaleDateString('pt-BR', { timeZone: FUSO_HORARIO, day: '2-digit', month: 'long', year: 'numeric' });
 }
 
 export default function ChatBox({

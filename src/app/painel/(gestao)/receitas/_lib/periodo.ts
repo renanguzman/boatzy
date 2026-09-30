@@ -1,3 +1,5 @@
+import { FUSO_HORARIO } from '@/lib/datas';
+
 function toISO(d: Date): string {
   return new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Sao_Paulo' }).format(d);
 }
@@ -48,6 +50,6 @@ export function periodoAnterior(de: string, ate: string): { de: string; ate: str
 
 export function formatPeriodoLabel(de: string, ate: string): string {
   const f = (iso: string) =>
-    new Date(`${iso}T12:00:00`).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' });
+    new Date(`${iso}T12:00:00`).toLocaleDateString('pt-BR', { timeZone: FUSO_HORARIO, day: '2-digit', month: '2-digit', year: 'numeric' });
   return `${f(de)} a ${f(ate)}`;
 }

@@ -18,6 +18,7 @@ import { formatCurrency } from '@/lib/utils';
 import type { ReservaStatus, AvaliacaoStatus, PedidoStatus } from '@/types/supabase';
 import CancelarReservaButton from './_components/CancelarReservaButton';
 import AvaliacaoReserva from './_components/AvaliacaoReserva';
+import { FUSO_HORARIO } from '@/lib/datas';
 
 type AvaliacaoResumo = { nota: number; comentario: string | null; created_at: string; status: AvaliacaoStatus };
 
@@ -119,7 +120,7 @@ const STATUS: Record<
 };
 
 function formatData(iso: string, flex: number | null): string {
-  const label = new Date(iso + 'T12:00:00').toLocaleDateString('pt-BR', {
+  const label = new Date(iso + 'T12:00:00').toLocaleDateString('pt-BR', { timeZone: FUSO_HORARIO, 
     weekday: 'long',
     day: '2-digit',
     month: 'long',
@@ -129,7 +130,7 @@ function formatData(iso: string, flex: number | null): string {
 }
 
 function formatDateTime(iso: string): string {
-  return new Date(iso).toLocaleString('pt-BR', {
+  return new Date(iso).toLocaleString('pt-BR', { timeZone: FUSO_HORARIO, 
     day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit',
   });
 }

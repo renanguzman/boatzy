@@ -26,6 +26,7 @@ import {
   parseNumeroPositivo,
   type BuscaSearchParams as SearchParams,
 } from './_lib/filtros';
+import { FUSO_HORARIO } from '@/lib/datas';
 
 const POR_PAGINA = 24;
 const RAIO_KM = 50;
@@ -338,7 +339,7 @@ export default async function BuscarPage({ searchParams }: { searchParams: Promi
     chips.push({ label: params.local, removeKey: 'local_municipio' });
   }
   if (params.data) {
-    const dateLabel = new Date(params.data + 'T12:00:00').toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' });
+    const dateLabel = new Date(params.data + 'T12:00:00').toLocaleDateString('pt-BR', { timeZone: FUSO_HORARIO, day: '2-digit', month: '2-digit', year: 'numeric' });
     chips.push({ label: flex > 0 ? `${dateLabel} ± ${flex} dia${flex > 1 ? 's' : ''}` : dateLabel, removeKey: 'data' });
   }
   if (pessoas > 0) {

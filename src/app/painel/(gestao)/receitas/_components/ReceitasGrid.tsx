@@ -9,6 +9,7 @@ import { formatCurrencyPrecise } from '@/lib/utils';
 import { STATUS_BADGE, STATUS_LABEL, TIPO_LABEL } from '../_lib/constants';
 import { exportReceitasExcel, exportReceitasPdf } from '../_lib/export';
 import type { ReservaReceita } from '../_lib/types';
+import { FUSO_HORARIO, hojeISO } from '@/lib/datas';
 
 const PAGE_SIZE = 10;
 
@@ -27,7 +28,7 @@ function getSortValue(r: ReservaReceita, key: SortKey): string | number {
 }
 
 function formatDataCurta(iso: string): string {
-  return new Date(`${iso}T12:00:00`).toLocaleDateString('pt-BR', {
+  return new Date(`${iso}T12:00:00`).toLocaleDateString('pt-BR', { timeZone: FUSO_HORARIO, 
     day: '2-digit', month: '2-digit', year: 'numeric',
   });
 }
@@ -102,11 +103,11 @@ export default function ReceitasGrid({
   const paged = sorted.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
 
   function handleExportExcel() {
-    exportReceitasExcel(sorted, `receitas_${new Date().toISOString().slice(0, 10)}.xlsx`);
+    exportReceitasExcel(sorted, `receitas_${hojeISO()}.xlsx`);
   }
 
   function handleExportPdf() {
-    exportReceitasPdf(sorted, `receitas_${new Date().toISOString().slice(0, 10)}.pdf`, {
+    exportReceitasPdf(sorted, `receitas_${hojeISO()}.pdf`, {
       periodo: periodoLabel,
       total: totalReceita,
     });

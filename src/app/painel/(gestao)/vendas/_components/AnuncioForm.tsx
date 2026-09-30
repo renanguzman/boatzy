@@ -18,6 +18,7 @@ import {
   Users,
 } from 'lucide-react';
 import { criarAnuncio, atualizarAnuncio } from '../actions';
+import { FUSO_HORARIO } from '@/lib/datas';
 
 const inputCls = `w-full rounded-xl border border-slate-200 px-3.5 py-2.5 text-sm text-slate-800
   placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-[#0B2447]/20
@@ -26,7 +27,7 @@ const inputCls = `w-full rounded-xl border border-slate-200 px-3.5 py-2.5 text-s
 const selectCls = `${inputCls} appearance-none cursor-pointer`;
 
 const brl = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' });
-const dataBr = new Intl.DateTimeFormat('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' });
+const dataBr = new Intl.DateTimeFormat('pt-BR', { timeZone: FUSO_HORARIO, day: '2-digit', month: '2-digit', year: 'numeric' });
 
 export type EmbarcacaoOption = {
   id: string;

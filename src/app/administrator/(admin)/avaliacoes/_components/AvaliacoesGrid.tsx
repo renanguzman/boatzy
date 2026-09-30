@@ -17,6 +17,7 @@ import {
   X,
 } from 'lucide-react';
 import { aprovarAvaliacao, editarAvaliacao, excluirAvaliacao } from '../actions';
+import { FUSO_HORARIO } from '@/lib/datas';
 
 const PAGE_SIZES = [10, 25, 50] as const;
 
@@ -47,7 +48,7 @@ function vinculoNome(a: AvaliacaoListItem): string {
 }
 
 function formatDate(iso: string): string {
-  return new Date(iso).toLocaleDateString('pt-BR', {
+  return new Date(iso).toLocaleDateString('pt-BR', { timeZone: FUSO_HORARIO, 
     day: '2-digit',
     month: '2-digit',
     year: 'numeric',

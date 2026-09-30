@@ -17,6 +17,7 @@ import { supabaseAdmin } from '@/lib/supabase';
 import { concluirReservasVencidas } from '@/lib/reservas';
 import { formatCurrency } from '@/lib/utils';
 import type { ReservaStatus, ReservaTipo } from '@/types/supabase';
+import { FUSO_HORARIO, partesNoFuso } from '@/lib/datas';
 
 type ReservaDashboard = {
   id: string;
@@ -46,7 +47,7 @@ const STATUS_BADGE: Record<ReservaStatus, { label: string; class: string }> = {
 const MESES_CURTOS = ['JAN', 'FEV', 'MAR', 'ABR', 'MAI', 'JUN', 'JUL', 'AGO', 'SET', 'OUT', 'NOV', 'DEZ'];
 
 function formatDataCurta(iso: string): string {
-  return new Date(iso.length === 10 ? iso + 'T12:00:00' : iso).toLocaleDateString('pt-BR', {
+  return new Date(iso.length === 10 ? iso + 'T12:00:00' : iso).toLocaleDateString('pt-BR', { timeZone: FUSO_HORARIO, 
     day: '2-digit', month: '2-digit', year: 'numeric',
   });
 }
@@ -145,18 +146,20 @@ export default async function PainelDashboardPage() {
   ];
 
   /* ── Gráfico: reservas solicitadas nos últimos 6 meses ── */
-  const agora = new Date();
+  // Meses no horário de Brasília (o servidor roda em UTC).
+  const agora = partesNoFuso(new Date());
   const meses = Array.from({ length: 6 }, (_, i) => {
-    const d = new Date(agora.getFullYear(), agora.getMonth() - (5 - i), 1);
-    return { ano: d.getFullYear(), mes: d.getMonth(), label: MESES_CURTOS[d.getMonth()], total: 0 };
+    const d = new Date(Date.UTC(agora.ano, agora.mes - (5 - i), 1));
+    return { ano: d.getUTCFullYear(), mes: d.getUTCMonth(), label: MESES_CURTOS[d.getUTCMonth()], total: 0 };
   });
-  const inicioJanela = new Date(meses[0].ano, meses[0].mes, 1);
   for (const r of reservas) {
-    const d = new Date(r.solicitado_em);
-    if (d < inicioJanela) continue;
-    const bucket = meses.find((m) => m.ano === d.getFullYear() && m.mes === d.getMonth());
+    const { ano, mes } = partesNoFuso(new Date(r.solicitado_em));
+    const bucket = meses.find((m) => m.ano === ano && m.mes === mes);
     if (bucket) bucket.total += 1;
   }
+  const inicioJanela = new Date(
+    `${meses[0].ano}-${String(meses[0].mes + 1).padStart(2, '0')}-01T00:00:00-03:00`,
+  );
   const maxMes = Math.max(1, ...meses.map((m) => m.total));
 
   /* ── Destaque: item com mais reservas na janela de 6 meses ── */

@@ -12,6 +12,7 @@ import { somarDiasISO } from '@/lib/reservas';
 import { obterTermoParaAceite } from '@/lib/termos/aceite';
 import ConfirmarReserva from './_components/ConfirmarReserva';
 import PrevisaoTempoCard from './_components/PrevisaoTempoCard';
+import { FUSO_HORARIO } from '@/lib/datas';
 
 const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
 
@@ -29,7 +30,7 @@ type SearchParams = {
 };
 
 function formatDateLabel(iso: string, flex: number): string {
-  const label = new Date(iso + 'T12:00:00').toLocaleDateString('pt-BR', {
+  const label = new Date(iso + 'T12:00:00').toLocaleDateString('pt-BR', { timeZone: FUSO_HORARIO, 
     day: '2-digit',
     month: 'long',
     year: 'numeric',

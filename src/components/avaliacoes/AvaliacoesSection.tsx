@@ -1,5 +1,6 @@
 import Image from 'next/image';
 import { Star } from 'lucide-react';
+import { FUSO_HORARIO } from '@/lib/datas';
 
 export type AvaliacaoPublica = {
   id: string;
@@ -88,7 +89,7 @@ export default function AvaliacoesSection({
                     {a.cliente?.name ?? 'Cliente Boatzy'}
                   </p>
                   <p className="text-xs text-slate-400">
-                    {new Date(a.created_at).toLocaleDateString('pt-BR', {
+                    {new Date(a.created_at).toLocaleDateString('pt-BR', { timeZone: FUSO_HORARIO, 
                       day: '2-digit', month: 'long', year: 'numeric',
                     })}
                   </p>

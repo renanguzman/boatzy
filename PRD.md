@@ -1351,6 +1351,18 @@ A taxa padrão configurada inicialmente é **10%**. Admins podem alterá-la a qu
 - No celular, o painel abre como gaveta ("Filtros (N)") com o botão "Ver N resultados".
 - Nenhuma funcionalidade foi removida: mesmos filtros, mapa, paginação, favoritos e avaliações.
 
+### ✅ Datas no horário de Brasília (01/10/2026)
+
+- Todas as datas e horários exibidos no site, no painel, no admin e nos e-mails passam a seguir o
+  horário de Brasília (antes, várias telas mostravam a hora 3h adiantada — ex.: "Solicitada em 23:39"
+  quando eram 20:39 — porque o servidor roda em UTC). Datas de passeio não "voltam" um dia.
+- Regras que dependem de "hoje" também passam a usar Brasília: validade de cupom, validade da taxa
+  específica do gestor, previsão do tempo e o gráfico mensal do painel (entre 21h e meia-noite elas
+  já consideravam o dia seguinte).
+- Detalhes técnicos: SPEC §35.
+
+---
+
 ## 11. Não Incluído no MVP
 
 - Chat em tempo real

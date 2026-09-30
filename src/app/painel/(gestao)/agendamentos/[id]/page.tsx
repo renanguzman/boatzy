@@ -16,6 +16,7 @@ import { getDatasReservadasEmbarcacao, haConflitoReservaRoteiro } from '@/lib/re
 import { getAtendenteOptions, getAtendentesDaReserva, resolveEmbarcacaoIdDaReserva } from '@/lib/equipe';
 import ReservaAcoes from './_components/ReservaAcoes';
 import AdicionarAoCalendario from './_components/AdicionarAoCalendario';
+import { FUSO_HORARIO } from '@/lib/datas';
 
 type ReservaDetalhe = {
   id: string;
@@ -89,7 +90,7 @@ const STATUS: Record<ReservaStatus, { label: string; badge: string }> = {
 };
 
 function formatData(iso: string, flex: number | null): string {
-  const label = new Date(iso + 'T12:00:00').toLocaleDateString('pt-BR', {
+  const label = new Date(iso + 'T12:00:00').toLocaleDateString('pt-BR', { timeZone: FUSO_HORARIO, 
     weekday: 'long',
     day: '2-digit',
     month: 'long',
@@ -99,7 +100,7 @@ function formatData(iso: string, flex: number | null): string {
 }
 
 function formatDateTime(iso: string): string {
-  return new Date(iso).toLocaleString('pt-BR', {
+  return new Date(iso).toLocaleString('pt-BR', { timeZone: FUSO_HORARIO, 
     day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit',
   });
 }

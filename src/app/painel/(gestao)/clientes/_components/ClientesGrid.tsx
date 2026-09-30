@@ -18,6 +18,7 @@ import {
 } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { authorizeRealtime } from '@/lib/supabase/realtime';
+import { FUSO_HORARIO } from '@/lib/datas';
 
 const PAGE_SIZE = 10;
 
@@ -47,7 +48,7 @@ function getSortValue(item: ClienteListItem, key: SortKey): string | number {
 }
 
 function formatDate(iso: string): string {
-  return new Date(iso).toLocaleDateString('pt-BR', {
+  return new Date(iso).toLocaleDateString('pt-BR', { timeZone: FUSO_HORARIO, 
     day: '2-digit',
     month: '2-digit',
     year: 'numeric',

@@ -15,6 +15,7 @@ import { retomarPixPendente } from '@/lib/pagamentos/checkout';
 import { formatarDataHoraBR } from '@/lib/termos/formato';
 import type { FormaPagamentoCodigo, PedidoStatus } from '@/types/supabase';
 import CheckoutPagamento, { type FormaCheckout, type Pix } from './_components/CheckoutPagamento';
+import { FUSO_HORARIO } from '@/lib/datas';
 
 type PedidoPagar = {
   id: string;
@@ -42,7 +43,7 @@ type ReservaPagar = {
 };
 
 function dataLonga(iso: string): string {
-  return new Date(`${iso}T12:00:00`).toLocaleDateString('pt-BR', { weekday: 'long', day: '2-digit', month: 'long', year: 'numeric' });
+  return new Date(`${iso}T12:00:00`).toLocaleDateString('pt-BR', { timeZone: FUSO_HORARIO, weekday: 'long', day: '2-digit', month: 'long', year: 'numeric' });
 }
 
 export default async function PagarReservaPage({

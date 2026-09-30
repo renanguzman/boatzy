@@ -27,3 +27,13 @@ GRANT USAGE, SELECT ON SEQUENCE public.x_id_seq TO anon, authenticated, service_
 ```
 
 Sem isso, o supabase-js retorna `permission denied`, inclusive no `supabaseAdmin` (service role ignora RLS, mas não ignora GRANT). O controle de acesso continua nas policies de RLS. Referência: `supabase/migrations/20260927_grants_data_api.sql`.
+
+# Datas e fuso horário
+
+O servidor (Vercel) e o Postgres do Supabase rodam em UTC; o Boatzy exibe e decide tudo no horário de Brasília. Nunca formate data sem fuso nem calcule "hoje" com `toISOString()`:
+
+- Exibição: `formatarData`, `formatarDataHora`, `formatarHora` de `src/lib/datas.ts` (ou `timeZone: FUSO_HORARIO` em qualquer `toLocale*String`/`Intl.DateTimeFormat`).
+- "Hoje" / dia de um instante: `hojeISO()` / `dataISONoFuso(date)`; agrupamento por mês: `partesNoFuso(date)`.
+- Campos só de data (`data_reserva`, `data_validade`…): nunca `new Date('AAAA-MM-DD')` puro (vira meia-noite UTC e mostra o dia anterior) — use `formatarData`/`paraData`.
+- Funções SQL que usem `CURRENT_DATE`/`now()::date`: `ALTER FUNCTION … SET timezone = 'America/Sao_Paulo'` na mesma migration. Referência: `supabase/migrations/20261001_funcoes_fuso_brasilia.sql`.
+

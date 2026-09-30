@@ -19,6 +19,7 @@ import { topRatedBoats, featuredCharters, sampleReviews } from '@/lib/mock-data'
 import { formatCurrency } from '@/lib/utils';
 import Header from '@/components/layout/Header';
 import Footer from '@/components/layout/Footer';
+import { FUSO_HORARIO } from '@/lib/datas';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export default async function BoatDetailPage({ params }: any) {
@@ -239,7 +240,7 @@ export default async function BoatDetailPage({ params }: any) {
                               {review.userName}
                             </p>
                             <p className="text-xs text-slate-500">
-                              {new Date(review.createdAt).toLocaleDateString('pt-BR', {
+                              {new Date(review.createdAt).toLocaleDateString('pt-BR', { timeZone: FUSO_HORARIO, 
                                 month: 'long',
                                 year: 'numeric',
                               })}

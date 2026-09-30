@@ -7,6 +7,7 @@ import {
   ChevronsLeft, ChevronsRight, ChevronLeft, ChevronRight, Loader2,
 } from 'lucide-react';
 import TaxaGestorModal from './TaxaGestorModal';
+import { FUSO_HORARIO, hojeISO } from '@/lib/datas';
 
 const PAGE_SIZES = [10, 25, 50];
 
@@ -39,12 +40,9 @@ function fmtPercent(v: number): string {
 }
 
 function fmtData(iso: string): string {
-  return new Date(iso).toLocaleDateString('pt-BR');
+  return new Date(iso).toLocaleDateString('pt-BR', { timeZone: FUSO_HORARIO });
 }
 
-function hojeISO(): string {
-  return new Date().toISOString().slice(0, 10);
-}
 
 /** Resolve qual taxa efetivamente vale pra esse gestor agora — mesma regra de `get_taxa_usuario`. */
 function taxaVigente(

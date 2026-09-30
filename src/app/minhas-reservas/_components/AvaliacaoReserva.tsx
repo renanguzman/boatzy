@@ -4,6 +4,7 @@ import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { Loader2, Star } from 'lucide-react';
 import { criarAvaliacao } from '../actions';
+import { FUSO_HORARIO } from '@/lib/datas';
 
 type AvaliacaoExistente = {
   nota: number;
@@ -58,7 +59,7 @@ export default function AvaliacaoReserva({ reservaId, avaliacao }: Props) {
         {avaliacao.comentario && <p className="text-sm text-slate-600">{avaliacao.comentario}</p>}
         <p className="mt-1.5 text-xs text-slate-400">
           Enviada em{' '}
-          {new Date(avaliacao.created_at).toLocaleDateString('pt-BR', {
+          {new Date(avaliacao.created_at).toLocaleDateString('pt-BR', { timeZone: FUSO_HORARIO, 
             day: '2-digit', month: '2-digit', year: 'numeric',
           })}
         </p>
