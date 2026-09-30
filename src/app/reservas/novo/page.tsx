@@ -236,7 +236,7 @@ export default async function NovaReservaPage({
 
         <h1 className="mt-3 text-2xl font-bold text-[#0B2447]">Confirmar solicitação de reserva</h1>
         <p className="text-sm text-slate-500 mt-1">
-          Revise os dados abaixo. Após o envio, o gestor analisará e responderá sua solicitação.
+          Revise os dados abaixo. Após o envio, o gestor analisará sua solicitação; se aceitar, você paga pelo Boatzy (Pix ou cartão) para garantir a data.
         </p>
 
         {previsaoTempo && (

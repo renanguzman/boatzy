@@ -2,7 +2,9 @@ import 'server-only';
 
 import { supabaseAdmin } from '@/lib/supabase';
 import type { AsaasWebhookEventoStatus, Database, Json } from '@/types/supabase';
+import { tratarEventoCobranca } from '@/lib/pagamentos/webhook';
 import type { AsaasEventoPayload } from './tipos';
+import { EVENTOS_ASSINADOS } from './webhooks';
 
 /**
  * Fila de eventos de webhook do Asaas (`asaas_webhook_evento`).
@@ -25,10 +27,14 @@ export type EventoAsaasRow = Database['public']['Tables']['asaas_webhook_evento'
 export type HandlerEventoAsaas = (evento: EventoAsaasRow) => Promise<'processado' | 'ignorado' | void>;
 
 /**
- * Fase 0: nenhum handler — todo evento é gravado e marcado como `ignorado`.
- * A Fase 1 registra os `PAYMENT_*` e a Fase 3 os `TRANSFER_*`.
+ * Handlers por tipo de evento. Fase 1: todos os `PAYMENT_*` assinados →
+ * `tratarEventoCobranca` (cobranças que não são do checkout do Boatzy saem
+ * como `ignorado`). A Fase 3 registra os `TRANSFER_*`. Eventos sem handler são
+ * gravados e marcados como `ignorado`.
  */
-const HANDLERS: Partial<Record<string, HandlerEventoAsaas>> = {};
+const HANDLERS: Partial<Record<string, HandlerEventoAsaas>> = Object.fromEntries(
+  EVENTOS_ASSINADOS.filter((e) => e.startsWith('PAYMENT_')).map((e) => [e, tratarEventoCobranca]),
+);
 
 /** Acima disso o cron para de tentar; o evento fica em `erro` até o admin reprocessar. */
 export const MAX_TENTATIVAS_AUTOMATICAS = 8;

@@ -260,18 +260,16 @@ Exibir:
 
 ### 6.5 Sistema de Reservas
 
-Fluxo:
+Fluxo (desde 30/09/2026 — ver 6.6):
 
-1. Selecionar data
-2. Definir duração
-3. Confirmar reserva
-4. Pagamento
+1. Selecionar data, duração, pessoas e adicionais
+2. Enviar a solicitação (grátis) → **Pendente**
+3. Gestor aceita (ou recusa) → **Aguardando pagamento** (a data fica reservada)
+4. Cliente paga pelo Boatzy (Pix ou cartão) no prazo → **Confirmada**
+5. Data do passeio passa → **Concluída** (libera a avaliação)
 
-Status:
-
-- Pendente
-- Confirmada
-- Cancelada
+Status: Pendente · Aguardando pagamento · Confirmada · Concluída · Recusada (gestor) · Cancelada
+(cliente) · Pagamento expirado (prazo terminou sem pagamento; data liberada).
 
 #### ✅ Implementado — Solicitação de reserva de **roteiro** (cliente → gestor)
 
@@ -376,8 +374,10 @@ gestor. Detalhes técnicos: SPEC §20.4–20.5.
 - Todas as regras do cupom (cadastradas no admin — ver 6.11) são checadas: cupom existe e está
   ativo, dentro da vigência, pedido mínimo atingido, limite de uso total e por cliente ainda
   disponíveis. Cada erro tem mensagem específica.
-- O desconto sai da taxa de serviço da Boatzy (com piso R$0; se maior que a taxa, o excedente
-  também abate do total) — o preço que o gestor cadastrou nunca é alterado por um cupom.
+- O desconto sai **só da taxa de serviço** da Boatzy e é **limitado ao valor dela** (desde
+  30/09/2026 — antes o excedente abatia o total). O cliente paga no mínimo o valor dos itens e o
+  gestor recebe esse valor integral; quando o cupom é maior que a taxa, a tela avisa que o desconto
+  foi limitado. Em reserva sem taxa de serviço, o cupom é recusado.
 - **Segurança contra força bruta**: 5 tentativas de cupom malsucedidas seguidas (mesmo cliente)
   bloqueiam o campo por 15 minutos, com contagem regressiva visível. A validação final é sempre
   refeita no servidor no momento do envio — o que o cliente vê na pré-visualização nunca é
@@ -448,23 +448,39 @@ Boatzy + repasse por Pix), regras de negócio, decisões pendentes e fases:
   realizado com sucesso**.
 - **Tarefas automáticas:** rodarão pelo **agendador do Supabase** — configuração pendente.
 
+#### ✅ Implementado — Fases 1.2 e 1.3: Aceite, pagamento e confirmação (30/09/2026)
+
+- **Novo fluxo da reserva:** o cliente solicita (grátis) → o gestor **aceita** → a reserva fica
+  **Aguardando pagamento** (a data já fica reservada para ele) → o cliente paga pelo Boatzy → a
+  reserva é **Confirmada** automaticamente quando o pagamento é aprovado. Sem pagamento no prazo
+  (24h por padrão, nunca depois do dia do passeio), a solicitação **expira**, a cobrança é removida
+  e a data volta a ficar livre.
+- **Gestor:** o botão vira "Aceitar e enviar cobrança". Se o preço era "a combinar", ele informa o
+  valor na hora e vê a prévia: quanto recebe, a taxa, o desconto e quanto o cliente paga. O detalhe
+  da reserva mostra o pagamento (pendente até…, pago em…, valor dele).
+- **Cliente:** e-mail "pague até…" com link; em "Minhas reservas", botão **Pagar**; página de
+  pagamento com **Pix** (QR Code + copia e cola, confirma sozinho) ou **cartão de crédito** (página
+  segura do Asaas, com parcelas dentro do limite configurado — hoje só à vista). O CPF é pedido se
+  faltar no cadastro. E-mails de pagamento confirmado (cliente e gestor) e de prazo expirado.
+- **Cancelamento pelo cliente:** liberado enquanto a reserva está pendente ou aguardando pagamento
+  (nada é cobrado). Reserva já paga: por enquanto só combinando com o gestor — o cancelamento com
+  reembolso entra na Fase 2.
+- **Chave geral** em Admin → Financeiro → Configurações: "Exigir pagamento no aceite" (desligada, o
+  aceite volta a confirmar direto, sem cobrança).
+- Textos públicos (FAQ e página de solicitação) atualizados para o novo fluxo.
+- Detalhes técnicos: SPEC §34.11–34.14.
+
 #### 🔜 Próximas etapas
 
-1. **Fase 1.2 — Aceite → pedido → cobrança:** o aceite do gestor gera o pedido (e define o preço
-   se "a combinar"); a reserva passa a "aguardando pagamento" com a data bloqueada; página de
-   pagamento do cliente (Pix com QR Code na própria página; cartão pela página do Asaas, com
-   escolha de parcelas dentro do limite configurado).
-2. **Fase 1.3 — Confirmação:** webhook confirma o pagamento → reserva confirmada; pedidos não
-   pagos no prazo expiram e liberam a data; e-mails.
-3. **Fase 1.4 — Admin: Pedidos:** lista e detalhe dos pedidos; status do pagamento para cliente e
-   gestor.
-4. Fases 2 (cancelamento/estornos), 3 (repasses — inclui a confirmação de realização pelo gestor),
-   4 (controle total) e 5 (produção).
+1. **Fase 1.4 — Admin: Pedidos:** lista e detalhe dos pedidos (linha do tempo dos pagamentos,
+   cartão mascarado, parcelas, eventos do Asaas) para acompanhamento e conciliação.
+2. **Agendador do Supabase** a cada ~10 min para expirar pedidos e reprocessar webhooks (hoje:
+   1×/dia + automaticamente quando cliente/gestor abrem as telas de reservas).
+3. Fases 2 (cancelamento/estornos), 3 (repasses — inclui a confirmação de realização pelo gestor e o
+   livro-razão financeiro), 4 (controle total) e 5 (produção).
 
 #### ⏳ Decisões pendentes (ver planejamento §12)
 
-- **Cupom maior que a comissão:** hoje o excedente reduz o total e o Boatzy cobre a diferença ao
-  gestor. Limitar o cupom ao valor da comissão?
 - Modelo aceito pelo Asaas (D1), tributação (D2), repasse de cartão x prazo de crédito (D3),
   IP fixo para repasses automáticos (D4), política de cancelamento e comissão no reembolso (D5).
 

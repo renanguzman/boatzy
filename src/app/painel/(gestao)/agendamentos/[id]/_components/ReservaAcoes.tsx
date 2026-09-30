@@ -5,21 +5,74 @@ import { useRouter } from 'next/navigation';
 import Image from 'next/image';
 import { Check, X, Loader2, User, Crown, Pencil } from 'lucide-react';
 import type { AtendenteOption } from '@/lib/equipe-types';
+import type { ReservaModalidadePreco, ReservaStatus } from '@/types/supabase';
+import { calcularValoresPedido } from '@/lib/pagamentos/valores';
+import { formatCurrencyPrecise } from '@/lib/utils';
 import { confirmarReserva, recusarReserva, definirAtendentes } from '../../actions';
 
-type Status = 'pendente' | 'confirmada' | 'recusada' | 'cancelada' | 'concluida';
+type Status = ReservaStatus;
+
+/** Dados para o aceite com pagamento (preço "a combinar" + prévia dos valores). */
+export type DadosAceite = {
+  exigirPagamento: boolean;
+  horasPrazoPagamento: number;
+  precoBase: number | null;
+  modalidade: ReservaModalidadePreco;
+  multiplicador: number;
+  totalAdicionais: number;
+  taxaPercent: number | null;
+  descontoValor: number;
+};
 
 type Props = {
   reservaId: string;
   status: Status;
   atendenteOptions: AtendenteOption[];
   atendentesAtuais: string[];
+  aceite: DadosAceite;
 };
 
-const RESOLVIDA_LABEL: Record<Exclude<Status, 'pendente' | 'confirmada' | 'concluida'>, string> = {
+const RESOLVIDA_LABEL: Record<Exclude<Status, 'pendente' | 'confirmada' | 'concluida' | 'aguardando_pagamento'>, string> = {
   recusada: 'Esta reserva foi recusada.',
   cancelada: 'Esta reserva foi cancelada pelo cliente.',
+  expirada: 'O prazo de pagamento desta reserva expirou sem pagamento.',
 };
+
+const ROTULO_PRECO: Record<ReservaModalidadePreco, string> = {
+  roteiro: 'Valor do passeio',
+  diaria: 'Valor por diária',
+  pessoa: 'Valor por pessoa',
+};
+
+/** Aceita "1.234,56" ou "1234.56". */
+function lerValor(v: string): number | null {
+  const limpo = v.trim().replace(/\s/g, '');
+  if (!limpo) return null;
+  const n = Number(limpo.includes(',') ? limpo.replace(/\./g, '').replace(',', '.') : limpo);
+  return Number.isFinite(n) && n > 0 ? n : null;
+}
+
+function PreviaValores({ aceite, precoDigitado }: { aceite: DadosAceite; precoDigitado: string }) {
+  const preco = aceite.precoBase ?? lerValor(precoDigitado);
+  if (preco == null || aceite.taxaPercent == null) return null;
+  const v = calcularValoresPedido({
+    precoUnitario: preco,
+    multiplicador: aceite.multiplicador,
+    totalAdicionais: aceite.totalAdicionais,
+    taxaPercent: aceite.taxaPercent,
+    descontoCupom: aceite.descontoValor,
+  });
+  return (
+    <div className="rounded-lg bg-slate-50 border border-slate-100 p-3 text-xs space-y-1">
+      <div className="flex justify-between text-slate-500"><span>Você recebe</span><span className="font-semibold text-slate-700">{formatCurrencyPrecise(v.valorItens)}</span></div>
+      <div className="flex justify-between text-slate-500"><span>Taxa de serviço (paga pelo cliente)</span><span>{formatCurrencyPrecise(v.valorComissao)}</span></div>
+      {v.valorDesconto > 0 && (
+        <div className="flex justify-between text-emerald-600"><span>Desconto do cupom</span><span>-{formatCurrencyPrecise(v.valorDesconto)}</span></div>
+      )}
+      <div className="flex justify-between border-t border-slate-200 pt-1 font-semibold text-[#0B2447]"><span>Cliente paga</span><span>{formatCurrencyPrecise(v.valorTotal)}</span></div>
+    </div>
+  );
+}
 
 function selecaoPadrao(options: AtendenteOption[], atuais: string[]): string[] {
   if (atuais.length > 0) return atuais.filter((id) => options.some((o) => o.id === id));
@@ -79,7 +132,7 @@ function ListaAtendentes({
   );
 }
 
-export default function ReservaAcoes({ reservaId, status, atendenteOptions, atendentesAtuais }: Props) {
+export default function ReservaAcoes({ reservaId, status, atendenteOptions, atendentesAtuais, aceite }: Props) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [acao, setAcao] = useState<'confirmar' | 'recusar' | null>(null);
@@ -89,13 +142,15 @@ export default function ReservaAcoes({ reservaId, status, atendenteOptions, aten
     selecaoPadrao(atendenteOptions, atendentesAtuais),
   );
   const [erro, setErro] = useState<string | null>(null);
+  const [precoDigitado, setPrecoDigitado] = useState('');
+  const precisaPreco = aceite.exigirPagamento && aceite.precoBase == null;
 
   function toggle(id: string) {
     setSelecionados((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
   }
 
-  // ── Reserva já confirmada / concluída: editar atendentes ──────────────────
-  if (status === 'confirmada' || status === 'concluida') {
+  // ── Reserva aceita (aguardando pagamento), confirmada ou concluída: editar atendentes ──
+  if (status === 'confirmada' || status === 'concluida' || status === 'aguardando_pagamento') {
     return (
       <section className="rounded-2xl border border-slate-200 bg-white shadow-sm p-5">
         <div className="flex items-center justify-between mb-3">
@@ -193,7 +248,7 @@ export default function ReservaAcoes({ reservaId, status, atendenteOptions, aten
     startTransition(async () => {
       const res =
         acao === 'confirmar'
-          ? await confirmarReserva(reservaId, observacao, selecionados)
+          ? await confirmarReserva(reservaId, observacao, selecionados, precisaPreco ? precoDigitado : undefined)
           : await recusarReserva(reservaId, observacao);
       if (!res.ok) {
         setErro(res.error ?? 'Erro ao processar.');
@@ -217,6 +272,31 @@ export default function ReservaAcoes({ reservaId, status, atendenteOptions, aten
             <p className="text-xs font-semibold text-slate-600 mb-2">Quem vai atender o cliente?</p>
             <ListaAtendentes options={atendenteOptions} selecionados={selecionados} onToggle={toggle} />
           </div>
+          {precisaPreco && (
+            <label className="block">
+              <span className="text-xs font-semibold text-slate-600">
+                {ROTULO_PRECO[aceite.modalidade]} (preço a combinar)
+                {aceite.multiplicador > 1 && <span className="font-normal text-slate-400"> · × {aceite.multiplicador}</span>}
+              </span>
+              <div className="relative mt-1">
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-slate-400">R$</span>
+                <input
+                  inputMode="decimal"
+                  value={precoDigitado}
+                  onChange={(e) => setPrecoDigitado(e.target.value.replace(/[^0-9.,]/g, ''))}
+                  placeholder="0,00"
+                  className="w-full rounded-lg border border-slate-200 py-2.5 pl-9 pr-3 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-[#0B3D91]/30"
+                />
+              </div>
+            </label>
+          )}
+          {aceite.exigirPagamento && <PreviaValores aceite={aceite} precoDigitado={precoDigitado} />}
+          {aceite.exigirPagamento && (
+            <p className="text-xs text-slate-500">
+              O cliente terá até {aceite.horasPrazoPagamento}h para pagar pelo Boatzy. Enquanto isso, a data fica reservada;
+              sem pagamento no prazo, a solicitação expira e a data é liberada.
+            </p>
+          )}
           <textarea
             value={observacao}
             onChange={(e) => setObservacao(e.target.value)}
@@ -231,7 +311,7 @@ export default function ReservaAcoes({ reservaId, status, atendenteOptions, aten
               className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-60"
             >
               {pending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
-              Confirmar
+              {aceite.exigirPagamento ? 'Aceitar e enviar cobrança' : 'Confirmar'}
             </button>
             <button
               onClick={() => {
@@ -285,7 +365,7 @@ export default function ReservaAcoes({ reservaId, status, atendenteOptions, aten
             className="inline-flex w-full items-center justify-center gap-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 px-4 py-2.5 text-sm font-semibold text-white"
           >
             <Check className="h-4 w-4" />
-            Confirmar reserva
+            {aceite.exigirPagamento ? 'Aceitar reserva' : 'Confirmar reserva'}
           </button>
           <button
             onClick={() => setAcao('recusar')}

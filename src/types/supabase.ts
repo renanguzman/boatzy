@@ -5,7 +5,14 @@ export type EmbarcacaoStatus = 'ativo' | 'inativo' | 'em_manutencao';
 export type PrecoRegraTipo = 'dia_semana' | 'periodo_anual' | 'data_fixa';
 export type ModalidadeCapitao = 'sem_capitao' | 'com_capitao' | 'opcional';
 export type CatalogoTipo = 'produto' | 'servico';
-export type ReservaStatus = 'pendente' | 'confirmada' | 'recusada' | 'cancelada' | 'concluida';
+export type ReservaStatus =
+  | 'pendente'
+  | 'aguardando_pagamento' // aceita pelo gestor, aguardando o pagamento do cliente (segura a data)
+  | 'confirmada'
+  | 'recusada'
+  | 'cancelada'
+  | 'concluida'
+  | 'expirada'; // prazo de pagamento acabou sem pagamento (libera a data)
 export type ReservaTipo = 'roteiro' | 'embarcacao';
 /** Modelo de cobrança usado na solicitação: Roteiro (diária única), Por Diária ou Por Pessoa. */
 export type ReservaModalidadePreco = 'roteiro' | 'diaria' | 'pessoa';
@@ -66,6 +73,9 @@ export type Database = {
           solicitado_em: string;
           respondido_em: string | null;
           cancelada_em: string | null;
+          pagamento_exigido: boolean;
+          aceita_em: string | null;
+          expirada_em: string | null;
           cupom_id: string | null;
           cupom_codigo: string | null;
           desconto_valor: number;
@@ -96,6 +106,9 @@ export type Database = {
           solicitado_em?: string;
           respondido_em?: string | null;
           cancelada_em?: string | null;
+          pagamento_exigido?: boolean;
+          aceita_em?: string | null;
+          expirada_em?: string | null;
           cupom_id?: string | null;
           cupom_codigo?: string | null;
           desconto_valor?: number;
@@ -126,6 +139,9 @@ export type Database = {
           solicitado_em?: string;
           respondido_em?: string | null;
           cancelada_em?: string | null;
+          pagamento_exigido?: boolean;
+          aceita_em?: string | null;
+          expirada_em?: string | null;
           cupom_id?: string | null;
           cupom_codigo?: string | null;
           desconto_valor?: number;
@@ -1730,7 +1746,29 @@ export type Database = {
           criado_em?: string;
           atualizado_em?: string;
         };
-        Relationships: [];
+        Relationships: [
+          {
+            foreignKeyName: 'pedido_reserva_id_fkey';
+            columns: ['reserva_id'];
+            isOneToOne: true;
+            referencedRelation: 'reserva';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'pedido_cliente_id_fkey';
+            columns: ['cliente_id'];
+            isOneToOne: false;
+            referencedRelation: 'users';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'pedido_gestor_id_fkey';
+            columns: ['gestor_id'];
+            isOneToOne: false;
+            referencedRelation: 'users';
+            referencedColumns: ['id'];
+          },
+        ];
       };
       // Descontos do pedido — cupom aponta para `cupom` (uso segue em `cupom_uso`).
       pedido_desconto: {
@@ -1770,7 +1808,15 @@ export type Database = {
           criado_por?: string | null;
           criado_em?: string;
         };
-        Relationships: [];
+        Relationships: [
+          {
+            foreignKeyName: 'pedido_desconto_pedido_id_fkey';
+            columns: ['pedido_id'];
+            isOneToOne: false;
+            referencedRelation: 'pedido';
+            referencedColumns: ['id'];
+          },
+        ];
       };
       // Cada tentativa de pagamento do pedido = 1 cobrança no Asaas (`id` = externalReference).
       pagamento: {
@@ -1856,7 +1902,15 @@ export type Database = {
           criado_em?: string;
           atualizado_em?: string;
         };
-        Relationships: [];
+        Relationships: [
+          {
+            foreignKeyName: 'pagamento_pedido_id_fkey';
+            columns: ['pedido_id'];
+            isOneToOne: false;
+            referencedRelation: 'pedido';
+            referencedColumns: ['id'];
+          },
+        ];
       };
       // Só bandeira + 4 últimos dígitos — nunca número completo, CVV ou validade.
       pagamento_cartao: {
@@ -1878,7 +1932,15 @@ export type Database = {
           ultimos_digitos?: string;
           criado_em?: string;
         };
-        Relationships: [];
+        Relationships: [
+          {
+            foreignKeyName: 'pagamento_cartao_pagamento_id_fkey';
+            columns: ['pagamento_id'];
+            isOneToOne: true;
+            referencedRelation: 'pagamento';
+            referencedColumns: ['id'];
+          },
+        ];
       };
       // Parcelas do cartão (só quando numero_parcelas > 1).
       pagamento_parcela: {
@@ -1930,7 +1992,15 @@ export type Database = {
           criado_em?: string;
           atualizado_em?: string;
         };
-        Relationships: [];
+        Relationships: [
+          {
+            foreignKeyName: 'pagamento_parcela_pagamento_id_fkey';
+            columns: ['pagamento_id'];
+            isOneToOne: false;
+            referencedRelation: 'pagamento';
+            referencedColumns: ['id'];
+          },
+        ];
       };
       // Histórico de movimentos do pagamento vindos do gateway.
       pagamento_transacao: {
@@ -1970,7 +2040,15 @@ export type Database = {
           payload?: Json | null;
           criado_em?: string;
         };
-        Relationships: [];
+        Relationships: [
+          {
+            foreignKeyName: 'pagamento_transacao_pagamento_id_fkey';
+            columns: ['pagamento_id'];
+            isOneToOne: false;
+            referencedRelation: 'pagamento';
+            referencedColumns: ['id'];
+          },
+        ];
       };
       // Estornos totais/parciais.
       pagamento_estorno: {
@@ -2029,6 +2107,7 @@ export type Database = {
           horas_prazo_pagamento: number;
           horas_repasse_apos_passeio: number;
           repasse_automatico: boolean;
+          exigir_pagamento: boolean;
           atualizado_por: string | null;
           atualizado_em: string;
         };
@@ -2038,6 +2117,7 @@ export type Database = {
           horas_prazo_pagamento?: number;
           horas_repasse_apos_passeio?: number;
           repasse_automatico?: boolean;
+          exigir_pagamento?: boolean;
           atualizado_por?: string | null;
           atualizado_em?: string;
         };
@@ -2047,6 +2127,7 @@ export type Database = {
           horas_prazo_pagamento?: number;
           horas_repasse_apos_passeio?: number;
           repasse_automatico?: boolean;
+          exigir_pagamento?: boolean;
           atualizado_por?: string | null;
           atualizado_em?: string;
         };

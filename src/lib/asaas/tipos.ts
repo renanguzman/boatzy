@@ -41,3 +41,58 @@ export type AsaasEventoPayload = {
   dateCreated?: string;
   [recurso: string]: unknown;
 };
+
+/** Cliente (customer) do Asaas — `POST /customers`. */
+export type AsaasCliente = { id: string; name: string; cpfCnpj: string | null; externalReference: string | null };
+
+export type AsaasBillingType = 'PIX' | 'CREDIT_CARD' | 'BOLETO' | 'UNDEFINED';
+
+/** Estorno dentro de `payment.refunds[]`. */
+export type AsaasEstorno = {
+  dateCreated?: string;
+  status?: string; // PENDING | DONE | CANCELLED …
+  value?: number;
+  description?: string | null;
+  transactionReceiptUrl?: string | null;
+};
+
+/**
+ * Cobrança (payment) do Asaas — mesma forma na resposta da API e no objeto
+ * `payment` dos webhooks. Só os campos que o Boatzy usa.
+ */
+export type AsaasCobranca = {
+  id: string;
+  customer: string;
+  status: string; // PENDING, CONFIRMED, RECEIVED, OVERDUE, REFUNDED… (valor cru)
+  billingType: AsaasBillingType;
+  value: number;
+  netValue?: number | null;
+  dueDate?: string | null; // AAAA-MM-DD
+  description?: string | null;
+  externalReference?: string | null;
+  invoiceUrl?: string | null;
+  invoiceNumber?: string | null;
+  transactionReceiptUrl?: string | null;
+  installment?: string | null; // id do parcelamento
+  installmentNumber?: number | null;
+  confirmedDate?: string | null;
+  paymentDate?: string | null;
+  clientPaymentDate?: string | null;
+  creditDate?: string | null;
+  estimatedCreditDate?: string | null;
+  pixTransaction?: string | null;
+  deleted?: boolean;
+  creditCard?: {
+    creditCardNumber?: string | null; // só os 4 últimos dígitos
+    creditCardBrand?: string | null;
+    creditCardToken?: string | null;
+  } | null;
+  refunds?: AsaasEstorno[] | null;
+};
+
+/** `GET /payments/{id}/pixQrCode`. */
+export type AsaasPixQrCode = {
+  encodedImage: string; // PNG em base64
+  payload: string; // copia-e-cola
+  expirationDate?: string | null; // "AAAA-MM-DD HH:mm:ss" (horário de Brasília)
+};

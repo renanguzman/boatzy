@@ -40,6 +40,7 @@ type CupomAplicado = {
   tipoDesconto: CupomTipoDesconto;
   valor: number;
   descontoValor: number;
+  limitadoTaxa: boolean;
 };
 
 function formatDesconto(c: CupomAplicado): string {
@@ -213,6 +214,9 @@ export default function ConfirmarReserva({
                     <span className="text-emerald-600">Desconto ({cupomAplicado.codigo})</span>
                     <span className="font-medium text-emerald-600">-{formatCurrency(desconto)}</span>
                   </div>
+                )}
+                {cupomAplicado?.limitadoTaxa && (
+                  <p className="text-xs text-slate-400">O desconto do cupom é limitado ao valor da taxa de serviço.</p>
                 )}
               </div>
 

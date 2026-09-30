@@ -4,7 +4,7 @@ import Image from 'next/image';
 import {
   MapPin, Ship, Users, CalendarDays, ShoppingCart, Clock, MessageSquare,
   MessageCircle, Hourglass, CheckCircle2, XCircle, Compass, Ban, Flag,
-  User, Crown, Phone,
+  User, Crown, Phone, CreditCard, TimerOff, BadgeCheck,
 } from 'lucide-react';
 import { applyPhoneMask, onlyDigits } from '@/lib/validators';
 import Header from '@/components/layout/Header';
@@ -12,8 +12,10 @@ import Footer from '@/components/layout/Footer';
 import { createClient } from '@/lib/supabase/server';
 import { supabaseAdmin } from '@/lib/supabase';
 import { concluirReservasVencidas } from '@/lib/reservas';
+import { expirarPedidosVencidosSemFalhar } from '@/lib/pagamentos/pedidos';
+import { formatarDataHoraBR } from '@/lib/termos/formato';
 import { formatCurrency } from '@/lib/utils';
-import type { ReservaStatus, AvaliacaoStatus } from '@/types/supabase';
+import type { ReservaStatus, AvaliacaoStatus, PedidoStatus } from '@/types/supabase';
 import CancelarReservaButton from './_components/CancelarReservaButton';
 import AvaliacaoReserva from './_components/AvaliacaoReserva';
 
@@ -55,15 +57,36 @@ type ReservaCliente = {
     } | null;
   }[];
   avaliacao: AvaliacaoResumo | AvaliacaoResumo[] | null;
+  pagamento_exigido: boolean;
+  pedido: PedidoCliente | PedidoCliente[] | null;
 };
 
-const STATUS = {
+type PedidoCliente = { numero: number; status: PedidoStatus; expira_em: string | null; pago_em: string | null; valor_total: number };
+
+const STATUS: Record<
+  ReservaStatus,
+  { label: string; badge: string; Icon: React.ElementType; note: string; noteClass: string }
+> = {
   pendente: {
     label: 'Aguardando confirmação',
     badge: 'bg-amber-100 text-amber-700',
     Icon: Hourglass,
     note: 'Sua solicitação foi enviada. O gestor irá analisar e responder em breve.',
     noteClass: 'bg-amber-50 border-amber-100 text-amber-700',
+  },
+  aguardando_pagamento: {
+    label: 'Aguardando pagamento',
+    badge: 'bg-violet-100 text-violet-700',
+    Icon: CreditCard,
+    note: 'O gestor aceitou sua solicitação. Conclua o pagamento para garantir a data.',
+    noteClass: 'bg-violet-50 border-violet-100 text-violet-700',
+  },
+  expirada: {
+    label: 'Pagamento expirado',
+    badge: 'bg-slate-200 text-slate-600',
+    Icon: TimerOff,
+    note: 'O prazo para pagamento terminou e a solicitação expirou. Nenhum valor foi cobrado.',
+    noteClass: 'bg-slate-50 border-slate-200 text-slate-500',
   },
   confirmada: {
     label: 'Confirmada',
@@ -93,7 +116,7 @@ const STATUS = {
     note: 'Experiência realizada. Conte como foi — sua avaliação ajuda outros clientes!',
     noteClass: 'bg-sky-50 border-sky-100 text-sky-700',
   },
-} as const;
+};
 
 function formatData(iso: string, flex: number | null): string {
   const label = new Date(iso + 'T12:00:00').toLocaleDateString('pt-BR', {
@@ -130,7 +153,8 @@ export default async function MinhasReservasPage() {
   } = await supabase.auth.getUser();
   if (!user) redirect('/entrar?redirect_to=/minhas-reservas');
 
-  // Transição lazy confirmada → concluída (data já passou) antes de listar.
+  // Transições lazy antes de listar: pagamento vencido → expirada; confirmada com data passada → concluída.
+  await expirarPedidosVencidosSemFalhar();
   await concluirReservasVencidas();
 
   const { data } = await supabaseAdmin
@@ -138,7 +162,8 @@ export default async function MinhasReservasPage() {
     .select(
       `id, owner_id, tipo, data_reserva, flexibilidade, quantidade_pessoas, roteiro_id, item_nome,
        preco_base, total_adicionais, taxa_servico, total_estimado, cupom_codigo, desconto_valor,
-       status, observacao_gestor, solicitado_em, respondido_em, cancelada_em,
+       status, observacao_gestor, solicitado_em, respondido_em, cancelada_em, pagamento_exigido,
+       pedido ( numero, status, expira_em, pago_em, valor_total ),
        roteiro ( nome, municipios ( nome, estados ( uf ) ), roteiro_imagens ( url_imagem, principal ) ),
        embarcacao ( nome ),
        reserva_adicional ( id, descricao, valor, tipo ),
@@ -201,7 +226,11 @@ export default async function MinhasReservasPage() {
               const chatIndisponivel = r.owner_id === user.id;
               // Embed 1:1 pode vir como objeto ou array conforme a detecção do PostgREST.
               const avaliacao = Array.isArray(r.avaliacao) ? (r.avaliacao[0] ?? null) : r.avaliacao;
-              const podeCancelar = r.status === 'pendente' || r.status === 'confirmada';
+              const pedido = Array.isArray(r.pedido) ? (r.pedido[0] ?? null) : r.pedido;
+              const podeCancelar =
+                r.status === 'pendente' ||
+                r.status === 'aguardando_pagamento' ||
+                (r.status === 'confirmada' && !r.pagamento_exigido);
               const atendentes = (r.reserva_atendente ?? [])
                 .map((a) => a.equipe_membro)
                 .filter((m): m is NonNullable<typeof m> => m != null)
@@ -297,6 +326,38 @@ export default async function MinhasReservasPage() {
                     <div className="px-4 pb-4 flex items-center justify-between">
                       <span className="text-sm text-slate-500">Total estimado</span>
                       <span className="text-base font-bold text-[#0B2447]">{formatCurrency(r.total_estimado)}</span>
+                    </div>
+                  )}
+
+                  {/* Pagamento pelo Boatzy */}
+                  {r.status === 'aguardando_pagamento' && pedido?.status === 'aguardando_pagamento' && (
+                    <div className="px-4 pb-4">
+                      <div className="rounded-xl border border-violet-200 bg-violet-50 p-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                        <div className="text-sm text-violet-800">
+                          <p className="font-semibold">Pagamento pendente · Pedido #{pedido.numero}</p>
+                          {pedido.expira_em && (
+                            <p className="text-xs text-violet-700 mt-0.5">
+                              Pague até {formatarDataHoraBR(pedido.expira_em)} para garantir a data.
+                            </p>
+                          )}
+                        </div>
+                        <Link
+                          href={`/reservas/${r.id}/pagar`}
+                          className="inline-flex items-center justify-center gap-1.5 rounded-xl bg-[#0B3D91] hover:bg-[#0B2447] px-4 py-2.5 text-sm font-semibold text-white transition-colors whitespace-nowrap"
+                        >
+                          <CreditCard className="h-4 w-4" />
+                          Pagar {formatCurrency(Number(pedido.valor_total))}
+                        </Link>
+                      </div>
+                    </div>
+                  )}
+                  {pedido?.status === 'pago' && (
+                    <div className="px-4 pb-4">
+                      <div className="flex items-center gap-2 text-xs text-emerald-700">
+                        <BadgeCheck className="h-4 w-4" />
+                        Pagamento confirmado · Pedido #{pedido.numero}
+                        {pedido.pago_em && ` · ${formatarDataHoraBR(pedido.pago_em)}`}
+                      </div>
                     </div>
                   )}
 

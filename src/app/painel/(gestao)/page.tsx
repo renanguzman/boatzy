@@ -35,10 +35,12 @@ type ReservaDashboard = {
 
 const STATUS_BADGE: Record<ReservaStatus, { label: string; class: string }> = {
   pendente: { label: 'Pendente', class: 'text-amber-600' },
+  aguardando_pagamento: { label: 'Aguardando pagamento', class: 'text-violet-600' },
   confirmada: { label: 'Confirmada', class: 'text-emerald-600' },
   recusada: { label: 'Recusada', class: 'text-red-500' },
   cancelada: { label: 'Cancelada pelo cliente', class: 'text-slate-500' },
   concluida: { label: 'Concluída', class: 'text-sky-600' },
+  expirada: { label: 'Pagamento expirado', class: 'text-slate-400' },
 };
 
 const MESES_CURTOS = ['JAN', 'FEV', 'MAR', 'ABR', 'MAI', 'JUN', 'JUL', 'AGO', 'SET', 'OUT', 'NOV', 'DEZ'];

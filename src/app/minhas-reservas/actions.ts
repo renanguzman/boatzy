@@ -3,12 +3,16 @@
 import { revalidatePath } from 'next/cache';
 import { createClient } from '@/lib/supabase/server';
 import { supabaseAdmin } from '@/lib/supabase';
+import { cancelarPedidoAguardando } from '@/lib/pagamentos/pedidos';
 
 type ActionResult = { ok: true } | { ok: false; error: string };
 
 /**
- * Cancelamento pelo CLIENTE: permitido enquanto a reserva está 'pendente' ou
- * 'confirmada'. Difere de 'recusada' (negativa do gestor). Grava cancelada_em.
+ * Cancelamento pelo CLIENTE: permitido enquanto a reserva está 'pendente',
+ * 'aguardando_pagamento' (a cobrança é removida no Asaas antes) ou
+ * 'confirmada' SEM pagamento pelo Boatzy. Reserva paga só é cancelada com a
+ * política de reembolso (Fase 2). Difere de 'recusada' (negativa do gestor).
+ * Grava cancelada_em.
  */
 export async function cancelarReserva(reservaId: string): Promise<ActionResult> {
   const supabase = await createClient();
@@ -19,21 +23,33 @@ export async function cancelarReserva(reservaId: string): Promise<ActionResult> 
 
   const { data: reserva } = await supabaseAdmin
     .from('reserva')
-    .select('id, cliente_id, status')
+    .select('id, cliente_id, status, pagamento_exigido')
     .eq('id', reservaId)
     .single();
 
   if (!reserva || reserva.cliente_id !== user.id) {
     return { ok: false, error: 'Reserva não encontrada.' };
   }
-  if (reserva.status !== 'pendente' && reserva.status !== 'confirmada') {
+  if (reserva.status === 'confirmada' && reserva.pagamento_exigido) {
+    return {
+      ok: false,
+      error: 'Reservas pagas ainda não podem ser canceladas pelo site. Fale com o gestor pelo chat para combinar o cancelamento.',
+    };
+  }
+  if (reserva.status !== 'pendente' && reserva.status !== 'confirmada' && reserva.status !== 'aguardando_pagamento') {
     return { ok: false, error: 'Esta reserva não pode mais ser cancelada.' };
+  }
+
+  if (reserva.status === 'aguardando_pagamento') {
+    const cancelamento = await cancelarPedidoAguardando(reservaId, 'Cancelado pelo cliente');
+    if (!cancelamento.ok) return { ok: false, error: cancelamento.erro ?? 'Não foi possível cancelar agora.' };
   }
 
   const { error } = await supabaseAdmin
     .from('reserva')
     .update({ status: 'cancelada', cancelada_em: new Date().toISOString() })
-    .eq('id', reservaId);
+    .eq('id', reservaId)
+    .eq('status', reserva.status);
 
   if (error) {
     console.error('[cancelarReserva] falha:', error);

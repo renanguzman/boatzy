@@ -52,7 +52,8 @@ const DISPOSITIVO_LABEL: Record<string, string> = {
   desktop: 'Computador', smartphone: 'Smartphone', tablet: 'Tablet', desconhecido: 'Desconhecido',
 };
 const RESERVA_STATUS_LABEL: Record<string, string> = {
-  pendente: 'Pendente', confirmada: 'Confirmada', recusada: 'Recusada', cancelada: 'Cancelada', concluida: 'Concluída',
+  pendente: 'Pendente', aguardando_pagamento: 'Aguardando pagamento', confirmada: 'Confirmada', recusada: 'Recusada',
+  cancelada: 'Cancelada', concluida: 'Concluída', expirada: 'Pagamento expirado',
 };
 
 const v = (x: string | number | null | undefined): string => (x === null || x === undefined || x === '' ? '—' : String(x));

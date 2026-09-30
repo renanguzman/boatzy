@@ -1,9 +1,9 @@
 # Planejamento — Pagamentos e Repasses (gateway Asaas)
 
-> **Status:** criado em 27/09/2026. **Fase 0 (fundação) concluída e validada no sandbox em
-> 30/09/2026.** **Fase 1.1 (modelo de dados + configurações) implementada em 30/09/2026** — ver
-> SPEC §34 e PRD §6.6. Decisões D3, D6 e D7 tomadas (§12). Próximo passo: Fase 1.2 (aceite →
-> pedido → cobrança).
+> **Status:** criado em 27/09/2026. **Fase 0** (fundação) concluída e validada no sandbox;
+> **Fases 1.1, 1.2 e 1.3** (modelo de dados, aceite → pedido → cobrança Pix/cartão, confirmação por
+> webhook, expiração) implementadas em 30/09/2026 — ver SPEC §34 e PRD §6.6. Decisões D3, D6 e D7
+> tomadas (§12). Próximo passo: Fase 1.4 (admin: Pedidos) e agendador do Supabase.
 > Base: leitura da documentação oficial do Asaas (guias + API Reference, versões de
 > ago–set/2026) e do estado atual do código (reserva, taxas, cupom, admin).
 > **Bloqueadores antes de codar a Fase 3 (repasses):** decisões D1–D3 da §12.
@@ -387,12 +387,12 @@ Export CSV/XLSX em todas as listas (o projeto já usa `xlsx`/`jspdf`).
 |------|---------|------------|
 | **0 — Fundação** ✅ 30/09/2026 | Env vars, `src/lib/asaas/`, tabela de eventos `asaas_webhook_evento` (+ GRANTs), endpoint de webhook, cron de reprocessamento, tela `/financeiro/integracao` com teste de conexão. **Escopo reduzido de propósito:** as demais tabelas da §6 entram na fase que as usa, para não fixar o modelo antes de D1/D7. | chave sandbox (para testar) |
 | **1.1 — Modelo + configuração** ✅ 30/09/2026 | Tabelas da §6.1 + `financeiro_config` + `financeiro_auditoria`; admin Financeiro → **Configurações** (formas de pagamento, parcelamento global, prazos, atalho para Taxas); reserva grava a taxa da solicitação mesmo "a combinar" | Fase 0 |
-| **1.2 — Aceite → pedido → cobrança** | Novos status da reserva + bloqueio de data em `aguardando_pagamento`; aceite do gestor gera o pedido (define o preço se "a combinar"); página do cliente `/reservas/[id]/pagar` (CPF se faltar, escolha Pix/cartão e nº de parcelas, QR Pix transparente, cartão pela fatura do Asaas); `cliente_asaas`; e-mail "pague até…" | 1.1 |
-| **1.3 — Confirmação por webhook** | Handlers `PAYMENT_*` → `pagamento`/`pagamento_transacao`/`pagamento_cartao`/`pagamento_parcela` → pedido `pago` → reserva `confirmada`; `lancamento_financeiro`; expiração de pedidos não pagos (rota de job); e-mails "pagamento confirmado"/"reserva paga" | 1.2 |
+| **1.2 — Aceite → pedido → cobrança** ✅ 30/09/2026 | Novos status da reserva + bloqueio de data em `aguardando_pagamento`; aceite do gestor gera o pedido (define o preço se "a combinar"); página do cliente `/reservas/[id]/pagar` (CPF se faltar, escolha Pix/cartão e nº de parcelas, QR Pix transparente, cartão pela fatura do Asaas); `cliente_asaas`; e-mail "pague até…" | 1.1 |
+| **1.3 — Confirmação por webhook** ✅ 30/09/2026 | Handlers `PAYMENT_*` → `pagamento`/`pagamento_transacao`/`pagamento_cartao`/`pagamento_parcela` → pedido `pago` → reserva `confirmada`; expiração de pedidos não pagos (`/api/cron/pagamentos` + lazy nas telas); e-mails. **`lancamento_financeiro` adiado para a Fase 3** (pedido + pagamento + histórico já cobrem a conciliação da cobrança; o ledger é necessário com repasses/chargeback). | 1.2 |
 | **1.4 — Admin: Pedidos** | Aba Pedidos (lista/detalhe com linha do tempo, cartão, parcelas, eventos), status de pagamento em "Minhas reservas" e no painel do gestor | 1.3 |
-| ⏳ Pendência (infra) | **Agendador do Supabase** (`pg_cron` + `pg_net`) chamando as rotas de job a cada ~10 min (expiração, reprocessamento de webhooks) — configurar depois; até lá, cron diário da Vercel + ações manuais no admin | — |
+| ⏳ Pendência (infra) | **Agendador do Supabase** (`pg_cron` + `pg_net`) chamando `/api/cron/pagamentos` a cada ~10 min (reprocessa webhooks e expira pedidos) — configurar depois; até lá, cron diário da Vercel + expiração lazy ao abrir as telas de reservas | — |
 | **2 — Cancelamento e estornos** | Política configurável, cancelamento do cliente com prévia, recusa pós-pagamento, estorno manual pelo admin, ledger de estornos | Fase 1, D5 |
-| **3 — Repasses** | Cadastro/validação de recebedor, cálculo, job de repasse, validação de saque, webhooks de transferência, fila no admin (reter/liberar/ajustar), "a receber" no painel do gestor | Fase 2, **D1–D4** |
+| **3 — Repasses** | Confirmação de realização do passeio pelo gestor (D6), `lancamento_financeiro` (ledger), cadastro/validação de recebedor, cálculo, job de repasse, validação de saque, webhooks de transferência, fila no admin (reter/liberar/ajustar), "a receber" no painel do gestor | Fase 2, **D1–D4** |
 | **4 — Controle total** | Dashboard financeiro, conciliação diária, disputas/chargeback, auditoria, exports | Fase 3 |
 | **5 — Produção** | Chave de produção, webhooks de produção, checklist "Preparação para produção" do Asaas, homologação (se subcontas), monitoramento/alertas, NFS-e da comissão. **Atenção:** hoje o único ambiente (`boatzy.app`) recebe o webhook da conta **sandbox**. Na virada: **gerar um novo `ASAAS_WEBHOOK_TOKEN`** e **desativar/excluir o webhook da conta sandbox**, senão eventos de teste continuariam sendo aceitos no banco de produção; limpar `asaas_webhook_evento` e dados financeiros de teste. | D2 |
 

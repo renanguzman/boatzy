@@ -6,7 +6,7 @@
       "schedule": "0 9 * * *"
     },
     {
-      "path": "/api/cron/asaas-webhooks",
+      "path": "/api/cron/pagamentos",
       "schedule": "30 9 * * *"
     }
   ]

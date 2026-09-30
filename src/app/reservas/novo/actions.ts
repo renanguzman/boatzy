@@ -4,6 +4,7 @@ import { createClient } from '@/lib/supabase/server';
 import { supabaseAdmin } from '@/lib/supabase';
 import { getDatasReservadasEmbarcacao, getDisponibilidadeRoteiro, expandirIntervalo, somarDiasISO } from '@/lib/reservas';
 import { getTaxaEfetiva } from '@/lib/taxas';
+import { expirarPedidosVencidosSemFalhar } from '@/lib/pagamentos/pedidos';
 import { formatCurrencyPrecise } from '@/lib/utils';
 import type { CupomTipoDesconto, ReservaModalidadePreco, PrecoPessoaModoCapacidade } from '@/types/supabase';
 import { obterTermoParaAceite, validarAceite, gravarAceite, type AceitePreparado } from '@/lib/termos/aceite';
@@ -272,6 +273,21 @@ async function checarBloqueioCupom(clienteId: string): Promise<{ bloqueado: bool
 
 const MSG_BLOQUEADO = 'Muitas tentativas incorretas com cupom. Tente novamente mais tarde.';
 
+const MSG_CUPOM_SEM_TAXA = 'Este cupom não se aplica a esta reserva: ela não tem taxa de serviço.';
+
+function arredondarCentavos(v: number): number {
+  return Math.round(v * 100) / 100;
+}
+
+/**
+ * O cupom sai SÓ da taxa de serviço (decisão D7, SPEC §20.8/§34): o desconto
+ * nunca passa do valor da taxa, então o cliente paga no mínimo o valor dos
+ * itens e o gestor recebe esse valor integral.
+ */
+function limitarDescontoATaxa(descontoCupom: number, taxaServico: number): number {
+  return arredondarCentavos(Math.max(0, Math.min(descontoCupom, taxaServico)));
+}
+
 export type ValidarCupomInput = {
   tipo: 'roteiro' | 'embarcacao';
   roteiroId?: string;
@@ -285,7 +301,17 @@ export type ValidarCupomInput = {
 };
 
 export type ValidarCupomResult =
-  | { ok: true; cupom: { codigo: string; tipoDesconto: CupomTipoDesconto; valor: number; descontoValor: number } }
+  | {
+      ok: true;
+      cupom: {
+        codigo: string;
+        tipoDesconto: CupomTipoDesconto;
+        valor: number;
+        descontoValor: number;
+        /** true quando o desconto do cupom foi reduzido ao valor da taxa de serviço. */
+        limitadoTaxa: boolean;
+      };
+    }
   | { ok: false; error: string; bloqueadoAte?: string };
 
 /**
@@ -329,10 +355,9 @@ export async function validarCupom(input: ValidarCupomInput): Promise<ValidarCup
     return { ok: false, error: resultado.error };
   }
 
-  // Capa o desconto no total bruto (subtotal + taxa de serviço) — nunca deixa o total negativo.
   const taxaServicoBruta = Math.round(subtotal * (alvo.taxaPercent / 100));
-  const totalBruto = subtotal + taxaServicoBruta;
-  const descontoValor = Math.min(resultado.cupom.descontoValor, totalBruto);
+  const descontoValor = limitarDescontoATaxa(resultado.cupom.descontoValor, taxaServicoBruta);
+  if (descontoValor <= 0) return { ok: false, error: MSG_CUPOM_SEM_TAXA };
 
   return {
     ok: true,
@@ -341,6 +366,7 @@ export async function validarCupom(input: ValidarCupomInput): Promise<ValidarCup
       tipoDesconto: resultado.cupom.tipoDesconto,
       valor: resultado.cupom.valor,
       descontoValor,
+      limitadoTaxa: descontoValor < arredondarCentavos(resultado.cupom.descontoValor),
     },
   };
 }
@@ -377,6 +403,9 @@ export async function criarReserva(input: CriarReservaInput): Promise<CriarReser
   }
 
   const dataFim = modalidade === 'diaria' ? somarDiasISO(input.data, input.diarias! - 1) : null;
+
+  // Pedidos com prazo de pagamento vencido liberam a data antes da checagem.
+  await expirarPedidosVencidosSemFalhar();
 
   // Bloqueia a data (ou o intervalo, no modelo Por Diária) se a embarcação
   // (ou o roteiro, quando sem vínculo) já tiver reserva CONFIRMADA que
@@ -460,7 +489,8 @@ export async function criarReserva(input: CriarReservaInput): Promise<CriarReser
     }
 
     cupomAplicado = { id: resultado.cupom.id, codigo: resultado.cupom.codigo };
-    descontoValor = Math.min(resultado.cupom.descontoValor, totalBruto);
+    descontoValor = limitarDescontoATaxa(resultado.cupom.descontoValor, taxaServico ?? 0);
+    if (descontoValor <= 0) return { ok: false, error: MSG_CUPOM_SEM_TAXA };
   }
 
   const totalEstimado = totalBruto != null ? Math.max(0, totalBruto - descontoValor) : null;

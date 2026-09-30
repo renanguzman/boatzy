@@ -33,9 +33,11 @@ const FAQ_ITEMS: FaqItem[] = [
     resposta: (
       <>
         Não. Ao solicitar, a reserva entra como <strong>Pendente</strong> e é enviada ao
-        proprietário (gestor) da embarcação, que pode <strong>Confirmar</strong> ou{' '}
-        <strong>Recusar</strong> o pedido, sempre com uma observação. Você acompanha o status e a
-        resposta em{' '}
+        proprietário (gestor) da embarcação, que pode <strong>Aceitar</strong> ou{' '}
+        <strong>Recusar</strong> o pedido. Ao aceitar, você recebe um e-mail para pagar pelo Boatzy
+        (Pix ou cartão) dentro do prazo informado — a data fica reservada para você enquanto isso, e
+        a reserva é <strong>Confirmada</strong> assim que o pagamento é aprovado. Você acompanha o
+        status e a resposta em{' '}
         <Link href="/minhas-reservas" className="text-[#0B3D91] underline hover:no-underline">
           Minhas Reservas
         </Link>
@@ -53,22 +55,24 @@ const FAQ_ITEMS: FaqItem[] = [
           Minhas Reservas
         </Link>{' '}
         você encontra o botão &quot;Cancelar reserva&quot;, disponível enquanto ela estiver{' '}
-        <strong>Pendente</strong> ou <strong>Confirmada</strong> (com confirmação antes de
-        efetivar). Uma política formal de prazos e reembolso será divulgada assim que os
-        pagamentos pela plataforma entrarem em operação.
+        <strong>Pendente</strong> ou <strong>Aguardando pagamento</strong> (nenhum valor é cobrado). Para
+        cancelar uma reserva já paga, fale com o proprietário pelo chat — a política de prazos e
+        reembolso será divulgada nos Termos de Uso.
       </>
     ),
   },
   {
     categoria: 'Reservas',
-    pergunta: 'O que significam os status Pendente, Confirmada, Recusada, Cancelada e Concluída?',
+    pergunta: 'O que significam os status das reservas?',
     resposta: (
       <>
-        <strong>Pendente</strong>: aguardando resposta do proprietário. <strong>Confirmada</strong>:
-        o proprietário aceitou o pedido. <strong>Recusada</strong>: o proprietário não pôde
-        atender. <strong>Cancelada</strong>: você desistiu da reserva. <strong>Concluída</strong>:
-        a data do passeio já passou e a reserva estava confirmada — é a partir dela que você pode
-        avaliar a experiência.
+        <strong>Pendente</strong>: aguardando resposta do proprietário. <strong>Aguardando
+        pagamento</strong>: o proprietário aceitou e você tem um prazo para pagar pelo Boatzy.{' '}
+        <strong>Confirmada</strong>: pagamento aprovado, a data é sua. <strong>Pagamento
+        expirado</strong>: o prazo terminou sem pagamento e a data foi liberada.{' '}
+        <strong>Recusada</strong>: o proprietário não pôde atender. <strong>Cancelada</strong>: você
+        desistiu da reserva. <strong>Concluída</strong>: a data do passeio já passou e a reserva
+        estava confirmada — é a partir dela que você pode avaliar a experiência.
       </>
     ),
   },
@@ -79,7 +83,7 @@ const FAQ_ITEMS: FaqItem[] = [
       <>
         Sim. Na página de confirmação da reserva há um campo para informar o código do cupom; ao
         aplicar, o desconto é validado na hora e refletido no total estimado antes de você enviar
-        a solicitação.
+        a solicitação. O desconto do cupom é aplicado sobre a taxa de serviço (até o valor dela).
       </>
     ),
   },
@@ -88,11 +92,12 @@ const FAQ_ITEMS: FaqItem[] = [
     pergunta: 'Como funciona o pagamento das reservas?',
     resposta: (
       <>
-        No momento, o Boatzy funciona como intermediário e ainda não processa pagamentos dentro da
-        plataforma — a solicitação de reserva é feita sem cobrança nesta etapa. Estamos
-        implementando o pagamento integrado (via Stripe), com divisão automática entre a taxa de
-        serviço da plataforma e o repasse ao proprietário. Assim que estiver disponível, as
-        condições (taxas, reembolsos e cancelamentos) serão detalhadas nos Termos de Uso.
+        A solicitação é gratuita. Quando o proprietário aceita, você paga pelo próprio Boatzy, com{' '}
+        <strong>Pix</strong> (QR Code ou copia e cola) ou <strong>cartão de crédito</strong>, dentro
+        do prazo informado. O pagamento é processado pelo Asaas, nosso parceiro de pagamentos: no
+        cartão, você digita os dados no ambiente seguro do Asaas e o Boatzy não recebe nem guarda o
+        número do cartão. O valor fica com o Boatzy e é repassado ao proprietário depois do passeio.
+        O total inclui a taxa de serviço da plataforma, exibida antes de você solicitar.
       </>
     ),
   },
@@ -160,7 +165,7 @@ const FAQ_ITEMS: FaqItem[] = [
         Um <strong>roteiro</strong> é um passeio específico (data, duração, adicionais) oferecido
         por uma embarcação. Já reservar a <strong>embarcação</strong> diretamente permite combinar
         um uso sob medida com o proprietário, sem adicionais pré-definidos. Em ambos os casos, o
-        fluxo de solicitação, confirmação e pagamento futuro é o mesmo.
+        fluxo de solicitação, aceite e pagamento é o mesmo.
       </>
     ),
   },

@@ -3,6 +3,14 @@ import 'server-only';
 import { supabaseAdmin } from '@/lib/supabase';
 import type { PrecoPessoaModoCapacidade, ReservaModalidadePreco } from '@/types/supabase';
 
+/**
+ * Status que SEGURAM a data da embarcação/roteiro: a reserva confirmada e a
+ * aceita que aguarda o pagamento do cliente (senão duas solicitações da mesma
+ * data poderiam ser aceitas ao mesmo tempo). Espelha os índices únicos
+ * parciais reserva_*_data_ocupada_uniq (migration 20260930d).
+ */
+export const STATUS_QUE_OCUPAM_DATA = ['confirmada', 'aguardando_pagamento'] as const;
+
 /** Data de hoje (yyyy-mm-dd) no fuso do Brasil — evita concluir reservas "de hoje" à noite por causa do UTC. */
 function hojeBrasil(): string {
   return new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Sao_Paulo' }).format(new Date());
@@ -26,7 +34,7 @@ export async function concluirReservasVencidas(): Promise<void> {
 }
 
 /**
- * Datas ('yyyy-mm-dd') com reserva CONFIRMADA que bloqueiam o calendário de
+ * Datas ('yyyy-mm-dd') com reserva CONFIRMADA (ou aceita aguardando pagamento) que bloqueiam o calendário de
  * uma EMBARCAÇÃO — reserva direta dela OU via qualquer roteiro que a
  * utilize (reserva.embarcacao_id é preenchido nos dois casos, migration
  * 022). A embarcação é o recurso físico compartilhado entre vários
@@ -37,7 +45,7 @@ export async function getDatasReservadasEmbarcacao(embarcacaoId: string): Promis
     .from('reserva')
     .select('data_reserva')
     .eq('embarcacao_id', embarcacaoId)
-    .eq('status', 'confirmada');
+    .in('status', [...STATUS_QUE_OCUPAM_DATA]);
 
   if (error) {
     console.error('[reservas] falha ao buscar datas reservadas da embarcação:', error);
@@ -108,7 +116,7 @@ export async function getDisponibilidadeRoteiro(params: {
   const { data, error } = await supabaseAdmin
     .from('reserva')
     .select('roteiro_id, data_reserva, data_fim_reserva, modalidade_preco, quantidade_pessoas')
-    .eq('status', 'confirmada')
+    .in('status', [...STATUS_QUE_OCUPAM_DATA])
     .or(condicoes.join(','));
 
   if (error) {

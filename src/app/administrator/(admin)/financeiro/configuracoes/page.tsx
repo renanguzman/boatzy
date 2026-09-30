@@ -12,7 +12,7 @@ import PrazosCard from './_components/PrazosCard';
 
 const ACAO_LABEL: Record<string, string> = {
   'forma_pagamento.atualizar': 'Forma de pagamento alterada',
-  'financeiro_config.atualizar': 'Prazos alterados',
+  'financeiro_config.atualizar': 'Cobrança e prazos alterados',
 };
 
 export default async function AdminFinanceiroConfiguracoesPage() {
@@ -74,6 +74,7 @@ export default async function AdminFinanceiroConfiguracoesPage() {
 
           <div className="space-y-6">
             <PrazosCard
+              exigirPagamento={config.exigir_pagamento}
               horasPrazoPagamento={config.horas_prazo_pagamento}
               horasRepasseAposPasseio={config.horas_repasse_apos_passeio}
             />

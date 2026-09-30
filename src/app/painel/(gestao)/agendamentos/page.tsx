@@ -3,6 +3,7 @@ import { CalendarDays } from 'lucide-react';
 import { createClient } from '@/lib/supabase/server';
 import { supabaseAdmin } from '@/lib/supabase';
 import { concluirReservasVencidas } from '@/lib/reservas';
+import { expirarPedidosVencidosSemFalhar } from '@/lib/pagamentos/pedidos';
 import AgendamentosCalendar, { type ReservaEvento } from './_components/AgendamentosCalendar';
 import PendentesList from './_components/PendentesList';
 
@@ -13,7 +14,8 @@ export default async function AgendamentosPage() {
   } = await supabase.auth.getUser();
   if (!user) redirect('/painel/login');
 
-  // Transição lazy confirmada → concluída (data já passou) antes de listar.
+  // Transições lazy antes de listar: pagamento vencido → expirada; confirmada com data passada → concluída.
+  await expirarPedidosVencidosSemFalhar();
   await concluirReservasVencidas();
 
   // Todas as reservas dos roteiros/embarcações deste gestor (owner_id).

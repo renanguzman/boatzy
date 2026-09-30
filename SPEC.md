@@ -944,6 +944,12 @@ existe uma **reserva confirmada** que a ocupa — a embarcação é o recurso f�
 direta da embarcação, bloqueia a data nos demais. Só `status = 'confirmada'` bloqueia; `pendente`
 não bloqueia nada (várias solicitações pendentes podem coexistir até o gestor decidir).
 
+> **Desde a Fase 1.2 de pagamentos (migration `20260930d_reserva_pagamento.sql`)** a reserva
+> **aguardando pagamento** também segura a data: os índices viraram
+> `reserva_embarcacao_data_ocupada_uniq` / `reserva_roteiro_data_ocupada_uniq`
+> (`WHERE status IN ('confirmada','aguardando_pagamento')`) e `src/lib/reservas.ts` usa
+> `STATUS_QUE_OCUPAM_DATA` nas consultas de disponibilidade. Ver §34.11.
+
 - **Camada de banco** (`supabase/migrations/20260721_reserva_bloqueio_confirmada.sql`): dois
   índices únicos parciais em `reserva` — `reserva_embarcacao_data_confirmada_uniq
   (embarcacao_id, data_reserva) WHERE status='confirmada'` e `reserva_roteiro_data_confirmada_uniq
@@ -1886,7 +1892,9 @@ cupom_id           uuid FK → cupom(id) ON DELETE SET NULL
 cupom_codigo       text                                           -- snapshot do código
 desconto_valor     numeric(12,2) NOT NULL DEFAULT 0
 -- status / resposta do gestor
-status             reserva_status NOT NULL DEFAULT 'pendente'
+status             reserva_status NOT NULL DEFAULT 'pendente'  -- pendente | aguardando_pagamento | confirmada | recusada | cancelada | concluida | expirada (§34.11)
+pagamento_exigido  boolean NOT NULL DEFAULT false              -- aceite gerou pedido (migration 20260930d)
+aceita_em / expirada_em  timestamptz                           -- aceite do gestor / prazo de pagamento vencido
 observacao_gestor  text
 solicitado_em      timestamptz NOT NULL DEFAULT now()
 respondido_em      timestamptz
@@ -2251,9 +2259,13 @@ Migration: `supabase/migrations/20260812d_cupom_reserva_bloqueio.sql`. Fecha o c
 módulo de Cupons do admin (§25.9): o cliente aplica o código em `/reservas/novo`, com validação em
 tempo real e proteção contra tentativa por força bruta.
 
-**Onde o desconto incide:** sai da **taxa de serviço** (piso R$0); se o desconto for maior que a
-taxa, o excedente também abate do total. Em termos de cálculo:
-`total_estimado = max(0, (preco_base + total_adicionais + taxa_servico) - desconto_valor)`.
+**Onde o desconto incide:** sai **só da taxa de serviço** — desde 30/09/2026 (decisão D7 de
+pagamentos) o desconto é **limitado ao valor da taxa** (`limitarDescontoATaxa` em
+`reservas/novo/actions.ts`; antes o excedente abatia o total). O cliente paga no mínimo o valor dos
+itens e o gestor recebe esse valor integral. Reserva sem taxa (0%) recusa o cupom. A pré-visualização
+devolve `limitadoTaxa` e a tela mostra "O desconto do cupom é limitado ao valor da taxa de serviço".
+Em termos de cálculo: `desconto_valor = min(desconto_do_cupom, taxa_servico)` e
+`total_estimado = (preco_base × multiplicador + total_adicionais + taxa_servico) - desconto_valor`.
 `preco_base`/`total_adicionais`/`taxa_servico` continuam gravados exatamente como seriam **sem**
 cupom — o desconto nunca altera o valor que o gestor cadastrou, só o campo novo `desconto_valor` e,
 por consequência, `total_estimado`.
@@ -4440,9 +4452,9 @@ implementado**.
 |------|---------|--------|
 | 0 — Fundação | Env vars, `src/lib/asaas/`, fila de webhooks, endpoint, cron, tela Integração no admin | ✅ 30/09/2026 |
 | 1.1 — Modelo + configuração | Tabelas `pedido`/`pagamento`/…, `financeiro_config`, `financeiro_auditoria`, admin Financeiro → Configurações | ✅ 30/09/2026 |
-| 1.2 — Aceite → pedido → cobrança | Status novos da reserva, página de pagamento do cliente | 🔜 |
-| 1.3 — Confirmação por webhook | Handlers `PAYMENT_*`, ledger, expiração | 🔜 |
-| 1.4 — Admin: Pedidos | Lista/detalhe de pedidos, status nas telas do cliente e do gestor | 🔜 |
+| 1.2 — Aceite → pedido → cobrança | Status novos da reserva, aceite gera pedido, página de pagamento do cliente | ✅ 30/09/2026 |
+| 1.3 — Confirmação por webhook | Handlers `PAYMENT_*`, pedido pago → reserva confirmada, expiração, e-mails | ✅ 30/09/2026 (ledger adiado para a Fase 3) |
+| 1.4 — Admin: Pedidos | Lista/detalhe de pedidos no admin | 🔜 |
 | 2 — Cancelamento e estornos | Política configurável, estornos | 🔜 |
 | 3 — Repasses | Recebedor, job de repasse, validação de saque | 🔜 (depende de D1–D4) |
 | 4 — Controle total | Dashboard, conciliação, disputas, auditoria | 🔜 |
@@ -4522,8 +4534,9 @@ Tipo TS: `AsaasWebhookEventoStatus` e a tabela/função em `src/types/supabase.t
 - `processarEvento(id)` — reserva via RPC; executa o handler do tipo de evento; grava `processado`
   / `ignorado` / `erro` (mensagem truncada em 2000 caracteres). Devolve o status final ou `null`
   (não elegível).
-- **Registro de handlers** `HANDLERS: Partial<Record<evento, HandlerEventoAsaas>>` — **vazio na
-  Fase 0**: todo evento é gravado e marcado `ignorado`. Handlers precisam ser idempotentes no
+- **Registro de handlers** `HANDLERS: Partial<Record<evento, HandlerEventoAsaas>>` — Fase 0: vazio;
+  **desde a Fase 1.3** todos os `PAYMENT_*` de `EVENTOS_ASSINADOS` → `tratarEventoCobranca` (§34.11).
+  Eventos sem handler (`TRANSFER_*` até a Fase 3) são gravados e marcados `ignorado`. Handlers precisam ser idempotentes no
   negócio (transições guardadas) e podem devolver `'ignorado'` quando o evento não se aplica.
 - `reprocessarPendentes(limite = 50)` — sequencial, em ordem de chegada: `pendente`, `erro` com
   `tentativas < MAX_TENTATIVAS_AUTOMATICAS` (8) e `processando` travado há mais de 10 min.
@@ -4542,13 +4555,17 @@ Tipo TS: `AsaasWebhookEventoStatus` e a tabela/função em `src/types/supabase.t
 `maxDuration = 60`. O proxy (`src/proxy.ts`) passa pela rota sem redirecionar (só protege
 `/painel` e `/administrator`).
 
-### 34.6 Cron — `GET|POST /api/cron/asaas-webhooks`
+### 34.6 Cron — `GET|POST /api/cron/pagamentos`
 
-Mesmo padrão de `/api/cron/notificar-conversas` (`Authorization: Bearer <CRON_SECRET>`, fail-safe
-sem secret). Chama `reprocessarPendentes()` e responde o resumo
-`{ total, processados, ignorados, erros }`. Agendado em `vercel.json` **1×/dia** (`30 9 * * *`) —
-limite do plano Hobby. A partir da Fase 1 precisa rodar a cada ~10 min (Vercel Pro ou `pg_cron` +
-`pg_net` no Supabase).
+(Substituiu `/api/cron/asaas-webhooks` na Fase 1.3 — uma rota só, para não passar do número de crons
+do plano Hobby.) Mesmo padrão de `/api/cron/notificar-conversas` (`Authorization: Bearer
+<CRON_SECRET>`, fail-safe sem secret). Em ordem: `reprocessarPendentes()` (webhooks — antes, para um
+pagamento já confirmado não virar "expirado") e `expirarPedidosVencidos()` (§34.11). Responde
+`{ ok, webhooks: { total, processados, ignorados, erros }, pedidosExpirados }`. Agendado em
+`vercel.json` **1×/dia** (`30 9 * * *`) — limite do plano Hobby. **Pendência:** agendador do
+Supabase (`pg_cron` + `pg_net`) a cada ~10 min. Até lá a expiração também roda de forma lazy ao
+abrir `/minhas-reservas`, `/reservas/[id]/pagar`, `/painel/agendamentos` (+ detalhe) e antes da
+checagem de disponibilidade em `criarReserva`.
 
 ### 34.7 Admin — `/administrator/financeiro/integracao`
 
@@ -4687,3 +4704,142 @@ migration não estiver aplicada, a tela mostra um aviso em vez de quebrar.
   tipos `FormaPagamento`, `FinanceiroConfig`.
 - `auditoria.ts` — `registrarAuditoria({ adminId, acao, entidade, entidadeId, antes, depois,
   motivo })`; chamar depois da alteração dar certo (falha ao auditar é logada, não desfaz a ação).
+
+### 34.11 Fluxo da reserva com pagamento (Fases 1.2 + 1.3)
+
+**Migrations** (aplicar **nesta ordem**, cada uma numa execução separada — o Postgres não deixa
+usar um valor novo de enum na mesma transação em que foi criado):
+
+1. `20260930c_reserva_status_pagamento.sql` — `reserva_status` ganha `aguardando_pagamento` e `expirada`.
+2. `20260930d_reserva_pagamento.sql` — `reserva.pagamento_exigido boolean DEFAULT false`,
+   `aceita_em`, `expirada_em`; índices de bloqueio de data passam a valer também para
+   `aguardando_pagamento` (renomeados `*_ocupada_uniq`); `financeiro_config.exigir_pagamento boolean
+   DEFAULT true` (chave geral).
+
+O código depende das duas: publicar **depois** de aplicá-las.
+
+**Máquina de estados**
+
+```
+reserva:  pendente ──aceite──▶ aguardando_pagamento ──pago──▶ confirmada ──data passou──▶ concluida
+             │                        ├─prazo venceu─▶ expirada   (data liberada)
+             └─recusa─▶ recusada      └─cliente cancela─▶ cancelada (cobrança removida no Asaas)
+pedido:   aguardando_pagamento ──▶ pago | expirado | cancelado   (pago ──▶ reembolsado[_parcial] | em_disputa via webhook)
+```
+
+**Aceite do gestor** — `confirmarReserva(reservaId, observacao, atendenteIds, precoUnitario?)`
+(`src/app/painel/(gestao)/agendamentos/actions.ts`). Checa conflito de data e grava atendentes como
+antes. Se `financeiro_config.exigir_pagamento` (e a config for legível) → `aceitarComPagamento`:
+
+1. Preço: `reserva.preco_base`, ou `precoUnitario` informado pelo gestor quando era "a combinar"
+   (valor por diária/pessoa/roteiro, conforme a modalidade; aceita "1.234,56").
+2. Taxa: `reserva.taxa_percent` (congelada na solicitação — D7); reservas antigas sem taxa usam
+   `getTaxaEfetiva(owner)`.
+3. Valores: `calcularValoresPedido` (`src/lib/pagamentos/valores.ts`, puro — também usado na prévia
+   do painel): itens = preço × multiplicador + adicionais; comissão = `round(itens × taxa%)` (reais
+   inteiros, como na solicitação); desconto = cupom **limitado à comissão**; total. Mínimo R$ 5,00.
+4. Prazo: `calcularExpiracao` = min(agora + `horas_prazo_pagamento`, 23:59:59 do dia do passeio,
+   Brasília). Data já passada → erro.
+5. `reserva` → `aguardando_pagamento` (guardado por `status = 'pendente'`; `23505` = conflito de
+   data), com `pagamento_exigido`, `aceita_em`, `respondido_em`, observação e os valores recalculados.
+6. `pedido` + `pedido_desconto` (cupom). Se o pedido falhar, a reserva volta exatamente ao que era.
+7. E-mail "Sua reserva foi aceita — pague até…" ao cliente.
+
+Com a chave desligada, o aceite confirma direto (fluxo anterior). `definirAtendentes` aceita
+`aguardando_pagamento`. `responderReserva` agora só altera reservas `pendente`.
+
+**Cobrança — `src/lib/asaas/`**
+
+- `clientes.ts` → `garantirClienteAsaas({ userId, ambiente, nome, cpfCnpj, email, celular })`:
+  `cliente_asaas` → senão busca no Asaas por `externalReference = userId` → senão `POST /customers`
+  com `notificationDisabled: true` (o Boatzy manda os próprios e-mails).
+- `cobrancas.ts` → `criarCobranca` (`POST /payments`; parcelado: `installmentCount` + `totalValue`;
+  cartão com `callback.successUrl` = `/reservas/[id]/pagar?retorno=1` — se o Asaas recusar por falta
+  de domínio cadastrado em Minha Conta → Informações, recria sem o callback), `consultarCobranca`,
+  `buscarCobrancaPorReferencia` (parcelas compartilham a referência; devolve a 1ª),
+  `removerCobranca` (`DELETE /payments/{id}` ou `DELETE /installments/{id}`; 404 = removida),
+  `obterQrCodePix` (`GET /payments/{id}/pixQrCode`). Contratos validados no sandbox em 30/09/2026.
+
+**Checkout — `src/lib/pagamentos/checkout.ts`**
+
+`iniciarPagamento({ reservaId, userId, forma, parcelas, cpf? })` → Pix `{ imagem, payload, expiraEm }`
+ou cartão `{ faturaUrl }`. Valida pedido (do cliente, `aguardando_pagamento`, dentro do prazo, ≥ R$5),
+forma ativa e parcelas permitidas (`opcoesParcelas`: 1..`parcelas_max`, respeitando o valor mínimo
+por parcela e R$5 por parcela). Recusa se já há pagamento confirmado. Reaproveita a cobrança
+pendente da mesma forma/parcelas; senão remove as pendentes (`cancelarCobrancasPendentes`) e cria
+outra. CPF: `users.cpf_cnpj` válido ou o informado (validado e salvo). Grava o `pagamento` **antes**
+da cobrança (`externalReference = pagamento.id`); em timeout/erro de rede consulta o Asaas pela
+referência antes de desistir. Registra movimento `criacao`. `retomarPixPendente(pedidoId)` devolve
+o QR do Pix pendente para a página já abrir com ele.
+
+**Webhooks → `src/lib/pagamentos/webhook.ts`** (`tratarEventoCobranca`, registrado em
+`src/lib/asaas/eventos.ts` para todos os `PAYMENT_*` assinados)
+
+- Localiza o `pagamento` por `asaas_payment_id` → `externalReference` → `asaas_parcelamento_id`.
+  Cobrança fora do checkout do Boatzy → `ignorado`.
+- Status: `PAYMENT_DELETED` → cancelado; risco reprovado/captura recusada → recusado;
+  `PARTIALLY_REFUNDED` → estornado_parcial; demais pelo `payment.status` (PENDING/AUTHORIZED →
+  pendente, AWAITING_RISK_ANALYSIS → em_analise, CONFIRMED → confirmado, RECEIVED → recebido,
+  OVERDUE → vencido, REFUND_* → estorno_em_andamento, REFUNDED → estornado, CHARGEBACK_* → em_disputa).
+  Evento atrasado não regride o caminho feliz (pendente < em_analise/vencido < confirmado < recebido).
+- Atualiza valores/datas/links (`valor_liquido`, `confirmado_em`, `recebido_em`,
+  `credito_previsto_em`, comprovante, `pix_transacao_id`, `ultimo_payload`); cartão →
+  `pagamento_cartao` (bandeira + 4 últimos dígitos, validados); parcelado → `pagamento_parcela` (upsert
+  por `(pagamento_id, numero)`; líquido do pagamento = soma quando todas chegam); histórico →
+  `pagamento_transacao` (1 linha por evento, `asaas_evento_id` único).
+- confirmado/recebido → `confirmarPedidoPago`; estorno/disputa → pedido `reembolsado[_parcial]` /
+  `em_disputa` (só a partir de `pago`). Pagamento de pedido já encerrado → log de alerta (estorno
+  manual — Fase 2).
+
+**Pedidos — `src/lib/pagamentos/pedidos.ts`**
+
+- `confirmarPedidoPago(pedidoId)` — pedido `aguardando_pagamento` → `pago`; reserva → `confirmada`;
+  remove as outras cobranças pendentes do pedido; e-mails ao cliente e ao gestor. Idempotente.
+- `expirarPedidosVencidos(limite = 25)` — pedidos com `expira_em` passado: se já há pagamento
+  confirmado → confirma; senão remove as cobranças no Asaas (se falhar, tenta na próxima rodada —
+  nunca expira pedido com cobrança ainda pagável) → pedido `expirado` → reserva `expirada` +
+  `expirada_em` (libera a data) → e-mail. `expirarPedidosVencidosSemFalhar()` para chamadas lazy.
+- `cancelarCobrancasPendentes(pedidoId, { excetoPagamentoId })`, `cancelarPedidoAguardando(reservaId,
+  motivo)` (cliente cancelou), `calcularExpiracao`, `PAGAMENTO_CANCELAVEL`, `PAGAMENTO_PAGO`.
+
+**E-mails — `src/lib/pagamentos/emails.ts`** (Resend, layout do aviso de conversas):
+`emailPagamentoPendente` (cliente, com link "Pagar agora"), `emailPagamentoConfirmado` (cliente),
+`emailReservaPaga` (gestor, com o valor dele), `emailPedidoExpirado` (cliente). Falha é logada.
+
+### 34.12 Telas
+
+- **Cliente — `/reservas/[id]/pagar`** (`page.tsx` + `actions.ts` [`pagarReserva`,
+  `consultarStatusPedido`] + `_components/CheckoutPagamento.tsx`): resumo (itens, taxa com %, desconto
+  do cupom, total, nº do pedido); prazo com contagem regressiva; escolha Pix/cartão (formas ativas);
+  CPF quando falta no cadastro; parcelas quando o limite > 1. Pix: QR (base64) + copia e cola +
+  acompanhamento a cada 5s no **nosso banco** até o webhook confirmar. Cartão: redireciona para a
+  fatura do Asaas (o cartão nunca passa pelo Boatzy); no retorno (`?retorno=1`) mostra "Confirmando
+  seu pagamento…" e acompanha. Estados finais: pago (forma, cartão mascarado, comprovante), expirado,
+  cancelado. Aviso de sandbox com o cartão de teste. Sem login → `/entrar?redirect_to=…`.
+- **Cliente — `/minhas-reservas`**: status "Aguardando pagamento" (botão **Pagar R$ X** + prazo) e
+  "Pagamento expirado"; selo "Pagamento confirmado · Pedido #N". Cancelar: `pendente`,
+  `aguardando_pagamento` (remove a cobrança antes) e `confirmada` **sem** pagamento pelo Boatzy;
+  reserva paga não é cancelável pelo site até a Fase 2 (mensagem orienta a falar com o gestor).
+- **Gestor — `/painel/agendamentos/[id]`**: botão "Aceitar reserva" / "Aceitar e enviar cobrança";
+  campo de preço quando "a combinar" (rótulo por modalidade) + prévia (você recebe / taxa / desconto /
+  cliente paga); card **Pagamento** (status do pedido, nº, cliente paga, você recebe, prazo ou data
+  do pagamento). Status novos no calendário, dashboard e receitas.
+- **Admin — Financeiro → Configurações**: card "Cobrança e prazos" ganhou a chave **Exigir pagamento
+  no aceite** (`exigir_pagamento`, auditada).
+- **Textos públicos**: FAQ (confirmação, status, cancelamento, cupom, pagamento) e subtítulo de
+  `/reservas/novo` descrevem o fluxo com pagamento.
+
+### 34.13 Configuração necessária no Asaas
+
+- **Site da conta** (Minha Conta → Informações): `https://boatzy.app` — sem ele o cartão funciona,
+  mas a fatura não volta sozinha para o Boatzy (mostra o botão "Ir para o site").
+- **Chave Pix** cadastrada (QR dinâmico) — feito no sandbox em 30/09/2026.
+
+### 34.14 Decisões desta fase
+
+- **Ledger (`lancamento_financeiro`) adiado para a Fase 3**: `pedido` + `pagamento` +
+  `pagamento_transacao` já dão a trilha de conciliação da cobrança; o ledger entra junto com repasses
+  e compensação de chargeback, que é onde ele é necessário.
+- Cupom limitado ao valor da comissão (D7c) aplicado na solicitação (`validarCupom`/`criarReserva`,
+  com aviso "limitado ao valor da taxa de serviço"; cupom sem efeito em reserva sem taxa é recusado)
+  e no aceite.

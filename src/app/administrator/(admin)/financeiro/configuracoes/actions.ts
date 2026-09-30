@@ -94,11 +94,15 @@ export async function salvarFormaPagamento(payload: FormaPagamentoPayload): Prom
 }
 
 export type PrazosPayload = {
+  exigirPagamento: boolean;
   horasPrazoPagamento: string;
   horasRepasseAposPasseio: string;
 };
 
-/** Prazo para o cliente pagar após o aceite e horas após o passeio para liberar o repasse. */
+/**
+ * Chave geral da cobrança no aceite, prazo para o cliente pagar após o aceite
+ * e horas após o passeio para liberar o repasse.
+ */
 export async function salvarPrazosFinanceiro(payload: PrazosPayload): Promise<ActionResult> {
   const auth = await requireAdmin();
   if (!auth.ok) return auth;
@@ -116,7 +120,12 @@ export async function salvarPrazosFinanceiro(payload: PrazosPayload): Promise<Ac
 
   const { data: depois, error } = await supabaseAdmin
     .from('financeiro_config')
-    .update({ horas_prazo_pagamento: prazo, horas_repasse_apos_passeio: repasse, atualizado_por: auth.userId })
+    .update({
+      exigir_pagamento: payload.exigirPagamento,
+      horas_prazo_pagamento: prazo,
+      horas_repasse_apos_passeio: repasse,
+      atualizado_por: auth.userId,
+    })
     .eq('singleton', true)
     .select('*')
     .single();

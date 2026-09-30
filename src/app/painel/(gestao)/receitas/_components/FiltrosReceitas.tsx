@@ -6,7 +6,9 @@ import { presetEsteAno, presetEsteMes, presetUltimos30Dias, presetUltimos6Meses 
 import type { Filtros } from '../_lib/types';
 import type { ReservaStatus } from '@/types/supabase';
 
-const TODOS_STATUS: ReservaStatus[] = ['pendente', 'confirmada', 'recusada', 'cancelada', 'concluida'];
+const TODOS_STATUS: ReservaStatus[] = [
+  'pendente', 'aguardando_pagamento', 'confirmada', 'recusada', 'cancelada', 'concluida', 'expirada',
+];
 
 const inputClass =
   'w-full px-3.5 py-2.5 rounded-xl border border-slate-200 bg-white text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-[#0B2447]/20 focus:border-[#0B2447]/40 transition';

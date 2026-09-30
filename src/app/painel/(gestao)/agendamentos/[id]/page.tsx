@@ -2,11 +2,16 @@ import { notFound, redirect } from 'next/navigation';
 import Link from 'next/link';
 import {
   ArrowLeft, MapPin, Ship, Users, CalendarDays, ShoppingCart, User, Mail,
-  IdCard, Clock, MessageSquare, AlertTriangle,
+  IdCard, Clock, MessageSquare, AlertTriangle, Wallet,
 } from 'lucide-react';
 import { createClient } from '@/lib/supabase/server';
 import { supabaseAdmin } from '@/lib/supabase';
-import { formatCurrency } from '@/lib/utils';
+import { formatCurrency, formatCurrencyPrecise } from '@/lib/utils';
+import { getFinanceiroConfig } from '@/lib/financeiro/config';
+import { expirarPedidosVencidosSemFalhar } from '@/lib/pagamentos/pedidos';
+import { multiplicadorDaReserva } from '@/lib/pagamentos/valores';
+import { formatarDataHoraBR } from '@/lib/termos/formato';
+import type { PedidoStatus, ReservaStatus } from '@/types/supabase';
 import { getDatasReservadasEmbarcacao, haConflitoReservaRoteiro } from '@/lib/reservas';
 import { getAtendenteOptions, getAtendentesDaReserva, resolveEmbarcacaoIdDaReserva } from '@/lib/equipe';
 import ReservaAcoes from './_components/ReservaAcoes';
@@ -31,7 +36,7 @@ type ReservaDetalhe = {
   total_estimado: number | null;
   cupom_codigo: string | null;
   desconto_valor: number;
-  status: 'pendente' | 'confirmada' | 'recusada' | 'cancelada' | 'concluida';
+  status: ReservaStatus;
   observacao_gestor: string | null;
   solicitado_em: string;
   respondido_em: string | null;
@@ -45,6 +50,26 @@ type ReservaDetalhe = {
   } | null;
   embarcacao: { nome: string } | null;
   reserva_adicional: { id: string; descricao: string; valor: number; tipo: string }[];
+  pedido: PedidoResumo | PedidoResumo[] | null;
+};
+
+type PedidoResumo = {
+  numero: number;
+  status: PedidoStatus;
+  expira_em: string | null;
+  pago_em: string | null;
+  valor_total: number;
+  valor_itens: number;
+};
+
+const PEDIDO_STATUS: Record<PedidoStatus, { label: string; badge: string }> = {
+  aguardando_pagamento: { label: 'Aguardando pagamento', badge: 'bg-violet-100 text-violet-700' },
+  pago: { label: 'Pago', badge: 'bg-emerald-100 text-emerald-700' },
+  expirado: { label: 'Expirado', badge: 'bg-slate-100 text-slate-500' },
+  cancelado: { label: 'Cancelado', badge: 'bg-slate-100 text-slate-500' },
+  reembolsado: { label: 'Reembolsado', badge: 'bg-amber-100 text-amber-700' },
+  reembolsado_parcial: { label: 'Reembolsado parcialmente', badge: 'bg-amber-100 text-amber-700' },
+  em_disputa: { label: 'Em disputa', badge: 'bg-red-100 text-red-600' },
 };
 
 const MODALIDADE = {
@@ -53,13 +78,15 @@ const MODALIDADE = {
   pessoa:  { label: 'Por Pessoa',              badge: 'bg-violet-100 text-violet-700' },
 } as const;
 
-const STATUS = {
+const STATUS: Record<ReservaStatus, { label: string; badge: string }> = {
   pendente: { label: 'Pendente', badge: 'bg-amber-100 text-amber-700' },
+  aguardando_pagamento: { label: 'Aguardando pagamento', badge: 'bg-violet-100 text-violet-700' },
+  expirada: { label: 'Pagamento expirado', badge: 'bg-slate-100 text-slate-500' },
   confirmada: { label: 'Confirmada', badge: 'bg-emerald-100 text-emerald-700' },
   recusada: { label: 'Recusada', badge: 'bg-red-100 text-red-600' },
   cancelada: { label: 'Cancelada pelo cliente', badge: 'bg-slate-200 text-slate-600' },
   concluida: { label: 'Concluída', badge: 'bg-sky-100 text-sky-700' },
-} as const;
+};
 
 function formatData(iso: string, flex: number | null): string {
   const label = new Date(iso + 'T12:00:00').toLocaleDateString('pt-BR', {
@@ -86,6 +113,9 @@ export default async function ReservaDetalhePage({ params }: { params: Promise<{
   } = await supabase.auth.getUser();
   if (!user) redirect('/painel/login');
 
+  // Transição lazy: pedidos com prazo de pagamento vencido expiram e liberam a data.
+  await expirarPedidosVencidosSemFalhar();
+
   const { data } = await supabaseAdmin
     .from('reserva')
     .select(
@@ -96,7 +126,8 @@ export default async function ReservaDetalhePage({ params }: { params: Promise<{
        cliente:users!reserva_cliente_id_fkey ( name, email, cpf_cnpj, avatar_url ),
        roteiro ( nome, embarcacao_id, preco_pessoa_modo_capacidade, preco_pessoa_capacidade_maxima, municipios ( nome, estados ( uf ) ) ),
        embarcacao ( nome ),
-       reserva_adicional ( id, descricao, valor, tipo )`,
+       reserva_adicional ( id, descricao, valor, tipo ),
+       pedido ( numero, status, expira_em, pago_em, valor_total, valor_itens )`,
     )
     .eq('id', id)
     .eq('owner_id', user.id)
@@ -106,6 +137,17 @@ export default async function ReservaDetalhePage({ params }: { params: Promise<{
 
   const r = data as unknown as ReservaDetalhe;
   const s = STATUS[r.status];
+  const pedido = Array.isArray(r.pedido) ? (r.pedido[0] ?? null) : r.pedido;
+
+  let exigirPagamento = false;
+  let horasPrazoPagamento = 24;
+  try {
+    const cfg = await getFinanceiroConfig();
+    exigirPagamento = cfg.exigir_pagamento;
+    horasPrazoPagamento = cfg.horas_prazo_pagamento;
+  } catch {
+    // migration financeira ainda não aplicada → fluxo sem cobrança
+  }
 
   // Pendente cuja data já foi tomada por outra reserva confirmada (mesma
   // embarcação ou mesmo roteiro) — aviso visual; a ação de recusar continua
@@ -370,11 +412,51 @@ export default async function ReservaDetalhePage({ params }: { params: Promise<{
             <div className="flex items-start gap-2.5 rounded-2xl border border-amber-200 bg-amber-50 p-4">
               <AlertTriangle className="h-4 w-4 text-amber-500 shrink-0 mt-0.5" />
               <p className="text-sm text-amber-800">
-                Esta data já tem outra reserva confirmada para
+                Esta data já tem outra reserva confirmada (ou aguardando pagamento) para
                 {r.tipo === 'embarcacao' ? ' esta embarcação' : ' este roteiro (ou a embarcação vinculada a ele)'}.
                 Confirmar esta solicitação vai falhar — considere recusá-la.
               </p>
             </div>
+          )}
+
+          {pedido && (
+            <section className="rounded-2xl border border-slate-200 bg-white shadow-sm p-5">
+              <div className="flex items-center justify-between gap-2 mb-4">
+                <h2 className="flex items-center gap-1.5 text-sm font-bold text-[#0B2447]">
+                  <Wallet className="h-4 w-4" /> Pagamento
+                </h2>
+                <span className={`rounded-full px-2.5 py-1 text-[11px] font-semibold ${PEDIDO_STATUS[pedido.status].badge}`}>
+                  {PEDIDO_STATUS[pedido.status].label}
+                </span>
+              </div>
+              <div className="space-y-2 text-sm">
+                <div className="flex items-center justify-between">
+                  <span className="text-slate-500">Pedido</span>
+                  <span className="font-medium text-slate-700">#{pedido.numero}</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-slate-500">Cliente paga</span>
+                  <span className="font-medium text-slate-700">{formatCurrencyPrecise(Number(pedido.valor_total))}</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-slate-500">Você recebe</span>
+                  <span className="font-bold text-emerald-700">{formatCurrencyPrecise(Number(pedido.valor_itens))}</span>
+                </div>
+                {pedido.status === 'aguardando_pagamento' && pedido.expira_em && (
+                  <p className="pt-2 text-xs text-slate-500">
+                    O cliente tem até <strong>{formatarDataHoraBR(pedido.expira_em)}</strong> para pagar. A data fica reservada até lá.
+                  </p>
+                )}
+                {pedido.pago_em && (
+                  <p className="pt-2 text-xs text-slate-500">Pago em {formatarDataHoraBR(pedido.pago_em)}.</p>
+                )}
+                {pedido.status === 'pago' && (
+                  <p className="text-xs text-slate-400">
+                    O repasse do seu valor é feito após o passeio, depois que você confirmar que ele foi realizado.
+                  </p>
+                )}
+              </div>
+            </section>
           )}
 
           <ReservaAcoes
@@ -382,6 +464,16 @@ export default async function ReservaDetalhePage({ params }: { params: Promise<{
             status={r.status}
             atendenteOptions={atendenteOptions}
             atendentesAtuais={atendentesAtuaisIds}
+            aceite={{
+              exigirPagamento,
+              horasPrazoPagamento,
+              precoBase: r.preco_base != null ? Number(r.preco_base) : null,
+              modalidade: r.modalidade_preco,
+              multiplicador: multiplicadorDaReserva(r),
+              totalAdicionais: Number(r.total_adicionais),
+              taxaPercent: r.taxa_percent != null ? Number(r.taxa_percent) : null,
+              descontoValor: Number(r.desconto_valor),
+            }}
           />
 
           <AdicionarAoCalendario
