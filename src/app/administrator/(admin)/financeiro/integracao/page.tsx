@@ -7,6 +7,7 @@ import { mensagemErroAsaas } from '@/lib/asaas/client';
 import { listarWebhooks } from '@/lib/asaas/webhooks';
 import type { AsaasWebhookConfig } from '@/lib/asaas/tipos';
 import type { AsaasWebhookEventoStatus } from '@/types/supabase';
+import FinanceiroAbas from '../_components/FinanceiroAbas';
 import ConexaoAsaasCard from './_components/ConexaoAsaasCard';
 import WebhooksAsaasCard from './_components/WebhooksAsaasCard';
 import EventosWebhookGrid, { type EventoWebhookItem } from './_components/EventosWebhookGrid';
@@ -72,12 +73,14 @@ export default async function AdminFinanceiroIntegracaoPage({
           <Wallet className="w-5 h-5 text-[#0B2447]" />
         </div>
         <div>
-          <h1 className="text-2xl font-bold text-[#0B2447]">Financeiro · Integração Asaas</h1>
+          <h1 className="text-2xl font-bold text-[#0B2447]">Financeiro</h1>
           <p className="text-sm text-slate-500">
-            Conexão com o gateway, webhooks cadastrados na conta e fila de eventos recebidos.
+            Conexão com o gateway Asaas, webhooks cadastrados na conta e fila de eventos recebidos.
           </p>
         </div>
       </div>
+
+      <FinanceiroAbas ativa="integracao" />
 
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-6 mb-8">
         <ConexaoAsaasCard

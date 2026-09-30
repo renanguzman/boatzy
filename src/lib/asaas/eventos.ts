@@ -36,7 +36,13 @@ export const MAX_TENTATIVAS_AUTOMATICAS = 8;
 /** Minutos para considerar um `processando` como travado (processador caiu no meio). */
 const MINUTOS_TRAVADO = 10;
 
-const CHAVES_FIXAS = new Set(['id', 'event', 'dateCreated']);
+const CHAVES_FIXAS = new Set(['id', 'event', 'dateCreated', 'account']);
+
+/**
+ * Objetos de recurso em ordem de preferência. O payload também traz `account`
+ * (a conta que gerou o evento), que nunca é o recurso afetado.
+ */
+const RECURSOS_CONHECIDOS = ['payment', 'transfer', 'anticipation', 'subscription', 'invoice', 'bill', 'pixTransaction'];
 
 /** Aceita só o formato mínimo de um evento do Asaas; qualquer outra coisa é rejeitada. */
 export function validarPayloadEvento(corpo: unknown): AsaasEventoPayload | null {
@@ -49,12 +55,13 @@ export function validarPayloadEvento(corpo: unknown): AsaasEventoPayload | null 
 
 /** Descobre o objeto afetado pelo evento (`payment`, `transfer`, …) e o id dele. */
 function identificarRecurso(payload: AsaasEventoPayload): { tipo: string | null; id: string | null } {
-  for (const [chave, valor] of Object.entries(payload)) {
-    if (CHAVES_FIXAS.has(chave) || !valor || typeof valor !== 'object') continue;
-    const id = (valor as Record<string, unknown>).id;
-    return { tipo: chave, id: typeof id === 'string' ? id : null };
-  }
-  return { tipo: null, id: null };
+  const conhecida = RECURSOS_CONHECIDOS.find((c) => payload[c] && typeof payload[c] === 'object');
+  const chave =
+    conhecida ??
+    Object.keys(payload).find((c) => !CHAVES_FIXAS.has(c) && !!payload[c] && typeof payload[c] === 'object');
+  if (!chave) return { tipo: null, id: null };
+  const id = (payload[chave] as Record<string, unknown>).id;
+  return { tipo: chave, id: typeof id === 'string' ? id : null };
 }
 
 /** `dateCreated` vem como "AAAA-MM-DD HH:mm:ss" no horário de Brasília (sem horário de verão desde 2019). */

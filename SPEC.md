@@ -1879,7 +1879,7 @@ item_nome          text NOT NULL                                  -- nome-snapsh
 preco_base         numeric(12,2)
 total_adicionais   numeric(12,2) NOT NULL DEFAULT 0
 taxa_servico       numeric(12,2)                                  -- valor em R$ da taxa de serviço aplicada
-taxa_percent       numeric(5,2)                                   -- snapshot da % efetivamente aplicada (migration 20260812e; ver §14)
+taxa_percent       numeric(5,2)                                   -- snapshot da % efetiva do gestor na solicitação (migration 20260812e; ver §14). Desde 30/09/2026 gravada SEMPRE, inclusive com preço "a combinar" (taxa_servico NULL) — o pedido (§34.8) usa essa taxa no aceite
 total_estimado     numeric(12,2)                                  -- já líquido de desconto de cupom (ver §20.8)
 -- cupom aplicado (migration 20260812d_cupom_reserva_bloqueio.sql) — ver §20.8
 cupom_id           uuid FK → cupom(id) ON DELETE SET NULL
@@ -2944,6 +2944,11 @@ src/app/administrator/
       _components/ConfirmModal.tsx, TermoStatusBadge.tsx
     financeiro/
       page.tsx                → redireciona para integracao/ (dashboard financeiro entra na Fase 4)
+      _components/FinanceiroAbas.tsx → abas Integração | Configurações
+      configuracoes/
+        page.tsx              → formas de pagamento, parcelamento, prazos, comissão (§34.9)
+        actions.ts            → salvarFormaPagamento, salvarPrazosFinanceiro
+        _components/FormasPagamentoCard.tsx, PrazosCard.tsx
       integracao/
         page.tsx              → conexão com o Asaas, webhooks da conta e fila de eventos (§34.7)
         actions.ts            → testarConexaoAsaas, cadastrarWebhookAsaas, reativarWebhookAsaas,
@@ -2985,7 +2990,7 @@ Renderiza 6 stat cards + grid de cards de acesso rápido aos 6 módulos.
 | `/administrator/cupons` | Cupons | ✅ implementado |
 | `/administrator/publicidade` | Publicidade | 🔜 placeholder |
 | `/administrator/taxas` | Taxas | ✅ implementado |
-| `/administrator/financeiro` | Financeiro | 🟡 Fase 0 — só a tela Integração (§34.7) |
+| `/administrator/financeiro` | Financeiro | 🟡 Integração (§34.7) e Configurações (§34.9) |
 | `/administrator/tipos` | Tipos de embarcação | 🔜 placeholder |
 | `/administrator/termos` | Termos de Uso | ✅ implementado |
 | `/administrator/configuracoes` | Configurações | 🔜 placeholder |
@@ -4434,11 +4439,22 @@ implementado**.
 | Fase | Entrega | Status |
 |------|---------|--------|
 | 0 — Fundação | Env vars, `src/lib/asaas/`, fila de webhooks, endpoint, cron, tela Integração no admin | ✅ 30/09/2026 |
-| 1 — Cobrança | Aceite do gestor → cobrança Pix/cartão, confirmação por webhook, expiração | 🔜 |
+| 1.1 — Modelo + configuração | Tabelas `pedido`/`pagamento`/…, `financeiro_config`, `financeiro_auditoria`, admin Financeiro → Configurações | ✅ 30/09/2026 |
+| 1.2 — Aceite → pedido → cobrança | Status novos da reserva, página de pagamento do cliente | 🔜 |
+| 1.3 — Confirmação por webhook | Handlers `PAYMENT_*`, ledger, expiração | 🔜 |
+| 1.4 — Admin: Pedidos | Lista/detalhe de pedidos, status nas telas do cliente e do gestor | 🔜 |
 | 2 — Cancelamento e estornos | Política configurável, estornos | 🔜 |
 | 3 — Repasses | Recebedor, job de repasse, validação de saque | 🔜 (depende de D1–D4) |
 | 4 — Controle total | Dashboard, conciliação, disputas, auditoria | 🔜 |
 | 5 — Produção | Chaves e webhooks de produção, homologação | 🔜 |
+
+Pendência de infraestrutura: jobs a cada ~10 min pelo **agendador do Supabase** (`pg_cron` +
+`pg_net` chamando as rotas `/api/cron/*`) — configurar depois; até lá, cron diário da Vercel.
+
+Decisões de negócio (planejamento §12): comissão paga pelo cliente somada ao preço, tarifa do
+Asaas absorvida pelo Boatzy, cupom sai só da comissão, vale a taxa da solicitação (D7);
+parcelamento global configurável começando em 1x (D3); repasse 48h após o fim do passeio **e só
+com a realização confirmada pelo gestor** (D6).
 
 ### 34.1 Variáveis de ambiente
 
@@ -4499,8 +4515,10 @@ Tipo TS: `AsaasWebhookEventoStatus` e a tabela/função em `src/types/supabase.t
 
 - `validarPayloadEvento(corpo)` — exige `id` (string ≤ 255) e `event` (`^[A-Z_]{3,80}$`).
 - `registrarEvento(payload)` — `upsert … onConflict: 'id', ignoreDuplicates: true`; identifica
-  `recurso_tipo`/`recurso_id` pelo primeiro objeto com `id` no payload. Lança erro se o banco
-  falhar.
+  `recurso_tipo`/`recurso_id` pela ordem de preferência `payment`, `transfer`, `anticipation`,
+  `subscription`, `invoice`, `bill`, `pixTransaction` (senão, o primeiro objeto do payload). O objeto
+  `account` (conta que gerou o evento, presente em todo payload) nunca é o recurso. Lança erro se o
+  banco falhar.
 - `processarEvento(id)` — reserva via RPC; executa o handler do tipo de evento; grava `processado`
   / `ignorado` / `erro` (mensagem truncada em 2000 caracteres). Devolve o status final ou `null`
   (não elegível).
@@ -4542,7 +4560,8 @@ limite do plano Hobby. A partir da Fase 1 precisa rodar a cada ~10 min (Vercel P
   (`testarConexaoAsaas` → saldo da conta + latência).
 - **WebhooksAsaasCard** — webhooks cadastrados na conta (lidos da API a cada render): situação
   (Ativo / Fila pausada / Desativado), nº de eventos, tipo de envio, token, falhas penalizadas, aviso
-  se a URL difere da deste ambiente. **Cadastrar** (`cadastrarWebhookAsaas`: exige token
+  se a URL difere da deste ambiente (comparação ignora `www.` e barra final — `www.boatzy.app`
+  redireciona para `boatzy.app`). **Cadastrar** (`cadastrarWebhookAsaas`: exige token
   configurado, URL `https` pública — recusa localhost —, e-mail válido e URL ainda não cadastrada;
   antes de cadastrar faz um `POST` sem token na URL com `redirect: 'manual'` e só aceita o `401
   { error: 'unauthorized' }` do próprio endpoint — recusa redirecionamento (ex.: `www` → domínio
@@ -4555,3 +4574,116 @@ limite do plano Hobby. A partir da Fase 1 precisa rodar a cada ~10 min (Vercel P
 Todas as actions exigem sessão + role `admin` (`checkRoleInDb`). Cadastro de webhook e reativação
 de fila são logados no servidor; a trilha de auditoria em banco (`financeiro_auditoria`) entra junto
 com as ações que movem dinheiro (Fase 1+).
+
+### 34.8 Modelo de dados — pedido e pagamento (Fase 1.1) — migration `20260930b_pagamentos_modelo.sql`
+
+Hierarquia: `reserva` → **`pedido`** (1 por reserva) → **`pagamento`** (1 por cobrança no Asaas) →
+`pagamento_cartao` / `pagamento_parcela` / `pagamento_transacao` / `pagamento_estorno`;
+`pedido` → `pedido_desconto` (→ `cupom`). Mapeamento da arquitetura de referência
+(orders/payments/…) e justificativas: planejamento §6.1. Trigger `financeiro_set_atualizado_em()`
+mantém `atualizado_em` nas tabelas mutáveis. FKs para `reserva`/`users` com `ON DELETE RESTRICT`.
+
+**`forma_pagamento`** (seed: `pix` ordem 1; `cartao_credito` ordem 2, `parcelas_max = 1`)
+```sql
+codigo text PK ('^[a-z_]+$') | nome text | codigo_asaas text UNIQUE ('PIX'|'CREDIT_CARD')
+ativo boolean DEFAULT true | ordem smallint | parcelas_max smallint DEFAULT 1 (1–12; >1 só no cartão)
+valor_minimo_parcela numeric(12,2) NULL (> 0) | criado_em | atualizado_em
+```
+
+**`cliente_asaas`** — `PK (user_id, ambiente)`; `user_id` FK users CASCADE; `ambiente`
+`'sandbox'|'producao'`; `asaas_customer_id` text UNIQUE; `criado_em`.
+
+**`pedido`**
+```sql
+id uuid PK | numero bigint IDENTITY (1001…) UNIQUE
+reserva_id uuid UNIQUE FK reserva RESTRICT | cliente_id, gestor_id uuid FK users RESTRICT
+valor_itens numeric(12,2)        -- preço + adicionais (do gestor)
+comissao_percentual numeric(5,2) -- = reserva.taxa_percent (0–100)
+valor_comissao numeric(12,2)     -- taxa de serviço paga pelo cliente
+valor_desconto numeric(12,2) DEFAULT 0
+valor_total numeric(12,2)        -- CHECK = GREATEST(0, itens + comissão − desconto)
+status text DEFAULT 'aguardando_pagamento'  -- aguardando_pagamento | pago | expirado | cancelado |
+                                            -- reembolsado | reembolsado_parcial | em_disputa
+expira_em, pago_em, cancelado_em timestamptz | motivo_cancelamento text | criado_em | atualizado_em
+```
+Índices: `(cliente_id, criado_em DESC)`, `(gestor_id, criado_em DESC)`, `(status, expira_em)`.
+
+**`pedido_desconto`** — `pedido_id` FK CASCADE; `tipo` `cupom|manual|promocional`; `cupom_id` FK
+`cupom` SET NULL (+ `cupom_codigo` snapshot, obrigatório se `tipo = 'cupom'`); `descricao`;
+`percentual` (0–100, opcional); `valor` (> 0, R$ abatidos); `criado_por` (admin no manual);
+`criado_em`. O uso do cupom continua em `cupom_uso` (§20.8).
+
+**`pagamento`**
+```sql
+id uuid PK                      -- vai como externalReference na cobrança do Asaas
+pedido_id FK pedido RESTRICT | forma_pagamento FK forma_pagamento | ambiente 'sandbox'|'producao'
+numero_parcelas smallint DEFAULT 1 (1–12; >1 só cartão)
+asaas_payment_id text UNIQUE NULL | asaas_parcelamento_id | asaas_customer_id | status_asaas (cru)
+valor numeric(12,2) (> 0) | valor_liquido | valor_tarifa GENERATED (valor − valor_liquido) STORED
+status text DEFAULT 'pendente'  -- pendente | em_analise | confirmado | recebido | recusado | vencido |
+                                -- cancelado | estorno_em_andamento | estornado | estornado_parcial | em_disputa
+vencimento date | fatura_url | numero_fatura | comprovante_url
+pix_qrcode_payload | pix_qrcode_expira_em | pix_transacao_id
+confirmado_em | recebido_em | credito_previsto_em date | ultimo_payload jsonb | criado_em | atualizado_em
+```
+
+**`pagamento_cartao`** — `pagamento_id` PK FK CASCADE; `bandeira` (`^[A-Z_]{2,30}$`, ex.: VISA,
+MASTERCARD, ELO, AMEX, UNKNOWN); `ultimos_digitos char(4)` (`^[0-9]{4}$`); `criado_em`. Vem de
+`payment.creditCard` (`creditCardBrand`, `creditCardNumber` = 4 últimos dígitos). O número
+completo, CVV e validade **nunca** passam pelo Boatzy (o cartão é digitado na fatura do Asaas).
+
+**`pagamento_parcela`** — `pagamento_id` FK CASCADE; `numero`/`total` (2–12, `UNIQUE (pagamento_id,
+numero)`); `valor`, `valor_liquido`; `asaas_payment_id` UNIQUE; `status` (`pendente|confirmado|
+recebido|cancelado|estornado|em_disputa`) + `status_asaas`; `vencimento`, `credito_previsto_em`,
+`recebido_em`.
+
+**`pagamento_transacao`** — `pagamento_id` FK CASCADE; `parcela_id` opcional; `tipo`
+(`^[a-z_]+$`: criacao, confirmacao, recebimento, vencimento, cancelamento, recusa, estorno,
+estorno_parcial, chargeback…); `status_asaas`; `valor`; `ocorrido_em`; `asaas_evento_id` UNIQUE FK
+`asaas_webhook_evento` SET NULL (idempotência por evento); `payload`.
+
+**`pagamento_estorno`** — `pagamento_id` FK RESTRICT; `parcela_id`; `valor` (> 0); `motivo`;
+`origem` (`cliente|gestor|admin|chargeback|asaas`); `status` (`solicitado|em_andamento|concluido|
+cancelado`); `solicitado_por`; `comprovante_url`; `payload`; `solicitado_em`, `concluido_em`.
+
+**`financeiro_config`** (singleton, padrão de `taxa_plataforma`) — `horas_prazo_pagamento`
+(DEFAULT 24, 1–168), `horas_repasse_apos_passeio` (DEFAULT 48, 0–720), `repasse_automatico`
+(DEFAULT false), `atualizado_por`, `atualizado_em`.
+
+**`financeiro_auditoria`** — `admin_id`, `acao` (`^[a-z_.]+$`), `entidade`, `entidade_id`, `antes`,
+`depois` (jsonb), `motivo`, `criado_em`. **Append-only**: trigger recusa UPDATE, DELETE e TRUNCATE.
+
+**RLS + GRANTs:** todas com `service_role_all` e GRANTs explícitos (+ `USAGE` em
+`pedido_numero_seq`). Leitura direta: `forma_pagamento` pública; `pedido`, `pedido_desconto`,
+`pagamento`, `pagamento_parcela` para o cliente **ou** o gestor do pedido; `pagamento_cartao` só
+para o cliente. Validado em Postgres local: total incoerente, Pix parcelado e final de cartão
+inválido são recusados; exclusão de reserva com pedido é bloqueada.
+
+Tipos TS em `src/types/supabase.ts`: tabelas + `PedidoStatus`, `PagamentoStatus`,
+`PagamentoParcelaStatus`, `PedidoDescontoTipo`, `FormaPagamentoCodigo`, `AsaasAmbienteDb`,
+`PagamentoEstornoOrigem`, `PagamentoEstornoStatus`.
+
+### 34.9 Admin — `/administrator/financeiro/configuracoes`
+
+Abas do módulo (`FinanceiroAbas`): **Integração** | **Configurações**.
+
+- **FormasPagamentoCard** — por forma: liga/desliga (não deixa desativar a última ativa); no
+  cartão, **parcelamento máximo global** (1x "só à vista" a 12x) e valor mínimo por parcela
+  (opcional). Action `salvarFormaPagamento({ codigo, ativo, parcelasMax, valorMinimoParcela })`.
+- **PrazosCard** — prazo para pagar após o aceite (horas) e horas após o passeio para o repasse
+  (com a ressalva de que o repasse também exige a confirmação de realização pelo gestor). Action
+  `salvarPrazosFinanceiro({ horasPrazoPagamento, horasRepasseAposPasseio })`.
+- **Comissão da plataforma** (somente leitura) — taxa geral vigente, nº de gestores com taxa
+  específica em vigor, as regras D7 e o atalho para **Admin → Taxas** (onde a comissão é
+  configurada — §25.10; o Financeiro não duplica essa configuração).
+- **Últimas alterações** — 5 registros mais recentes de `financeiro_auditoria`.
+
+Actions exigem sessão + role `admin` e gravam `financeiro_auditoria` com antes/depois. Se a
+migration não estiver aplicada, a tela mostra um aviso em vez de quebrar.
+
+### 34.10 Helpers — `src/lib/financeiro/` (`server-only`)
+
+- `config.ts` — `getFormasPagamento()` (ordenadas, inclui inativas), `getFinanceiroConfig()`;
+  tipos `FormaPagamento`, `FinanceiroConfig`.
+- `auditoria.ts` — `registrarAuditoria({ adminId, acao, entidade, entidadeId, antes, depois,
+  motivo })`; chamar depois da alteração dar certo (falha ao auditar é logada, não desfaz a ação).

@@ -484,7 +484,9 @@ export async function criarReserva(input: CriarReservaInput): Promise<CriarReser
       preco_base: precoUnitario,
       total_adicionais: totalAdicionais,
       taxa_servico: taxaServico,
-      taxa_percent: taxaServico != null ? alvo.taxaPercent : null,
+      // Sempre gravada, mesmo com preço "a combinar": a comissão cobrada no pagamento usa a
+      // taxa efetiva do gestor no momento da SOLICITAÇÃO (decisão D7, SPEC §34).
+      taxa_percent: alvo.taxaPercent,
       total_estimado: totalEstimado,
       cupom_id: cupomAplicado?.id ?? null,
       cupom_codigo: cupomAplicado?.codigo ?? null,

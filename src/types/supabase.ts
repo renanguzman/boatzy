@@ -23,6 +23,18 @@ export type CupomTipoDesconto = 'percentual' | 'valor_fixo';
 export type TermoUsoStatus = 'rascunho' | 'publicado' | 'arquivado';
 /** Estado de processamento de um evento de webhook do Asaas — ver SPEC §34. */
 export type AsaasWebhookEventoStatus = 'pendente' | 'processando' | 'processado' | 'ignorado' | 'erro';
+/** Pagamentos — ver SPEC §34.8 (migration 20260930b_pagamentos_modelo). */
+export type AsaasAmbienteDb = 'sandbox' | 'producao';
+export type FormaPagamentoCodigo = 'pix' | 'cartao_credito';
+export type PedidoStatus =
+  | 'aguardando_pagamento' | 'pago' | 'expirado' | 'cancelado' | 'reembolsado' | 'reembolsado_parcial' | 'em_disputa';
+export type PedidoDescontoTipo = 'cupom' | 'manual' | 'promocional';
+export type PagamentoStatus =
+  | 'pendente' | 'em_analise' | 'confirmado' | 'recebido' | 'recusado' | 'vencido' | 'cancelado'
+  | 'estorno_em_andamento' | 'estornado' | 'estornado_parcial' | 'em_disputa';
+export type PagamentoParcelaStatus = 'pendente' | 'confirmado' | 'recebido' | 'cancelado' | 'estornado' | 'em_disputa';
+export type PagamentoEstornoOrigem = 'cliente' | 'gestor' | 'admin' | 'chargeback' | 'asaas';
+export type PagamentoEstornoStatus = 'solicitado' | 'em_andamento' | 'concluido' | 'cancelado';
 
 export type Json = string | number | boolean | null | { [key: string]: Json | undefined } | Json[];
 
@@ -1600,6 +1612,471 @@ export type Database = {
           exige_rolagem_completa?: boolean;
           exige_confirmacao_digitada?: boolean;
         };
+        Relationships: [];
+      };
+      // Catálogo de formas de pagamento + parcelamento global (migration 20260930b_pagamentos_modelo).
+      forma_pagamento: {
+        Row: {
+          codigo: FormaPagamentoCodigo;
+          nome: string;
+          codigo_asaas: string;
+          ativo: boolean;
+          ordem: number;
+          parcelas_max: number;
+          valor_minimo_parcela: number | null;
+          criado_em: string;
+          atualizado_em: string;
+        };
+        Insert: {
+          codigo: FormaPagamentoCodigo;
+          nome: string;
+          codigo_asaas: string;
+          ativo?: boolean;
+          ordem?: number;
+          parcelas_max?: number;
+          valor_minimo_parcela?: number | null;
+          criado_em?: string;
+          atualizado_em?: string;
+        };
+        Update: {
+          codigo?: FormaPagamentoCodigo;
+          nome?: string;
+          codigo_asaas?: string;
+          ativo?: boolean;
+          ordem?: number;
+          parcelas_max?: number;
+          valor_minimo_parcela?: number | null;
+          criado_em?: string;
+          atualizado_em?: string;
+        };
+        Relationships: [];
+      };
+      // Usuário interno ↔ customer do Asaas, por ambiente.
+      cliente_asaas: {
+        Row: {
+          user_id: string;
+          ambiente: AsaasAmbienteDb;
+          asaas_customer_id: string;
+          criado_em: string;
+        };
+        Insert: {
+          user_id: string;
+          ambiente: AsaasAmbienteDb;
+          asaas_customer_id: string;
+          criado_em?: string;
+        };
+        Update: {
+          user_id?: string;
+          ambiente?: AsaasAmbienteDb;
+          asaas_customer_id?: string;
+          criado_em?: string;
+        };
+        Relationships: [];
+      };
+      // Pedido: 1 por reserva que exige pagamento (valores congelados na geração).
+      pedido: {
+        Row: {
+          id: string;
+          numero: number;
+          reserva_id: string;
+          cliente_id: string;
+          gestor_id: string;
+          valor_itens: number;
+          comissao_percentual: number;
+          valor_comissao: number;
+          valor_desconto: number;
+          valor_total: number;
+          status: PedidoStatus;
+          expira_em: string | null;
+          pago_em: string | null;
+          cancelado_em: string | null;
+          motivo_cancelamento: string | null;
+          criado_em: string;
+          atualizado_em: string;
+        };
+        Insert: {
+          id?: string;
+          reserva_id: string;
+          cliente_id: string;
+          gestor_id: string;
+          valor_itens: number;
+          comissao_percentual: number;
+          valor_comissao: number;
+          valor_desconto?: number;
+          valor_total: number;
+          status?: PedidoStatus;
+          expira_em?: string | null;
+          pago_em?: string | null;
+          cancelado_em?: string | null;
+          motivo_cancelamento?: string | null;
+          criado_em?: string;
+          atualizado_em?: string;
+        };
+        Update: {
+          id?: string;
+          reserva_id?: string;
+          cliente_id?: string;
+          gestor_id?: string;
+          valor_itens?: number;
+          comissao_percentual?: number;
+          valor_comissao?: number;
+          valor_desconto?: number;
+          valor_total?: number;
+          status?: PedidoStatus;
+          expira_em?: string | null;
+          pago_em?: string | null;
+          cancelado_em?: string | null;
+          motivo_cancelamento?: string | null;
+          criado_em?: string;
+          atualizado_em?: string;
+        };
+        Relationships: [];
+      };
+      // Descontos do pedido — cupom aponta para `cupom` (uso segue em `cupom_uso`).
+      pedido_desconto: {
+        Row: {
+          id: string;
+          pedido_id: string;
+          tipo: PedidoDescontoTipo;
+          cupom_id: string | null;
+          cupom_codigo: string | null;
+          descricao: string | null;
+          percentual: number | null;
+          valor: number;
+          criado_por: string | null;
+          criado_em: string;
+        };
+        Insert: {
+          id?: string;
+          pedido_id: string;
+          tipo: PedidoDescontoTipo;
+          cupom_id?: string | null;
+          cupom_codigo?: string | null;
+          descricao?: string | null;
+          percentual?: number | null;
+          valor: number;
+          criado_por?: string | null;
+          criado_em?: string;
+        };
+        Update: {
+          id?: string;
+          pedido_id?: string;
+          tipo?: PedidoDescontoTipo;
+          cupom_id?: string | null;
+          cupom_codigo?: string | null;
+          descricao?: string | null;
+          percentual?: number | null;
+          valor?: number;
+          criado_por?: string | null;
+          criado_em?: string;
+        };
+        Relationships: [];
+      };
+      // Cada tentativa de pagamento do pedido = 1 cobrança no Asaas (`id` = externalReference).
+      pagamento: {
+        Row: {
+          id: string;
+          pedido_id: string;
+          forma_pagamento: FormaPagamentoCodigo;
+          ambiente: AsaasAmbienteDb;
+          numero_parcelas: number;
+          asaas_payment_id: string | null;
+          asaas_parcelamento_id: string | null;
+          asaas_customer_id: string | null;
+          status_asaas: string | null;
+          valor: number;
+          valor_liquido: number | null;
+          valor_tarifa: number | null;
+          status: PagamentoStatus;
+          vencimento: string | null;
+          fatura_url: string | null;
+          numero_fatura: string | null;
+          comprovante_url: string | null;
+          pix_qrcode_payload: string | null;
+          pix_qrcode_expira_em: string | null;
+          pix_transacao_id: string | null;
+          confirmado_em: string | null;
+          recebido_em: string | null;
+          credito_previsto_em: string | null;
+          ultimo_payload: Json | null;
+          criado_em: string;
+          atualizado_em: string;
+        };
+        Insert: {
+          id?: string;
+          pedido_id: string;
+          forma_pagamento: FormaPagamentoCodigo;
+          ambiente: AsaasAmbienteDb;
+          numero_parcelas?: number;
+          asaas_payment_id?: string | null;
+          asaas_parcelamento_id?: string | null;
+          asaas_customer_id?: string | null;
+          status_asaas?: string | null;
+          valor: number;
+          valor_liquido?: number | null;
+          status?: PagamentoStatus;
+          vencimento?: string | null;
+          fatura_url?: string | null;
+          numero_fatura?: string | null;
+          comprovante_url?: string | null;
+          pix_qrcode_payload?: string | null;
+          pix_qrcode_expira_em?: string | null;
+          pix_transacao_id?: string | null;
+          confirmado_em?: string | null;
+          recebido_em?: string | null;
+          credito_previsto_em?: string | null;
+          ultimo_payload?: Json | null;
+          criado_em?: string;
+          atualizado_em?: string;
+        };
+        Update: {
+          id?: string;
+          pedido_id?: string;
+          forma_pagamento?: FormaPagamentoCodigo;
+          ambiente?: AsaasAmbienteDb;
+          numero_parcelas?: number;
+          asaas_payment_id?: string | null;
+          asaas_parcelamento_id?: string | null;
+          asaas_customer_id?: string | null;
+          status_asaas?: string | null;
+          valor?: number;
+          valor_liquido?: number | null;
+          status?: PagamentoStatus;
+          vencimento?: string | null;
+          fatura_url?: string | null;
+          numero_fatura?: string | null;
+          comprovante_url?: string | null;
+          pix_qrcode_payload?: string | null;
+          pix_qrcode_expira_em?: string | null;
+          pix_transacao_id?: string | null;
+          confirmado_em?: string | null;
+          recebido_em?: string | null;
+          credito_previsto_em?: string | null;
+          ultimo_payload?: Json | null;
+          criado_em?: string;
+          atualizado_em?: string;
+        };
+        Relationships: [];
+      };
+      // Só bandeira + 4 últimos dígitos — nunca número completo, CVV ou validade.
+      pagamento_cartao: {
+        Row: {
+          pagamento_id: string;
+          bandeira: string;
+          ultimos_digitos: string;
+          criado_em: string;
+        };
+        Insert: {
+          pagamento_id: string;
+          bandeira: string;
+          ultimos_digitos: string;
+          criado_em?: string;
+        };
+        Update: {
+          pagamento_id?: string;
+          bandeira?: string;
+          ultimos_digitos?: string;
+          criado_em?: string;
+        };
+        Relationships: [];
+      };
+      // Parcelas do cartão (só quando numero_parcelas > 1).
+      pagamento_parcela: {
+        Row: {
+          id: string;
+          pagamento_id: string;
+          numero: number;
+          total: number;
+          valor: number;
+          valor_liquido: number | null;
+          asaas_payment_id: string | null;
+          status: PagamentoParcelaStatus;
+          status_asaas: string | null;
+          vencimento: string | null;
+          credito_previsto_em: string | null;
+          recebido_em: string | null;
+          criado_em: string;
+          atualizado_em: string;
+        };
+        Insert: {
+          id?: string;
+          pagamento_id: string;
+          numero: number;
+          total: number;
+          valor: number;
+          valor_liquido?: number | null;
+          asaas_payment_id?: string | null;
+          status?: PagamentoParcelaStatus;
+          status_asaas?: string | null;
+          vencimento?: string | null;
+          credito_previsto_em?: string | null;
+          recebido_em?: string | null;
+          criado_em?: string;
+          atualizado_em?: string;
+        };
+        Update: {
+          id?: string;
+          pagamento_id?: string;
+          numero?: number;
+          total?: number;
+          valor?: number;
+          valor_liquido?: number | null;
+          asaas_payment_id?: string | null;
+          status?: PagamentoParcelaStatus;
+          status_asaas?: string | null;
+          vencimento?: string | null;
+          credito_previsto_em?: string | null;
+          recebido_em?: string | null;
+          criado_em?: string;
+          atualizado_em?: string;
+        };
+        Relationships: [];
+      };
+      // Histórico de movimentos do pagamento vindos do gateway.
+      pagamento_transacao: {
+        Row: {
+          id: string;
+          pagamento_id: string;
+          parcela_id: string | null;
+          tipo: string;
+          status_asaas: string | null;
+          valor: number | null;
+          ocorrido_em: string;
+          asaas_evento_id: string | null;
+          payload: Json | null;
+          criado_em: string;
+        };
+        Insert: {
+          id?: string;
+          pagamento_id: string;
+          parcela_id?: string | null;
+          tipo: string;
+          status_asaas?: string | null;
+          valor?: number | null;
+          ocorrido_em?: string;
+          asaas_evento_id?: string | null;
+          payload?: Json | null;
+          criado_em?: string;
+        };
+        Update: {
+          id?: string;
+          pagamento_id?: string;
+          parcela_id?: string | null;
+          tipo?: string;
+          status_asaas?: string | null;
+          valor?: number | null;
+          ocorrido_em?: string;
+          asaas_evento_id?: string | null;
+          payload?: Json | null;
+          criado_em?: string;
+        };
+        Relationships: [];
+      };
+      // Estornos totais/parciais.
+      pagamento_estorno: {
+        Row: {
+          id: string;
+          pagamento_id: string;
+          parcela_id: string | null;
+          valor: number;
+          motivo: string;
+          origem: PagamentoEstornoOrigem;
+          status: PagamentoEstornoStatus;
+          solicitado_por: string | null;
+          comprovante_url: string | null;
+          payload: Json | null;
+          solicitado_em: string;
+          concluido_em: string | null;
+          atualizado_em: string;
+        };
+        Insert: {
+          id?: string;
+          pagamento_id: string;
+          parcela_id?: string | null;
+          valor: number;
+          motivo: string;
+          origem: PagamentoEstornoOrigem;
+          status?: PagamentoEstornoStatus;
+          solicitado_por?: string | null;
+          comprovante_url?: string | null;
+          payload?: Json | null;
+          solicitado_em?: string;
+          concluido_em?: string | null;
+          atualizado_em?: string;
+        };
+        Update: {
+          id?: string;
+          pagamento_id?: string;
+          parcela_id?: string | null;
+          valor?: number;
+          motivo?: string;
+          origem?: PagamentoEstornoOrigem;
+          status?: PagamentoEstornoStatus;
+          solicitado_por?: string | null;
+          comprovante_url?: string | null;
+          payload?: Json | null;
+          solicitado_em?: string;
+          concluido_em?: string | null;
+          atualizado_em?: string;
+        };
+        Relationships: [];
+      };
+      // Parâmetros do financeiro (singleton).
+      financeiro_config: {
+        Row: {
+          id: string;
+          singleton: boolean;
+          horas_prazo_pagamento: number;
+          horas_repasse_apos_passeio: number;
+          repasse_automatico: boolean;
+          atualizado_por: string | null;
+          atualizado_em: string;
+        };
+        Insert: {
+          id?: string;
+          singleton?: boolean;
+          horas_prazo_pagamento?: number;
+          horas_repasse_apos_passeio?: number;
+          repasse_automatico?: boolean;
+          atualizado_por?: string | null;
+          atualizado_em?: string;
+        };
+        Update: {
+          id?: string;
+          singleton?: boolean;
+          horas_prazo_pagamento?: number;
+          horas_repasse_apos_passeio?: number;
+          repasse_automatico?: boolean;
+          atualizado_por?: string | null;
+          atualizado_em?: string;
+        };
+        Relationships: [];
+      };
+      // Append-only: UPDATE/DELETE recusados por trigger.
+      financeiro_auditoria: {
+        Row: {
+          id: string;
+          admin_id: string | null;
+          acao: string;
+          entidade: string;
+          entidade_id: string | null;
+          antes: Json | null;
+          depois: Json | null;
+          motivo: string | null;
+          criado_em: string;
+        };
+        Insert: {
+          id?: string;
+          admin_id?: string | null;
+          acao: string;
+          entidade: string;
+          entidade_id?: string | null;
+          antes?: Json | null;
+          depois?: Json | null;
+          motivo?: string | null;
+          criado_em?: string;
+        };
+        Update: Record<string, never>;
         Relationships: [];
       };
       // Fila/idempotência dos webhooks do Asaas (migration 20260930_asaas_webhook_evento).

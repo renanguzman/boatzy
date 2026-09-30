@@ -1,7 +1,9 @@
 # Planejamento — Pagamentos e Repasses (gateway Asaas)
 
-> **Status:** criado em 27/09/2026. **Fase 0 (fundação) implementada em 30/09/2026** — ver
-> SPEC §34 e PRD §6.6. Próximo passo: sandbox habilitado + definir as regras de comissão (D7).
+> **Status:** criado em 27/09/2026. **Fase 0 (fundação) concluída e validada no sandbox em
+> 30/09/2026.** **Fase 1.1 (modelo de dados + configurações) implementada em 30/09/2026** — ver
+> SPEC §34 e PRD §6.6. Decisões D3, D6 e D7 tomadas (§12). Próximo passo: Fase 1.2 (aceite →
+> pedido → cobrança).
 > Base: leitura da documentação oficial do Asaas (guias + API Reference, versões de
 > ago–set/2026) e do estado atual do código (reserva, taxas, cupom, admin).
 > **Bloqueadores antes de codar a Fase 3 (repasses):** decisões D1–D3 da §12.
@@ -149,12 +151,12 @@ aguardando_passeio ─▶ agendado ─▶ aguardando_saldo (cartão ainda não c
 
 | Regra | Proposta (padrão sugerido) | Observação |
 |-------|----------------------------|------------|
-| **Momento do repasse** | `elegivel_em = (fim do passeio 23:59 BRT) + 48h`, onde fim = `coalesce(data_fim_reserva, data_reserva)`; e só se o valor já estiver disponível (`PAYMENT_RECEIVED`) | A reserva só tem **data**, sem hora. Prazo de 48h configurável no admin. |
+| **Momento do repasse** | ✅ D6: `elegivel_em = (fim do passeio 23:59 BRT) + 48h` (configurável em `financeiro_config.horas_repasse_apos_passeio`), onde fim = `coalesce(data_fim_reserva, data_reserva)`; **e só depois que o gestor confirmar que o passeio foi realizado com sucesso**; e só se o valor já estiver disponível (`PAYMENT_RECEIVED`) | A reserva só tem **data**, sem hora. Se o gestor confirmar depois das 48h, o repasse fica elegível na confirmação. |
 | **Cartão (D+32)** | Opção 1: repasse = max(passeio+48h, crédito disponível). Opção 2: habilitar **antecipação automática** do cartão (custo). Opção 3: Boatzy adianta com caixa próprio. | Decisão D3. Sugestão MVP: opção 1, com prazo explícito para o gestor. |
-| **Parcelamento** | MVP **sem parcelamento** (ou só com antecipação) | Cada parcela cai em um mês diferente → repasse se arrastaria por meses. |
-| **Quem paga a tarifa do Asaas** | Boatzy, dentro da taxa de serviço | Ex.: cartão ~3–5% sobre o total come boa parte dos 12%. Conferir tabela real. |
-| **Cupom** | Mantém a regra atual (sai da taxa; excedente abate do total) — o gestor sempre recebe o subtotal integral | Cupom + tarifa pode deixar a margem **negativa** — admin precisa ver isso no dashboard. |
-| **Comissão da plataforma** | **A definir (D7).** Mecanismo já existe: taxa geral (`taxa_plataforma`) + taxa específica por gestor (`usuario_taxa`, com vigência), resolvida por `get_taxa_usuario(owner_id)` e gravada como snapshot em `reserva.taxa_percent`/`taxa_servico` (SPEC §14, §20.1) | Hoje a taxa é **somada ao preço** e paga pelo cliente. Falta decidir como ela se combina com tarifa Asaas, cupom e repasse — ver D7. |
+| **Parcelamento** | ✅ D3: configurável globalmente (`forma_pagamento.parcelas_max`, `valor_minimo_parcela`), começando em **1x**. O cliente escolhe o nº de parcelas na página de pagamento, dentro do limite | Cada parcela cai em um mês diferente → o repasse de pedido parcelado depende da decisão D3 (D+32/antecipação) antes da Fase 3. |
+| **Quem paga a tarifa do Asaas** | ✅ D7b: Boatzy, dentro da comissão | Ex.: cartão ~3–5% sobre o total come boa parte dos 12%; parcelado custa mais. Conferir tabela real. |
+| **Cupom** | ✅ D7c: sai só da comissão — o gestor sempre recebe o valor dos itens integral | ⏳ Hoje, se o cupom for maior que a comissão, o excedente abate o total e o Boatzy cobre a diferença (margem **negativa**). Decidir se o cupom passa a ser limitado ao valor da comissão. |
+| **Comissão da plataforma** | ✅ D7: taxa efetiva do gestor na **solicitação** (módulo Taxas: `taxa_plataforma` geral + `usuario_taxa` específica com vigência, via `get_taxa_usuario(owner_id)`), congelada em `reserva.taxa_percent` e copiada para `pedido.comissao_percentual`; paga pelo cliente, somada ao preço | Configurada só em Admin → Taxas; o Financeiro → Configurações apenas mostra e linka. |
 | **Prazo para pagar após aceite** | 24h, limitado a N horas antes do passeio | Cobrança não paga → apagar no Asaas + `expirada` + libera data. |
 | **Política de cancelamento** | Ex.: cliente cancela ≥ 7 dias antes → 100%; 2–7 dias → 50%; < 48h → 0%. Gestor cancela → 100% ao cliente. | **PRD §8 diz "respeitar política definida", mas ela não existe.** Precisa entrar nos Termos de Uso. Definir também como o valor retido no reembolso parcial é dividido (gestor/Boatzy). |
 | **Estorno da taxa de serviço** | Em cancelamento pelo gestor/Boatzy: devolve tudo. Pelo cliente: segue a política. | |
@@ -170,18 +172,53 @@ Todas as tabelas novas com RLS + **GRANTs explícitos** (AGENTS.md). Escritas s�
 `supabaseAdmin` em server actions/route handlers; leitura por RLS (cliente vê o seu,
 gestor vê o seu, admin tudo).
 
+### 6.1 Pedido e pagamento — o que fica guardado no Boatzy (✅ Fase 1.1, 30/09/2026)
+
+Objetivo: **conciliação sem depender do painel do Asaas** — cliente (usuário interno), forma de
+pagamento, valores (itens, comissão, desconto, total, tarifa, líquido), desconto aplicado e, no
+cartão, **bandeira + 4 últimos dígitos**. Inspirado numa arquitetura de referência
+(`orders → payments → transactions/installments/refunds`, `payment_methods`,
+`payment_discounts`/`payment_coupons`, `payment_card_details`), traduzido para as convenções do
+projeto (português, singular, snake_case). Migration: `20260930b_pagamentos_modelo.sql`.
+
+| Referência | Boatzy | Observação |
+|------------|--------|------------|
+| `orders` | **`pedido`** | 1 por reserva que exige pagamento. A `reserva` continua sendo a reserva do roteiro/embarcação em si; o pedido é o lado comercial (o que se paga). Tem `numero` amigável (#1001…). |
+| `payments` | **`pagamento`** | Cada tentativa de pagamento do pedido = 1 cobrança no Asaas (`pay_…`). Cartão recusado e depois Pix = 2 pagamentos no mesmo pedido. |
+| `payment_transactions` | **`pagamento_transacao`** | Histórico de movimentos do pagamento vindos do gateway (criação, confirmação, recebimento, estorno, chargeback…) com valor e data — trilha de conciliação. |
+| `payment_card_details` | **`pagamento_cartao`** | 1:1 com o pagamento de cartão: **só bandeira e 4 últimos dígitos** (CHECK `^[0-9]{4}$`). |
+| `payment_installments` | **`pagamento_parcela`** | Parcelas do cartão, só quando parcelado. O parcelamento é **configurável globalmente** (começa em 1x). |
+| `payment_refunds` | **`pagamento_estorno`** | Fluxos na Fase 2; já registrável por webhook. |
+| `payment_discounts` + `payment_coupons` | **`pedido_desconto`** | O desconto é do pedido. Cupom → **FK para `cupom`** (tabela existente, sem alteração); o uso continua em `cupom_uso` (existente). |
+| `payment_methods` | **`forma_pagamento`** | `pix`, `cartao_credito` + `ativo`, `parcelas_max`, `valor_minimo_parcela` (parcelamento global). |
+| `coupons` | `cupom` (já existe) | Só referenciado. |
+| `customer_id` | `users` + **`cliente_asaas`** | Cliente = usuário interno; id no Asaas por **ambiente** (sandbox ≠ produção). |
+| `currency` | — | Não incluído: o Asaas só opera em BRL. |
+
+Regras garantidas no banco:
+- `pedido.valor_total = max(0, valor_itens + valor_comissao − valor_desconto)` (CHECK).
+- `pedido.comissao_percentual` = `reserva.taxa_percent` — a taxa efetiva do gestor **na solicitação**
+  (módulo Taxas: geral ou específica). Desde 30/09/2026 a reserva grava a taxa mesmo com preço
+  "a combinar", para o aceite usar a taxa da solicitação.
+- Parcelas só no cartão (`forma_pagamento` e `pagamento`); 1–12.
+- FKs para `reserva`/`users` com `RESTRICT` (registro financeiro não some em cascata).
+- `pagamento.valor_tarifa` é coluna gerada (`valor − valor_liquido`).
+- RLS: cliente e gestor leem os próprios pedidos/pagamentos/parcelas/descontos; `pagamento_cartao`
+  só o cliente; `forma_pagamento` pública; o resto só service role.
+
+Colunas completas: SPEC §34.8.
+
+### 6.2 Demais tabelas (Fases 1–4)
+
 | Tabela | Papel | Campos principais |
 |--------|-------|-------------------|
-| `users` (alterar) | vínculo com o customer Asaas | `asaas_customer_id` |
-| `reserva` (alterar) | | novos status; `pagamento_exigido bool`; `pagamento_prazo_em timestamptz`; `aceita_em` |
-| `pagamento` | uma tentativa de cobrança (pode haver mais de uma por reserva) | `reserva_id`, `asaas_payment_id` UNIQUE, `billing_type`, `status` (texto cru), `valor`, `valor_liquido` (`netValue`), `tarifa_asaas`, `invoice_url`, `pix_payload`, `pix_qrcode_expira_em`, `vencimento`, `confirmado_em`, `recebido_em`, `credito_estimado_em`, `external_reference` |
-| `pagamento_estorno` | histórico de estornos (total/parcial) | `pagamento_id`, `valor`, `status` (`PENDING/DONE/CANCELLED`), `motivo`, `origem` (cliente/gestor/admin/chargeback), `solicitado_por`, `comprovante_url` |
+| `reserva` (alterar) | | Fase 1.2: novos status (`aguardando_pagamento`, `expirada`); `pagamento_exigido bool`; `aceita_em`. Fase 3: `realizacao_confirmada_em`/`realizacao_confirmada_por` (gestor confirma que o passeio foi realizado — condição do repasse, D6) |
 | `repasse` | o que devemos ao gestor por reserva | `reserva_id`, `owner_id`, `valor_bruto`, `ajustes`, `valor_liquido`, `status`, `elegivel_em`, `retido_motivo`, `metodo`, `destino_snapshot jsonb`, `asaas_transfer_id`, `pago_em`, `comprovante_url`, `tentativas`, `erro` |
 | `gestor_recebimento` | dados bancários / Pix do gestor | `owner_id`, `tipo_chave`, `chave`, `titular_nome`, `titular_documento`, `status` (pendente/verificado/bloqueado), `verificado_em`, `valido_a_partir_de` (carência) — histórico de trocas preservado |
 | `lancamento_financeiro` | **ledger** (fonte da verdade contábil) | `reserva_id`, `owner_id`, `conta` (`boatzy`/`gestor`/`cliente`/`asaas`), `tipo` (recebimento, tarifa, comissao, repasse, estorno, chargeback, ajuste), `valor` (com sinal), `ref_asaas`, `criado_por`, `criado_em` — append-only |
-| `asaas_webhook_evento` | fila/idempotência de webhooks | `id` (id do evento, PK), `evento`, `payload jsonb`, `recebido_em`, `status` (pendente/processado/erro/ignorado), `tentativas`, `erro`, `processado_em` |
-| `financeiro_auditoria` | toda ação manual do admin | `admin_id`, `acao`, `entidade`, `entidade_id`, `antes jsonb`, `depois jsonb`, `motivo` (obrigatório), `criado_em` |
-| `financeiro_config` (singleton) | parâmetros | `horas_apos_passeio` (48), `horas_prazo_pagamento` (24), `metodos_habilitados`, `parcelas_max`, `politica_cancelamento jsonb`, `repasse_automatico bool` (liga/desliga geral) |
+| `asaas_webhook_evento` | fila/idempotência de webhooks | ✅ Fase 0 (SPEC §34.3) |
+| `financeiro_auditoria` | toda ação manual do admin | ✅ Fase 1.1 (append-only por trigger): `admin_id`, `acao`, `entidade`, `entidade_id`, `antes jsonb`, `depois jsonb`, `motivo` (obrigatório nas ações que movem dinheiro), `criado_em` |
+| `financeiro_config` (singleton) | parâmetros | ✅ Fase 1.1: `horas_prazo_pagamento` (24), `horas_repasse_apos_passeio` (48), `repasse_automatico` (false). Formas e parcelamento ficam em `forma_pagamento`; comissão fica no módulo Taxas. `politica_cancelamento` entra na Fase 2. |
 
 Saldo do gestor = soma dos lançamentos `conta = 'gestor'`; saldo em custódia =
 recebido − repassado − estornado. A conciliação compara isso com o saldo e o extrato do
@@ -338,18 +375,22 @@ Export CSV/XLSX em todas as listas (o projeto já usa `xlsx`/`jspdf`).
 |---|---------|----------|
 | **D1** | O Asaas permite o Modelo B (receber 100% e repassar a terceiros) para o perfil do Boatzy, ou exige subconta+split? Custos de Pix de saída, antecipação, pré-autorização. | Gerente de contas Asaas (0800 009 0037 / contato@asaas.com.br) |
 | **D2** | Tributação: receber o bruto e repassar — como declarar só a comissão como receita? Emissão de NFS-e da taxa de serviço para o cliente. | Contador |
-| **D3** | Cartão: aceitar D+32 no repasse, contratar antecipação automática, ou adiantar com caixa? Parcelamento sim/não? | Negócio (você) |
+| **D3** | Cartão: aceitar D+32 no repasse, contratar antecipação automática, ou adiantar com caixa? Parcelamento sim/não? | ✅ **Parcelamento:** configurável globalmente no admin (`forma_pagamento.parcelas_max`), começando em **1x (à vista)**. ⏳ Repasse de cartão x D+32/antecipação: decidir antes da Fase 3. |
 | **D4** | Repasses automáticos precisam de IP fixo na whitelist (senão cada saque pede aprovação manual no app Asaas). IP fixo (Vercel Static IPs/Pro ou proxy) **ou** aprovação manual em lote pelo admin no app? | Você + infraestrutura |
-| **D5** | Política de cancelamento e divisão do valor retido; texto nos Termos de Uso. | Negócio/jurídico |
-| **D6** | Interpretação de "48h após a confirmação do passeio": 48h após a **data do passeio** (proposta) ou após o gestor marcar como realizado? | Você |
-| **D7** | **Regras de comissão no fluxo de pagamento.** Reaproveitar o mecanismo existente (`get_taxa_usuario` + snapshot na reserva) e definir: (a) a comissão continua sendo cobrada **do cliente** por cima do preço, ou passa a ser descontada do gestor, ou um misto? (b) quem absorve a tarifa do Asaas (Pix/cartão)? (c) cupom continua saindo só da comissão? (d) no reembolso parcial, a comissão é devolvida proporcionalmente? (e) taxa específica do gestor vale pela data da **solicitação** (hoje) ou do **pagamento**? | Negócio (você) — antes da Fase 1 |
+| **D5** | Política de cancelamento e divisão do valor retido (incl. comissão no reembolso parcial); texto nos Termos de Uso. | Negócio/jurídico |
+| **D6** | Interpretação de "48h após a confirmação do passeio" | ✅ **Decidido (30/09/2026):** repasse **48h após o fim do passeio** (configurável) **e somente se o gestor marcar que o passeio foi realizado com sucesso**. Sem essa confirmação, o repasse fica aguardando. |
+| **D7** | **Regras de comissão no fluxo de pagamento** (mecanismo existente: módulo Taxas — geral + específica por gestor, via `get_taxa_usuario`) | ✅ **Decidido (30/09/2026):** (a) comissão paga pelo **cliente**, somada ao preço — gestor recebe os itens integrais; (b) **Boatzy absorve** a tarifa do Asaas; (c) cupom sai **só da comissão**; (d) vale a taxa gravada na **solicitação**. ⏳ Comissão no reembolso parcial: junto com D5. ⏳ **Cupom maior que a comissão** (hoje o excedente abate o total e o Boatzy cobre a diferença ao gestor): limitar o cupom ao valor da comissão? |
 
 ## 13. Fases de entrega (cada fase deployável)
 
 | Fase | Entrega | Depende de |
 |------|---------|------------|
 | **0 — Fundação** ✅ 30/09/2026 | Env vars, `src/lib/asaas/`, tabela de eventos `asaas_webhook_evento` (+ GRANTs), endpoint de webhook, cron de reprocessamento, tela `/financeiro/integracao` com teste de conexão. **Escopo reduzido de propósito:** as demais tabelas da §6 entram na fase que as usa, para não fixar o modelo antes de D1/D7. | chave sandbox (para testar) |
-| **1 — Cobrança** | Novos status, aceite do gestor → cobrança, página de pagamento (Pix transparente + cartão via fatura), confirmação por webhook, expiração, CPF no checkout, e-mails, bloqueio de data em `aguardando_pagamento`; tabelas `pagamento`, `lancamento_financeiro`, `financeiro_auditoria`, `financeiro_config`; handlers `PAYMENT_*` | Fase 0, D6, **D7** |
+| **1.1 — Modelo + configuração** ✅ 30/09/2026 | Tabelas da §6.1 + `financeiro_config` + `financeiro_auditoria`; admin Financeiro → **Configurações** (formas de pagamento, parcelamento global, prazos, atalho para Taxas); reserva grava a taxa da solicitação mesmo "a combinar" | Fase 0 |
+| **1.2 — Aceite → pedido → cobrança** | Novos status da reserva + bloqueio de data em `aguardando_pagamento`; aceite do gestor gera o pedido (define o preço se "a combinar"); página do cliente `/reservas/[id]/pagar` (CPF se faltar, escolha Pix/cartão e nº de parcelas, QR Pix transparente, cartão pela fatura do Asaas); `cliente_asaas`; e-mail "pague até…" | 1.1 |
+| **1.3 — Confirmação por webhook** | Handlers `PAYMENT_*` → `pagamento`/`pagamento_transacao`/`pagamento_cartao`/`pagamento_parcela` → pedido `pago` → reserva `confirmada`; `lancamento_financeiro`; expiração de pedidos não pagos (rota de job); e-mails "pagamento confirmado"/"reserva paga" | 1.2 |
+| **1.4 — Admin: Pedidos** | Aba Pedidos (lista/detalhe com linha do tempo, cartão, parcelas, eventos), status de pagamento em "Minhas reservas" e no painel do gestor | 1.3 |
+| ⏳ Pendência (infra) | **Agendador do Supabase** (`pg_cron` + `pg_net`) chamando as rotas de job a cada ~10 min (expiração, reprocessamento de webhooks) — configurar depois; até lá, cron diário da Vercel + ações manuais no admin | — |
 | **2 — Cancelamento e estornos** | Política configurável, cancelamento do cliente com prévia, recusa pós-pagamento, estorno manual pelo admin, ledger de estornos | Fase 1, D5 |
 | **3 — Repasses** | Cadastro/validação de recebedor, cálculo, job de repasse, validação de saque, webhooks de transferência, fila no admin (reter/liberar/ajustar), "a receber" no painel do gestor | Fase 2, **D1–D4** |
 | **4 — Controle total** | Dashboard financeiro, conciliação diária, disputas/chargeback, auditoria, exports | Fase 3 |

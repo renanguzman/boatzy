@@ -420,23 +420,53 @@ Boatzy + repasse por Pix), regras de negócio, decisões pendentes e fases:
   reserva continua sendo uma solicitação sem pagamento.
 - Detalhes técnicos: SPEC §34.
 
-#### 🔜 Próximas fases
+#### ✅ Implementado — Fase 1.1: Modelo de dados e configurações (30/09/2026)
 
-1. **Cobrança** — aceite do gestor gera a cobrança (Pix na própria página, cartão pela fatura do
-   Asaas), confirmação por webhook, prazo para pagar, bloqueio de data enquanto aguarda pagamento.
-2. **Cancelamento e estornos** — política configurável e reembolso total/parcial.
-3. **Repasses** — cadastro/validação da chave Pix do gestor, repasse automático 48h após o passeio,
-   fila de repasses no admin (reter/liberar/ajustar).
-4. **Controle total** — dashboard financeiro, conciliação diária, disputas/chargeback, auditoria.
-5. **Produção** — chaves e webhooks de produção, homologação com o Asaas.
+- O Boatzy passa a ter sua própria base de pagamentos para conciliação, sem depender do painel do
+  Asaas: **pedido** (1 por reserva — o que o cliente paga, com número amigável #1001…),
+  **pagamentos** (cada tentativa: Pix ou cartão, valores, tarifa, líquido, comprovantes),
+  **descontos** (ligados ao cupom já existente), **parcelas**, **histórico de movimentos** e
+  **estornos**, com o cliente ligado ao usuário interno.
+- **Cartão:** guardamos só a **bandeira e os 4 últimos dígitos**. O número completo nunca passa
+  pelo Boatzy (o cartão é digitado na página de pagamento do Asaas).
+- Admin → **Financeiro → Configurações**: ligar/desligar Pix e cartão, **parcelamento máximo do
+  cartão definido globalmente** (começa em 1x, à vista) e valor mínimo por parcela, prazo para o
+  cliente pagar e horas para o repasse. Mostra a comissão vigente com atalho para **Taxas**, onde
+  ela continua sendo configurada (geral e por gestor). Toda alteração fica registrada numa
+  auditoria que não pode ser editada nem apagada.
+- A reserva passa a guardar a taxa do gestor no momento da solicitação mesmo quando o preço é
+  "a combinar" — é essa taxa que vale quando o gestor definir o preço no aceite.
+- Detalhes técnicos: SPEC §34.8–34.10.
+
+#### ✅ Decisões de negócio (30/09/2026)
+
+- **Comissão (D7):** paga pelo **cliente**, somada ao preço (o gestor recebe o valor dos itens
+  integral); a **tarifa do Asaas é absorvida pelo Boatzy**; o **cupom sai só da comissão**; vale a
+  **taxa do gestor no momento da solicitação** (Admin → Taxas: geral ou específica).
+- **Parcelamento (D3):** configurável globalmente no admin, começando **só à vista (1x)**.
+- **Repasse (D6):** **48h após o fim do passeio**, e **somente se o gestor marcar que o passeio foi
+  realizado com sucesso**.
+- **Tarefas automáticas:** rodarão pelo **agendador do Supabase** — configuração pendente.
+
+#### 🔜 Próximas etapas
+
+1. **Fase 1.2 — Aceite → pedido → cobrança:** o aceite do gestor gera o pedido (e define o preço
+   se "a combinar"); a reserva passa a "aguardando pagamento" com a data bloqueada; página de
+   pagamento do cliente (Pix com QR Code na própria página; cartão pela página do Asaas, com
+   escolha de parcelas dentro do limite configurado).
+2. **Fase 1.3 — Confirmação:** webhook confirma o pagamento → reserva confirmada; pedidos não
+   pagos no prazo expiram e liberam a data; e-mails.
+3. **Fase 1.4 — Admin: Pedidos:** lista e detalhe dos pedidos; status do pagamento para cliente e
+   gestor.
+4. Fases 2 (cancelamento/estornos), 3 (repasses — inclui a confirmação de realização pelo gestor),
+   4 (controle total) e 5 (produção).
 
 #### ⏳ Decisões pendentes (ver planejamento §12)
 
-- **Regras de comissão da plataforma no fluxo de pagamento (D7).** A comissão já existe e é
-  configurável (Admin → Taxas: taxa geral + taxa específica por gestor, snapshot gravado em cada
-  reserva — ver 6.11). Falta definir como ela se combina com a tarifa do Asaas, o cupom e o repasse.
-- Modelo aceito pelo Asaas (D1), tributação (D2), cartão/parcelamento (D3), IP fixo para repasses
-  automáticos (D4), política de cancelamento (D5) e marco das 48h (D6).
+- **Cupom maior que a comissão:** hoje o excedente reduz o total e o Boatzy cobre a diferença ao
+  gestor. Limitar o cupom ao valor da comissão?
+- Modelo aceito pelo Asaas (D1), tributação (D2), repasse de cartão x prazo de crédito (D3),
+  IP fixo para repasses automáticos (D4), política de cancelamento e comissão no reembolso (D5).
 
 ---
 
@@ -743,7 +773,7 @@ Todos os números são do **gestor logado** (`owner_id`):
   - **Roteiros** — ✅ implementado (ver abaixo)
   - **Publicidade** — 🔜 gestão de espaços de publicidade (placeholder)
   - **Taxas** — ✅ implementado (ver abaixo)
-  - **Financeiro** — 🟡 Fase 0: tela de integração com o Asaas (ver 6.6)
+  - **Financeiro** — 🟡 Integração com o Asaas e Configurações (ver 6.6)
   - **Tipos de embarcação** — 🔜 cadastro de tipos de embarcação (placeholder, `/administrator/tipos`)
   - **Configurações** — 🔜 parâmetros gerais da plataforma (placeholder)
 

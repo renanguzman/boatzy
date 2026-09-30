@@ -18,6 +18,11 @@ type Props = {
 const inputCls =
   'w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-700 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-[#0B2447]/20 focus:border-[#0B2447]/40 transition';
 
+/** Compara URLs ignorando "www." e barra final — `www.boatzy.app` redireciona para `boatzy.app`. */
+function semWww(url: string): string {
+  return url.replace(/\/+$/, '').replace('://www.', '://');
+}
+
 function SituacaoBadge({ w }: { w: AsaasWebhookConfig }) {
   const [cls, label] = !w.enabled
     ? ['bg-slate-100 text-slate-500', 'Desativado']
@@ -113,7 +118,7 @@ export default function WebhooksAsaasCard({
                 {w.hasAuthToken ? 'com token' : 'sem token'}
                 {w.penalizedRequestsCount > 0 && ` · ${w.penalizedRequestsCount} falhas penalizadas`}
               </p>
-              {w.url.replace(/\/+$/, '') !== urlSugerida && (
+              {semWww(w.url) !== semWww(urlSugerida) && (
                 <p className="text-[11px] text-slate-400 mt-1">URL diferente da deste ambiente ({urlSugerida}).</p>
               )}
               {w.interrupted && (
