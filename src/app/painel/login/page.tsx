@@ -6,8 +6,17 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { createClient } from '@/lib/supabase/client';
 import SocialLoginButtons, { type OAuthProvider } from '@/components/auth/SocialLoginButtons';
+import { COOKIE_DESTINO_PAINEL, destinoPainelSeguro } from '@/lib/painel-destino';
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? '';
+
+/** Guarda (10 min) a página pedida antes do login, para o setup-role voltar a ela. */
+function lembrarDestino() {
+  const destino = destinoPainelSeguro(new URLSearchParams(window.location.search).get('redirect_to'));
+  document.cookie = destino
+    ? `${COOKIE_DESTINO_PAINEL}=${encodeURIComponent(destino)}; path=/; max-age=600; samesite=lax`
+    : `${COOKIE_DESTINO_PAINEL}=; path=/; max-age=0`;
+}
 
 export default function PainelLoginPage() {
   const supabase = createClient();
@@ -32,11 +41,13 @@ export default function PainelLoginPage() {
     }
 
     // Redireciona para setup-role que garante o registro no DB com role gestor.
+    lembrarDestino();
     window.location.href = '/api/painel/setup-role';
   }
 
   async function handleSocial(provider: OAuthProvider) {
     setError('');
+    lembrarDestino();
 
     const { error: authError } = await supabase.auth.signInWithOAuth({
       provider,

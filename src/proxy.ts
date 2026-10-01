@@ -64,6 +64,11 @@ export async function proxy(request: NextRequest) {
   ) {
     const loginUrl = request.nextUrl.clone();
     loginUrl.pathname = '/painel/login';
+    // Volta para a página pedida depois do login (ex.: link de e-mail) — ver src/lib/painel-destino.ts.
+    loginUrl.search = '';
+    if (pathname !== '/painel' && !pathname.startsWith('/api/')) {
+      loginUrl.searchParams.set('redirect_to', `${pathname}${request.nextUrl.search}`);
+    }
     return NextResponse.redirect(loginUrl);
   }
 

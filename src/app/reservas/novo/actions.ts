@@ -1,10 +1,12 @@
 'use server';
 
+import { after } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { supabaseAdmin } from '@/lib/supabase';
 import { getDatasReservadasEmbarcacao, getDisponibilidadeRoteiro, expandirIntervalo, somarDiasISO } from '@/lib/reservas';
 import { getTaxaEfetiva } from '@/lib/taxas';
 import { expirarPedidosVencidosSemFalhar } from '@/lib/pagamentos/pedidos';
+import { notificarGestorNovaSolicitacao } from '@/lib/emails/reserva-solicitada';
 import { formatCurrencyPrecise } from '@/lib/utils';
 import type { CupomTipoDesconto, ReservaModalidadePreco, PrecoPessoaModoCapacidade } from '@/types/supabase';
 import { obterTermoParaAceite, validarAceite, gravarAceite, type AceitePreparado } from '@/lib/termos/aceite';
@@ -579,6 +581,9 @@ export async function criarReserva(input: CriarReservaInput): Promise<CriarReser
       };
     }
   }
+
+  // Avisa o gestor por e-mail depois da resposta ao cliente (falha não afeta a solicitação).
+  after(() => notificarGestorNovaSolicitacao(reserva.id));
 
   return { ok: true, reservaId: reserva.id, aceite };
 }

@@ -1,33 +1,16 @@
 import 'server-only';
 
-import { sendEmail } from '@/lib/email';
-import { FUSO_HORARIO } from '@/lib/datas';
+import { formatarData, formatarDataHora } from '@/lib/datas';
+import { baseUrl, enviarEmail, esc, montarEmailHtml } from '@/lib/emails/layout';
 
 /**
- * E-mails do fluxo de pagamento (mesmo layout do aviso de conversas —
- * `src/lib/notificacoes-conversa.ts`). Falha no envio é logada e nunca
- * interrompe o fluxo de pagamento.
+ * E-mails do fluxo de pagamento — layout padrão (`src/lib/emails/layout.ts`).
+ * Falha no envio é logada e nunca interrompe o fluxo de pagamento.
  */
 
-function esc(s: string): string {
-  return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
-}
-
-function baseUrl(): string {
-  return (process.env.NEXT_PUBLIC_APP_URL ?? 'https://boatzy.app').trim().replace(/\/+$/, '');
-}
-
 const brl = (v: number) => v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
-
-function dataBR(iso: string): string {
-  return new Date(`${iso}T12:00:00`).toLocaleDateString('pt-BR', { timeZone: FUSO_HORARIO, day: '2-digit', month: '2-digit', year: 'numeric' });
-}
-
-function dataHoraBR(iso: string): string {
-  return new Date(iso).toLocaleString('pt-BR', {
-    day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit', timeZone: 'America/Sao_Paulo',
-  });
-}
+const dataBR = (iso: string) => formatarData(iso);
+const dataHoraBR = (iso: string) => formatarDataHora(iso);
 
 function montarHtml(input: {
   nome: string;
@@ -36,42 +19,11 @@ function montarHtml(input: {
   botao?: { texto: string; url: string };
   rodape: string;
 }): string {
-  const primeiroNome = esc((input.nome ?? '').split(' ')[0] || 'Olá');
-  const linhas = input.linhas
-    .map(
-      ([rotulo, valor]) => `<tr>
-        <td style="padding:10px 16px;border-bottom:1px solid #eef2f7;color:#64748b;font-size:13px;">${esc(rotulo)}</td>
-        <td style="padding:10px 16px;border-bottom:1px solid #eef2f7;color:#0B2447;font-size:13px;font-weight:bold;text-align:right;">${esc(valor)}</td>
-      </tr>`,
-    )
-    .join('');
-  const botao = input.botao
-    ? `<a href="${esc(input.botao.url)}" style="display:inline-block;background:#0B3D91;color:#ffffff;text-decoration:none;font-weight:bold;font-size:14px;padding:12px 24px;border-radius:12px;">${esc(input.botao.texto)}</a>`
-    : '';
-  return `<!doctype html>
-<html lang="pt-BR"><body style="margin:0;background:#f1f5f9;font-family:Arial,Helvetica,sans-serif;">
-  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f1f5f9;padding:24px 0;">
-    <tr><td align="center">
-      <table role="presentation" width="480" cellpadding="0" cellspacing="0" style="background:#ffffff;border-radius:16px;overflow:hidden;border:1px solid #e2e8f0;">
-        <tr><td style="background:#0B2447;padding:20px 24px;color:#ffffff;font-size:18px;font-weight:bold;">Boatzy</td></tr>
-        <tr><td style="padding:24px;">
-          <h1 style="margin:0 0 8px;color:#0B2447;font-size:18px;">Olá, ${primeiroNome}!</h1>
-          ${input.paragrafos.map((p) => `<p style="margin:0 0 16px;color:#475569;font-size:14px;line-height:1.5;">${p}</p>`).join('')}
-          ${linhas ? `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border:1px solid #eef2f7;border-radius:12px;overflow:hidden;margin-bottom:20px;">${linhas}</table>` : ''}
-          ${botao}
-        </td></tr>
-        <tr><td style="padding:16px 24px;border-top:1px solid #eef2f7;color:#94a3b8;font-size:12px;line-height:1.5;">${esc(input.rodape)}</td></tr>
-      </table>
-    </td></tr>
-  </table>
-</body></html>`;
+  return montarEmailHtml({ ...input, blocos: [{ linhas: input.linhas }] });
 }
 
-async function enviar(to: string | null | undefined, subject: string, html: string, contexto: string) {
-  if (!to) return;
-  const r = await sendEmail({ to, subject, html });
-  if (!r.ok && r.error !== 'no_provider') console.error(`[pagamentos/emails] ${contexto}:`, r.error);
-}
+const enviar = (to: string | null | undefined, subject: string, html: string, contexto: string) =>
+  enviarEmail(to, subject, html, `pagamentos/${contexto}`);
 
 type DadosPedidoEmail = {
   reservaId: string;

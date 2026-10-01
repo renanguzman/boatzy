@@ -2,6 +2,8 @@ import { createClient } from '@/lib/supabase/server';
 import { supabaseAdmin } from '@/lib/supabase';
 import { NextResponse } from 'next/server';
 import { addRole } from '@/lib/roles';
+import { cookies } from 'next/headers';
+import { COOKIE_DESTINO_PAINEL, destinoPainelSeguro } from '@/lib/painel-destino';
 import type { Database } from '@/types/supabase';
 
 export const dynamic = 'force-dynamic';
@@ -52,5 +54,11 @@ export async function GET() {
 
   await addRole(user.id, 'gestor');
 
-  return NextResponse.redirect(new URL('/painel', APP_URL));
+  // Volta para a página que o gestor tentou abrir antes do login (ex.: link de e-mail).
+  const cookieStore = await cookies();
+  const bruto = cookieStore.get(COOKIE_DESTINO_PAINEL)?.value;
+  const destino = destinoPainelSeguro(bruto ? decodeURIComponent(bruto) : null) ?? '/painel';
+  const resposta = NextResponse.redirect(new URL(destino, APP_URL));
+  if (bruto) resposta.cookies.set(COOKIE_DESTINO_PAINEL, '', { path: '/', maxAge: 0 });
+  return resposta;
 }

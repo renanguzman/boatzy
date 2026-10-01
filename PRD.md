@@ -366,6 +366,18 @@ gestor. Detalhes técnicos: SPEC §20.4–20.5.
   recusar continua manual, nada é feito automaticamente.
 - Detalhes técnicos: `SPEC.md` §15-B → "Bloqueio por reserva confirmada".
 
+#### ✅ Implementado — E-mail ao gestor a cada nova solicitação (01/10/2026)
+
+- Assim que um cliente envia uma solicitação de reserva (roteiro ou embarcação), o gestor recebe um
+  e-mail no mesmo padrão visual das demais comunicações do Boatzy, com tudo o que foi pedido: passeio,
+  embarcação, local, data (ou período), flexibilidade, pessoas, modalidade, duração, quem solicitou e
+  quando, adicionais escolhidos e os valores (quanto ele recebe, a taxa paga pelo cliente, desconto e
+  total) — e um botão para abrir a solicitação no painel.
+- Se o gestor não estiver logado, ele faz o login e cai direto na solicitação (antes ia para o início
+  do painel).
+- O e-mail não traz contato do cliente: a conversa segue pelo chat da plataforma.
+- Detalhes técnicos: SPEC §20.9.
+
 #### ✅ Implementado — Aplicação de cupom de desconto na reserva
 
 - Em `/reservas/novo` (roteiro ou embarcação), o cliente pode informar um código de cupom antes

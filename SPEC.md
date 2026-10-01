@@ -2338,6 +2338,46 @@ mudança — o valor já vem líquido do banco.
 
 ---
 
+### 20.9 E-mail ao gestor a cada nova solicitação (01/10/2026)
+
+**Disparo:** `criarReserva` (`src/app/reservas/novo/actions.ts`), só quando a reserva foi criada com
+sucesso (depois do aceite do termo e do registro do cupom), via `after(() =>
+notificarGestorNovaSolicitacao(reserva.id))` — roda depois da resposta ao cliente; falha nunca afeta
+a solicitação (é logada). Não envia quando o gestor é o próprio solicitante.
+
+**`src/lib/emails/reserva-solicitada.ts`**
+- `notificarGestorNovaSolicitacao(reservaId)` — carrega a reserva (cliente, roteiro com duração e
+  município, embarcação com município, adicionais) + o gestor (`users` pelo `owner_id`) + a
+  `financeiro_config` (prazo de pagamento, se a cobrança estiver ligada) e envia. Nunca lança.
+- `montarEmailNovaSolicitacao(dados)` — puro (assunto + HTML). Assunto: `Nova solicitação de reserva —
+  <item> em <dd/mm/aaaa>`. Conteúdo:
+  - **Solicitação:** tipo, passeio/embarcação, embarcação do roteiro, local, data (com dia da semana)
+    ou período com nº de diárias, flexibilidade, pessoas, modalidade, duração, solicitado por (nome do
+    cliente — sem e-mail/telefone, o contato segue pelo chat da plataforma) e solicitado em (Brasília);
+  - **Adicionais escolhidos** (descrição, produto/serviço, valor);
+  - **Valores:** preço (× diárias/pessoas), adicionais, **valor do gestor**, taxa de serviço paga pelo
+    cliente, desconto/cupom e total estimado do cliente; com preço "a combinar", um aviso de que o
+    valor é informado no aceite;
+  - texto sobre o prazo de pagamento após o aceite (ou texto genérico com a cobrança desligada);
+  - botão **Ver solicitação no painel** → `/painel/agendamentos/<id>` + lembrete do chat.
+
+**Layout compartilhado — `src/lib/emails/layout.ts`:** `montarEmailHtml({ nome, paragrafos, blocos[{
+titulo?, linhas, destacarUltima? }], botao?, aposBotao?, rodape })`, `esc`, `baseUrl`, `enviarEmail`
+(loga e nunca lança). Mesmo visual do aviso de conversas; os e-mails de pagamento
+(`src/lib/pagamentos/emails.ts`) passaram a usá-lo. Rótulos curtos não quebram linha.
+
+**Link do e-mail com gestor deslogado** (`src/lib/painel-destino.ts`): o proxy manda para
+`/painel/login?redirect_to=<caminho original>`; a tela de login guarda o caminho no cookie
+`boatzy_painel_destino` (10 min — cookie em vez de query no redirect do OAuth, que precisa bater
+exatamente com a allow list do Supabase); `/api/painel/setup-role` redireciona para ele no fim do login
+(e-mail/senha ou social) e apaga o cookie. `destinoPainelSeguro` só aceita caminhos internos de
+`/painel` (recusa host externo, `//`, `..`, `/login`, `/auth/`, caracteres especiais).
+
+Validação: HTML renderizado com uma solicitação real (navegador headless, sem erros); redirecionamento
+do proxy conferido; validador de destino testado contra URLs maliciosas.
+
+---
+
 ## 21. Chat em tempo real (Gestor ↔ Cliente)
 
 Migrations: `supabase/migrations/20260627_chat.sql` (núcleo + RPCs do gestor) e
