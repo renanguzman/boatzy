@@ -8,6 +8,7 @@ import { getTaxaEfetiva } from '@/lib/taxas';
 import { expirarPedidosVencidosSemFalhar } from '@/lib/pagamentos/pedidos';
 import { notificarGestorNovaSolicitacao } from '@/lib/emails/reserva-solicitada';
 import { formatCurrencyPrecise } from '@/lib/utils';
+import { capacidadeMaxima, mensagemCapacidadeExcedida } from '@/lib/capacidade';
 import type { CupomTipoDesconto, ReservaModalidadePreco, PrecoPessoaModoCapacidade } from '@/types/supabase';
 import { obterTermoParaAceite, validarAceite, gravarAceite, type AceitePreparado } from '@/lib/termos/aceite';
 import type { AceiteErroCodigo, AceiteTermoCliente } from '@/lib/termos/tipos';
@@ -56,6 +57,11 @@ type AlvoResolvido = {
   pessoaCapacidadeMinima: number | null;
   pessoaCapacidadeMaxima: number | null;
   pessoaModoCapacidade: PrecoPessoaModoCapacidade;
+  /**
+   * Máximo de pessoas do grupo: menor entre a capacidade da embarcação, a do
+   * roteiro e (Por Pessoa) o máximo do modelo — ver src/lib/capacidade.ts.
+   */
+  capacidadeMaxima: number | null;
 };
 
 type Adicional = { roteiro_catalogo_id: string; descricao: string; valor: number; tipo: 'produto' | 'servico' };
@@ -86,7 +92,7 @@ async function resolverAlvo(input: ResolverAlvoInput): Promise<ResolverAlvoResul
     if (!input.embarcacaoId) return { ok: false, error: 'Embarcação inválida.' };
     const { data: emb, error: embErr } = await supabaseAdmin
       .from('embarcacao')
-      .select('id, nome, preco_base, owner_id, status')
+      .select('id, nome, preco_base, owner_id, status, capacidade')
       .eq('id', input.embarcacaoId)
       .eq('status', 'ativo')
       .single();
@@ -106,6 +112,7 @@ async function resolverAlvo(input: ResolverAlvoInput): Promise<ResolverAlvoResul
         pessoaCapacidadeMinima: null,
         pessoaCapacidadeMaxima: null,
         pessoaModoCapacidade: 'exclusivo',
+        capacidadeMaxima: capacidadeMaxima(emb.capacidade),
       },
       adicionais: [],
     };
@@ -115,10 +122,11 @@ async function resolverAlvo(input: ResolverAlvoInput): Promise<ResolverAlvoResul
   const { data: roteiro, error: roteiroErr } = await supabaseAdmin
     .from('roteiro')
     .select(`
-      id, nome, preco_base, owner_id, embarcacao_id, ativo,
+      id, nome, preco_base, owner_id, embarcacao_id, ativo, quantidade_pessoas,
       preco_diaria_ativo, preco_diaria_valor, preco_diaria_minimo,
       preco_pessoa_ativo, preco_pessoa_valor,
-      preco_pessoa_capacidade_minima, preco_pessoa_capacidade_maxima, preco_pessoa_modo_capacidade
+      preco_pessoa_capacidade_minima, preco_pessoa_capacidade_maxima, preco_pessoa_modo_capacidade,
+      embarcacao ( capacidade )
     `)
     .eq('id', input.roteiroId)
     .eq('ativo', true)
@@ -157,6 +165,11 @@ async function resolverAlvo(input: ResolverAlvoInput): Promise<ResolverAlvoResul
     pessoaCapacidadeMinima: roteiro.preco_pessoa_capacidade_minima,
     pessoaCapacidadeMaxima: roteiro.preco_pessoa_capacidade_maxima,
     pessoaModoCapacidade: roteiro.preco_pessoa_modo_capacidade,
+    capacidadeMaxima: capacidadeMaxima(
+      roteiro.quantidade_pessoas,
+      (roteiro.embarcacao as unknown as { capacidade: number | null } | null)?.capacidade,
+      input.modalidade === 'pessoa' ? roteiro.preco_pessoa_capacidade_maxima : null,
+    ),
   };
 
   // Reconstrói os adicionais selecionados a partir dos ids (snapshot dos valores atuais).
@@ -403,6 +416,10 @@ export async function criarReserva(input: CriarReservaInput): Promise<CriarReser
   }
   if (modalidade === 'pessoa' && alvo.pessoaCapacidadeMinima && input.pessoas < alvo.pessoaCapacidadeMinima) {
     return { ok: false, error: `Este roteiro exige um grupo mínimo de ${alvo.pessoaCapacidadeMinima} pessoas.` };
+  }
+  // Capacidade da embarcação/roteiro — a tela já limita, mas a URL pode ser editada.
+  if (alvo.capacidadeMaxima != null && input.pessoas > alvo.capacidadeMaxima) {
+    return { ok: false, error: mensagemCapacidadeExcedida(alvo.capacidadeMaxima) };
   }
 
   const dataFim = modalidade === 'diaria' ? somarDiasISO(input.data, input.diarias! - 1) : null;

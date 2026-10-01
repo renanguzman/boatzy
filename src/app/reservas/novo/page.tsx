@@ -9,6 +9,7 @@ import { formatCurrency } from '@/lib/utils';
 import { getTaxaEfetiva } from '@/lib/taxas';
 import { buscarPrevisaoTempo } from '@/lib/weather';
 import { somarDiasISO } from '@/lib/reservas';
+import { capacidadeMaxima } from '@/lib/capacidade';
 import { obterTermoParaAceite } from '@/lib/termos/aceite';
 import ConfirmarReserva from './_components/ConfirmarReserva';
 import PrevisaoTempoCard from './_components/PrevisaoTempoCard';
@@ -101,6 +102,8 @@ export default async function NovaReservaPage({
     .filter(Boolean);
 
   let ownerId: string;
+  // Máximo de pessoas do grupo (capacidade da embarcação/roteiro — src/lib/capacidade.ts).
+  let limitePessoas: number | null = null;
   // Coordenadas para a previsão do tempo — prioriza a coordenada exata do
   // roteiro/embarcação e cai para o centro do município quando ausente.
   let lat: number | null = null;
@@ -110,7 +113,7 @@ export default async function NovaReservaPage({
     const { data: embRaw } = await supabaseAdmin
       .from('embarcacao')
       .select(
-        `id, owner_id, nome, preco_base, latitude, longitude, municipios ( nome, estados ( uf ), latitude, longitude )`,
+        `id, owner_id, nome, preco_base, capacidade, latitude, longitude, municipios ( nome, estados ( uf ), latitude, longitude )`,
       )
       .eq('id', alvoId)
       .eq('status', 'ativo')
@@ -121,10 +124,12 @@ export default async function NovaReservaPage({
       owner_id: string;
       nome: string;
       preco_base: number | null;
+      capacidade: number | null;
       latitude: number | null;
       longitude: number | null;
       municipios: { nome: string; estados: { uf: string } | null; latitude: number | null; longitude: number | null } | null;
     };
+    limitePessoas = capacidadeMaxima(emb.capacidade);
     nome = emb.nome;
     ownerId = emb.owner_id;
     precoUnitario = emb.preco_base != null ? Number(emb.preco_base) : null;
@@ -139,10 +144,11 @@ export default async function NovaReservaPage({
     const { data: roteiroRaw } = await supabaseAdmin
       .from('roteiro')
       .select(`
-        id, owner_id, nome, preco_base, latitude, longitude,
+        id, owner_id, nome, preco_base, latitude, longitude, quantidade_pessoas,
         preco_diaria_ativo, preco_diaria_valor, preco_diaria_minimo,
-        preco_pessoa_ativo, preco_pessoa_valor,
-        municipios ( nome, estados ( uf ), latitude, longitude )
+        preco_pessoa_ativo, preco_pessoa_valor, preco_pessoa_capacidade_maxima,
+        municipios ( nome, estados ( uf ), latitude, longitude ),
+        embarcacao ( capacidade )
       `)
       .eq('id', alvoId)
       .eq('ativo', true)
@@ -159,6 +165,9 @@ export default async function NovaReservaPage({
       preco_diaria_minimo: number;
       preco_pessoa_ativo: boolean;
       preco_pessoa_valor: number | null;
+      preco_pessoa_capacidade_maxima: number | null;
+      quantidade_pessoas: number | null;
+      embarcacao: { capacidade: number | null } | null;
       latitude: number | null;
       longitude: number | null;
       municipios: { nome: string; estados: { uf: string } | null; latitude: number | null; longitude: number | null } | null;
@@ -183,6 +192,11 @@ export default async function NovaReservaPage({
       modalidade = 'roteiro';
       precoUnitario = roteiro.preco_base != null ? Number(roteiro.preco_base) : null;
     }
+    limitePessoas = capacidadeMaxima(
+      roteiro.quantidade_pessoas,
+      roteiro.embarcacao?.capacidade,
+      modalidade === 'pessoa' ? roteiro.preco_pessoa_capacidade_maxima : null,
+    );
 
     localidade = roteiro.municipios
       ? roteiro.municipios.estados
@@ -212,6 +226,14 @@ export default async function NovaReservaPage({
           };
         });
     }
+  }
+
+  // Grupo acima da capacidade (ex.: URL editada): volta ao detalhe, que ajusta o
+  // número ao máximo e avisa o cliente.
+  if (limitePessoas != null && pessoas > limitePessoas) {
+    const volta = new URLSearchParams({ data: data!, pessoas: String(pessoas) });
+    if (flex > 0) volta.set('flex', String(flex));
+    redirect(`${voltarHref}?${volta.toString()}`);
   }
 
   const totalAdicionais = adicionais.reduce((sum, a) => sum + Number(a.valor), 0);

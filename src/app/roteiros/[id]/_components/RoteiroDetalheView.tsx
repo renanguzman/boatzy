@@ -17,6 +17,7 @@ import AvaliacoesSection, { type AvaliacaoPublica } from '@/components/avaliacoe
 import type { PrecoPessoaModoCapacidade } from '@/types/supabase';
 import { formatarComprimento } from '@/lib/comprimento';
 import { ordenarImagens } from '@/lib/galeria';
+import { capacidadeMaxima } from '@/lib/capacidade';
 
 /** Dados que a página do roteiro exibe — vindos do banco ou do formulário (prévia). */
 export type RoteiroDetalheDados = {
@@ -385,6 +386,7 @@ export default function RoteiroDetalheView({
                 precoPessoaCapacidadeMaxima={roteiro.preco_pessoa_capacidade_maxima}
                 precoPessoaModoCapacidade={roteiro.preco_pessoa_modo_capacidade}
                 vagasPessoaOcupadas={vagasPessoaOcupadas}
+                capacidade={capacidadeMaxima(roteiro.quantidade_pessoas, roteiro.embarcacao?.capacidade)}
               />
             </div>
           </div>

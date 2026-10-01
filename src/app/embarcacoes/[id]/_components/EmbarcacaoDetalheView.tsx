@@ -134,6 +134,7 @@ export default function EmbarcacaoDetalheView({
                 initialData={initialData}
                 initialFlex={initialFlex}
                 initialPessoas={initialPessoas}
+                capacidade={embarcacao.capacidade}
               />
             </div>
           </div>

@@ -7,6 +7,7 @@ import DatePicker, { type DateValue } from '@/components/home/search/DatePicker'
 import GuestPicker from '@/components/home/search/GuestPicker';
 import { formatCurrency } from '@/lib/utils';
 import { useModoPreview } from '@/components/preview/ModoPreview';
+import { capacidadeMaxima, mensagemCapacidadeExcedida } from '@/lib/capacidade';
 
 type ActivePanel = 'date' | 'guests' | null;
 
@@ -24,6 +25,8 @@ type Props = {
   initialData?: string;
   initialFlex?: number;
   initialPessoas?: number;
+  /** Capacidade de pessoas da embarcação (`embarcacao.capacidade`). null = sem limite cadastrado. */
+  capacidade?: number | null;
 };
 
 function toISO(d: Date): string {
@@ -46,6 +49,7 @@ export default function EmbarcacaoBookingCard({
   initialData,
   initialFlex,
   initialPessoas,
+  capacidade = null,
 }: Props) {
   const initialDate = parseISO(initialData);
   const [date, setDate] = useState<DateValue | null>(
@@ -53,7 +57,13 @@ export default function EmbarcacaoBookingCard({
       ? { date: initialDate, flexibility: (initialFlex ?? 0) as DateValue['flexibility'] }
       : null,
   );
-  const [guests, setGuests] = useState(initialPessoas && initialPessoas > 0 ? initialPessoas : 1);
+  // Pessoas vindas da busca acima da capacidade são ajustadas ao máximo, com aviso.
+  const limitePessoas = capacidadeMaxima(capacidade);
+  const pessoasPedidas = initialPessoas && initialPessoas > 0 ? initialPessoas : 1;
+  const [guests, setGuests] = useState(limitePessoas != null ? Math.min(pessoasPedidas, limitePessoas) : pessoasPedidas);
+  const [ajustadoPara, setAjustadoPara] = useState<number | null>(
+    limitePessoas != null && pessoasPedidas > limitePessoas ? limitePessoas : null,
+  );
   const [active, setActive] = useState<ActivePanel>(null);
   const [error, setError] = useState<string | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -95,6 +105,11 @@ export default function EmbarcacaoBookingCard({
     }
     if (guests < 1) {
       setError('Informe o número de pessoas.');
+      setActive('guests');
+      return;
+    }
+    if (limitePessoas != null && guests > limitePessoas) {
+      setError(mensagemCapacidadeExcedida(limitePessoas));
       setActive('guests');
       return;
     }
@@ -151,14 +166,26 @@ export default function EmbarcacaoBookingCard({
             <GuestPicker
               value={guests}
               onChange={(v) => {
-                setGuests(Math.max(1, v));
+                setGuests(Math.max(1, limitePessoas != null ? Math.min(v, limitePessoas) : v));
+                setAjustadoPara(null);
                 setError(null);
               }}
               isOpen={active === 'guests'}
               onOpen={() => open('guests')}
               onClose={() => setActive(null)}
+              min={1}
+              max={limitePessoas ?? undefined}
             />
           </div>
+          {ajustadoPara != null ? (
+            <p className="mt-1.5 text-xs text-amber-700">
+              Esta embarcação comporta até {ajustadoPara} {ajustadoPara === 1 ? 'pessoa' : 'pessoas'} — ajustamos o tamanho do grupo.
+            </p>
+          ) : limitePessoas != null ? (
+            <p className="mt-1.5 text-xs text-slate-400">
+              Capacidade máxima: {limitePessoas} {limitePessoas === 1 ? 'pessoa' : 'pessoas'}.
+            </p>
+          ) : null}
         </div>
 
         {/* Price breakdown */}

@@ -366,6 +366,16 @@ gestor. Detalhes técnicos: SPEC §20.4–20.5.
   recusar continua manual, nada é feito automaticamente.
 - Detalhes técnicos: `SPEC.md` §15-B → "Bloqueio por reserva confirmada".
 
+#### ✅ Implementado — Limite de pessoas pela capacidade (01/10/2026)
+
+- Na reserva de roteiro ou de embarcação, o número de pessoas não passa da capacidade: o seletor
+  trava no máximo (o menor entre a capacidade do roteiro e a da embarcação — no modelo Por Pessoa,
+  também o máximo do modelo) e mostra "Capacidade máxima: N pessoas".
+- Quem chega da busca com um grupo maior tem o número ajustado ao máximo, com o aviso "Este passeio
+  comporta até N pessoas — ajustamos o tamanho do grupo".
+- A confirmação e a criação da reserva também validam (protege contra URL editada).
+- Detalhes técnicos: SPEC §27-B.
+
 #### ✅ Implementado — E-mail ao gestor a cada nova solicitação (01/10/2026)
 
 - Assim que um cliente envia uma solicitação de reserva (roteiro ou embarcação), o gestor recebe um

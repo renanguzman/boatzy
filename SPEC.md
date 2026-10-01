@@ -3668,6 +3668,34 @@ Regras do handler `setEmbarcacao(embarcacaoId)`:
 
 ---
 
+### 27-B Limite de pessoas na reserva (01/10/2026)
+
+O número de pessoas de uma reserva não pode passar da capacidade. Regra única em
+`src/lib/capacidade.ts` → `capacidadeMaxima(...limites)`: o **menor** valor cadastrado (nulos/≤ 0
+ignorados; `null` = sem limite) entre:
+
+- **Roteiro:** `roteiro.quantidade_pessoas` (capacidade do roteiro, herdada da embarcação — §27) e
+  `embarcacao.capacidade` da embarcação vinculada; no modelo **Por Pessoa**, também
+  `preco_pessoa_capacidade_maxima` (no compartilhado, o seletor ainda respeita as vagas restantes da data).
+- **Reserva direta da embarcação:** `embarcacao.capacidade`.
+
+Camadas:
+1. **Card de reserva** (`BookingCard` — prop `capacidade`, calculada em `RoteiroDetalheView`;
+   `EmbarcacaoBookingCard` — prop `capacidade`): o `GuestPicker` recebe `max` (botão "+" desabilitado
+   e "Máximo de N pessoas" no seletor); texto "Capacidade máxima: N pessoas." abaixo do campo. Número
+   vindo da busca (`?pessoas=`) acima do limite é **ajustado ao máximo** com o aviso "Este passeio /
+   Esta embarcação comporta até N pessoas — ajustamos o tamanho do grupo." Trocar para o modelo Por
+   Pessoa com máximo menor também ajusta. `handleReserve` revalida.
+2. **Confirmação (`/reservas/novo`):** grupo acima do limite (URL editada) → redireciona para o
+   detalhe com `data`/`pessoas`/`flex`, onde o card ajusta e avisa.
+3. **Servidor (`criarReserva`):** `resolverAlvo` carrega `quantidade_pessoas` + `embarcacao (
+   capacidade )` (roteiro) ou `capacidade` (embarcação) e expõe `capacidadeMaxima`; acima dela →
+   erro "Este passeio comporta no máximo N pessoas." (`mensagemCapacidadeExcedida`).
+
+Validado no navegador (roteiro e embarcação com capacidade 12, chegando com 14 e 20 pessoas).
+
+---
+
 ## 28. Tutorial guiado do painel (`/painel`)
 
 Onboarding em overlay que apresenta o dashboard, o menu lateral e induz o gestor a cadastrar uma
