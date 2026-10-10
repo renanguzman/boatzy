@@ -88,7 +88,8 @@ function mapEmbarcacaoRow(d: EmbarcacaoDetalheRow): EmbarcacaoCardData {
   };
 }
 
-const ROTEIRO_SELECT = `id, nome, descricao, quantidade_pessoas, preco_base, duracao, latitude, longitude,
+const ROTEIRO_SELECT = `id, nome, descricao, quantidade_pessoas, preco_minimo, preco_minimo_modelo,
+   duracao, latitude, longitude,
    municipios ( nome, estados ( uf ) ),
    roteiro_imagens ( url_imagem, principal ),
    embarcacao ( nome, embarcacao_tipo ( nome ) )`;
@@ -304,7 +305,7 @@ export default async function BuscarPage({ searchParams }: { searchParams: Promi
                 href: detalheQuery ? `/roteiros/${d.id}?${detalheQuery}` : `/roteiros/${d.id}`,
                 subtitulo: d.embarcacao?.nome ?? null,
                 localidade: localidadeDe(d.municipios),
-                preco: d.preco_base,
+                preco: d.preco_minimo,
                 imagem:
                   (d.roteiro_imagens.find((i) => i.principal) ?? d.roteiro_imagens[0])?.url_imagem ??
                   null,

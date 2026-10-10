@@ -75,7 +75,7 @@ export function montarPreviewEmbarcacao(args: {
   form: EnderecoForm & {
     nome: string; descricao: string; embarcacao_tipo_id: string; modalidade_capitao: string;
     capacidade: string; comprimento: string; comprimento_unidade: string;
-    quartos: string; suites: string; banheiros: string; tripulacao: string; preco_base: string;
+    quartos: string; banheiros: string; tripulacao: string; preco_base: string;
     estado_id: string; municipio_id: string;
   };
   tipos: Opcao[];
@@ -100,7 +100,6 @@ export function montarPreviewEmbarcacao(args: {
       comprimento: numOuNull(form.comprimento),
       comprimento_unidade: isComprimentoUnidade(form.comprimento_unidade) ? form.comprimento_unidade : 'm',
       quartos: numOuNull(form.quartos),
-      suites: numOuNull(form.suites),
       banheiros: numOuNull(form.banheiros),
       tripulacao: numOuNull(form.tripulacao),
       modalidade_capitao: form.modalidade_capitao,
@@ -112,6 +111,7 @@ export function montarPreviewEmbarcacao(args: {
       embarcacao_comodidades: args.comodidades
         .filter(c => args.comodidadesSelecionadas.includes(c.id))
         .map(c => ({ comodidade: { nome: c.nome } })),
+      embarcacao_equipamentos_seguranca: [],
       embarcacao_imagens: imagensParaPreview(args.imagens),
     },
   };
@@ -133,6 +133,7 @@ export function montarPreviewRoteiro(args: {
     preco_pessoa_ativo: boolean; preco_pessoa_valor: string;
     preco_pessoa_capacidade_minima: string; preco_pessoa_capacidade_maxima: string;
     preco_pessoa_modo_capacidade: PrecoPessoaModoCapacidade;
+    horario_saida: string;
     estado_id: string; municipio_id: string;
   };
   estados: Estado[];
@@ -159,6 +160,9 @@ export function montarPreviewRoteiro(args: {
     duracao: duracaoTexto(duracaoParaHoras(form.duracao_valor, form.duracao_unidade)),
     quantidade_pessoas: inteiro(form.quantidade_pessoas),
     preco_base: numOuNull(form.preco_base),
+    // Na prévia o "a partir de" é o próprio preço digitado: as regras por data
+    // ainda não foram salvas, então não há janela a varrer.
+    preco_minimo_roteiro: numOuNull(form.preco_base),
     preco_diaria_ativo: form.preco_diaria_ativo,
     preco_diaria_valor: form.preco_diaria_ativo ? numOuNull(form.preco_diaria_valor) : null,
     preco_diaria_minimo: Math.max(1, inteiro(form.preco_diaria_minimo) ?? 1),
@@ -168,6 +172,7 @@ export function montarPreviewRoteiro(args: {
     preco_pessoa_capacidade_maxima: form.preco_pessoa_ativo ? inteiro(form.preco_pessoa_capacidade_maxima) : null,
     preco_pessoa_modo_capacidade: form.preco_pessoa_modo_capacidade,
     disponibilidade_dias_semana: args.diasOperacao.length > 0 ? args.diasOperacao : null,
+    horario_saida: textoOuNull(form.horario_saida),
     ...endereco(form),
     municipios: municipioParaPreview(args.estados, args.municipios, form.estado_id, form.municipio_id),
     roteiro_imagens: imagensParaPreview(args.imagens),

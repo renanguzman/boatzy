@@ -556,7 +556,6 @@ export type Database = {
           comprimento: number | null;
           comprimento_unidade: 'm' | 'pes';
           quartos: number | null;
-          suites: number | null;
           banheiros: number | null;
           tripulacao: number | null;
           embarcacao_tipo_id: string | null;
@@ -585,7 +584,6 @@ export type Database = {
           comprimento?: number | null;
           comprimento_unidade?: 'm' | 'pes';
           quartos?: number | null;
-          suites?: number | null;
           banheiros?: number | null;
           tripulacao?: number | null;
           embarcacao_tipo_id?: string | null;
@@ -614,7 +612,6 @@ export type Database = {
           comprimento?: number | null;
           comprimento_unidade?: 'm' | 'pes';
           quartos?: number | null;
-          suites?: number | null;
           banheiros?: number | null;
           tripulacao?: number | null;
           embarcacao_tipo_id?: string | null;
@@ -757,6 +754,18 @@ export type Database = {
         Update: { id?: string; embarcacao_id?: string; comodidade_id?: string };
         Relationships: [];
       };
+      equipamentos_seguranca: {
+        Row: { id: string; nome: string };
+        Insert: { id?: string; nome: string };
+        Update: { id?: string; nome?: string };
+        Relationships: [];
+      };
+      embarcacao_equipamentos_seguranca: {
+        Row: { id: string; embarcacao_id: string; equipamento_seguranca_id: string };
+        Insert: { id?: string; embarcacao_id: string; equipamento_seguranca_id: string };
+        Update: { id?: string; embarcacao_id?: string; equipamento_seguranca_id?: string };
+        Relationships: [];
+      };
       roteiro: {
         Row: {
           id: string;
@@ -787,6 +796,11 @@ export type Database = {
           preco_pessoa_capacidade_maxima: number | null;
           preco_pessoa_modo_capacidade: PrecoPessoaModoCapacidade;
           disponibilidade_dias_semana: number[] | null;
+          horario_saida: string | null;
+          /** Materializados por trigger — ver 20261010d_roteiro_preco_minimo.sql. */
+          preco_minimo: number | null;
+          preco_minimo_modelo: ReservaModalidadePreco | null;
+          preco_minimo_roteiro: number | null;
           ativo: boolean;
           created_at: string;
           updated_at: string;
@@ -820,6 +834,7 @@ export type Database = {
           preco_pessoa_capacidade_maxima?: number | null;
           preco_pessoa_modo_capacidade?: PrecoPessoaModoCapacidade;
           disponibilidade_dias_semana?: number[] | null;
+          horario_saida?: string | null;
           ativo?: boolean;
           created_at?: string;
           updated_at?: string;
@@ -853,6 +868,7 @@ export type Database = {
           preco_pessoa_capacidade_maxima?: number | null;
           preco_pessoa_modo_capacidade?: PrecoPessoaModoCapacidade;
           disponibilidade_dias_semana?: number[] | null;
+          horario_saida?: string | null;
           ativo?: boolean;
           updated_at?: string;
         };
@@ -2303,6 +2319,20 @@ export type Database = {
     Functions: {
       get_taxa_usuario: {
         Args: { p_user_id: string };
+        Returns: number;
+      };
+      /**
+       * Preço do modelo "Roteiro" numa data, resolvendo as regras de
+       * `roteiro_preco_regra` (data_fixa > periodo_anual > dia_semana) com
+       * fallback em `preco_base`. Ver 20260907_roteiro_modelos_cobranca.sql.
+       */
+      get_preco_roteiro: {
+        Args: { p_roteiro_id: string; p_data: string };
+        Returns: number | null;
+      };
+      /** Job diário que reavalia a janela de 365 dias de `roteiro.preco_minimo`. */
+      recalcular_precos_minimos_roteiros: {
+        Args: Record<string, never>;
         Returns: number;
       };
       asaas_webhook_evento_reservar: {

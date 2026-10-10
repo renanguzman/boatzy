@@ -12,6 +12,7 @@ import RoteiroAcoes from './RoteiroAcoes';
 import { useModoPreview } from '@/components/preview/ModoPreview';
 import { FUSO_HORARIO } from '@/lib/datas';
 import { capacidadeMaxima, mensagemCapacidadeExcedida } from '@/lib/capacidade';
+import { getPrecoRoteiroNaData } from '@/lib/precos-roteiro-actions';
 
 type ActivePanel = 'date' | 'guests' | null;
 type Modalidade = 'roteiro' | 'diaria' | 'pessoa';
@@ -22,8 +23,18 @@ type Props = {
   roteiroNome: string;
   /** Dono vendo o próprio roteiro: oculta o CTA de chat (não conversa consigo mesmo). */
   ehDono?: boolean;
-  /** Modelo "Roteiro": preço da diária única (`roteiro.preco_base`). */
+  /**
+   * Modelo "Roteiro": preço da diária única (`roteiro.preco_base`). É o
+   * fallback — ao escolher a data, as regras do gestor podem resolver outro
+   * valor (ver `getPrecoRoteiroNaData`).
+   */
   preco: number | null;
+  /**
+   * Menor preço do modelo Roteiro na janela de 365 dias
+   * (`roteiro.preco_minimo_roteiro`), exibido como "A partir de" enquanto
+   * nenhuma data foi escolhida.
+   */
+  precoMinimoRoteiro?: number | null;
   /** Se o usuário logado já favoritou este roteiro (false quando deslogado). */
   initialFavorito?: boolean;
   /** Dias da semana em que o roteiro opera (0=Dom..6=Sáb). Vazio/null = todos os dias. */
@@ -95,6 +106,7 @@ export default function BookingCard({
   roteiroNome,
   ehDono = false,
   preco,
+  precoMinimoRoteiro = null,
   initialFavorito = false,
   diasOperacao,
   datasBloqueadas,
@@ -199,12 +211,43 @@ export default function BookingCard({
   const maxGuests = capacidadeMaxima(limitePessoas, modalidade === 'pessoa' ? restantesNaData : null);
   const guestsMinPessoa = precoPessoaCapacidadeMinima ?? 1;
 
+  // Preço do modelo Roteiro na data escolhida: as regras do gestor (alta/baixa
+  // temporada, fim de semana, feriado) podem sobrepor `preco_base`, então o
+  // valor vem do servidor — mesma função que `/reservas/novo` usa para cobrar.
+  // Guarda a data junto com o valor: assim o preço de uma data anterior é
+  // descartado por derivação, sem limpar estado dentro do efeito.
+  const [precoBuscado, setPrecoBuscado] = useState<{ iso: string; valor: number | null } | null>(null);
+  useEffect(() => {
+    // Na prévia do painel o roteiro ainda não existe no banco (id 'preview'):
+    // mantém o preço digitado no formulário em vez de consultar a RPC.
+    if (!dateISO || preview.ativo) return;
+    let cancelado = false;
+    getPrecoRoteiroNaData(roteiroId, dateISO).then((valor) => {
+      if (!cancelado) setPrecoBuscado({ iso: dateISO, valor });
+    });
+    return () => {
+      cancelado = true;
+    };
+  }, [roteiroId, dateISO, preview.ativo]);
+  const precoNaData = dateISO && precoBuscado?.iso === dateISO ? precoBuscado.valor : null;
+
   // Preço unitário e multiplicador do modelo escolhido — mesma fórmula do
   // servidor (`/reservas/novo`), só para a prévia exibida aqui.
-  const unitario = modalidade === 'roteiro' ? preco : modalidade === 'diaria' ? precoDiariaValor : precoPessoaValor;
+  const unitario =
+    modalidade === 'roteiro'
+      ? precoNaData ?? preco
+      : modalidade === 'diaria'
+        ? precoDiariaValor
+        : precoPessoaValor;
   const multiplicador = modalidade === 'diaria' ? diarias : modalidade === 'pessoa' ? guests : 1;
   const subtotalModelo = unitario != null ? unitario * multiplicador : null;
   const valorEstimado = subtotalModelo != null ? subtotalModelo + totalAdicionais : null;
+
+  // Só o modelo Roteiro varia por data: sem data escolhida ele anuncia o menor
+  // preço da janela ("a partir de"); Por Diária e Por Pessoa têm valor fixo.
+  const precoVariaPorData = modalidade === 'roteiro';
+  const mostrarAPartirDe = precoVariaPorData && !dateISO;
+  const precoCabecalho = mostrarAPartirDe ? precoMinimoRoteiro ?? preco : unitario;
 
   const checkout = modalidade === 'diaria' && dateISO ? somarDias(dateISO, diarias - 1) : null;
 
@@ -297,11 +340,25 @@ export default function BookingCard({
         )}
 
         {/* Price header */}
-        <div className="flex items-baseline gap-1 mb-5">
-          {unitario ? (
+        <div className="mb-5">
+          {precoCabecalho != null ? (
             <>
-              <span className="text-3xl font-bold text-[#0B2447]">{formatCurrency(unitario)}</span>
-              <span className="text-sm text-slate-500">{MODALIDADE_INFO[modalidade].unidade}</span>
+              {mostrarAPartirDe && (
+                <span className="block text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-0.5">
+                  a partir de
+                </span>
+              )}
+              <div className="flex items-baseline gap-1">
+                <span className="text-3xl font-bold text-[#0B2447]">{formatCurrency(precoCabecalho)}</span>
+                <span className="text-sm text-slate-500">{MODALIDADE_INFO[modalidade].unidade}</span>
+              </div>
+              {precoVariaPorData && (
+                <p className="mt-1 text-xs text-slate-400">
+                  {dateISO
+                    ? 'Preço para a data selecionada.'
+                    : 'O preço varia conforme a data escolhida.'}
+                </p>
+              )}
             </>
           ) : (
             <span className="text-lg font-semibold text-slate-500">Consulte o preço</span>

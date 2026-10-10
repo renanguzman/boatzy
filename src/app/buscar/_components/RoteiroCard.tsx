@@ -6,20 +6,19 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { MapPin, Users, Clock, Ship, Star } from 'lucide-react';
 import { alternarFavorito } from '@/lib/favoritos-actions';
+import {
+  formatarPreco,
+  precoExibicaoRoteiro,
+  type PrecoMinimoRoteiro,
+} from '@/lib/precos-roteiro';
 
 export type AvaliacaoResumoCard = { media: number; total: number };
 
-export type RoteiroCardData = {
+export type RoteiroCardData = PrecoMinimoRoteiro & {
   id: string;
   nome: string;
   descricao: string;
   quantidade_pessoas: number | null;
-  preco_base: number | null;
-  /** Presentes só quando a consulta os inclui — cartões que ainda não buscam esses campos continuam funcionando (fallback "Consulte o preço"). */
-  preco_diaria_ativo?: boolean;
-  preco_diaria_valor?: number | null;
-  preco_pessoa_ativo?: boolean;
-  preco_pessoa_valor?: number | null;
   duracao: string | null;
   municipios: { nome: string; estados: { uf: string } | null } | null;
   roteiro_imagens: { url_imagem: string; principal: boolean }[];
@@ -28,29 +27,6 @@ export type RoteiroCardData = {
 
 function getPrimaryImage(imgs: RoteiroCardData['roteiro_imagens']): string | null {
   return (imgs.find((i) => i.principal) ?? imgs[0])?.url_imagem ?? null;
-}
-
-function formatPrice(value: number): string {
-  return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 }).format(value);
-}
-
-/**
- * Preço de exibição do card: prioriza o modelo Roteiro (preco_base); na
- * ausência dele, cai para o menor valor entre Por Diária/Por Pessoa ativos,
- * marcado como "a partir de" por ser um valor unitário, não o total do dia.
- */
-function precoExibicaoRoteiro(
-  r: Pick<RoteiroCardData, 'preco_base' | 'preco_diaria_ativo' | 'preco_diaria_valor' | 'preco_pessoa_ativo' | 'preco_pessoa_valor'>,
-): { valor: number; unidade: string; aPartirDe: boolean } | null {
-  if (r.preco_base) return { valor: r.preco_base, unidade: '/dia', aPartirDe: false };
-
-  const candidatos: { valor: number; unidade: string }[] = [];
-  if (r.preco_diaria_ativo && r.preco_diaria_valor) candidatos.push({ valor: r.preco_diaria_valor, unidade: '/diária' });
-  if (r.preco_pessoa_ativo && r.preco_pessoa_valor) candidatos.push({ valor: r.preco_pessoa_valor, unidade: '/pessoa' });
-  if (candidatos.length === 0) return null;
-
-  const menor = candidatos.reduce((a, b) => (a.valor <= b.valor ? a : b));
-  return { ...menor, aPartirDe: true };
 }
 
 export default function RoteiroCard({
@@ -187,11 +163,9 @@ export default function RoteiroCard({
         <div className="flex items-end justify-between pt-3 border-t border-slate-50">
           {precoInfo ? (
             <div>
-              {precoInfo.aPartirDe && (
-                <span className="block text-[9px] text-slate-400 uppercase tracking-wide">a partir de</span>
-              )}
+              <span className="block text-[9px] text-slate-400 uppercase tracking-wide">a partir de</span>
               <span className="text-base font-bold text-[#0B3D91]">
-                {formatPrice(precoInfo.valor)}
+                {formatarPreco(precoInfo.valor)}
               </span>
               <span className="text-xs text-slate-400 ml-1">{precoInfo.unidade}</span>
             </div>

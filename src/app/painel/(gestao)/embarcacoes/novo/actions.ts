@@ -21,7 +21,6 @@ export type CriarEmbarcacaoPayload = {
   comprimento: string;
   comprimento_unidade: ComprimentoUnidade;
   quartos: string;
-  suites: string;
   banheiros: string;
   tripulacao: string;
   preco_base: string;
@@ -81,7 +80,6 @@ export async function criarEmbarcacao(
       comprimento: payload.comprimento ? parseFloat(payload.comprimento) : null,
       comprimento_unidade: isComprimentoUnidade(payload.comprimento_unidade) ? payload.comprimento_unidade : 'm',
       quartos: payload.quartos ? parseInt(payload.quartos, 10) : null,
-      suites: payload.suites ? parseInt(payload.suites, 10) : null,
       banheiros: payload.banheiros !== '' ? parseInt(payload.banheiros, 10) : null,
       tripulacao: payload.tripulacao ? parseInt(payload.tripulacao, 10) : null,
       preco_base: payload.preco_base ? parseFloat(payload.preco_base) : null,
@@ -291,6 +289,55 @@ export async function salvarComodidades(
 
   const { error } = await supabaseAdmin
     .from('embarcacao_comodidades')
+    .insert(rows);
+
+  if (error) return { ok: false, error: error.message };
+  return { ok: true };
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Action: buscar todos os equipamentos de segurança disponíveis
+// ─────────────────────────────────────────────────────────────────────────────
+
+export async function getEquipamentosSeguranca(): Promise<{ id: string; nome: string }[]> {
+  const { data } = await supabaseAdmin
+    .from('equipamentos_seguranca')
+    .select('id, nome')
+    .order('nome');
+
+  return data ?? [];
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Action: salvar equipamentos de segurança vinculados a uma embarcação
+// ─────────────────────────────────────────────────────────────────────────────
+
+export async function salvarEquipamentosSeguranca(
+  embarcacaoId: string,
+  equipamentoIds: string[],
+): Promise<{ ok: boolean; error?: string }> {
+  if (equipamentoIds.length === 0) return { ok: true };
+
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { ok: false, error: 'Não autenticado.' };
+
+  const { data: emb } = await supabaseAdmin
+    .from('embarcacao')
+    .select('id')
+    .eq('id', embarcacaoId)
+    .eq('owner_id', user.id)
+    .single();
+
+  if (!emb) return { ok: false, error: 'Embarcação não encontrada ou sem permissão.' };
+
+  const rows = equipamentoIds.map(equipamento_seguranca_id => ({
+    embarcacao_id: embarcacaoId,
+    equipamento_seguranca_id,
+  }));
+
+  const { error } = await supabaseAdmin
+    .from('embarcacao_equipamentos_seguranca')
     .insert(rows);
 
   if (error) return { ok: false, error: error.message };

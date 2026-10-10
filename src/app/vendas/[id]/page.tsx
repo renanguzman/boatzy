@@ -5,7 +5,6 @@ import {
   Users,
   Anchor,
   Ruler,
-  BedDouble,
   DoorOpen,
   Bath,
   LifeBuoy,
@@ -42,7 +41,6 @@ type AnuncioDetalhe = {
     comprimento: number | null;
     comprimento_unidade: string | null;
     quartos: number | null;
-    suites: number | null;
     banheiros: number | null;
     tripulacao: number | null;
     latitude: number | null;
@@ -75,7 +73,7 @@ export default async function VendaDetalhePage({ params }: { params: Promise<{ i
     .select(`
       id, owner_id, fabricante, ano_modelo, ano_fabricacao, preco, descricao_venda,
       embarcacao (
-        id, nome, descricao, capacidade, comprimento, comprimento_unidade, quartos, suites, banheiros,
+        id, nome, descricao, capacidade, comprimento, comprimento_unidade, quartos, banheiros,
         tripulacao, latitude, longitude, bairro, status,
         embarcacao_tipo ( nome ),
         municipios ( nome, estados ( uf, nome ) ),
@@ -232,7 +230,6 @@ export default async function VendaDetalhePage({ params }: { params: Promise<{ i
   const comprimento = formatarComprimento(emb.comprimento, emb.comprimento_unidade);
   if (comprimento) specs.push({ icon: Ruler, label: 'Comprimento', value: comprimento });
   if (emb.quartos) specs.push({ icon: DoorOpen, label: 'Quartos', value: String(emb.quartos) });
-  if (emb.suites) specs.push({ icon: BedDouble, label: 'Suítes', value: String(emb.suites) });
   if (emb.banheiros) specs.push({ icon: Bath, label: 'Banheiros', value: String(emb.banheiros) });
   if (emb.tripulacao) specs.push({ icon: LifeBuoy, label: 'Tripulação', value: String(emb.tripulacao) });
 

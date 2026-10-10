@@ -28,18 +28,20 @@ export default async function RoteiroDetalhePage({
     .from('roteiro')
     .select(`
       id, owner_id, embarcacao_id, nome, descricao, origem, destino, duracao, quantidade_pessoas, preco_base,
+      preco_minimo_roteiro,
       preco_diaria_ativo, preco_diaria_valor, preco_diaria_minimo,
       preco_pessoa_ativo, preco_pessoa_valor, preco_pessoa_capacidade_minima,
       preco_pessoa_capacidade_maxima, preco_pessoa_modo_capacidade,
-      disponibilidade_dias_semana,
+      disponibilidade_dias_semana, horario_saida,
       latitude, longitude, cep, bairro, logradouro, logradouro_numero, complemento,
       municipios ( nome, estados ( uf, nome ) ),
       roteiro_imagens ( id, url_imagem, titulo, principal, ordem ),
       roteiro_disponibilidade_bloqueio ( data ),
       roteiro_parada ( nome ),
-      embarcacao ( nome, capacidade, comprimento, comprimento_unidade, quartos, tripulacao, modalidade_capitao,
+      embarcacao ( nome, capacidade, comprimento, comprimento_unidade, quartos, banheiros, tripulacao, modalidade_capitao,
         embarcacao_tipo ( nome ),
         embarcacao_comodidades ( comodidade ( nome ) ),
+        embarcacao_equipamentos_seguranca ( equipamentos_seguranca ( nome ) ),
         embarcacao_imagens ( id, url_imagem, titulo, principal, ordem )
       ),
       roteiro_catalogo (

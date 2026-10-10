@@ -2,6 +2,7 @@ import type { EtapaDef } from '@/components/painel/etapas/IndicadorEtapas';
 import type { ItemRevisao } from '@/components/painel/etapas/RevisaoChecklist';
 import type { GaleriaItem } from '@/components/painel/GaleriaImagensEditor';
 import type { RoteiroCardData } from '@/app/buscar/_components/RoteiroCard';
+import type { ReservaModalidadePreco } from '@/types/supabase';
 import { duracaoParaHoras, duracaoTexto, type DuracaoUnidade } from '@/lib/duracao';
 
 /**
@@ -73,6 +74,18 @@ export function revisaoRoteiro(args: {
     pessoa != null && `Por pessoa ${brl(pessoa)}`,
   ].filter(Boolean) as string[];
 
+  // Prévia do "A partir de" do card. No banco `preco_minimo` considera também
+  // as regras por data; aqui só os modelos do formulário, que é o que o gestor
+  // acabou de digitar. Mesmo desempate da função SQL: roteiro > diária > pessoa.
+  const candidatosPreco: { valor: number; modelo: ReservaModalidadePreco }[] = [
+    ...(precoBase != null ? [{ valor: precoBase, modelo: 'roteiro' as const }] : []),
+    ...(diaria != null ? [{ valor: diaria, modelo: 'diaria' as const }] : []),
+    ...(pessoa != null ? [{ valor: pessoa, modelo: 'pessoa' as const }] : []),
+  ];
+  const precoMinimo = candidatosPreco.length > 0
+    ? candidatosPreco.reduce((a, b) => (a.valor <= b.valor ? a : b))
+    : null;
+
   const faltaObrigatorio = !form.nome.trim() || !form.descricao.trim();
 
   const itens: ItemRevisao[] = [
@@ -137,11 +150,8 @@ export function revisaoRoteiro(args: {
     nome: form.nome.trim() || 'Nome do roteiro',
     descricao: form.descricao.trim(),
     quantidade_pessoas: form.quantidade_pessoas ? Number(form.quantidade_pessoas) : null,
-    preco_base: precoBase,
-    preco_diaria_ativo: form.preco_diaria_ativo,
-    preco_diaria_valor: diaria,
-    preco_pessoa_ativo: form.preco_pessoa_ativo,
-    preco_pessoa_valor: pessoa,
+    preco_minimo: precoMinimo?.valor ?? null,
+    preco_minimo_modelo: precoMinimo?.modelo ?? null,
     duracao,
     municipios: municipio ? { nome: municipio, estados: uf ? { uf } : null } : null,
     roteiro_imagens: args.imagens.map(i => ({ url_imagem: i.url, principal: i.principal })),

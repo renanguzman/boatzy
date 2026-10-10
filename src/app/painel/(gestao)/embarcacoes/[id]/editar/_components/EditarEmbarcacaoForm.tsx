@@ -5,12 +5,13 @@ import { useRouter } from 'next/navigation';
 import {
   Info, ClipboardCheck, Ruler, DollarSign, MapPin, ImageIcon, Sparkles, CalendarDays,
   Loader2, AlertCircle, CheckCircle,
-  Plus, ChevronDown, ChevronUp, Trash2, HelpCircle,
+  Plus, ChevronDown, ChevronUp, Trash2, HelpCircle, ShieldCheck,
 } from 'lucide-react';
 import GaleriaImagensEditor, { itensDeImagensSalvas, type GaleriaItem } from '@/components/painel/GaleriaImagensEditor';
 import {
   atualizarEmbarcacao,
   atualizarComodidades,
+  atualizarEquipamentosSeguranca,
   excluirImagem,
   excluirRegra,
   atualizarImagens,
@@ -73,6 +74,7 @@ type Tipo      = { id: string; nome: string };
 type Estado    = { id: number; uf: string; nome: string };
 type Municipio = { id: number; nome: string };
 type Comodidade = { id: string; nome: string };
+type EquipamentoSeguranca = { id: string; nome: string };
 
 type ExistingRegra = {
   id: string; tipo: PrecoRegraTipo; nome: string; valor: number; resumo: string;
@@ -95,7 +97,7 @@ type EmbarcacaoData = {
   modalidade_capitao: ModalidadeCapitao | null;
   capacidade: number | null; comprimento: number | null;
   comprimento_unidade: ComprimentoUnidade | null;
-  quartos: number | null; suites: number | null;
+  quartos: number | null;
   banheiros: number | null; tripulacao: number | null;
   preco_base: number | null;
   disponibilidade_dias_semana: number[] | null;
@@ -119,6 +121,8 @@ type Props = {
   municipiosIniciais: Municipio[];
   comodidades: Comodidade[];
   comodidadesIniciais: string[];
+  equipamentosSeguranca: EquipamentoSeguranca[];
+  equipamentosSegurancaIniciais: string[];
   bloqueiosIniciais: string[];
   /** Rota de retorno após salvar/cancelar (o admin reutiliza o form com outra rota). */
   voltarHref?: string;
@@ -204,7 +208,9 @@ const emptyNewRegra = (): Omit<NewRegra, 'localId'> => ({
 
 export default function EditarEmbarcacaoForm({
   embarcacao, tipos, estados, municipiosIniciais,
-  comodidades, comodidadesIniciais, bloqueiosIniciais,
+  comodidades, comodidadesIniciais,
+  equipamentosSeguranca, equipamentosSegurancaIniciais,
+  bloqueiosIniciais,
   voltarHref = '/painel/embarcacoes',
 }: Props) {
   const router = useRouter();
@@ -224,7 +230,6 @@ export default function EditarEmbarcacaoForm({
     comprimento: embarcacao.comprimento != null ? String(embarcacao.comprimento) : '',
     comprimento_unidade: embarcacao.comprimento_unidade ?? 'm',
     quartos:     embarcacao.quartos     != null ? String(embarcacao.quartos)     : '',
-    suites:      embarcacao.suites      != null ? String(embarcacao.suites)      : '',
     banheiros:   embarcacao.banheiros   != null ? String(embarcacao.banheiros)   : '',
     tripulacao:  embarcacao.tripulacao  != null ? String(embarcacao.tripulacao)  : '',
     preco_base:  embarcacao.preco_base  != null ? String(embarcacao.preco_base)  : '',
@@ -244,6 +249,15 @@ export default function EditarEmbarcacaoForm({
   const [loadingMunicipios, setLoadingMunicipios] = useState(false);
   const [cepLoading, setCepLoading]               = useState(false);
   const [cepError,   setCepError]                 = useState<string | null>(null);
+
+  // ── Equipamentos de segurança ──────────────────────────────────────────────
+  const [equipamentosSelecionados, setEquipamentosSelecionados] = useState<string[]>(equipamentosSegurancaIniciais);
+
+  function toggleEquipamento(id: string) {
+    setEquipamentosSelecionados(prev =>
+      prev.includes(id) ? prev.filter(e => e !== id) : [...prev, id],
+    );
+  }
 
   // ── Comodidades ────────────────────────────────────────────────────────────
   const [comodidadesSelecionadas, setComodidadesSelecionadas] = useState<string[]>(comodidadesIniciais);
@@ -455,7 +469,7 @@ export default function EditarEmbarcacaoForm({
       modalidade_capitao: form.modalidade_capitao as ModalidadeCapitao,
       capacidade: form.capacidade, comprimento: form.comprimento,
       comprimento_unidade: form.comprimento_unidade,
-      quartos: form.quartos, suites: form.suites,
+      quartos: form.quartos,
       banheiros: form.banheiros, tripulacao: form.tripulacao,
       preco_base: form.preco_base, municipio_id: form.municipio_id,
       latitude: form.latitude, longitude: form.longitude,
@@ -470,7 +484,10 @@ export default function EditarEmbarcacaoForm({
       return;
     }
 
-    // 2. Atualizar comodidades
+    // 2. Atualizar equipamentos de segurança
+    await atualizarEquipamentosSeguranca(embarcacao.id, equipamentosSelecionados);
+
+    // 3. Atualizar comodidades
     await atualizarComodidades(embarcacao.id, comodidadesSelecionadas);
 
     // Substituir o conjunto de datas bloqueadas
@@ -613,10 +630,6 @@ export default function EditarEmbarcacaoForm({
             <input className={inputCls} type="number" min="0" placeholder="ex: 3"
               value={form.quartos} onChange={e => setField('quartos', e.target.value)} />
           </Field>
-          <Field label="Suítes">
-            <input className={inputCls} type="number" min="0" placeholder="ex: 1"
-              value={form.suites} onChange={e => setField('suites', e.target.value)} />
-          </Field>
           <Field label="Banheiros">
             <input className={inputCls} type="number" min="0" placeholder="ex: 1"
               value={form.banheiros} onChange={e => setField('banheiros', e.target.value)} />
@@ -624,7 +637,40 @@ export default function EditarEmbarcacaoForm({
         </div>
       </SectionCard>
 
-      {/* ── 3. Comodidades ────────────────────────────────────────────────── */}
+      {/* ── 3. Equipamentos de segurança ──────────────────────────────────── */}
+      {equipamentosSeguranca.length > 0 && (
+        <SectionCard icon={ShieldCheck} title="Equipamentos de Segurança">
+          <p className="text-xs text-slate-400 mb-4">
+            Selecione os equipamentos de segurança disponíveis a bordo desta embarcação.
+          </p>
+          <div className="flex flex-wrap gap-2">
+            {equipamentosSeguranca.map(e => {
+              const ativo = equipamentosSelecionados.includes(e.id);
+              return (
+                <button
+                  key={e.id}
+                  type="button"
+                  onClick={() => toggleEquipamento(e.id)}
+                  className={`px-3.5 py-2 rounded-xl text-sm font-semibold border transition-all ${
+                    ativo
+                      ? 'bg-[#0B2447] text-white border-[#0B2447] shadow-sm shadow-[#0B2447]/20'
+                      : 'bg-white text-slate-600 border-slate-200 hover:border-[#0B2447]/40 hover:text-[#0B2447]'
+                  }`}
+                >
+                  {e.nome}
+                </button>
+              );
+            })}
+          </div>
+          {equipamentosSelecionados.length > 0 && (
+            <p className="mt-3 text-xs text-slate-400">
+              {equipamentosSelecionados.length} equipamento{equipamentosSelecionados.length > 1 ? 's' : ''} selecionado{equipamentosSelecionados.length > 1 ? 's' : ''}.
+            </p>
+          )}
+        </SectionCard>
+      )}
+
+      {/* ── 4. Comodidades ────────────────────────────────────────────────── */}
       {comodidades.length > 0 && (
         <SectionCard icon={Sparkles} title="Comodidades">
           <p className="text-xs text-slate-400 mb-4">

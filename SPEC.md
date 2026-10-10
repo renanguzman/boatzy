@@ -1085,6 +1085,57 @@ Seção "Comodidades" no formulário de cadastro de embarcação: chips clicáve
 
 ---
 
+## 17.1 Equipamentos de Segurança de Embarcações
+
+Migration: `supabase/migrations/20261010_equipamentos_seguranca.sql`
+
+### Tabela `equipamentos_seguranca` (catálogo)
+
+```sql
+id    uuid primary key default gen_random_uuid()
+nome  text not null unique
+```
+
+Seeds iniciais: Colete Salva-Vidas, Boia Circular, Sinalizador de Fumaça, Sinalizador Luminoso, Extintor de Incêndio, Âncora e Corrente, Kit de Primeiros Socorros, Bote Salva-Vidas, Rádio VHF, EPIRB (Radiobaliza), Espelho de Sinalização, Apito de Neblina, Lanterna Estanque, Cabo de Reboque, Bomba de Porão, Cinto de Segurança Náutico, Mapa Náutico, Compasso, GPS, Detector de Monóxido de Carbono.
+
+RLS: leitura pública; escrita apenas via service role. GRANTs para `anon`, `authenticated`, `service_role`.
+
+---
+
+### Tabela `embarcacao_equipamentos_seguranca` (ligação N:N)
+
+```sql
+id                        uuid primary key default gen_random_uuid()
+embarcacao_id             uuid not null FK → embarcacao(id) ON DELETE CASCADE
+equipamento_seguranca_id  uuid not null FK → equipamentos_seguranca(id) ON DELETE CASCADE
+UNIQUE (embarcacao_id, equipamento_seguranca_id)
+```
+
+RLS:
+- service role: acesso total.
+- público: SELECT.
+- owner autenticado: INSERT / DELETE sobre equipamentos das suas embarcações.
+
+GRANTs para `anon`, `authenticated`, `service_role`.
+
+---
+
+### Server Actions
+
+- `getEquipamentosSeguranca()` — lista todos os equipamentos ordenados por nome (`novo/actions.ts`).
+- `salvarEquipamentosSeguranca(embarcacaoId, equipamentoIds[])` — insere os vínculos em `embarcacao_equipamentos_seguranca` (`novo/actions.ts`).
+- `atualizarEquipamentosSeguranca(embarcacaoId, equipamentoIds[])` — substitui o conjunto de vínculos (`[id]/editar/actions.ts`).
+
+### UI — Painel
+
+Seção "Equipamentos de Segurança" no Step **Detalhes** do formulário de embarcação (cadastro e edição), posicionada **acima** da seção "Comodidades". Chips clicáveis com toggle. Ícone `ShieldCheck`.
+
+### UI — Hotsite
+
+Seção "Equipamentos de Segurança" na página de detalhe da embarcação (`EmbarcacaoInfoSection`), exibida **antes** de "Comodidades a bordo". Grid 3 colunas com ícone `CheckCircle2` em azul. Exibida somente quando há ao menos um equipamento vinculado.
+
+---
+
 ## 18. Hotsite — Busca e Roteiros
 
 ### 18.1 API de Localização
@@ -4444,12 +4495,11 @@ esgotadas (`vagasRestantes = capacidade_maxima − ocupadas`, só quando compart
 `GuestPicker` a essas vagas. "Solicitar Reserva" acrescenta `modalidade` (+ `diarias` quando
 aplicável) na querystring para `/reservas/novo`.
 
-> **Achado registrado, não corrigido nesta fase:** `roteiro_preco_regra` (dia da semana/período
-> anual/data fixa do modelo Roteiro) é cadastrado no painel mas nunca é lido para resolver o preço
-> exibido/cobrado — tanto aqui quanto em `reservas/novo` sempre se usa `preco_base` puro. A
-> migration desta seção já criou `get_preco_roteiro(roteiro_id, data)` (mesmo padrão de
-> `get_preco_embarcacao`, migration 006) pronta para uso futuro, mas ela ainda não é chamada em
-> nenhum lugar do app.
+> **Achado desta fase, corrigido em §36:** `roteiro_preco_regra` (dia da semana/período anual/data
+> fixa do modelo Roteiro) era cadastrado no painel mas nunca lido para resolver o preço
+> exibido/cobrado — tanto aqui quanto em `reservas/novo` usava-se `preco_base` puro, e
+> `get_preco_roteiro(roteiro_id, data)` (criada nesta seção) ficou órfã. A §36 liga essa função ao
+> detalhe e ao checkout e introduz `roteiro.preco_minimo` para o "A partir de R$ X" dos cards.
 
 ### 33.6 `/reservas/novo` — confirmação e criação
 
@@ -5052,3 +5102,92 @@ em Postgres local: dentro da função, 02:30 UTC de 01/10 é 30/09.
 `BookingCard`, `DisponibilidadePicker`, `AgendamentosCalendar`) trabalham com datas de calendário no
 fuso de quem usa; `src/lib/reservas.ts` faz aritmética de datas ao meio-dia UTC (seguro). Datas
 enviadas ao banco continuam em ISO/UTC (`timestamptz`).
+
+---
+
+## 36. Horário de saída e preço "A partir de" do roteiro (10/10/2026)
+
+### 36.1 `roteiro.horario_saida`
+
+Migration `20261010c_roteiro_horario_saida.sql`: coluna `horario_saida TIME` em `public.roteiro`
+(nullable — passeio sem horário fixo). Cadastrada no step **Informações** do wizard de roteiro
+(`NovoRoteiroForm`/`EditarRoteiroForm`, `<input type="time">` ao lado de "Capacidade máxima") e
+propagada por `CriarRoteiroPayload`/`AtualizarRoteiroPayload` (`horario_saida: string`, gravado com
+`.trim() || null`).
+
+No front, `RoteiroDetalheView` exibe o campo na faixa de specs com ícone `AlarmClock` e rótulo
+"Saída", cortando os segundos que o Postgres devolve (`horario_saida.slice(0, 5)`). O SELECT de
+`/roteiros/[id]` e o tipo `RoteiroDetalheDados` incluem a coluna; `montarPreviewRoteiro` repassa o
+valor digitado para a pré-visualização.
+
+### 36.2 Preço mínimo — `roteiro.preco_minimo`
+
+**Problema.** O preço do modelo Roteiro varia por data (`roteiro_preco_regra`: `data_fixa` >
+`periodo_anual` > `dia_semana` > `preco_base`), e os modelos Por Diária/Por Pessoa podem estar
+ativos em paralelo. Card, detalhe, checkout e busca liam `preco_base` puro, então um roteiro de base
+R$ 1.500 com regra de baixa temporada a R$ 800 anunciava e cobrava R$ 1.500 sempre (achado de §33).
+
+**Solução.** Migration `20261010d_roteiro_preco_minimo.sql` materializa três colunas em `roteiro`:
+
+| Coluna | Conteúdo |
+|---|---|
+| `preco_minimo` | menor preço alcançável nos próximos 365 dias, entre **todos** os modelos ativos |
+| `preco_minimo_modelo` | `'roteiro' \| 'diaria' \| 'pessoa'` — define a unidade exibida (/dia, /diária, /pessoa) |
+| `preco_minimo_roteiro` | menor preço **só** do modelo Roteiro (usado pela aba Roteiro do card de reserva) |
+
+`calcular_preco_minimo_roteiro(roteiro_id, preco_base, diaria_ativo, diaria_valor, pessoa_ativo,
+pessoa_valor)` retorna `(preco, modelo, preco_roteiro)`. Recebe os valores por parâmetro (e não só o
+id) para funcionar no trigger `BEFORE` de `roteiro`, onde a linha nova ainda não está visível.
+
+O cálculo **varre a janela de 365 dias** aplicando a mesma precedência de `get_preco_roteiro`, em vez
+de simplesmente tirar o `MIN` das regras. É isso que garante um valor alcançável de fato: se as
+regras de `dia_semana` cobrem os 7 dias, `preco_base` não entra no mínimo; uma `data_fixa` já vencida
+é ignorada. Empates entre modelos preferem a oferta mais forte (`roteiro` > `diaria` > `pessoa`),
+para não anunciar "/pessoa" quando o mesmo valor compra o barco inteiro. Roda com
+`SET timezone = 'America/Sao_Paulo'` (usa `CURRENT_DATE` — ver §35).
+
+**Manutenção da coluna:**
+
+- `trg_roteiro_preco_minimo` — `BEFORE INSERT OR UPDATE OF preco_base, preco_diaria_ativo,
+  preco_diaria_valor, preco_pessoa_ativo, preco_pessoa_valor`. O `UPDATE OF` é o que evita
+  reentrância quando o trigger das regras grava `preco_minimo`.
+- `trg_roteiro_preco_regra_preco_minimo` — `AFTER INSERT OR UPDATE OR DELETE` em
+  `roteiro_preco_regra`, chama `recalcular_preco_minimo_roteiro(id)`.
+- `recalcular_precos_minimos_roteiros()` + `/api/cron/preco-minimo` (Vercel Cron, `10 3 * * *`,
+  protegido por `CRON_SECRET`): a janela de 365 dias desliza com o calendário, então preços de alta
+  temporada entram e datas fixas vencem. Sem esse job o "A partir de" envelheceria.
+- Índice parcial `roteiro_preco_minimo_idx (preco_minimo) WHERE ativo = true`.
+
+### 36.3 Exibição
+
+`src/lib/precos-roteiro.ts` centraliza a exibição: `precoExibicaoRoteiro({ preco_minimo,
+preco_minimo_modelo })` devolve `{ valor, unidade }` (ou `null` → "Consulte o preço") e
+`formatarPreco` formata em BRL sem centavos. `RoteiroCardData` passou a carregar
+`preco_minimo`/`preco_minimo_modelo` em lugar de `preco_base` + os quatro campos dos modelos, e o
+card **sempre** mostra o rótulo "a partir de". Os SELECTs de `/buscar`, `/favoritos`,
+`/embarcacoes/[id]/roteiros` e `lib/roteiros-top.ts` foram ajustados; `revisaoRoteiro`
+(pré-visualização do painel) calcula o mínimo a partir dos modelos do formulário, com o mesmo
+desempate.
+
+`BookingCard` recebe `precoMinimoRoteiro`. Sem data escolhida, a aba Roteiro mostra "a partir de
+R$ X" + "O preço varia conforme a data escolhida"; ao escolher a data, `getPrecoRoteiroNaData`
+(`src/lib/precos-roteiro-actions.ts` → RPC `get_preco_roteiro`) traz o preço daquele dia e o texto
+vira "Preço para a data selecionada". Por Diária e Por Pessoa têm valor fixo e não exibem "a partir
+de".
+
+### 36.4 Busca e checkout
+
+`20261010e_buscar_roteiros_preco_minimo.sql`: a faixa `p_preco_min`/`p_preco_max` e a ordenação
+`preco_asc`/`preco_desc` da RPC `buscar_roteiros` passaram de `preco_base` para `preco_minimo` — sem
+isso um roteiro anunciado a R$ 800 ficaria fora de um filtro "até R$ 1.000". O marcador do mapa de
+`/buscar` também usa `preco_minimo`. O filtro `p_modelos_preco` continua olhando
+`preco_base IS NOT NULL` / `*_ativo`, que é o que indica o modelo configurado.
+
+No checkout, `resolverAlvo` ganhou `data?: string` e o modelo Roteiro resolve o preço por
+`precoRoteiroNaData(roteiroId, data, preco_base)` — wrapper da RPC `get_preco_roteiro` com fallback
+em `preco_base` (sem data ou em erro da RPC). `/reservas/novo/page.tsx` usa a mesma resolução na
+prévia, e `validarCupom`/`ConfirmarReserva` passaram a enviar `data` para o desconto incidir sobre o
+preço do dia. `reserva.preco_base` continua sendo o snapshot do valor unitário cobrado.
+
+**GRANTs:** `get_preco_roteiro` ganhou `GRANT EXECUTE ... TO anon, authenticated, service_role`
+(nunca havia sido exposta na Data API) + `NOTIFY pgrst, 'reload schema'`.

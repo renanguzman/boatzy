@@ -11,6 +11,7 @@ import { buscarPrevisaoTempo } from '@/lib/weather';
 import { somarDiasISO } from '@/lib/reservas';
 import { capacidadeMaxima } from '@/lib/capacidade';
 import { obterTermoParaAceite } from '@/lib/termos/aceite';
+import { getPrecoRoteiroNaData } from '@/lib/precos-roteiro-actions';
 import ConfirmarReserva from './_components/ConfirmarReserva';
 import PrevisaoTempoCard from './_components/PrevisaoTempoCard';
 import { FUSO_HORARIO } from '@/lib/datas';
@@ -190,7 +191,11 @@ export default async function NovaReservaPage({
       precoUnitario = Number(roteiro.preco_pessoa_valor);
     } else {
       modalidade = 'roteiro';
-      precoUnitario = roteiro.preco_base != null ? Number(roteiro.preco_base) : null;
+      // Mesma resolução por data que `criarReserva` usa para cobrar: as regras
+      // do gestor sobrepõem `preco_base`.
+      precoUnitario = data
+        ? await getPrecoRoteiroNaData(roteiro.id, data)
+        : roteiro.preco_base != null ? Number(roteiro.preco_base) : null;
     }
     limitePessoas = capacidadeMaxima(
       roteiro.quantidade_pessoas,

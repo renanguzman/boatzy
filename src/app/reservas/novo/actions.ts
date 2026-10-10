@@ -75,11 +75,41 @@ type ResolverAlvoInput = {
   modalidade: ReservaModalidadePreco;
   diarias?: number;
   pessoas: number;
+  /**
+   * Data da reserva ('yyyy-mm-dd'). No modelo Roteiro é ela que define o preço:
+   * as regras do gestor (`roteiro_preco_regra`) sobrepõem `preco_base`. Sem
+   * data, o preço resolvido é o `preco_base`.
+   */
+  data?: string;
 };
 
 type ResolverAlvoResult =
   | { ok: true; alvo: AlvoResolvido; adicionais: Adicional[] }
   | { ok: false; error: string };
+
+/**
+ * Preço do modelo Roteiro na data, com as regras do gestor aplicadas. Sem data
+ * (prévia de cupom antes de escolher o dia) ou se a RPC falhar, usa
+ * `preco_base` — o mesmo fallback que a própria função SQL adota.
+ */
+async function precoRoteiroNaData(
+  roteiroId: string,
+  data: string | undefined,
+  precoBase: number | null,
+): Promise<number | null> {
+  const fallback = precoBase != null ? Number(precoBase) : null;
+  if (!data || !ISO_DATE.test(data)) return fallback;
+
+  const { data: valor, error } = await supabaseAdmin.rpc('get_preco_roteiro', {
+    p_roteiro_id: roteiroId,
+    p_data: data,
+  });
+  if (error) {
+    console.error('[get_preco_roteiro]', error.message);
+    return fallback;
+  }
+  return valor != null ? Number(valor) : fallback;
+}
 
 /**
  * Resolve o alvo (roteiro ou embarcação) e seus adicionais no servidor —
@@ -140,12 +170,16 @@ async function resolverAlvo(input: ResolverAlvoInput): Promise<ResolverAlvoResul
     return { ok: false, error: 'Este roteiro não tem o modelo Por Pessoa disponível.' };
   }
 
+  // No modelo Roteiro o preço do dia vem de `get_preco_roteiro`, que aplica as
+  // regras do gestor (data_fixa > periodo_anual > dia_semana) com fallback em
+  // `preco_base` — a mesma função que o card de reserva consulta ao escolher a
+  // data, para o cliente nunca ser cobrado um valor diferente do que viu.
   const precoUnitario =
     input.modalidade === 'diaria'
       ? roteiro.preco_diaria_valor != null ? Number(roteiro.preco_diaria_valor) : null
       : input.modalidade === 'pessoa'
         ? roteiro.preco_pessoa_valor != null ? Number(roteiro.preco_pessoa_valor) : null
-        : roteiro.preco_base != null ? Number(roteiro.preco_base) : null;
+        : await precoRoteiroNaData(roteiro.id, input.data, roteiro.preco_base);
 
   const multiplicador =
     input.modalidade === 'diaria' ? Math.max(1, input.diarias ?? 1)
@@ -314,6 +348,8 @@ export type ValidarCupomInput = {
   modalidade?: ReservaModalidadePreco;
   diarias?: number;
   pessoas: number;
+  /** Data escolhida: no modelo Roteiro define o preço sobre o qual o desconto incide. */
+  data?: string;
 };
 
 export type ValidarCupomResult =

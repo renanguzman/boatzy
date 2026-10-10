@@ -172,6 +172,7 @@ export default function NovoRoteiroForm({ estados, embarcacoes, catalogo: catalo
     estado_id: '', municipio_id: '',
     latitude: '', longitude: '',
     cep: '', bairro: '', logradouro: '', logradouro_numero: '', complemento: '',
+    horario_saida: '',
   });
 
   const [municipios, setMunicipios]               = useState<Municipio[]>([]);
@@ -427,6 +428,7 @@ export default function NovoRoteiroForm({ estados, embarcacoes, catalogo: catalo
       logradouro_numero:  form.logradouro_numero,
       complemento:        form.complemento,
       disponibilidade_dias_semana: diasOperacao,
+      horario_saida:       form.horario_saida,
     });
 
     if (!result.ok) {
@@ -549,7 +551,11 @@ export default function NovoRoteiroForm({ estados, embarcacoes, catalogo: catalo
               value={form.quantidade_pessoas}
               onChange={e => setField('quantidade_pessoas', e.target.value)} />
           </Field>
-          <div />
+          <Field label="Horário de Saída" hint="Horário de partida do passeio (opcional).">
+            <input className={inputCls} type="time"
+              value={form.horario_saida}
+              onChange={e => setField('horario_saida', e.target.value)} />
+          </Field>
 
           <div className="md:col-span-2">
             <label className="block text-sm font-medium text-slate-700 mb-1.5">Itinerário</label>

@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import {
   Info, ClipboardCheck, Ruler, DollarSign, MapPin, ImageIcon, CalendarDays,
   Loader2, AlertCircle, CheckCircle,
-  Plus, ChevronDown, ChevronUp, Trash2, HelpCircle, Sparkles,
+  Plus, ChevronDown, ChevronUp, Trash2, HelpCircle, Sparkles, ShieldCheck,
 } from 'lucide-react';
 import GaleriaImagensEditor, { type GaleriaItem } from '@/components/painel/GaleriaImagensEditor';
 import {
@@ -13,6 +13,7 @@ import {
   criarRegra,
   salvarImagem,
   salvarComodidades,
+  salvarEquipamentosSeguranca,
   salvarBloqueiosEmbarcacao,
   getMunicipiosByEstado,
   type CriarEmbarcacaoPayload,
@@ -83,8 +84,9 @@ type RegraLocal = {
 };
 
 type Comodidade = { id: string; nome: string };
+type EquipamentoSeguranca = { id: string; nome: string };
 
-type Props = { tipos: Tipo[]; estados: Estado[]; comodidades: Comodidade[] };
+type Props = { tipos: Tipo[]; estados: Estado[]; comodidades: Comodidade[]; equipamentosSeguranca: EquipamentoSeguranca[] };
 
 // ─── Helpers de UI ────────────────────────────────────────────────────────────
 
@@ -153,7 +155,7 @@ const emptyRegra = (): Omit<RegraLocal, 'localId'> => ({
 
 // ─── Componente principal ─────────────────────────────────────────────────────
 
-export default function NovaEmbarcacaoForm({ tipos, estados, comodidades }: Props) {
+export default function NovaEmbarcacaoForm({ tipos, estados, comodidades, equipamentosSeguranca }: Props) {
   const router = useRouter();
   const [, startTransition] = useTransition();
   const numeroInputRef = useRef<HTMLInputElement>(null);
@@ -166,7 +168,7 @@ export default function NovaEmbarcacaoForm({ tipos, estados, comodidades }: Prop
     embarcacao_tipo_id: '',
     status: 'ativo',
     modalidade_capitao: 'sem_capitao' as ModalidadeCapitao,
-    capacidade: '', comprimento: '', comprimento_unidade: 'm', quartos: '', suites: '', banheiros: '', tripulacao: '',
+    capacidade: '', comprimento: '', comprimento_unidade: 'm', quartos: '', banheiros: '', tripulacao: '',
     preco_base: '',
     estado_id: '', municipio_id: '',
     latitude: '', longitude: '',
@@ -190,6 +192,15 @@ export default function NovaEmbarcacaoForm({ tipos, estados, comodidades }: Prop
   // ── Disponibilidade ──────────────────────────────────────────────────────
   const [diasOperacao, setDiasOperacao] = useState<number[]>([]);
   const [bloqueios, setBloqueios]       = useState<string[]>([]);
+
+  // ── Equipamentos de segurança ─────────────────────────────────────────────
+  const [equipamentosSelecionados, setEquipamentosSelecionados] = useState<string[]>([]);
+
+  function toggleEquipamento(id: string) {
+    setEquipamentosSelecionados(prev =>
+      prev.includes(id) ? prev.filter(e => e !== id) : [...prev, id],
+    );
+  }
 
   // ── Comodidades ──────────────────────────────────────────────────────────
   const [comodidadesSelecionadas, setComodidadesSelecionadas] = useState<string[]>([]);
@@ -395,7 +406,7 @@ export default function NovaEmbarcacaoForm({ tipos, estados, comodidades }: Prop
       modalidade_capitao: form.modalidade_capitao,
       capacidade: form.capacidade, comprimento: form.comprimento,
       comprimento_unidade: form.comprimento_unidade,
-      quartos: form.quartos, suites: form.suites,
+      quartos: form.quartos,
       banheiros: form.banheiros, tripulacao: form.tripulacao,
       preco_base: form.preco_base, municipio_id: form.municipio_id,
       latitude: form.latitude, longitude: form.longitude,
@@ -435,12 +446,17 @@ export default function NovaEmbarcacaoForm({ tipos, estados, comodidades }: Prop
       });
     }
 
-    // 3. Salvar comodidades
+    // 3. Salvar equipamentos de segurança
+    if (equipamentosSelecionados.length > 0) {
+      await salvarEquipamentosSeguranca(embarcacaoId, equipamentosSelecionados);
+    }
+
+    // 4. Salvar comodidades
     if (comodidadesSelecionadas.length > 0) {
       await salvarComodidades(embarcacaoId, comodidadesSelecionadas);
     }
 
-    // 4. Upload de imagens
+    // 5. Upload de imagens
     //    A posição na lista é a ordem da galeria.
     for (let i = 0; i < imagens.length; i++) {
       const item = imagens[i];
@@ -541,10 +557,6 @@ export default function NovaEmbarcacaoForm({ tipos, estados, comodidades }: Prop
             <input className={inputCls} type="number" min="0" placeholder="ex: 3"
               value={form.quartos} onChange={e => setField('quartos', e.target.value)} />
           </Field>
-          <Field label="Suítes">
-            <input className={inputCls} type="number" min="0" placeholder="ex: 1"
-              value={form.suites} onChange={e => setField('suites', e.target.value)} />
-          </Field>
           <Field label="Banheiros">
             <input className={inputCls} type="number" min="0" placeholder="ex: 1"
               value={form.banheiros} onChange={e => setField('banheiros', e.target.value)} />
@@ -552,7 +564,40 @@ export default function NovaEmbarcacaoForm({ tipos, estados, comodidades }: Prop
         </div>
       </SectionCard>
 
-      {/* ── 3. Comodidades ───────────────────────────────────────────────── */}
+      {/* ── 3. Equipamentos de segurança ─────────────────────────────────── */}
+      {equipamentosSeguranca.length > 0 && (
+        <SectionCard icon={ShieldCheck} title="Equipamentos de Segurança">
+          <p className="text-xs text-slate-400 mb-4">
+            Selecione os equipamentos de segurança disponíveis a bordo desta embarcação.
+          </p>
+          <div className="flex flex-wrap gap-2">
+            {equipamentosSeguranca.map(e => {
+              const ativo = equipamentosSelecionados.includes(e.id);
+              return (
+                <button
+                  key={e.id}
+                  type="button"
+                  onClick={() => toggleEquipamento(e.id)}
+                  className={`px-3.5 py-2 rounded-xl text-sm font-semibold border transition-all ${
+                    ativo
+                      ? 'bg-[#0B2447] text-white border-[#0B2447] shadow-sm shadow-[#0B2447]/20'
+                      : 'bg-white text-slate-600 border-slate-200 hover:border-[#0B2447]/40 hover:text-[#0B2447]'
+                  }`}
+                >
+                  {e.nome}
+                </button>
+              );
+            })}
+          </div>
+          {equipamentosSelecionados.length > 0 && (
+            <p className="mt-3 text-xs text-slate-400">
+              {equipamentosSelecionados.length} equipamento{equipamentosSelecionados.length > 1 ? 's' : ''} selecionado{equipamentosSelecionados.length > 1 ? 's' : ''}.
+            </p>
+          )}
+        </SectionCard>
+      )}
+
+      {/* ── 4. Comodidades ───────────────────────────────────────────────── */}
       {comodidades.length > 0 && (
         <SectionCard icon={Sparkles} title="Comodidades">
           <p className="text-xs text-slate-400 mb-4">

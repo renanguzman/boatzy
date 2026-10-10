@@ -22,11 +22,13 @@ export default async function EditarEmbarcacaoPage({
     { data: estados },
     { data: comodidades },
     { data: comodidadesVinculadas },
+    { data: equipamentosSeguranca },
+    { data: equipamentosVinculados },
     { data: bloqueios },
   ] = await Promise.all([
     supabaseAdmin
       .from('embarcacao')
-      .select('id, nome, descricao, embarcacao_tipo_id, status, modalidade_capitao, capacidade, comprimento, comprimento_unidade, quartos, suites, banheiros, tripulacao, preco_base, disponibilidade_dias_semana, municipio_id, latitude, longitude, cep, bairro, logradouro, logradouro_numero, complemento')
+      .select('id, nome, descricao, embarcacao_tipo_id, status, modalidade_capitao, capacidade, comprimento, comprimento_unidade, quartos, banheiros, tripulacao, preco_base, disponibilidade_dias_semana, municipio_id, latitude, longitude, cep, bairro, logradouro, logradouro_numero, complemento')
       .eq('id', id)
       .eq('owner_id', user.id)
       .single(),
@@ -44,6 +46,8 @@ export default async function EditarEmbarcacaoPage({
     supabaseAdmin.from('estados').select('id, uf, nome').order('nome'),
     supabaseAdmin.from('comodidade').select('id, nome').order('nome'),
     supabaseAdmin.from('embarcacao_comodidades').select('comodidade_id').eq('embarcacao_id', id),
+    supabaseAdmin.from('equipamentos_seguranca').select('id, nome').order('nome'),
+    supabaseAdmin.from('embarcacao_equipamentos_seguranca').select('equipamento_seguranca_id').eq('embarcacao_id', id),
     supabaseAdmin
       .from('embarcacao_disponibilidade_bloqueio')
       .select('data')
@@ -102,6 +106,8 @@ export default async function EditarEmbarcacaoPage({
         municipiosIniciais={municipios}
         comodidades={comodidades ?? []}
         comodidadesIniciais={(comodidadesVinculadas ?? []).map(c => c.comodidade_id)}
+        equipamentosSeguranca={equipamentosSeguranca ?? []}
+        equipamentosSegurancaIniciais={(equipamentosVinculados ?? []).map(e => e.equipamento_seguranca_id)}
         bloqueiosIniciais={(bloqueios ?? []).map(b => b.data)}
       />
     </div>

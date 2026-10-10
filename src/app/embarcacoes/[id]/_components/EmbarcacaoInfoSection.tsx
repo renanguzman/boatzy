@@ -1,4 +1,4 @@
-import { MapPin, Users, Anchor, Ruler, BedDouble, DoorOpen, Bath, LifeBuoy, BadgeCheck, Award, CheckCircle2 } from 'lucide-react';
+import { MapPin, Users, Anchor, Ruler, DoorOpen, Bath, LifeBuoy, BadgeCheck, Award, CheckCircle2, ShieldCheck } from 'lucide-react';
 import { formatarComprimento } from '@/lib/comprimento';
 
 export type EmbarcacaoInfo = {
@@ -8,12 +8,12 @@ export type EmbarcacaoInfo = {
   comprimento: number | null;
   comprimento_unidade: string | null;
   quartos: number | null;
-  suites: number | null;
   banheiros: number | null;
   tripulacao: number | null;
   embarcacao_tipo: { nome: string } | null;
   municipios: { nome: string; estados: { uf: string } | null } | null;
   embarcacao_comodidades: { comodidade: { nome: string } | null }[];
+  embarcacao_equipamentos_seguranca: { equipamentos_seguranca: { nome: string } | null }[];
 };
 
 /**
@@ -30,13 +30,12 @@ export default function EmbarcacaoInfoSection({ embarcacao }: { embarcacao: Emba
     : null;
 
   const specs: { icon: typeof Users; label: string; value: string }[] = [];
-  if (embarcacao.capacidade) specs.push({ icon: Users, label: 'Capacidade', value: `${embarcacao.capacidade} pessoas` });
+  if (embarcacao.capacidade) specs.push({ icon: Users, label: 'Pessoas', value: `${embarcacao.capacidade}` });
+  if (embarcacao.tripulacao) specs.push({ icon: LifeBuoy, label: 'Tripulação', value: String(embarcacao.tripulacao) });
+  if (embarcacao.quartos) specs.push({ icon: DoorOpen, label: 'Quartos', value: String(embarcacao.quartos) });
+  if (embarcacao.banheiros) specs.push({ icon: Bath, label: 'Banheiros', value: String(embarcacao.banheiros) });
   const comprimento = formatarComprimento(embarcacao.comprimento, embarcacao.comprimento_unidade);
   if (comprimento) specs.push({ icon: Ruler, label: 'Comprimento', value: comprimento });
-  if (embarcacao.quartos) specs.push({ icon: DoorOpen, label: 'Quartos', value: String(embarcacao.quartos) });
-  if (embarcacao.suites) specs.push({ icon: BedDouble, label: 'Suítes', value: String(embarcacao.suites) });
-  if (embarcacao.banheiros) specs.push({ icon: Bath, label: 'Banheiros', value: String(embarcacao.banheiros) });
-  if (embarcacao.tripulacao) specs.push({ icon: LifeBuoy, label: 'Tripulação', value: String(embarcacao.tripulacao) });
 
   return (
     <>
@@ -78,7 +77,7 @@ export default function EmbarcacaoInfoSection({ embarcacao }: { embarcacao: Emba
 
       {/* Specs row */}
       {specs.length > 0 && (
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 py-6 border-y border-slate-100 mb-10">
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-4 py-6 border-y border-slate-100 mb-10">
           {specs.map(({ icon: Icon, label, value }) => (
             <div key={label} className="flex items-center gap-3 min-w-0">
               <div className="h-10 w-10 rounded-xl bg-slate-100 flex items-center justify-center shrink-0">
@@ -90,6 +89,29 @@ export default function EmbarcacaoInfoSection({ embarcacao }: { embarcacao: Emba
               </div>
             </div>
           ))}
+        </div>
+      )}
+
+      {/* Equipamentos de segurança */}
+      {embarcacao.embarcacao_equipamentos_seguranca.length > 0 && (
+        <div className="mb-10">
+          <h2 className="text-xl font-bold text-[#0B2447] mb-4 flex items-center gap-2">
+            <ShieldCheck className="h-5 w-5 text-[#0B3D91]" />
+            Equipamentos de Segurança
+          </h2>
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+            {embarcacao.embarcacao_equipamentos_seguranca.map((ee, i) =>
+              ee.equipamentos_seguranca ? (
+                <div
+                  key={i}
+                  className="flex items-center gap-2.5 p-3 rounded-xl border border-slate-100 bg-slate-50/60"
+                >
+                  <CheckCircle2 className="h-4 w-4 text-[#0B3D91] shrink-0" />
+                  <span className="text-sm text-slate-700 leading-tight">{ee.equipamentos_seguranca.nome}</span>
+                </div>
+              ) : null,
+            )}
+          </div>
         </div>
       )}
 

@@ -98,7 +98,7 @@ export default function ConfirmarReserva({
     setValidando(true);
     setErroCupom(null);
     const result = await validarCupom({
-      tipo, roteiroId, embarcacaoId, adicionaisIds, codigo: cupomInput, modalidade, diarias, pessoas,
+      tipo, roteiroId, embarcacaoId, adicionaisIds, codigo: cupomInput, modalidade, diarias, pessoas, data,
     });
     setValidando(false);
     if (result.ok) {

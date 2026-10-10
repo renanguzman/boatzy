@@ -8,6 +8,10 @@
     {
       "path": "/api/cron/pagamentos",
       "schedule": "30 9 * * *"
+    },
+    {
+      "path": "/api/cron/preco-minimo",
+      "schedule": "10 3 * * *"
     }
   ]
 }

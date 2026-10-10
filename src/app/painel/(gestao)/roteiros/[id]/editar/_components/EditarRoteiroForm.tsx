@@ -123,6 +123,7 @@ type RoteiroData = {
   preco_pessoa_capacidade_maxima: number | null;
   preco_pessoa_modo_capacidade: PrecoPessoaModoCapacidade;
   disponibilidade_dias_semana: number[] | null;
+  horario_saida: string | null;
   estado_id: number | null;
   roteiro_imagens: RoteiroImagem[];
   roteiro_preco_regra: RoteiroPrecoRegra[];
@@ -284,6 +285,7 @@ export default function EditarRoteiroForm({ roteiro, estados, municipiosIniciais
     logradouro:         roteiro.logradouro ?? '',
     logradouro_numero:  roteiro.logradouro_numero ?? '',
     complemento:        roteiro.complemento ?? '',
+    horario_saida:      roteiro.horario_saida ?? '',
   });
 
   const [municipios, setMunicipios]               = useState<Municipio[]>(municipiosIniciais);
@@ -554,6 +556,7 @@ export default function EditarRoteiroForm({ roteiro, estados, municipiosIniciais
       logradouro_numero:  form.logradouro_numero,
       complemento:        form.complemento,
       disponibilidade_dias_semana: diasOperacao,
+      horario_saida:       form.horario_saida,
     });
 
     if (!result.ok) {
@@ -686,7 +689,11 @@ export default function EditarRoteiroForm({ roteiro, estados, municipiosIniciais
               value={form.quantidade_pessoas}
               onChange={e => setField('quantidade_pessoas', e.target.value)} />
           </Field>
-          <div />
+          <Field label="Horário de Saída" hint="Horário de partida do passeio (opcional).">
+            <input className={inputCls} type="time"
+              value={form.horario_saida}
+              onChange={e => setField('horario_saida', e.target.value)} />
+          </Field>
 
           <div className="md:col-span-2">
             <label className="block text-sm font-medium text-slate-700 mb-1.5">Itinerário</label>

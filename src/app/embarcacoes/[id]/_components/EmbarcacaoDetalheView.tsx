@@ -15,7 +15,6 @@ export type EmbarcacaoDetalheDados = {
   comprimento: number | null;
   comprimento_unidade: string | null;
   quartos: number | null;
-  suites: number | null;
   banheiros: number | null;
   tripulacao: number | null;
   modalidade_capitao: string;
@@ -31,6 +30,7 @@ export type EmbarcacaoDetalheDados = {
   embarcacao_tipo: { nome: string } | null;
   municipios: { nome: string; estados: { uf: string; nome: string } | null } | null;
   embarcacao_comodidades: { comodidade: { nome: string } | null }[];
+  embarcacao_equipamentos_seguranca: { equipamentos_seguranca: { nome: string } | null }[];
   embarcacao_imagens: { id: string; url_imagem: string; titulo: string | null; principal: boolean; ordem: number }[];
 };
 

@@ -15,8 +15,7 @@ type EmbarcacaoDetalhe = EmbarcacaoInfo & {
   embarcacao_imagens: { id: string; url_imagem: string; titulo: string | null; principal: boolean; ordem: number }[];
 };
 
-const ROTEIRO_SELECT = `id, nome, descricao, quantidade_pessoas, preco_base,
-   preco_diaria_ativo, preco_diaria_valor, preco_pessoa_ativo, preco_pessoa_valor,
+const ROTEIRO_SELECT = `id, nome, descricao, quantidade_pessoas, preco_minimo, preco_minimo_modelo,
    duracao,
    municipios ( nome, estados ( uf ) ),
    roteiro_imagens ( url_imagem, principal ),
@@ -36,10 +35,11 @@ export default async function RoteirosDaEmbarcacaoPage({
   const { data, error } = await supabaseAdmin
     .from('embarcacao')
     .select(`
-      id, nome, descricao, capacidade, comprimento, comprimento_unidade, quartos, suites, banheiros, tripulacao,
+      id, nome, descricao, capacidade, comprimento, comprimento_unidade, quartos, banheiros, tripulacao,
       embarcacao_tipo ( nome ),
       municipios ( nome, estados ( uf ) ),
       embarcacao_comodidades ( comodidade ( nome ) ),
+      embarcacao_equipamentos_seguranca ( equipamentos_seguranca ( nome ) ),
       embarcacao_imagens ( id, url_imagem, titulo, principal, ordem )
     `)
     .eq('id', id)

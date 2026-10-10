@@ -66,6 +66,7 @@ Validar um marketplace de aluguel de embarcações, garantindo:
 - ✅ Menu com Agendamentos e Embarcações
 - ✅ Estrutura do banco de dados para embarcações (migration 002)
 - ✅ Cadastro de embarcação com seleção de comodidades (tabelas `comodidade` e `embarcacao_comodidades`, migration 007)
+- ✅ Cadastro de embarcação com seleção de equipamentos de segurança (tabelas `equipamentos_seguranca` e `embarcacao_equipamentos_seguranca`, migration 20261010); seção no Step Detalhes do painel (acima de Comodidades) e exibição no detalhe público da embarcação
 - Upload de imagens (em desenvolvimento) — limite de **20 MB por arquivo** no cadastro/edição de embarcação e roteiro; arquivos acima do limite são bloqueados com a mensagem "O arquivo não pode ser maior que 20 MB." (validação no client e no servidor; ver SPEC § 13 → Upload de imagens).
 - Definição de preço (em desenvolvimento)
 - ✅ Gerenciamento de reservas de roteiro em `/painel/agendamentos` (Confirmar/Recusar com observação — ver 6.5)
@@ -1382,6 +1383,36 @@ A taxa padrão configurada inicialmente é **10%**. Admins podem alterá-la a qu
   específica do gestor, previsão do tempo e o gráfico mensal do painel (entre 21h e meia-noite elas
   já consideravam o dia seguinte).
 - Detalhes técnicos: SPEC §35.
+
+---
+
+### ✅ Horário de saída do passeio (10/10/2026)
+
+- O gestor informa o **horário de saída** do passeio no step "Informações" do cadastro de roteiro
+  (campo opcional — passeios sem horário fixo continuam funcionando).
+- A informação aparece na página pública do roteiro, na faixa de destaques, ao lado de duração e
+  capacidade.
+- Detalhes técnicos: SPEC §36.1.
+
+---
+
+### ✅ Preço "A partir de" nos roteiros (10/10/2026)
+
+- O card do roteiro passa a anunciar sempre **"A partir de R$ X"**, com o **menor preço que o cliente
+  pode efetivamente pagar** no próximo ano, considerando todas as faixas de preço cadastradas pelo
+  gestor e todos os modelos de cobrança ativos (Roteiro, Por Diária, Por Pessoa). Mesma lógica que o
+  cliente já conhece de plataformas como Airbnb: o card mostra o piso e fica explícito que o valor
+  depende da data.
+- No card de reserva, enquanto o cliente não escolhe a data ele vê "a partir de" + o aviso de que o
+  preço varia; ao escolher a data, o valor exibido passa a ser o **preço daquele dia** e o texto
+  muda para "Preço para a data selecionada".
+- **Correção de comportamento:** as faixas de preço por data (alta/baixa temporada, dia da semana,
+  data específica) eram cadastradas no painel mas **não tinham efeito algum** — site e checkout
+  sempre usavam o preço base. Agora valem na exibição, no checkout e no valor cobrado, então um
+  roteiro com baixa temporada mais barata realmente vende mais barato naquele período.
+- Os filtros de faixa de preço e a ordenação "Menor/Maior preço" da busca passam a usar esse mesmo
+  preço mínimo, para não esconder um roteiro anunciado mais barato do que o preço base.
+- Detalhes técnicos: SPEC §36.2–36.4.
 
 ---
 

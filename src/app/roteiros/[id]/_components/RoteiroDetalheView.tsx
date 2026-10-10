@@ -7,6 +7,8 @@ import {
   BadgeCheck,
   Award,
   CheckCircle2,
+  ShieldCheck,
+  AlarmClock,
 } from 'lucide-react';
 import BookingCard from './BookingCard';
 import EmbarcacaoFotosModal from './EmbarcacaoFotosModal';
@@ -29,6 +31,8 @@ export type RoteiroDetalheDados = {
   duracao: string | null;
   quantidade_pessoas: number | null;
   preco_base: number | null;
+  /** Menor preço só do modelo Roteiro — "a partir de" do card de reserva. */
+  preco_minimo_roteiro: number | null;
   preco_diaria_ativo: boolean;
   preco_diaria_valor: number | null;
   preco_diaria_minimo: number;
@@ -38,6 +42,7 @@ export type RoteiroDetalheDados = {
   preco_pessoa_capacidade_maxima: number | null;
   preco_pessoa_modo_capacidade: PrecoPessoaModoCapacidade;
   disponibilidade_dias_semana: number[] | null;
+  horario_saida: string | null;
   latitude: number | null;
   longitude: number | null;
   cep: string | null;
@@ -53,10 +58,12 @@ export type RoteiroDetalheDados = {
     comprimento: number | null;
     comprimento_unidade: string | null;
     quartos: number | null;
+    banheiros: number | null;
     tripulacao: number | null;
     modalidade_capitao: string;
     embarcacao_tipo: { nome: string } | null;
     embarcacao_comodidades: { comodidade: { nome: string } | null }[];
+    embarcacao_equipamentos_seguranca: { equipamentos_seguranca: { nome: string } | null }[];
     embarcacao_imagens: { id: string; url_imagem: string; titulo: string | null; principal: boolean; ordem: number }[];
   } | null;
   roteiro_catalogo: {
@@ -181,6 +188,19 @@ export default function RoteiroDetalheView({
                     </div>
                   </div>
                 )}
+                {roteiro.horario_saida && (
+                  <div className="flex items-center gap-3 min-w-0">
+                    <div className="h-10 w-10 rounded-xl bg-slate-100 flex items-center justify-center shrink-0">
+                      <AlarmClock className="h-4 w-4 text-[#0B3D91]" />
+                    </div>
+                    <div className="min-w-0">
+                      <p className="text-[10px] text-slate-500 uppercase tracking-wider font-medium">Saída</p>
+                      <p className="text-sm font-semibold text-slate-800 truncate">
+                        {roteiro.horario_saida.slice(0, 5)}
+                      </p>
+                    </div>
+                  </div>
+                )}
                 {roteiro.quantidade_pessoas && (
                   <div className="flex items-center gap-3 min-w-0">
                     <div className="h-10 w-10 rounded-xl bg-slate-100 flex items-center justify-center shrink-0">
@@ -241,23 +261,11 @@ export default function RoteiroDetalheView({
                         {modalidadeLabel[roteiro.embarcacao.modalidade_capitao] ?? roteiro.embarcacao.modalidade_capitao}
                       </span>
                     </div>
-                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                    <div className="grid grid-cols-3 sm:grid-cols-5 gap-3">
                       {roteiro.embarcacao.capacidade && (
                         <div className="text-center p-3 bg-white rounded-xl border border-slate-100">
                           <p className="text-lg font-bold text-[#0B2447]">{roteiro.embarcacao.capacidade}</p>
                           <p className="text-[10px] text-slate-500 uppercase tracking-wider mt-0.5">Pessoas</p>
-                        </div>
-                      )}
-                      {roteiro.embarcacao.comprimento && (
-                        <div className="text-center p-3 bg-white rounded-xl border border-slate-100">
-                          <p className="text-lg font-bold text-[#0B2447]">{formatarComprimento(roteiro.embarcacao.comprimento, roteiro.embarcacao.comprimento_unidade)}</p>
-                          <p className="text-[10px] text-slate-500 uppercase tracking-wider mt-0.5">Comprimento</p>
-                        </div>
-                      )}
-                      {roteiro.embarcacao.quartos && (
-                        <div className="text-center p-3 bg-white rounded-xl border border-slate-100">
-                          <p className="text-lg font-bold text-[#0B2447]">{roteiro.embarcacao.quartos}</p>
-                          <p className="text-[10px] text-slate-500 uppercase tracking-wider mt-0.5">Quartos</p>
                         </div>
                       )}
                       {roteiro.embarcacao.tripulacao && (
@@ -266,7 +274,48 @@ export default function RoteiroDetalheView({
                           <p className="text-[10px] text-slate-500 uppercase tracking-wider mt-0.5">Tripulação</p>
                         </div>
                       )}
+                      {roteiro.embarcacao.quartos && (
+                        <div className="text-center p-3 bg-white rounded-xl border border-slate-100">
+                          <p className="text-lg font-bold text-[#0B2447]">{roteiro.embarcacao.quartos}</p>
+                          <p className="text-[10px] text-slate-500 uppercase tracking-wider mt-0.5">Quartos</p>
+                        </div>
+                      )}
+                      {roteiro.embarcacao.banheiros && (
+                        <div className="text-center p-3 bg-white rounded-xl border border-slate-100">
+                          <p className="text-lg font-bold text-[#0B2447]">{roteiro.embarcacao.banheiros}</p>
+                          <p className="text-[10px] text-slate-500 uppercase tracking-wider mt-0.5">Banheiros</p>
+                        </div>
+                      )}
+                      {roteiro.embarcacao.comprimento && (
+                        <div className="text-center p-3 bg-white rounded-xl border border-slate-100">
+                          <p className="text-lg font-bold text-[#0B2447]">{formatarComprimento(roteiro.embarcacao.comprimento, roteiro.embarcacao.comprimento_unidade)}</p>
+                          <p className="text-[10px] text-slate-500 uppercase tracking-wider mt-0.5">Comprimento</p>
+                        </div>
+                      )}
                     </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Equipamentos de segurança da embarcação */}
+              {roteiro.embarcacao && roteiro.embarcacao.embarcacao_equipamentos_seguranca.length > 0 && (
+                <div className="mb-10">
+                  <h2 className="text-xl font-bold text-[#0B2447] mb-4 flex items-center gap-2">
+                    <ShieldCheck className="h-5 w-5 text-[#0B3D91]" />
+                    Equipamentos de Segurança
+                  </h2>
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                    {roteiro.embarcacao.embarcacao_equipamentos_seguranca.map((ee, i) =>
+                      ee.equipamentos_seguranca ? (
+                        <div
+                          key={i}
+                          className="flex items-center gap-2.5 p-3 rounded-xl border border-slate-100 bg-slate-50/60"
+                        >
+                          <CheckCircle2 className="h-4 w-4 text-[#0B3D91] shrink-0" />
+                          <span className="text-sm text-slate-700 leading-tight">{ee.equipamentos_seguranca.nome}</span>
+                        </div>
+                      ) : null,
+                    )}
                   </div>
                 </div>
               )}
@@ -372,6 +421,7 @@ export default function RoteiroDetalheView({
                 ehDono={ehDono}
                 initialFavorito={isFavorito}
                 preco={roteiro.preco_base}
+                precoMinimoRoteiro={roteiro.preco_minimo_roteiro}
                 diasOperacao={roteiro.disponibilidade_dias_semana}
                 datasBloqueadas={datasBloqueadas}
                 initialData={initialData}
@@ -386,7 +436,12 @@ export default function RoteiroDetalheView({
                 precoPessoaCapacidadeMaxima={roteiro.preco_pessoa_capacidade_maxima}
                 precoPessoaModoCapacidade={roteiro.preco_pessoa_modo_capacidade}
                 vagasPessoaOcupadas={vagasPessoaOcupadas}
-                capacidade={capacidadeMaxima(roteiro.quantidade_pessoas, roteiro.embarcacao?.capacidade)}
+                capacidade={capacidadeMaxima(
+                  roteiro.quantidade_pessoas,
+                  roteiro.embarcacao?.capacidade != null
+                    ? roteiro.embarcacao.capacidade - (roteiro.embarcacao.tripulacao ?? 0)
+                    : undefined,
+                )}
               />
             </div>
           </div>

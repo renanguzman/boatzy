@@ -20,7 +20,6 @@ export type AtualizarEmbarcacaoPayload = {
   comprimento: string;
   comprimento_unidade: ComprimentoUnidade;
   quartos: string;
-  suites: string;
   banheiros: string;
   tripulacao: string;
   preco_base: string;
@@ -86,7 +85,6 @@ export async function atualizarEmbarcacao(
       comprimento: payload.comprimento ? parseFloat(payload.comprimento) : null,
       comprimento_unidade: isComprimentoUnidade(payload.comprimento_unidade) ? payload.comprimento_unidade : 'm',
       quartos: payload.quartos ? parseInt(payload.quartos, 10) : null,
-      suites: payload.suites ? parseInt(payload.suites, 10) : null,
       banheiros: payload.banheiros !== '' ? parseInt(payload.banheiros, 10) : null,
       tripulacao: payload.tripulacao ? parseInt(payload.tripulacao, 10) : null,
       preco_base: payload.preco_base ? parseFloat(payload.preco_base) : null,
@@ -220,6 +218,30 @@ export async function atualizarComodidades(
     const { error } = await supabaseAdmin
       .from('embarcacao_comodidades')
       .insert(comodidadeIds.map(comodidade_id => ({ embarcacao_id: embarcacaoId, comodidade_id })));
+    if (error) return { ok: false, error: error.message };
+  }
+
+  return { ok: true };
+}
+
+// ─── Action: substituir equipamentos de segurança vinculados ─────────────────
+
+export async function atualizarEquipamentosSeguranca(
+  embarcacaoId: string,
+  equipamentoIds: string[],
+): Promise<ActionResult> {
+  const result = await getAuthorizedUser(embarcacaoId);
+  if ('error' in result && result.error) return { ok: false, error: result.error };
+
+  await supabaseAdmin
+    .from('embarcacao_equipamentos_seguranca')
+    .delete()
+    .eq('embarcacao_id', embarcacaoId);
+
+  if (equipamentoIds.length > 0) {
+    const { error } = await supabaseAdmin
+      .from('embarcacao_equipamentos_seguranca')
+      .insert(equipamentoIds.map(equipamento_seguranca_id => ({ embarcacao_id: embarcacaoId, equipamento_seguranca_id })));
     if (error) return { ok: false, error: error.message };
   }
 

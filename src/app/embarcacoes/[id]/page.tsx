@@ -25,12 +25,13 @@ export default async function EmbarcacaoDetalhePage({
   const { data, error } = await supabaseAdmin
     .from('embarcacao')
     .select(`
-      id, owner_id, nome, descricao, capacidade, comprimento, comprimento_unidade, quartos, suites, banheiros,
+      id, owner_id, nome, descricao, capacidade, comprimento, comprimento_unidade, quartos, banheiros,
       tripulacao, modalidade_capitao, preco_base, disponibilidade_dias_semana,
       latitude, longitude, cep, bairro, logradouro, logradouro_numero, complemento,
       embarcacao_tipo ( nome ),
       municipios ( nome, estados ( uf, nome ) ),
       embarcacao_comodidades ( comodidade ( nome ) ),
+      embarcacao_equipamentos_seguranca ( equipamentos_seguranca ( nome ) ),
       embarcacao_imagens ( id, url_imagem, titulo, principal, ordem ),
       embarcacao_disponibilidade_bloqueio ( data )
     `)

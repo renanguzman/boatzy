@@ -40,6 +40,8 @@ export type CriarRoteiroPayload = {
   complemento: string;
   /** Dias da semana em que o roteiro opera (0=Dom..6=Sáb). Vazio = todos os dias. */
   disponibilidade_dias_semana: number[];
+  /** Horário de saída no formato HH:MM (24h). Vazio = não informado. */
+  horario_saida: string;
 };
 
 export type CriarRegraRoteiroPayload = {
@@ -133,6 +135,7 @@ export async function criarRoteiro(
       complemento:        payload.complemento.trim() || null,
       disponibilidade_dias_semana:
         payload.disponibilidade_dias_semana.length > 0 ? payload.disponibilidade_dias_semana : null,
+      horario_saida:      payload.horario_saida.trim() || null,
     })
     .select('id')
     .single();
