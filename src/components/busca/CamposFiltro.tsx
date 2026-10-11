@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { Check, Minus, Plus } from 'lucide-react';
+import { Check, Minus, Plus, Search, X } from 'lucide-react';
 
 /** Bloco de um filtro no painel lateral: título com ícone + conteúdo. */
 export function FiltroSecao({ titulo, icone: Icone, children, acao }: {
@@ -93,6 +93,79 @@ export function ContadorFiltro({ valor, onChange, singular, plural, max = 99 }: 
           <Plus className="h-4 w-4" />
         </button>
       </div>
+    </div>
+  );
+}
+
+function normalizar(s: string): string {
+  return s.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
+}
+
+/**
+ * Lista de seleção múltipla com busca e "ver todas" — comodidades, acessórios,
+ * equipamentos de segurança etc. Acima de `visiveis` itens mostra a caixa de
+ * busca; selecionados sobem para o topo, para ficarem visíveis mesmo com a
+ * lista recolhida.
+ */
+export function FiltroMultiSelect({
+  itens, selecionados, onToggle, visiveis = 8, placeholder = 'Buscar…', vazio = 'Nenhum item encontrado.',
+}: {
+  itens: { id: string; nome: string }[];
+  selecionados: string[];
+  onToggle: (id: string) => void;
+  visiveis?: number;
+  placeholder?: string;
+  vazio?: string;
+}) {
+  const [busca, setBusca] = useState('');
+  const [verTodas, setVerTodas] = useState(false);
+
+  const filtrados = busca.trim()
+    ? itens.filter((i) => normalizar(i.nome).includes(normalizar(busca)))
+    : itens;
+  const ordenados = [...filtrados].sort(
+    (a, b) => Number(selecionados.includes(b.id)) - Number(selecionados.includes(a.id)),
+  );
+  const exibidos = verTodas || busca.trim() ? ordenados : ordenados.slice(0, visiveis);
+
+  return (
+    <div>
+      {itens.length > visiveis && (
+        <label className="relative block mb-2">
+          <span className="sr-only">{placeholder}</span>
+          <Search className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400" />
+          <input
+            type="search"
+            value={busca}
+            onChange={(e) => setBusca(e.target.value)}
+            placeholder={placeholder}
+            className="w-full rounded-xl border border-slate-200 bg-slate-50 pl-8 pr-8 py-2 text-sm text-slate-800
+              placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-[#0B2447]/20 focus:bg-white"
+          />
+          {busca && (
+            <button type="button" onClick={() => setBusca('')} aria-label="Limpar busca"
+              className="absolute right-2 top-1/2 -translate-y-1/2 h-5 w-5 rounded-full hover:bg-slate-200 flex items-center justify-center">
+              <X className="h-3 w-3 text-slate-500" />
+            </button>
+          )}
+        </label>
+      )}
+      <div className="space-y-0.5">
+        {exibidos.map((i) => (
+          <CheckFiltro key={i.id} marcado={selecionados.includes(i.id)} onClick={() => onToggle(i.id)}>
+            {i.nome}
+          </CheckFiltro>
+        ))}
+        {exibidos.length === 0 && (
+          <p className="text-xs text-slate-400 py-1">{vazio}</p>
+        )}
+      </div>
+      {!busca.trim() && itens.length > visiveis && (
+        <button type="button" onClick={() => setVerTodas((v) => !v)}
+          className="mt-2 text-xs font-semibold text-[#0B3D91] hover:text-[#0B2447]">
+          {verTodas ? 'Ver menos' : `Ver todas (${itens.length})`}
+        </button>
+      )}
     </div>
   );
 }

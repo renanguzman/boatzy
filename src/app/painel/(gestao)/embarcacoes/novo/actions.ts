@@ -343,3 +343,52 @@ export async function salvarEquipamentosSeguranca(
   if (error) return { ok: false, error: error.message };
   return { ok: true };
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Action: listar acessórios disponíveis
+// ─────────────────────────────────────────────────────────────────────────────
+
+export async function getAcessorios(): Promise<{ id: string; nome: string }[]> {
+  const { data } = await supabaseAdmin
+    .from('acessorios')
+    .select('id, nome')
+    .order('nome');
+
+  return data ?? [];
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Action: salvar acessórios vinculados a uma embarcação
+// ─────────────────────────────────────────────────────────────────────────────
+
+export async function salvarAcessorios(
+  embarcacaoId: string,
+  acessorioIds: string[],
+): Promise<{ ok: boolean; error?: string }> {
+  if (acessorioIds.length === 0) return { ok: true };
+
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { ok: false, error: 'Não autenticado.' };
+
+  const { data: emb } = await supabaseAdmin
+    .from('embarcacao')
+    .select('id')
+    .eq('id', embarcacaoId)
+    .eq('owner_id', user.id)
+    .single();
+
+  if (!emb) return { ok: false, error: 'Embarcação não encontrada ou sem permissão.' };
+
+  const rows = acessorioIds.map(acessorio_id => ({
+    embarcacao_id: embarcacaoId,
+    acessorio_id,
+  }));
+
+  const { error } = await supabaseAdmin
+    .from('embarcacao_acessorios')
+    .insert(rows);
+
+  if (error) return { ok: false, error: error.message };
+  return { ok: true };
+}

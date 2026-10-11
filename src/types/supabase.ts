@@ -766,6 +766,18 @@ export type Database = {
         Update: { id?: string; embarcacao_id?: string; equipamento_seguranca_id?: string };
         Relationships: [];
       };
+      acessorios: {
+        Row: { id: string; nome: string };
+        Insert: { id?: string; nome: string };
+        Update: { id?: string; nome?: string };
+        Relationships: [];
+      };
+      embarcacao_acessorios: {
+        Row: { id: string; embarcacao_id: string; acessorio_id: string };
+        Insert: { id?: string; embarcacao_id: string; acessorio_id: string };
+        Update: { id?: string; embarcacao_id?: string; acessorio_id?: string };
+        Relationships: [];
+      };
       roteiro: {
         Row: {
           id: string;
@@ -2356,6 +2368,9 @@ export type Database = {
           p_duracao_min?: number | null;
           p_duracao_max?: number | null;
           p_ordenar?: string | null;
+          p_comodidade_ids?: string[] | null;
+          p_acessorio_ids?: string[] | null;
+          p_equipamento_seguranca_ids?: string[] | null;
         };
         Returns: { id: string; distancia_km: number | null; total: number }[];
       };
@@ -2394,6 +2409,10 @@ export type Database = {
           p_duracao_min?: number | null;
           p_duracao_max?: number | null;
           p_ordenar?: string | null;
+          p_modelos_preco?: string[] | null;
+          p_comodidade_ids?: string[] | null;
+          p_acessorio_ids?: string[] | null;
+          p_equipamento_seguranca_ids?: string[] | null;
         };
         Returns: { id: string; distancia_km: number | null; total: number }[];
       };

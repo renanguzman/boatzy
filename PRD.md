@@ -67,6 +67,9 @@ Validar um marketplace de aluguel de embarcações, garantindo:
 - ✅ Estrutura do banco de dados para embarcações (migration 002)
 - ✅ Cadastro de embarcação com seleção de comodidades (tabelas `comodidade` e `embarcacao_comodidades`, migration 007)
 - ✅ Cadastro de embarcação com seleção de equipamentos de segurança (tabelas `equipamentos_seguranca` e `embarcacao_equipamentos_seguranca`, migration 20261010); seção no Step Detalhes do painel (acima de Comodidades) e exibição no detalhe público da embarcação
+- ✅ Cadastro de embarcação com seleção de acessórios (tabelas `acessorios` e `embarcacao_acessorios`, migration 20261011); seção "Acessórios da Embarcação" no Step Detalhes do painel (acima de Comodidades) e exibição no detalhe público da embarcação — ver SPEC §17.2
+- ✅ Tela de administração "Cadastros Auxiliares" (`/administrator/cadastros-auxiliares`): CRUD simples (adicionar, editar, excluir) para os catálogos de Acessórios, Comodidades e Equipamentos de Segurança, em 3 abas — ver SPEC §37.1
+- ✅ Filtro de busca (`/buscar`) por Acessórios e Equipamentos de Segurança, além de Comodidades — agora disponíveis nas duas abas (Embarcações e Roteiros); na aba Roteiros o filtro considera a embarcação vinculada ao roteiro — ver SPEC §37.2
 - Upload de imagens (em desenvolvimento) — limite de **20 MB por arquivo** no cadastro/edição de embarcação e roteiro; arquivos acima do limite são bloqueados com a mensagem "O arquivo não pode ser maior que 20 MB." (validação no client e no servidor; ver SPEC § 13 → Upload de imagens).
 - Definição de preço (em desenvolvimento)
 - ✅ Gerenciamento de reservas de roteiro em `/painel/agendamentos` (Confirmar/Recusar com observação — ver 6.5)

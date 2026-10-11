@@ -1,17 +1,17 @@
 'use client';
 
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { CalendarDays, Clock, MapPin, Receipt, Search, Ship, Sparkles, Users, Wallet, X } from 'lucide-react';
+import { CalendarDays, Clock, MapPin, Receipt, Ship, ShieldCheck, Sparkles, Users, Wallet, Waves } from 'lucide-react';
 import LocationPicker, { type LocationValue } from '@/components/home/search/LocationPicker';
 import DatePicker, { type DateValue } from '@/components/home/search/DatePicker';
 import PainelFiltros from '@/components/busca/PainelFiltros';
 import { useNavegacaoBusca } from '@/components/busca/NavegacaoBusca';
-import { CampoFiltro, CheckFiltro, ChipFiltro, ContadorFiltro, FaixaNumerica, FiltroSecao } from '@/components/busca/CamposFiltro';
+import { CampoFiltro, ChipFiltro, ContadorFiltro, FaixaNumerica, FiltroMultiSelect, FiltroSecao } from '@/components/busca/CamposFiltro';
 import { DURACAO_PRESETS } from '@/lib/duracao';
 import {
   buildBuscarUrl,
   MODELOS_PRECO,
-  parseComodidadeIds,
+  parseIdsCsv,
   parseModelosPreco,
   type BuscaSearchParams,
   type ModeloPreco,
@@ -23,17 +23,12 @@ type Props = {
   /** Aba Embarcações (true) ou Roteiros (false). */
   abaEmbarcacao: boolean;
   tiposEmbarcacao: { id: string; nome: string }[];
-  /** Comodidades — só na aba Embarcações. */
+  /** Catálogos auxiliares da embarcação — filtram as duas abas (na de Roteiros, via a embarcação vinculada). */
   comodidades: { id: string; nome: string }[];
+  acessorios: { id: string; nome: string }[];
+  equipamentosSeguranca: { id: string; nome: string }[];
   totalResultados: number;
 };
-
-/** Comodidades mostradas antes do "Ver todas". */
-const COMODIDADES_VISIVEIS = 8;
-
-function normalizar(s: string): string {
-  return s.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
-}
 
 function isoLocal(d: Date): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
@@ -45,7 +40,9 @@ function isoLocal(d: Date): string {
  * duração, modelo de cobrança e comodidades. Cada alteração vai direto para a
  * URL (a página refaz a busca); faixas numéricas aplicam ao sair do campo.
  */
-export default function FiltrosLaterais({ params, abaEmbarcacao, tiposEmbarcacao, comodidades, totalResultados }: Props) {
+export default function FiltrosLaterais({
+  params, abaEmbarcacao, tiposEmbarcacao, comodidades, acessorios, equipamentosSeguranca, totalResultados,
+}: Props) {
   const { ir } = useNavegacaoBusca();
 
   function aplicar(alteracoes: Partial<Record<keyof BuscaSearchParams, string | null>>) {
@@ -101,34 +98,27 @@ export default function FiltrosLaterais({ params, abaEmbarcacao, tiposEmbarcacao
     timerPessoas.current = setTimeout(() => aplicar({ pessoas: n > 0 ? String(n) : null }), 500);
   }
 
-  // ── Duração / modelo de cobrança / comodidades ─────────────────────────────
+  // ── Duração / modelo de cobrança / catálogos auxiliares ────────────────────
   const durMin = params.duracao_min ? parseFloat(params.duracao_min) : null;
   const durMax = params.duracao_max ? parseFloat(params.duracao_max) : null;
   const modelos = parseModelosPreco(params.modelo_preco);
-  const comodidadesSel = parseComodidadeIds(params.comodidades);
+  const comodidadesSel = parseIdsCsv(params.comodidades);
+  const acessoriosSel = parseIdsCsv(params.acessorios);
+  const equipamentosSel = parseIdsCsv(params.equipamentos_seguranca);
 
   function toggleModelo(m: ModeloPreco) {
     const prox = modelos.includes(m) ? modelos.filter((x) => x !== m) : [...modelos, m];
     aplicar({ modelo_preco: prox.length > 0 ? prox.join(',') : null });
   }
 
-  function toggleComodidade(id: string) {
-    const prox = comodidadesSel.includes(id) ? comodidadesSel.filter((x) => x !== id) : [...comodidadesSel, id];
-    aplicar({ comodidades: prox.length > 0 ? prox.join(',') : null });
+  function toggleIdSelecionado(
+    campo: 'comodidades' | 'acessorios' | 'equipamentos_seguranca',
+    selecionados: string[],
+    id: string,
+  ) {
+    const prox = selecionados.includes(id) ? selecionados.filter((x) => x !== id) : [...selecionados, id];
+    aplicar({ [campo]: prox.length > 0 ? prox.join(',') : null });
   }
-
-  const [buscaComodidade, setBuscaComodidade] = useState('');
-  const [todasComodidades, setTodasComodidades] = useState(false);
-  const comodidadesFiltradas = buscaComodidade.trim()
-    ? comodidades.filter((c) => normalizar(c.nome).includes(normalizar(buscaComodidade)))
-    : comodidades;
-  // Selecionadas primeiro, para ficarem visíveis mesmo com a lista recolhida.
-  const comodidadesOrdenadas = [...comodidadesFiltradas].sort(
-    (a, b) => Number(comodidadesSel.includes(b.id)) - Number(comodidadesSel.includes(a.id)),
-  );
-  const comodidadesExibidas = todasComodidades || buscaComodidade.trim()
-    ? comodidadesOrdenadas
-    : comodidadesOrdenadas.slice(0, COMODIDADES_VISIVEIS);
 
   // ── Contagem + limpar tudo (mantém aba e ordenação) ────────────────────────
   const grupos = [
@@ -140,6 +130,8 @@ export default function FiltrosLaterais({ params, abaEmbarcacao, tiposEmbarcacao
     !!(params.duracao_min || params.duracao_max),
     modelos.length > 0,
     comodidadesSel.length > 0,
+    acessoriosSel.length > 0,
+    equipamentosSel.length > 0,
   ];
   const ativos = grupos.filter(Boolean).length;
   const limparHref = buildBuscarUrl(
@@ -256,45 +248,42 @@ export default function FiltrosLaterais({ params, abaEmbarcacao, tiposEmbarcacao
         </FiltroSecao>
       )}
 
-      {abaEmbarcacao && comodidades.length > 0 && (
+      {comodidades.length > 0 && (
         <FiltroSecao titulo="Comodidades" icone={Sparkles}
           acao={comodidadesSel.length > 0 ? { label: `Limpar (${comodidadesSel.length})`, onClick: () => aplicar({ comodidades: null }) } : null}>
-          {comodidades.length > COMODIDADES_VISIVEIS && (
-            <label className="relative block mb-2">
-              <span className="sr-only">Buscar comodidade</span>
-              <Search className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400" />
-              <input
-                type="search"
-                value={buscaComodidade}
-                onChange={(e) => setBuscaComodidade(e.target.value)}
-                placeholder="Ex.: churrasqueira, som…"
-                className="w-full rounded-xl border border-slate-200 bg-slate-50 pl-8 pr-8 py-2 text-sm text-slate-800
-                  placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-[#0B2447]/20 focus:bg-white"
-              />
-              {buscaComodidade && (
-                <button type="button" onClick={() => setBuscaComodidade('')} aria-label="Limpar busca"
-                  className="absolute right-2 top-1/2 -translate-y-1/2 h-5 w-5 rounded-full hover:bg-slate-200 flex items-center justify-center">
-                  <X className="h-3 w-3 text-slate-500" />
-                </button>
-              )}
-            </label>
-          )}
-          <div className="space-y-0.5">
-            {comodidadesExibidas.map((c) => (
-              <CheckFiltro key={c.id} marcado={comodidadesSel.includes(c.id)} onClick={() => toggleComodidade(c.id)}>
-                {c.nome}
-              </CheckFiltro>
-            ))}
-            {comodidadesExibidas.length === 0 && (
-              <p className="text-xs text-slate-400 py-1">Nenhuma comodidade encontrada.</p>
-            )}
-          </div>
-          {!buscaComodidade.trim() && comodidades.length > COMODIDADES_VISIVEIS && (
-            <button type="button" onClick={() => setTodasComodidades((v) => !v)}
-              className="mt-2 text-xs font-semibold text-[#0B3D91] hover:text-[#0B2447]">
-              {todasComodidades ? 'Ver menos' : `Ver todas (${comodidades.length})`}
-            </button>
-          )}
+          <FiltroMultiSelect
+            itens={comodidades}
+            selecionados={comodidadesSel}
+            onToggle={(id) => toggleIdSelecionado('comodidades', comodidadesSel, id)}
+            placeholder="Ex.: churrasqueira, som…"
+            vazio="Nenhuma comodidade encontrada."
+          />
+        </FiltroSecao>
+      )}
+
+      {acessorios.length > 0 && (
+        <FiltroSecao titulo="Acessórios" icone={Waves}
+          acao={acessoriosSel.length > 0 ? { label: `Limpar (${acessoriosSel.length})`, onClick: () => aplicar({ acessorios: null }) } : null}>
+          <FiltroMultiSelect
+            itens={acessorios}
+            selecionados={acessoriosSel}
+            onToggle={(id) => toggleIdSelecionado('acessorios', acessoriosSel, id)}
+            placeholder="Ex.: caiaque, churrasqueira…"
+            vazio="Nenhum acessório encontrado."
+          />
+        </FiltroSecao>
+      )}
+
+      {equipamentosSeguranca.length > 0 && (
+        <FiltroSecao titulo="Equipamentos de Segurança" icone={ShieldCheck}
+          acao={equipamentosSel.length > 0 ? { label: `Limpar (${equipamentosSel.length})`, onClick: () => aplicar({ equipamentos_seguranca: null }) } : null}>
+          <FiltroMultiSelect
+            itens={equipamentosSeguranca}
+            selecionados={equipamentosSel}
+            onToggle={(id) => toggleIdSelecionado('equipamentos_seguranca', equipamentosSel, id)}
+            placeholder="Ex.: colete, extintor…"
+            vazio="Nenhum equipamento encontrado."
+          />
         </FiltroSecao>
       )}
     </PainelFiltros>

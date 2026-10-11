@@ -4,6 +4,8 @@ import { supabaseAdmin } from '@/lib/supabase';
 import { createClient } from '@/lib/supabase/server';
 import { getTiposEmbarcacaoComRoteiro } from '@/lib/tipos-embarcacao';
 import { getTodasComodidades } from '@/lib/comodidades';
+import { getTodosAcessorios } from '@/lib/acessorios';
+import { getTodosEquipamentosSeguranca } from '@/lib/equipamentos-seguranca';
 import { getAvaliacoesResumoPorRoteiro, getAvaliacoesResumoPorEmbarcacao } from '@/lib/avaliacoes';
 import { getFavoritosEmbarcacaoSet } from '@/lib/embarcacoes-top';
 import RoteiroCard, { type RoteiroCardData } from './_components/RoteiroCard';
@@ -21,7 +23,7 @@ import {
   contarFiltrosAvancados,
   MODELOS_PRECO,
   normalizarOrdenacao,
-  parseComodidadeIds,
+  parseIdsCsv,
   parseModelosPreco,
   parseNumeroPositivo,
   type BuscaSearchParams as SearchParams,
@@ -114,8 +116,12 @@ export default async function BuscarPage({ searchParams }: { searchParams: Promi
   const duracaoMin = parseNumeroPositivo(params.duracao_min);
   const duracaoMax = parseNumeroPositivo(params.duracao_max);
   const ordenar = normalizarOrdenacao(params.ordenar);
-  // Comodidades: só filtra a busca de embarcações (é um atributo da embarcação).
-  const comodidadeIds = parseComodidadeIds(params.comodidades);
+  // Comodidades/Acessórios/Equipamentos de segurança são atributos da
+  // embarcação — filtram tanto a busca de embarcações quanto a de roteiros
+  // (nesta, via a embarcação vinculada ao roteiro).
+  const comodidadeIds = parseIdsCsv(params.comodidades);
+  const acessorioIds = parseIdsCsv(params.acessorios);
+  const equipamentoSegurancaIds = parseIdsCsv(params.equipamentos_seguranca);
   // Modelo de cobrança: só filtra a busca de roteiros (embarcação não tem esses submodelos).
   const modelosPreco = parseModelosPreco(params.modelo_preco);
 
@@ -128,8 +134,12 @@ export default async function BuscarPage({ searchParams }: { searchParams: Promi
 
   // Tipos com roteiro ativo vinculado — alimentam o seletor da aba "Embarcações".
   const tiposEmbarcacao = await getTiposEmbarcacaoComRoteiro();
-  // Comodidades — só usadas (buscadas e exibidas) na aba "Embarcações".
-  const comodidades = modoListaEmbarcacoes ? await getTodasComodidades() : [];
+  // Comodidades/Acessórios/Equipamentos de segurança — usados nas duas abas.
+  const [comodidades, acessorios, equipamentosSeguranca] = await Promise.all([
+    getTodasComodidades(),
+    getTodosAcessorios(),
+    getTodosEquipamentosSeguranca(),
+  ]);
 
   let roteiros: RoteiroCardData[] = [];
   let embarcacoes: EmbarcacaoCardData[] = [];
@@ -158,6 +168,8 @@ export default async function BuscarPage({ searchParams }: { searchParams: Promi
       p_duracao_max: duracaoMax,
       p_ordenar: ordenar,
       p_comodidade_ids: comodidadeIds.length > 0 ? comodidadeIds : null,
+      p_acessorio_ids: acessorioIds.length > 0 ? acessorioIds : null,
+      p_equipamento_seguranca_ids: equipamentoSegurancaIds.length > 0 ? equipamentoSegurancaIds : null,
     });
 
     if (rpcError) {
@@ -207,6 +219,9 @@ export default async function BuscarPage({ searchParams }: { searchParams: Promi
       p_duracao_max: duracaoMax,
       p_ordenar: ordenar,
       p_modelos_preco: modelosPreco.length > 0 ? modelosPreco : null,
+      p_comodidade_ids: comodidadeIds.length > 0 ? comodidadeIds : null,
+      p_acessorio_ids: acessorioIds.length > 0 ? acessorioIds : null,
+      p_equipamento_seguranca_ids: equipamentoSegurancaIds.length > 0 ? equipamentoSegurancaIds : null,
     });
 
     // Não silenciar falhas da RPC: um erro aqui deixa a busca vazia sem motivo
@@ -360,6 +375,18 @@ export default async function BuscarPage({ searchParams }: { searchParams: Promi
       removeKey: 'comodidades',
     });
   }
+  if (acessorioIds.length > 0) {
+    chips.push({
+      label: `Acessórios: ${acessorioIds.length}`,
+      removeKey: 'acessorios',
+    });
+  }
+  if (equipamentoSegurancaIds.length > 0) {
+    chips.push({
+      label: `Equipamentos de segurança: ${equipamentoSegurancaIds.length}`,
+      removeKey: 'equipamentos_seguranca',
+    });
+  }
   if (modelosPreco.length > 0) {
     const rotulos = modelosPreco.map((v) => MODELOS_PRECO.find((m) => m.value === v)?.label ?? v);
     chips.push({
@@ -369,6 +396,8 @@ export default async function BuscarPage({ searchParams }: { searchParams: Promi
   }
 
   const filtrosAvancadosAtivos = contarFiltrosAvancados(params);
+  const catalogoAuxiliarAtivo =
+    comodidadeIds.length > 0 || acessorioIds.length > 0 || equipamentoSegurancaIds.length > 0;
 
   // Saída do estado vazio quando preço/duração é que zeraram o resultado.
   const semFiltrosAvancadosHref = buildBuscarUrl(params, {
@@ -377,6 +406,8 @@ export default async function BuscarPage({ searchParams }: { searchParams: Promi
     duracao_min: null,
     duracao_max: null,
     comodidades: null,
+    acessorios: null,
+    equipamentos_seguranca: null,
     modelo_preco: null,
     pagina: null,
   });
@@ -413,6 +444,8 @@ export default async function BuscarPage({ searchParams }: { searchParams: Promi
               abaEmbarcacao={abaEmbarcacao}
               tiposEmbarcacao={tiposEmbarcacao}
               comodidades={comodidades}
+              acessorios={acessorios}
+              equipamentosSeguranca={equipamentosSeguranca}
               totalResultados={total}
             />
 
@@ -486,12 +519,12 @@ export default async function BuscarPage({ searchParams }: { searchParams: Promi
                           : 'Tente ajustar os filtros ou explorar outros destinos.'}
                       </p>
                       <div className="mt-6 flex items-center gap-3 flex-wrap justify-center">
-                        {(filtrosAvancadosAtivos > 0 || comodidadeIds.length > 0) && (
+                        {(filtrosAvancadosAtivos > 0 || catalogoAuxiliarAtivo) && (
                           <Link
                             href={semFiltrosAvancadosHref}
                             className="px-5 py-2.5 border border-slate-300 text-slate-700 hover:bg-white text-sm font-semibold rounded-xl transition-colors"
                           >
-                            {comodidadeIds.length > 0 ? 'Limpar filtros' : 'Limpar preço e duração'}
+                            {catalogoAuxiliarAtivo ? 'Limpar filtros' : 'Limpar preço e duração'}
                           </Link>
                         )}
                         {tipoNome && (
@@ -546,7 +579,7 @@ export default async function BuscarPage({ searchParams }: { searchParams: Promi
                         : 'Tente ajustar os filtros ou explorar outros destinos.'}
                     </p>
                     <div className="mt-6 flex items-center gap-3 flex-wrap justify-center">
-                      {filtrosAvancadosAtivos > 0 && (
+                      {(filtrosAvancadosAtivos > 0 || catalogoAuxiliarAtivo) && (
                         <Link
                           href={semFiltrosAvancadosHref}
                           className="px-5 py-2.5 border border-slate-300 text-slate-700 hover:bg-white text-sm font-semibold rounded-xl transition-colors"

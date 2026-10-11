@@ -9,6 +9,7 @@ import {
   CheckCircle2,
   ShieldCheck,
   AlarmClock,
+  Waves,
 } from 'lucide-react';
 import BookingCard from './BookingCard';
 import EmbarcacaoFotosModal from './EmbarcacaoFotosModal';
@@ -64,6 +65,7 @@ export type RoteiroDetalheDados = {
     embarcacao_tipo: { nome: string } | null;
     embarcacao_comodidades: { comodidade: { nome: string } | null }[];
     embarcacao_equipamentos_seguranca: { equipamentos_seguranca: { nome: string } | null }[];
+    embarcacao_acessorios: { acessorios: { nome: string } | null }[];
     embarcacao_imagens: { id: string; url_imagem: string; titulo: string | null; principal: boolean; ordem: number }[];
   } | null;
   roteiro_catalogo: {
@@ -313,6 +315,29 @@ export default function RoteiroDetalheView({
                         >
                           <CheckCircle2 className="h-4 w-4 text-[#0B3D91] shrink-0" />
                           <span className="text-sm text-slate-700 leading-tight">{ee.equipamentos_seguranca.nome}</span>
+                        </div>
+                      ) : null,
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* Acessórios da embarcação */}
+              {roteiro.embarcacao && roteiro.embarcacao.embarcacao_acessorios.length > 0 && (
+                <div className="mb-10">
+                  <h2 className="text-xl font-bold text-[#0B2447] mb-4 flex items-center gap-2">
+                    <Waves className="h-5 w-5 text-[#0B3D91]" />
+                    Acessórios da Embarcação
+                  </h2>
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                    {roteiro.embarcacao.embarcacao_acessorios.map((ea, i) =>
+                      ea.acessorios ? (
+                        <div
+                          key={i}
+                          className="flex items-center gap-2.5 p-3 rounded-xl border border-slate-100 bg-slate-50/60"
+                        >
+                          <CheckCircle2 className="h-4 w-4 text-[#0B3D91] shrink-0" />
+                          <span className="text-sm text-slate-700 leading-tight">{ea.acessorios.nome}</span>
                         </div>
                       ) : null,
                     )}

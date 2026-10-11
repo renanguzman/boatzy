@@ -24,6 +24,8 @@ export default async function EditarEmbarcacaoPage({
     { data: comodidadesVinculadas },
     { data: equipamentosSeguranca },
     { data: equipamentosVinculados },
+    { data: acessorios },
+    { data: acessoriosVinculados },
     { data: bloqueios },
   ] = await Promise.all([
     supabaseAdmin
@@ -48,6 +50,8 @@ export default async function EditarEmbarcacaoPage({
     supabaseAdmin.from('embarcacao_comodidades').select('comodidade_id').eq('embarcacao_id', id),
     supabaseAdmin.from('equipamentos_seguranca').select('id, nome').order('nome'),
     supabaseAdmin.from('embarcacao_equipamentos_seguranca').select('equipamento_seguranca_id').eq('embarcacao_id', id),
+    supabaseAdmin.from('acessorios').select('id, nome').order('nome'),
+    supabaseAdmin.from('embarcacao_acessorios').select('acessorio_id').eq('embarcacao_id', id),
     supabaseAdmin
       .from('embarcacao_disponibilidade_bloqueio')
       .select('data')
@@ -108,6 +112,8 @@ export default async function EditarEmbarcacaoPage({
         comodidadesIniciais={(comodidadesVinculadas ?? []).map(c => c.comodidade_id)}
         equipamentosSeguranca={equipamentosSeguranca ?? []}
         equipamentosSegurancaIniciais={(equipamentosVinculados ?? []).map(e => e.equipamento_seguranca_id)}
+        acessorios={acessorios ?? []}
+        acessoriosIniciais={(acessoriosVinculados ?? []).map(a => a.acessorio_id)}
         bloqueiosIniciais={(bloqueios ?? []).map(b => b.data)}
       />
     </div>

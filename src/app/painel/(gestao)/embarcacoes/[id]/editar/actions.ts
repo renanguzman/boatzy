@@ -248,6 +248,30 @@ export async function atualizarEquipamentosSeguranca(
   return { ok: true };
 }
 
+// ─── Action: atualizar acessórios vinculados ─────────────────────────────────
+
+export async function atualizarAcessorios(
+  embarcacaoId: string,
+  acessorioIds: string[],
+): Promise<ActionResult> {
+  const result = await getAuthorizedUser(embarcacaoId);
+  if ('error' in result && result.error) return { ok: false, error: result.error };
+
+  await supabaseAdmin
+    .from('embarcacao_acessorios')
+    .delete()
+    .eq('embarcacao_id', embarcacaoId);
+
+  if (acessorioIds.length > 0) {
+    const { error } = await supabaseAdmin
+      .from('embarcacao_acessorios')
+      .insert(acessorioIds.map(acessorio_id => ({ embarcacao_id: embarcacaoId, acessorio_id })));
+    if (error) return { ok: false, error: error.message };
+  }
+
+  return { ok: true };
+}
+
 // ─── Action: excluir regra de preço ──────────────────────────────────────────
 
 export async function excluirRegra(

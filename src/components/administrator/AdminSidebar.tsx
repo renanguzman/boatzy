@@ -18,6 +18,7 @@ import {
   Wallet,
   Receipt,
   LogOut,
+  LayoutList,
 } from 'lucide-react';
 import clsx from 'clsx';
 
@@ -32,6 +33,7 @@ const navItems = [
   { href: '/administrator/pedidos', label: 'PEDIDOS', icon: Receipt, exact: false },
   { href: '/administrator/financeiro', label: 'FINANCEIRO', icon: Wallet, exact: false },
   { href: '/administrator/tipos', label: 'TIPOS', icon: Tags, exact: false },
+  { href: '/administrator/cadastros-auxiliares', label: 'CADASTROS AUXILIARES', icon: LayoutList, exact: false },
   { href: '/administrator/termos', label: 'TERMOS DE USO', icon: FileText, exact: false },
   { href: '/administrator/configuracoes', label: 'CONFIGURAÇÕES', icon: Settings, exact: false },
 ];

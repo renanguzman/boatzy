@@ -31,6 +31,7 @@ export async function buscarEmbarcacaoParaPreview(
       embarcacao_tipo ( nome ),
       embarcacao_comodidades ( comodidade ( nome ) ),
       embarcacao_equipamentos_seguranca ( equipamentos_seguranca ( nome ) ),
+      embarcacao_acessorios ( acessorios ( nome ) ),
       embarcacao_imagens ( id, url_imagem, titulo, principal, ordem )
     `)
     .eq('id', embarcacaoId);

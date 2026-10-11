@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import {
   Info, ClipboardCheck, Ruler, DollarSign, MapPin, ImageIcon, CalendarDays,
   Loader2, AlertCircle, CheckCircle,
-  Plus, ChevronDown, ChevronUp, Trash2, HelpCircle, Sparkles, ShieldCheck,
+  Plus, ChevronDown, ChevronUp, Trash2, HelpCircle, Sparkles, ShieldCheck, Waves,
 } from 'lucide-react';
 import GaleriaImagensEditor, { type GaleriaItem } from '@/components/painel/GaleriaImagensEditor';
 import {
@@ -14,6 +14,7 @@ import {
   salvarImagem,
   salvarComodidades,
   salvarEquipamentosSeguranca,
+  salvarAcessorios,
   salvarBloqueiosEmbarcacao,
   getMunicipiosByEstado,
   type CriarEmbarcacaoPayload,
@@ -85,8 +86,15 @@ type RegraLocal = {
 
 type Comodidade = { id: string; nome: string };
 type EquipamentoSeguranca = { id: string; nome: string };
+type Acessorio = { id: string; nome: string };
 
-type Props = { tipos: Tipo[]; estados: Estado[]; comodidades: Comodidade[]; equipamentosSeguranca: EquipamentoSeguranca[] };
+type Props = {
+  tipos: Tipo[];
+  estados: Estado[];
+  comodidades: Comodidade[];
+  equipamentosSeguranca: EquipamentoSeguranca[];
+  acessorios: Acessorio[];
+};
 
 // ─── Helpers de UI ────────────────────────────────────────────────────────────
 
@@ -155,7 +163,7 @@ const emptyRegra = (): Omit<RegraLocal, 'localId'> => ({
 
 // ─── Componente principal ─────────────────────────────────────────────────────
 
-export default function NovaEmbarcacaoForm({ tipos, estados, comodidades, equipamentosSeguranca }: Props) {
+export default function NovaEmbarcacaoForm({ tipos, estados, comodidades, equipamentosSeguranca, acessorios }: Props) {
   const router = useRouter();
   const [, startTransition] = useTransition();
   const numeroInputRef = useRef<HTMLInputElement>(null);
@@ -202,6 +210,15 @@ export default function NovaEmbarcacaoForm({ tipos, estados, comodidades, equipa
     );
   }
 
+  // ── Acessórios ───────────────────────────────────────────────────────────
+  const [acessoriosSelecionados, setAcessoriosSelecionados] = useState<string[]>([]);
+
+  function toggleAcessorio(id: string) {
+    setAcessoriosSelecionados(prev =>
+      prev.includes(id) ? prev.filter(a => a !== id) : [...prev, id],
+    );
+  }
+
   // ── Comodidades ──────────────────────────────────────────────────────────
   const [comodidadesSelecionadas, setComodidadesSelecionadas] = useState<string[]>([]);
 
@@ -236,6 +253,8 @@ export default function NovaEmbarcacaoForm({ tipos, estados, comodidades, equipa
   const previewDados = previewAberto
     ? montarPreviewEmbarcacao({
         form, tipos, estados, municipios, comodidades, comodidadesSelecionadas,
+        equipamentosSeguranca, equipamentosSegurancaSelecionados: equipamentosSelecionados,
+        acessorios, acessoriosSelecionados,
         imagens, diasOperacao, bloqueios,
       })
     : null;
@@ -451,7 +470,12 @@ export default function NovaEmbarcacaoForm({ tipos, estados, comodidades, equipa
       await salvarEquipamentosSeguranca(embarcacaoId, equipamentosSelecionados);
     }
 
-    // 4. Salvar comodidades
+    // 4. Salvar acessórios
+    if (acessoriosSelecionados.length > 0) {
+      await salvarAcessorios(embarcacaoId, acessoriosSelecionados);
+    }
+
+    // 5. Salvar comodidades
     if (comodidadesSelecionadas.length > 0) {
       await salvarComodidades(embarcacaoId, comodidadesSelecionadas);
     }
@@ -597,7 +621,40 @@ export default function NovaEmbarcacaoForm({ tipos, estados, comodidades, equipa
         </SectionCard>
       )}
 
-      {/* ── 4. Comodidades ───────────────────────────────────────────────── */}
+      {/* ── 4. Acessórios ────────────────────────────────────────────────── */}
+      {acessorios.length > 0 && (
+        <SectionCard icon={Waves} title="Acessórios da Embarcação">
+          <p className="text-xs text-slate-400 mb-4">
+            Selecione os acessórios disponíveis a bordo desta embarcação.
+          </p>
+          <div className="flex flex-wrap gap-2">
+            {acessorios.map(a => {
+              const ativo = acessoriosSelecionados.includes(a.id);
+              return (
+                <button
+                  key={a.id}
+                  type="button"
+                  onClick={() => toggleAcessorio(a.id)}
+                  className={`px-3.5 py-2 rounded-xl text-sm font-semibold border transition-all ${
+                    ativo
+                      ? 'bg-[#0B2447] text-white border-[#0B2447] shadow-sm shadow-[#0B2447]/20'
+                      : 'bg-white text-slate-600 border-slate-200 hover:border-[#0B2447]/40 hover:text-[#0B2447]'
+                  }`}
+                >
+                  {a.nome}
+                </button>
+              );
+            })}
+          </div>
+          {acessoriosSelecionados.length > 0 && (
+            <p className="mt-3 text-xs text-slate-400">
+              {acessoriosSelecionados.length} acessório{acessoriosSelecionados.length > 1 ? 's' : ''} selecionado{acessoriosSelecionados.length > 1 ? 's' : ''}.
+            </p>
+          )}
+        </SectionCard>
+      )}
+
+      {/* ── 5. Comodidades ───────────────────────────────────────────────── */}
       {comodidades.length > 0 && (
         <SectionCard icon={Sparkles} title="Comodidades">
           <p className="text-xs text-slate-400 mb-4">

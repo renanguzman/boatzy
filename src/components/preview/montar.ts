@@ -83,6 +83,10 @@ export function montarPreviewEmbarcacao(args: {
   municipios: Municipio[];
   comodidades: Opcao[];
   comodidadesSelecionadas: string[];
+  equipamentosSeguranca: Opcao[];
+  equipamentosSegurancaSelecionados: string[];
+  acessorios: Opcao[];
+  acessoriosSelecionados: string[];
   imagens: GaleriaItem[];
   diasOperacao: number[];
   bloqueios: string[];
@@ -111,7 +115,12 @@ export function montarPreviewEmbarcacao(args: {
       embarcacao_comodidades: args.comodidades
         .filter(c => args.comodidadesSelecionadas.includes(c.id))
         .map(c => ({ comodidade: { nome: c.nome } })),
-      embarcacao_equipamentos_seguranca: [],
+      embarcacao_equipamentos_seguranca: args.equipamentosSeguranca
+        .filter(e => args.equipamentosSegurancaSelecionados.includes(e.id))
+        .map(e => ({ equipamentos_seguranca: { nome: e.nome } })),
+      embarcacao_acessorios: args.acessorios
+        .filter(a => args.acessoriosSelecionados.includes(a.id))
+        .map(a => ({ acessorios: { nome: a.nome } })),
       embarcacao_imagens: imagensParaPreview(args.imagens),
     },
   };

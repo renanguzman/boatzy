@@ -31,6 +31,7 @@ export type EmbarcacaoDetalheDados = {
   municipios: { nome: string; estados: { uf: string; nome: string } | null } | null;
   embarcacao_comodidades: { comodidade: { nome: string } | null }[];
   embarcacao_equipamentos_seguranca: { equipamentos_seguranca: { nome: string } | null }[];
+  embarcacao_acessorios: { acessorios: { nome: string } | null }[];
   embarcacao_imagens: { id: string; url_imagem: string; titulo: string | null; principal: boolean; ordem: number }[];
 };
 

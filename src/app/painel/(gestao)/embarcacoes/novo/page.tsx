@@ -8,11 +8,18 @@ export default async function NovaEmbarcacaoPage() {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect('/painel/login');
 
-  const [{ data: tipos }, { data: estados }, { data: comodidades }, { data: equipamentosSeguranca }] = await Promise.all([
+  const [
+    { data: tipos },
+    { data: estados },
+    { data: comodidades },
+    { data: equipamentosSeguranca },
+    { data: acessorios },
+  ] = await Promise.all([
     supabaseAdmin.from('embarcacao_tipo').select('id, nome').order('nome'),
     supabaseAdmin.from('estados').select('id, uf, nome').order('nome'),
     supabaseAdmin.from('comodidade').select('id, nome').order('nome'),
     supabaseAdmin.from('equipamentos_seguranca').select('id, nome').order('nome'),
+    supabaseAdmin.from('acessorios').select('id, nome').order('nome'),
   ]);
 
   return (
@@ -29,6 +36,7 @@ export default async function NovaEmbarcacaoPage() {
         estados={estados ?? []}
         comodidades={comodidades ?? []}
         equipamentosSeguranca={equipamentosSeguranca ?? []}
+        acessorios={acessorios ?? []}
       />
     </div>
   );

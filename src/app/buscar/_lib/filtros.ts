@@ -26,8 +26,12 @@ export type BuscaSearchParams = {
   /** Faixa de duração do passeio, em horas (1 dia = 24h). */
   duracao_min?: string;
   duracao_max?: string;
-  /** Comodidades desejadas (ids separados por vírgula) — só na aba Embarcações. */
+  /** Comodidades desejadas (ids separados por vírgula) — embarcação e roteiro (via embarcação vinculada). */
   comodidades?: string;
+  /** Acessórios desejados (ids separados por vírgula) — embarcação e roteiro (via embarcação vinculada). */
+  acessorios?: string;
+  /** Equipamentos de segurança desejados (ids separados por vírgula) — embarcação e roteiro (via embarcação vinculada). */
+  equipamentos_seguranca?: string;
   /** Modelos de cobrança desejados ('roteiro'|'diaria'|'pessoa', separados por vírgula) — só na aba Roteiros. */
   modelo_preco?: string;
   /** Critério de ordenação — ver ORDENACOES. */
@@ -95,8 +99,8 @@ export function contarFiltrosAvancados(params: BuscaSearchParams): number {
   return n;
 }
 
-/** Ids de comodidade selecionados na URL (`?comodidades=id1,id2`), sem vazios. */
-export function parseComodidadeIds(valor: string | undefined): string[] {
+/** Ids separados por vírgula de um parâmetro multi-valor da URL, sem vazios. */
+export function parseIdsCsv(valor: string | undefined): string[] {
   if (!valor) return [];
   return valor.split(',').map((v) => v.trim()).filter(Boolean);
 }

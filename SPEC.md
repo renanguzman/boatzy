@@ -1136,6 +1136,82 @@ Seção "Equipamentos de Segurança" na página de detalhe da embarcação (`Emb
 
 ---
 
+## 17.2 Acessórios de Embarcações
+
+Migration: `supabase/migrations/20261011_acessorios.sql`. Mesma arquitetura de §17.1 (catálogo +
+tabela de ligação N:N), aplicada a acessórios de lazer e uso a bordo.
+
+### Tabela `acessorios` (catálogo)
+
+```sql
+id    uuid primary key default gen_random_uuid()
+nome  text not null unique
+```
+
+Seeds iniciais: Prancha de Stand Up Paddle, Caiaque, Prancha de Surf, Boia Rebocável, Banana Boat,
+Wakeboard, Esqui Aquático, Kit de Snorkel, Equipamento de Mergulho, Vara de Pesca, Churrasqueira,
+Cooler / Caixa Térmica, Caixa de Som Bluetooth, Toalhas, Escada de Mergulho, Plataforma de Banho,
+Tenda de Sol / Toldo, Rede de Descanso, Carregador USB, Iluminação Subaquática.
+
+RLS: leitura pública; escrita apenas via service role. GRANTs para `anon`, `authenticated`,
+`service_role`.
+
+---
+
+### Tabela `embarcacao_acessorios` (ligação N:N)
+
+```sql
+id             uuid primary key default gen_random_uuid()
+embarcacao_id  uuid not null FK → embarcacao(id) ON DELETE CASCADE
+acessorio_id   uuid not null FK → acessorios(id) ON DELETE CASCADE
+UNIQUE (embarcacao_id, acessorio_id)
+```
+
+Índice `ea_embarcacao_idx (embarcacao_id)`.
+
+RLS:
+- service role: acesso total.
+- público: SELECT.
+- owner autenticado: INSERT / DELETE sobre acessórios das suas embarcações.
+
+GRANTs para `anon`, `authenticated`, `service_role`.
+
+---
+
+### Server Actions
+
+- `getAcessorios()` — lista todos os acessórios ordenados por nome (`novo/actions.ts`).
+- `salvarAcessorios(embarcacaoId, acessorioIds[])` — insere os vínculos em `embarcacao_acessorios`
+  (`novo/actions.ts`).
+- `atualizarAcessorios(embarcacaoId, acessorioIds[])` — substitui o conjunto de vínculos
+  (`[id]/editar/actions.ts`).
+
+Helper de leitura: `getTodosAcessorios()` em `src/lib/acessorios.ts` (`server-only`).
+
+### UI — Painel
+
+Seção "Acessórios da Embarcação" no Step **Detalhes** do formulário de embarcação (cadastro, edição
+do gestor e edição do admin), posicionada **acima** da seção "Comodidades" e abaixo de "Equipamentos
+de Segurança". Chips clicáveis com toggle. Ícone `Waves` (`LifeBuoy` já identifica Tripulação nos
+specs).
+
+### UI — Hotsite
+
+Seção "Acessórios da Embarcação" em `EmbarcacaoInfoSection`, entre "Equipamentos de Segurança" e
+"Comodidades a bordo". Grid 3 colunas com `CheckCircle2` em azul, exibida só quando há vínculo.
+
+Mesma seção no bloco "Sobre a Embarcação" de `RoteiroDetalheView`, na mesma posição relativa. O embed
+`embarcacao_acessorios ( acessorios ( nome ) )` foi adicionado a `/embarcacoes/[id]`,
+`/embarcacoes/[id]/roteiros`, `/roteiros/[id]` e `buscarEmbarcacaoParaPreview`
+(`src/lib/preview-actions.ts`).
+
+**Pré-visualização:** `montarPreviewEmbarcacao` passou a receber
+`equipamentosSeguranca`/`equipamentosSegurancaSelecionados` e `acessorios`/`acessoriosSelecionados`,
+mapeando os itens marcados no formulário. Antes `embarcacao_equipamentos_seguranca` ia fixo como `[]`
+— a prévia não mostrava o que o gestor acabara de marcar; corrigido junto com esta entrega.
+
+---
+
 ## 18. Hotsite — Busca e Roteiros
 
 ### 18.1 API de Localização
@@ -5191,3 +5267,86 @@ preço do dia. `reserva.preco_base` continua sendo o snapshot do valor unitário
 
 **GRANTs:** `get_preco_roteiro` ganhou `GRANT EXECUTE ... TO anon, authenticated, service_role`
 (nunca havia sido exposta na Data API) + `NOTIFY pgrst, 'reload schema'`.
+
+---
+
+## 37. Cadastros Auxiliares (admin) + filtro de busca por catálogo auxiliar (11/10/2026)
+
+### 37.1 Painel admin — `/administrator/cadastros-auxiliares`
+
+Tela de CRUD simples (id + nome) para os 3 catálogos auxiliares da embarcação — até aqui só
+seedados por migration, sem interface de gestão: `acessorios` (§17.2), `comodidade` (§17) e
+`equipamentos_seguranca` (§17.1). Item "CADASTROS AUXILIARES" adicionado ao `AdminSidebar`
+(ícone `LayoutList`), entre "TIPOS" e "TERMOS DE USO". A rota herda o gate de admin do
+`layout.tsx` de `/administrator/(admin)` — a própria página não precisa checar auth.
+
+**UI:** `page.tsx` (server component) busca as 3 listas em paralelo e repassa para
+`CadastrosAuxiliaresTabs` (client), que alterna entre 3 abas — Acessórios, Comodidades,
+Equipamentos de Segurança — cada uma renderizando `EntidadeAuxiliarManager` (também genérico,
+reutilizado 3×): campo "Adicionar" + busca local (a partir de 7 itens) + lista com edição inline
+(trocar nome por um input, Enter salva, Esc cancela) e exclusão. Após qualquer mutação, o
+componente chama `router.refresh()` para a página buscar a lista atualizada do servidor — mesmo
+padrão de `AdminCuponsGrid`.
+
+**Exclusão com aviso de vínculo:** a ligação com embarcação (`embarcacao_acessorios` etc.) é
+`ON DELETE CASCADE`, então excluir um item do catálogo remove silenciosamente o vínculo de toda
+embarcação que o tinha marcado. Para isso não passar despercebido, as actions de exclusão
+(`excluirAcessorio`/`excluirComodidade`/`excluirEquipamentoSeguranca`) contam os vínculos antes de
+apagar: sem `confirmado`, retornam `{ error: 'EM_USO', vinculos: N }` se N > 0; o client mostra um
+`confirm()` com a contagem e, se aceito, repete a chamada com `confirmado: true`.
+
+**Server actions:** `src/app/administrator/(admin)/cadastros-auxiliares/actions.ts` — 9 funções
+(criar/atualizar/excluir × 3 entidades), cada uma com seu próprio `requireAdmin()` inline
+(`checkRoleInDb(['admin'])`, mesmo padrão de `cupons/actions.ts`). Validação de nome compartilhada
+(`validarNome`: trim, não vazio, máx. 80 caracteres) e tratamento do erro de UNIQUE
+(`error.code === '23505'`) com mensagem amigável. Escrita nessas 3 tabelas é exclusiva do admin —
+RLS de `comodidade`/`acessorios`/`equipamentos_seguranca` não libera INSERT/UPDATE/DELETE para
+`anon`/`authenticated`, só `service_role` (usado pelas actions via `supabaseAdmin`).
+
+**GRANTs:** `comodidade` foi criada na migration 007, antes da exigência de GRANTs explícitos do
+Supabase, e nunca precisou de escrita pela aplicação. Migration `20261011b_grants_comodidade.sql`
+acrescenta `GRANT SELECT, INSERT, UPDATE, DELETE ... TO anon, authenticated, service_role` —
+necessário agora que o admin escreve na tabela (mesmo via `service_role`, que não ignora GRANT,
+só RLS; ver AGENTS.md).
+
+Seed de `acessorios` (20 itens) já existia desde a criação da tabela — migration
+`20261011_acessorios.sql` (§17.2), nenhuma nova migration de seed foi necessária.
+
+### 37.2 Busca — filtro por Acessórios e Equipamentos de Segurança (+ Comodidades nas duas abas)
+
+**Antes:** `/buscar` só filtrava por Comodidades, e apenas na aba Embarcações — a aba Roteiros não
+tinha filtro de catálogo auxiliar algum (`buscar_roteiros` nem recebia esses parâmetros).
+
+**Agora:** os 3 catálogos (Comodidades, Acessórios, Equipamentos de Segurança) filtram as duas
+abas. Como os 3 são atributos da **embarcação**, não do roteiro, o filtro na aba Roteiros resolve
+via a embarcação vinculada (`roteiro.embarcacao_id`): um roteiro sem embarcação vinculada não
+atende a nenhum desses filtros e cai fora da lista sempre que algum está ativo — mesma regra já
+aplicada ao filtro de pessoas/capacidade.
+
+**Banco** (`20261011c_buscar_filtros_catalogo_auxiliar.sql`, DROP + CREATE nas duas funções porque
+a assinatura muda):
+- `buscar_embarcacoes` ganha `p_acessorio_ids uuid[]` e `p_equipamento_seguranca_ids uuid[]` (já
+  tinha `p_comodidade_ids` desde 20260812b). Mesma semântica E de antes: a embarcação precisa ter
+  **todos** os ids informados.
+- `buscar_roteiros` ganha `p_comodidade_ids`, `p_acessorio_ids` e `p_equipamento_seguranca_ids`,
+  checando os vínculos de `r.embarcacao_id` nas 3 tabelas de ligação.
+- Tipos das duas RPCs em `src/types/supabase.ts` corrigidos para refletir também os parâmetros que
+  já existiam e estavam faltando ali (`p_comodidade_ids` em `buscar_embarcacoes`,
+  `p_modelos_preco` em `buscar_roteiros`).
+
+**Front:**
+- `filtros.ts`: `parseComodidadeIds` generalizada para `parseIdsCsv` (reaproveitada pelos 3
+  catálogos); `BuscaSearchParams` ganha `acessorios` e `equipamentos_seguranca` (mesmo formato CSV
+  de ids que `comodidades` já usava).
+- `src/components/busca/CamposFiltro.tsx` ganha `FiltroMultiSelect` — extrai a lógica que antes
+  vivia inline em `FiltrosLaterais` só para Comodidades (busca local + "ver todas" + selecionados
+  no topo) para um componente reutilizável, já que agora os 3 catálogos precisam dela.
+- `FiltrosLaterais.tsx`: seção "Comodidades" deixa de ser exclusiva da aba Embarcações; novas
+  seções "Acessórios" (ícone `Waves`) e "Equipamentos de Segurança" (ícone `ShieldCheck`), as 3
+  usando `FiltroMultiSelect`. Contador de filtros ativos (`grupos`) e chips de
+  `/buscar/page.tsx` seguem o mesmo padrão de "Comodidades: N".
+- `/buscar/page.tsx`: comodidades/acessórios/equipamentos agora são buscados (`Promise.all`) e
+  passados para `FiltrosLaterais` independente da aba; os dois `rpc()` (`buscar_embarcacoes` e
+  `buscar_roteiros`) passam os 3 novos parâmetros; `catalogoAuxiliarAtivo` (true se qualquer um dos
+  3 tiver seleção) substitui a checagem que antes só olhava `comodidadeIds.length` nos estados
+  vazios e no botão "Limpar filtros" — agora válido nas duas abas.

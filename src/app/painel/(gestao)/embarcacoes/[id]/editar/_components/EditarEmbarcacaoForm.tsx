@@ -5,13 +5,14 @@ import { useRouter } from 'next/navigation';
 import {
   Info, ClipboardCheck, Ruler, DollarSign, MapPin, ImageIcon, Sparkles, CalendarDays,
   Loader2, AlertCircle, CheckCircle,
-  Plus, ChevronDown, ChevronUp, Trash2, HelpCircle, ShieldCheck,
+  Plus, ChevronDown, ChevronUp, Trash2, HelpCircle, ShieldCheck, Waves,
 } from 'lucide-react';
 import GaleriaImagensEditor, { itensDeImagensSalvas, type GaleriaItem } from '@/components/painel/GaleriaImagensEditor';
 import {
   atualizarEmbarcacao,
   atualizarComodidades,
   atualizarEquipamentosSeguranca,
+  atualizarAcessorios,
   excluirImagem,
   excluirRegra,
   atualizarImagens,
@@ -75,6 +76,7 @@ type Estado    = { id: number; uf: string; nome: string };
 type Municipio = { id: number; nome: string };
 type Comodidade = { id: string; nome: string };
 type EquipamentoSeguranca = { id: string; nome: string };
+type Acessorio = { id: string; nome: string };
 
 type ExistingRegra = {
   id: string; tipo: PrecoRegraTipo; nome: string; valor: number; resumo: string;
@@ -123,6 +125,8 @@ type Props = {
   comodidadesIniciais: string[];
   equipamentosSeguranca: EquipamentoSeguranca[];
   equipamentosSegurancaIniciais: string[];
+  acessorios: Acessorio[];
+  acessoriosIniciais: string[];
   bloqueiosIniciais: string[];
   /** Rota de retorno após salvar/cancelar (o admin reutiliza o form com outra rota). */
   voltarHref?: string;
@@ -210,6 +214,7 @@ export default function EditarEmbarcacaoForm({
   embarcacao, tipos, estados, municipiosIniciais,
   comodidades, comodidadesIniciais,
   equipamentosSeguranca, equipamentosSegurancaIniciais,
+  acessorios, acessoriosIniciais,
   bloqueiosIniciais,
   voltarHref = '/painel/embarcacoes',
 }: Props) {
@@ -256,6 +261,15 @@ export default function EditarEmbarcacaoForm({
   function toggleEquipamento(id: string) {
     setEquipamentosSelecionados(prev =>
       prev.includes(id) ? prev.filter(e => e !== id) : [...prev, id],
+    );
+  }
+
+  // ── Acessórios ─────────────────────────────────────────────────────────────
+  const [acessoriosSelecionados, setAcessoriosSelecionados] = useState<string[]>(acessoriosIniciais);
+
+  function toggleAcessorio(id: string) {
+    setAcessoriosSelecionados(prev =>
+      prev.includes(id) ? prev.filter(a => a !== id) : [...prev, id],
     );
   }
 
@@ -317,6 +331,8 @@ export default function EditarEmbarcacaoForm({
   const previewDados = previewAberto
     ? montarPreviewEmbarcacao({
         form, tipos, estados, municipios, comodidades, comodidadesSelecionadas,
+        equipamentosSeguranca, equipamentosSegurancaSelecionados: equipamentosSelecionados,
+        acessorios, acessoriosSelecionados,
         imagens, diasOperacao, bloqueios,
       })
     : null;
@@ -487,7 +503,10 @@ export default function EditarEmbarcacaoForm({
     // 2. Atualizar equipamentos de segurança
     await atualizarEquipamentosSeguranca(embarcacao.id, equipamentosSelecionados);
 
-    // 3. Atualizar comodidades
+    // 3. Atualizar acessórios
+    await atualizarAcessorios(embarcacao.id, acessoriosSelecionados);
+
+    // 4. Atualizar comodidades
     await atualizarComodidades(embarcacao.id, comodidadesSelecionadas);
 
     // Substituir o conjunto de datas bloqueadas
@@ -670,7 +689,40 @@ export default function EditarEmbarcacaoForm({
         </SectionCard>
       )}
 
-      {/* ── 4. Comodidades ────────────────────────────────────────────────── */}
+      {/* ── 4. Acessórios ─────────────────────────────────────────────────── */}
+      {acessorios.length > 0 && (
+        <SectionCard icon={Waves} title="Acessórios da Embarcação">
+          <p className="text-xs text-slate-400 mb-4">
+            Selecione os acessórios disponíveis a bordo desta embarcação.
+          </p>
+          <div className="flex flex-wrap gap-2">
+            {acessorios.map(a => {
+              const ativo = acessoriosSelecionados.includes(a.id);
+              return (
+                <button
+                  key={a.id}
+                  type="button"
+                  onClick={() => toggleAcessorio(a.id)}
+                  className={`px-3.5 py-2 rounded-xl text-sm font-semibold border transition-all ${
+                    ativo
+                      ? 'bg-[#0B2447] text-white border-[#0B2447] shadow-sm shadow-[#0B2447]/20'
+                      : 'bg-white text-slate-600 border-slate-200 hover:border-[#0B2447]/40 hover:text-[#0B2447]'
+                  }`}
+                >
+                  {a.nome}
+                </button>
+              );
+            })}
+          </div>
+          {acessoriosSelecionados.length > 0 && (
+            <p className="mt-3 text-xs text-slate-400">
+              {acessoriosSelecionados.length} acessório{acessoriosSelecionados.length > 1 ? 's' : ''} selecionado{acessoriosSelecionados.length > 1 ? 's' : ''}.
+            </p>
+          )}
+        </SectionCard>
+      )}
+
+      {/* ── 5. Comodidades ────────────────────────────────────────────────── */}
       {comodidades.length > 0 && (
         <SectionCard icon={Sparkles} title="Comodidades">
           <p className="text-xs text-slate-400 mb-4">

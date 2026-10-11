@@ -32,6 +32,7 @@ export default async function EmbarcacaoDetalhePage({
       municipios ( nome, estados ( uf, nome ) ),
       embarcacao_comodidades ( comodidade ( nome ) ),
       embarcacao_equipamentos_seguranca ( equipamentos_seguranca ( nome ) ),
+      embarcacao_acessorios ( acessorios ( nome ) ),
       embarcacao_imagens ( id, url_imagem, titulo, principal, ordem ),
       embarcacao_disponibilidade_bloqueio ( data )
     `)
