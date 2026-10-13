@@ -4,12 +4,17 @@ import { createClient } from '@/lib/supabase/server';
 import { supabaseAdmin } from '@/lib/supabase';
 import { checkRoleInDb } from '@/lib/roles';
 import { duracaoParaHoras, duracaoTexto, type DuracaoUnidade } from '@/lib/duracao';
-import type { PrecoRegraTipo, PrecoPessoaModoCapacidade } from '@/types/supabase';
+import type { PrecoRegraTipo } from '@/types/supabase';
 import { normalizarTituloImagem } from '@/lib/galeria';
+import { ehUrlDoStorage, ehUuid, prepararImagensNovas, type ImagemNovaPayload } from '@/lib/upload-imagem-server';
 
 // ─── Tipos ───────────────────────────────────────────────────────────────────
 
 export type CriarRoteiroPayload = {
+  /** Id gerado no formulário: as fotos sobem para o storage antes de o registro existir. */
+  id: string;
+  /** Fotos já enviadas ao storage (mínimo 1). */
+  imagens: ImagemNovaPayload[];
   embarcacao_id: string;
   nome: string;
   descricao: string;
@@ -25,12 +30,6 @@ export type CriarRoteiroPayload = {
   preco_diaria_ativo: boolean;
   preco_diaria_valor: string;
   preco_diaria_minimo: string;
-  /** Modelo "Por Pessoa": bilheteria, valor fixo por pessoa. */
-  preco_pessoa_ativo: boolean;
-  preco_pessoa_valor: string;
-  preco_pessoa_capacidade_minima: string;
-  preco_pessoa_capacidade_maxima: string;
-  preco_pessoa_modo_capacidade: PrecoPessoaModoCapacidade;
   latitude: string;
   longitude: string;
   cep: string;
@@ -86,12 +85,10 @@ export async function criarRoteiro(
   if (payload.preco_diaria_ativo && !payload.preco_diaria_valor) {
     return { ok: false, error: 'Informe o valor da diária no modelo "Por Diária".' };
   }
-  if (payload.preco_pessoa_ativo && !payload.preco_pessoa_valor) {
-    return { ok: false, error: 'Informe o valor por pessoa no modelo "Por Pessoa".' };
-  }
-  if (payload.preco_pessoa_ativo && !payload.preco_pessoa_capacidade_maxima) {
-    return { ok: false, error: 'Informe a capacidade máxima no modelo "Por Pessoa".' };
-  }
+
+  if (!ehUuid(payload.id)) return { ok: false, error: 'Cadastro inválido. Recarregue a página e tente novamente.' };
+  const imagens = prepararImagensNovas(payload.imagens);
+  if (!imagens.ok) return { ok: false, error: imagens.error };
 
   const autorizado = await checkRoleInDb(user.id, ['gestor', 'admin']);
   if (!autorizado) return { ok: false, error: 'Acesso não autorizado.' };
@@ -103,6 +100,7 @@ export async function criarRoteiro(
   const { data, error } = await supabaseAdmin
     .from('roteiro')
     .insert({
+      id:                 payload.id,
       owner_id:           user.id,
       embarcacao_id:      payload.embarcacao_id || null,
       nome:               payload.nome.trim(),
@@ -112,14 +110,6 @@ export async function criarRoteiro(
       preco_diaria_valor: payload.preco_diaria_ativo && payload.preco_diaria_valor
         ? parseFloat(payload.preco_diaria_valor) : null,
       preco_diaria_minimo: Math.max(1, parseInt(payload.preco_diaria_minimo, 10) || 1),
-      preco_pessoa_ativo: payload.preco_pessoa_ativo,
-      preco_pessoa_valor: payload.preco_pessoa_ativo && payload.preco_pessoa_valor
-        ? parseFloat(payload.preco_pessoa_valor) : null,
-      preco_pessoa_capacidade_minima: payload.preco_pessoa_capacidade_minima
-        ? parseInt(payload.preco_pessoa_capacidade_minima, 10) : null,
-      preco_pessoa_capacidade_maxima: payload.preco_pessoa_ativo && payload.preco_pessoa_capacidade_maxima
-        ? parseInt(payload.preco_pessoa_capacidade_maxima, 10) : null,
-      preco_pessoa_modo_capacidade: payload.preco_pessoa_modo_capacidade,
       duracao:            duracaoTexto(duracaoHoras),
       duracao_horas:      duracaoHoras,
       quantidade_pessoas: payload.quantidade_pessoas ? parseInt(payload.quantidade_pessoas, 10) : null,
@@ -141,7 +131,17 @@ export async function criarRoteiro(
     .single();
 
   if (error || !data) {
+    if (error?.code === '23505') return { ok: false, error: 'Este roteiro já foi cadastrado. Confira a lista de roteiros.' };
     return { ok: false, error: error?.message ?? 'Erro ao salvar roteiro.' };
+  }
+
+  // Sem as fotos o cadastro não vale: desfaz o roteiro se o registro delas falhar.
+  const { error: imgErr } = await supabaseAdmin
+    .from('roteiro_imagens')
+    .insert(imagens.linhas.map(l => ({ ...l, roteiro_id: data.id })));
+  if (imgErr) {
+    await supabaseAdmin.from('roteiro').delete().eq('id', data.id);
+    return { ok: false, error: `Não foi possível registrar as fotos (${imgErr.message}). Nada foi salvo — tente novamente.` };
   }
 
   return { ok: true, roteiroId: data.id, ownerId: user.id };
@@ -167,6 +167,7 @@ export async function salvarImagemRoteiro(
 
   const { data: roteiro } = await query.single();
   if (!roteiro) return { ok: false, error: 'Roteiro não encontrado ou sem permissão.' };
+  if (!ehUrlDoStorage(payload.urlImagem)) return { ok: false, error: 'A foto não foi enviada corretamente. Envie-a novamente.' };
 
   if (payload.principal) {
     await supabaseAdmin

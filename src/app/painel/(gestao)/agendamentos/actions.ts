@@ -37,8 +37,6 @@ type ReservaParaChecagem = {
   quantidade_pessoas: number;
   roteiro: {
     embarcacao_id: string | null;
-    preco_pessoa_modo_capacidade: 'compartilhado' | 'exclusivo';
-    preco_pessoa_capacidade_maxima: number | null;
   } | null;
 };
 
@@ -262,7 +260,7 @@ async function responderReserva(
     .select(`
       id, owner_id, status, tipo, roteiro_id, embarcacao_id, data_reserva,
       data_fim_reserva, modalidade_preco, quantidade_pessoas,
-      roteiro ( embarcacao_id, preco_pessoa_modo_capacidade, preco_pessoa_capacidade_maxima )
+      roteiro ( embarcacao_id )
     `)
     .eq('id', reservaId)
     .eq('owner_id', user.id)
@@ -275,8 +273,7 @@ async function responderReserva(
   // Ao CONFIRMAR: a embarcação (ou o roteiro, sempre) não pode já ter outra
   // reserva confirmada na mesma data (ou intervalo, no modelo Por Diária) —
   // a própria reserva ainda está pendente neste momento, então nunca conta
-  // contra si mesma. No modelo Por Pessoa compartilhado, só há conflito se
-  // ultrapassar a capacidade máxima do roteiro.
+  // contra si mesma.
   if (status === 'confirmada') {
     const haConflito =
       r.tipo === 'embarcacao'
@@ -284,12 +281,8 @@ async function responderReserva(
         : await haConflitoReservaRoteiro({
             roteiroId: r.roteiro_id!,
             embarcacaoId: r.roteiro?.embarcacao_id ?? null,
-            pessoaModoCapacidade: r.roteiro?.preco_pessoa_modo_capacidade ?? 'exclusivo',
-            pessoaCapacidadeMaxima: r.roteiro?.preco_pessoa_capacidade_maxima ?? null,
-            modalidadePreco: r.modalidade_preco,
             dataReserva: r.data_reserva,
             dataFimReserva: r.data_fim_reserva,
-            quantidadePessoas: r.quantidade_pessoas,
           });
     if (haConflito) {
       return { ok: false, error: CONFLITO_MSG };

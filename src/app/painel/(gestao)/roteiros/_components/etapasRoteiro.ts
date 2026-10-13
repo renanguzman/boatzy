@@ -4,6 +4,7 @@ import type { GaleriaItem } from '@/components/painel/GaleriaImagensEditor';
 import type { RoteiroCardData } from '@/app/buscar/_components/RoteiroCard';
 import type { ReservaModalidadePreco } from '@/types/supabase';
 import { duracaoParaHoras, duracaoTexto, type DuracaoUnidade } from '@/lib/duracao';
+import { FOTOS_RECOMENDADAS } from '@/lib/upload';
 
 /**
  * Etapas do cadastro/edição de roteiro (`NovoRoteiroForm` e
@@ -23,7 +24,6 @@ export const ETAPA_ROT = {
   informacoes: 0, localizacao: 1, fotos: 2, preco: 3, disponibilidade: 4, adicionais: 5, revisao: 6,
 } as const;
 
-const FOTOS_RECOMENDADAS = 5;
 const DIAS = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
 
 function plural(n: number, um: string, varios: string) {
@@ -42,7 +42,6 @@ export function revisaoRoteiro(args: {
     origem: string; destino: string;
     preco_base: string;
     preco_diaria_ativo: boolean; preco_diaria_valor: string;
-    preco_pessoa_ativo: boolean; preco_pessoa_valor: string;
     estado_id: string; municipio_id: string; latitude: string; longitude: string;
   };
   embarcacoes: { id: string; nome: string }[];
@@ -67,20 +66,17 @@ export function revisaoRoteiro(args: {
 
   const precoBase = form.preco_base ? Number(form.preco_base) : null;
   const diaria = form.preco_diaria_ativo && form.preco_diaria_valor ? Number(form.preco_diaria_valor) : null;
-  const pessoa = form.preco_pessoa_ativo && form.preco_pessoa_valor ? Number(form.preco_pessoa_valor) : null;
   const modelos = [
     precoBase != null && `Passeio ${brl(precoBase)}`,
     diaria != null && `Diária ${brl(diaria)}`,
-    pessoa != null && `Por pessoa ${brl(pessoa)}`,
   ].filter(Boolean) as string[];
 
   // Prévia do "A partir de" do card. No banco `preco_minimo` considera também
   // as regras por data; aqui só os modelos do formulário, que é o que o gestor
-  // acabou de digitar. Mesmo desempate da função SQL: roteiro > diária > pessoa.
+  // acabou de digitar. Mesmo desempate da função SQL: roteiro > diária.
   const candidatosPreco: { valor: number; modelo: ReservaModalidadePreco }[] = [
     ...(precoBase != null ? [{ valor: precoBase, modelo: 'roteiro' as const }] : []),
     ...(diaria != null ? [{ valor: diaria, modelo: 'diaria' as const }] : []),
-    ...(pessoa != null ? [{ valor: pessoa, modelo: 'pessoa' as const }] : []),
   ];
   const precoMinimo = candidatosPreco.length > 0
     ? candidatosPreco.reduce((a, b) => (a.valor <= b.valor ? a : b))
@@ -113,9 +109,9 @@ export function revisaoRoteiro(args: {
     },
     {
       label: 'Fotos',
-      status: nFotos >= FOTOS_RECOMENDADAS ? 'ok' : 'aviso',
+      status: nFotos === 0 ? 'erro' : nFotos >= FOTOS_RECOMENDADAS ? 'ok' : 'aviso',
       resumo: nFotos === 0
-        ? 'Nenhuma foto — roteiros com fotos recebem muito mais reservas.'
+        ? 'Nenhuma foto — envie pelo menos 1 (obrigatório para salvar).'
         : nFotos < FOTOS_RECOMENDADAS
           ? `${plural(nFotos, 'foto', 'fotos')} — recomendamos pelo menos ${FOTOS_RECOMENDADAS}.`
           : plural(nFotos, 'foto', 'fotos'),

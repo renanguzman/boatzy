@@ -4,11 +4,11 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { CheckCircle2, Loader2, Tag, X, AlertCircle, Clock, ShieldCheck } from 'lucide-react';
-import { criarReserva, validarCupom } from '../actions';
+import { criarReserva, validarCupom, type ModalidadeReserva } from '../actions';
 import { formatCurrency } from '@/lib/utils';
 import TermoAceite from '@/components/termos/TermoAceite';
 import type { AceiteTermoCliente, TermoParaAceite } from '@/lib/termos/tipos';
-import type { CupomTipoDesconto, ReservaModalidadePreco } from '@/types/supabase';
+import type { CupomTipoDesconto } from '@/types/supabase';
 
 type Props = {
   roteiroId: string;
@@ -17,7 +17,7 @@ type Props = {
   pessoas: number;
   adicionaisIds: string[];
   /** Modelo de cobrança escolhido no BookingCard do roteiro. */
-  modalidade: ReservaModalidadePreco;
+  modalidade: ModalidadeReserva;
   /** Quantidade de diárias — só relevante quando `modalidade === 'diaria'`. */
   diarias?: number;
   /** Valor unitário do modelo (dia, diária ou pessoa). */

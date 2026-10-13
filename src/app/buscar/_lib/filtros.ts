@@ -32,7 +32,7 @@ export type BuscaSearchParams = {
   acessorios?: string;
   /** Equipamentos de segurança desejados (ids separados por vírgula) — embarcação e roteiro (via embarcação vinculada). */
   equipamentos_seguranca?: string;
-  /** Modelos de cobrança desejados ('roteiro'|'diaria'|'pessoa', separados por vírgula) — só na aba Roteiros. */
+  /** Modelos de cobrança desejados ('roteiro'|'diaria', separados por vírgula) — só na aba Roteiros. */
   modelo_preco?: string;
   /** Critério de ordenação — ver ORDENACOES. */
   ordenar?: string;
@@ -41,7 +41,6 @@ export type BuscaSearchParams = {
 export const MODELOS_PRECO = [
   { value: 'roteiro', label: 'Passeios (Roteiro)' },
   { value: 'diaria', label: 'Por Diária' },
-  { value: 'pessoa', label: 'Por Pessoa' },
 ] as const;
 
 export type ModeloPreco = (typeof MODELOS_PRECO)[number]['value'];

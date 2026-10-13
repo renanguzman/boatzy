@@ -1,7 +1,6 @@
 import 'server-only';
 
 import { supabaseAdmin } from '@/lib/supabase';
-import type { PrecoPessoaModoCapacidade, ReservaModalidadePreco } from '@/types/supabase';
 
 /**
  * Status que SEGURAM a data da embarcação/roteiro: a reserva confirmada e a
@@ -73,112 +72,56 @@ export function expandirIntervalo(inicio: string, fim: string): string[] {
   return datas;
 }
 
-export type DisponibilidadeRoteiro = {
-  /**
-   * Datas ('yyyy-mm-dd') indisponíveis para qualquer reserva exclusiva —
-   * modelo Roteiro, Por Diária (todo o intervalo de diárias), Por Pessoa no
-   * modo exclusivo, ou qualquer reserva confirmada de OUTRO roteiro que use
-   * a mesma embarcação (recurso físico compartilhado).
-   */
-  datasExclusivasOcupadas: string[];
-  /**
-   * Vagas já ocupadas por data, apenas para reservas confirmadas do modelo
-   * Por Pessoa DESTE roteiro quando ele opera em capacidade compartilhada
-   * (várias reservas de clientes diferentes dividem a mesma data).
-   */
-  vagasPessoaOcupadas: Record<string, number>;
-};
-
 /**
- * Disponibilidade de um ROTEIRO nos 3 modelos de cobrança: combina as
- * reservas confirmadas do próprio roteiro (roteiro_id — protege o roteiro
- * mesmo sem embarcação vinculada, ou se ela mudou depois da confirmação, já
- * que reserva.embarcacao_id é um snapshot) com as da embarcação vinculada
- * ATUALMENTE (embarcacaoId deve vir do roteiro.embarcacao_id vigente).
- *
- * Uma reserva Por Pessoa deste roteiro só é tratada como "vaga compartilhada"
- * (soma em `vagasPessoaOcupadas` em vez de travar o dia) quando
- * `pessoaModoCapacidade` (config ATUAL do roteiro) é 'compartilhado' — toda
- * reserva de outro roteiro/modelo trava o dia inteiro (`datasExclusivasOcupadas`),
- * pois a embarcação é um recurso físico único.
+ * Datas ('yyyy-mm-dd') ocupadas para o ROTEIRO: combina as reservas
+ * confirmadas do próprio roteiro (roteiro_id — protege o roteiro mesmo sem
+ * embarcação vinculada, ou se ela mudou depois da confirmação, já que
+ * reserva.embarcacao_id é um snapshot) com as da embarcação vinculada
+ * ATUALMENTE (embarcacaoId deve vir do roteiro.embarcacao_id vigente). Toda
+ * reserva trava o dia inteiro (ou o intervalo, no Por Diária): a embarcação é
+ * um recurso físico único, compartilhado entre os roteiros dela.
  */
-export async function getDisponibilidadeRoteiro(params: {
+export async function getDatasOcupadasRoteiro(params: {
   roteiroId: string;
   embarcacaoId: string | null;
-  pessoaModoCapacidade: PrecoPessoaModoCapacidade;
-}): Promise<DisponibilidadeRoteiro> {
-  const { roteiroId, embarcacaoId, pessoaModoCapacidade } = params;
-  const condicoes = [`roteiro_id.eq.${roteiroId}`];
-  if (embarcacaoId) condicoes.push(`embarcacao_id.eq.${embarcacaoId}`);
-
-  const resultado: DisponibilidadeRoteiro = { datasExclusivasOcupadas: [], vagasPessoaOcupadas: {} };
+}): Promise<string[]> {
+  const condicoes = [`roteiro_id.eq.${params.roteiroId}`];
+  if (params.embarcacaoId) condicoes.push(`embarcacao_id.eq.${params.embarcacaoId}`);
 
   const { data, error } = await supabaseAdmin
     .from('reserva')
-    .select('roteiro_id, data_reserva, data_fim_reserva, modalidade_preco, quantidade_pessoas')
+    .select('data_reserva, data_fim_reserva')
     .in('status', [...STATUS_QUE_OCUPAM_DATA])
     .or(condicoes.join(','));
 
   if (error) {
     console.error('[reservas] falha ao buscar disponibilidade do roteiro:', error);
-    return resultado;
+    return [];
   }
 
-  const exclusivas = new Set<string>();
-
+  const ocupadas = new Set<string>();
   for (const r of data ?? []) {
-    const datas = expandirIntervalo(r.data_reserva, r.data_fim_reserva ?? r.data_reserva);
-    const vagaCompartilhada =
-      r.roteiro_id === roteiroId && r.modalidade_preco === 'pessoa' && pessoaModoCapacidade === 'compartilhado';
-
-    if (vagaCompartilhada) {
-      for (const d of datas) {
-        resultado.vagasPessoaOcupadas[d] = (resultado.vagasPessoaOcupadas[d] ?? 0) + r.quantidade_pessoas;
-      }
-    } else {
-      for (const d of datas) exclusivas.add(d);
-    }
+    for (const d of expandirIntervalo(r.data_reserva, r.data_fim_reserva ?? r.data_reserva)) ocupadas.add(d);
   }
-
-  resultado.datasExclusivasOcupadas = [...exclusivas];
-  return resultado;
+  return [...ocupadas];
 }
 
 /**
  * Verdadeiro se a reserva informada (ainda pendente) conflita com alguma
  * reserva CONFIRMADA já existente do roteiro/embarcação — usado ao
  * confirmar uma solicitação no painel (`/painel/agendamentos`). Considera o
- * intervalo inteiro (modelo Por Diária) e a capacidade compartilhada
- * (modelo Por Pessoa): duas reservas Por Pessoa da mesma data só conflitam
- * quando juntas ultrapassam `pessoaCapacidadeMaxima`.
+ * intervalo inteiro (modelo Por Diária).
  */
 export async function haConflitoReservaRoteiro(params: {
   roteiroId: string;
   embarcacaoId: string | null;
-  pessoaModoCapacidade: PrecoPessoaModoCapacidade;
-  pessoaCapacidadeMaxima: number | null;
-  modalidadePreco: ReservaModalidadePreco;
   dataReserva: string;
   dataFimReserva: string | null;
-  quantidadePessoas: number;
 }): Promise<boolean> {
-  const disponibilidade = await getDisponibilidadeRoteiro({
+  const ocupadas = new Set(await getDatasOcupadasRoteiro({
     roteiroId: params.roteiroId,
     embarcacaoId: params.embarcacaoId,
-    pessoaModoCapacidade: params.pessoaModoCapacidade,
-  });
-
-  const intervalo = expandirIntervalo(params.dataReserva, params.dataFimReserva ?? params.dataReserva);
-  const exclusivas = new Set(disponibilidade.datasExclusivasOcupadas);
-
-  if (intervalo.some((d) => exclusivas.has(d))) return true;
-
-  if (params.modalidadePreco === 'pessoa' && params.pessoaModoCapacidade === 'compartilhado') {
-    const maxima = params.pessoaCapacidadeMaxima ?? 0;
-    return intervalo.some(
-      (d) => (disponibilidade.vagasPessoaOcupadas[d] ?? 0) + params.quantidadePessoas > maxima,
-    );
-  }
-
-  return false;
+  }));
+  return expandirIntervalo(params.dataReserva, params.dataFimReserva ?? params.dataReserva)
+    .some((d) => ocupadas.has(d));
 }

@@ -15,7 +15,7 @@ import { capacidadeMaxima, mensagemCapacidadeExcedida } from '@/lib/capacidade';
 import { getPrecoRoteiroNaData } from '@/lib/precos-roteiro-actions';
 
 type ActivePanel = 'date' | 'guests' | null;
-type Modalidade = 'roteiro' | 'diaria' | 'pessoa';
+type Modalidade = 'roteiro' | 'diaria';
 
 type Props = {
   roteiroId: string;
@@ -39,7 +39,7 @@ type Props = {
   initialFavorito?: boolean;
   /** Dias da semana em que o roteiro opera (0=Dom..6=Sáb). Vazio/null = todos os dias. */
   diasOperacao?: number[] | null;
-  /** Datas indisponíveis para qualquer reserva exclusiva (bloqueios manuais + reservas confirmadas). */
+  /** Datas indisponíveis (bloqueios manuais + reservas confirmadas). */
   datasBloqueadas?: string[];
   /** Pré-preenchimento vindo da busca: data ('yyyy-mm-dd'), flexibilidade e nº de pessoas. */
   initialData?: string;
@@ -51,14 +51,6 @@ type Props = {
   precoDiariaValor?: number | null;
   precoDiariaMinimo?: number;
 
-  /** Modelo "Por Pessoa": bilheteria, valor fixo por pessoa. */
-  precoPessoaAtivo?: boolean;
-  precoPessoaValor?: number | null;
-  precoPessoaCapacidadeMinima?: number | null;
-  precoPessoaCapacidadeMaxima?: number | null;
-  precoPessoaModoCapacidade?: 'compartilhado' | 'exclusivo';
-  /** Vagas já ocupadas por data (soma de pessoas de reservas confirmadas), só relevante no modo compartilhado. */
-  vagasPessoaOcupadas?: Record<string, number>;
   /**
    * Máximo de pessoas do roteiro: menor entre a capacidade do roteiro e a da
    * embarcação vinculada (`capacidadeMaxima`, src/lib/capacidade.ts). null = sem limite.
@@ -69,7 +61,6 @@ type Props = {
 const MODALIDADE_INFO: Record<Modalidade, { label: string; unidade: string; linha: string }> = {
   roteiro: { label: 'Roteiro', unidade: '/dia', linha: 'Diária' },
   diaria: { label: 'Por Diária', unidade: '/diária', linha: 'Diária' },
-  pessoa: { label: 'Por Pessoa', unidade: '/pessoa', linha: 'Pessoa' },
 };
 
 function toISO(d: Date): string {
@@ -116,12 +107,6 @@ export default function BookingCard({
   precoDiariaAtivo = false,
   precoDiariaValor = null,
   precoDiariaMinimo = 1,
-  precoPessoaAtivo = false,
-  precoPessoaValor = null,
-  precoPessoaCapacidadeMinima = null,
-  precoPessoaCapacidadeMaxima = null,
-  precoPessoaModoCapacidade = 'exclusivo',
-  vagasPessoaOcupadas,
   capacidade = null,
 }: Props) {
   // Modelos disponíveis para este roteiro, na ordem em que aparecem nas abas.
@@ -130,17 +115,12 @@ export default function BookingCard({
     ...(precoDiariaAtivo && precoDiariaValor != null
       ? [{ id: 'diaria' as const, label: MODALIDADE_INFO.diaria.label }]
       : []),
-    ...(precoPessoaAtivo && precoPessoaValor != null
-      ? [{ id: 'pessoa' as const, label: MODALIDADE_INFO.pessoa.label }]
-      : []),
   ];
 
   const [modalidade, setModalidade] = useState<Modalidade>(modalidadesDisponiveis[0]?.id ?? 'roteiro');
 
-  /** Máximo de pessoas no modelo: capacidade do roteiro/embarcação e, no Por Pessoa, o máximo do modelo. */
-  function limiteDaModalidade(m: Modalidade): number | null {
-    return capacidadeMaxima(capacidade, m === 'pessoa' ? precoPessoaCapacidadeMaxima : null);
-  }
+  /** Máximo de pessoas: capacidade do roteiro/embarcação (null = sem limite). */
+  const limitePessoas = capacidadeMaxima(capacidade);
 
   // Reserva aceita no máximo MESES_ANTECEDENCIA_RESERVA meses à frente; data
   // vinda da busca além desse limite é descartada.
@@ -154,10 +134,9 @@ export default function BookingCard({
   );
   // Pessoas vindas da busca acima da capacidade são ajustadas ao máximo, com aviso.
   const pessoasPedidas = initialPessoas && initialPessoas > 0 ? initialPessoas : 1;
-  const limiteInicial = limiteDaModalidade(modalidadesDisponiveis[0]?.id ?? 'roteiro');
-  const [guests, setGuests] = useState(limiteInicial != null ? Math.min(pessoasPedidas, limiteInicial) : pessoasPedidas);
+  const [guests, setGuests] = useState(limitePessoas != null ? Math.min(pessoasPedidas, limitePessoas) : pessoasPedidas);
   const [ajustadoPara, setAjustadoPara] = useState<number | null>(
-    limiteInicial != null && pessoasPedidas > limiteInicial ? limiteInicial : null,
+    limitePessoas != null && pessoasPedidas > limitePessoas ? limitePessoas : null,
   );
   const [diarias, setDiarias] = useState(Math.max(1, precoDiariaMinimo));
   const [active, setActive] = useState<ActivePanel>(null);
@@ -184,36 +163,16 @@ export default function BookingCard({
 
   const bloqueadasSet = new Set(datasBloqueadas ?? []);
   const operaTodos = !diasOperacao || diasOperacao.length === 0;
-  const compartilhado = precoPessoaModoCapacidade === 'compartilhado';
 
   function diaOperacional(d: Date): boolean {
     return operaTodos || diasOperacao!.includes(d.getDay());
   }
 
-  /** Vagas restantes numa data do modelo Por Pessoa (null = sem teto de capacidade a checar aqui). */
-  function vagasRestantes(iso: string): number | null {
-    if (!compartilhado || precoPessoaCapacidadeMaxima == null) return null;
-    const ocupadas = vagasPessoaOcupadas?.[iso] ?? 0;
-    return Math.max(0, precoPessoaCapacidadeMaxima - ocupadas);
-  }
-
   function isDateDisabled(d: Date): boolean {
-    if (!diaOperacional(d)) return true;
-    const iso = toISO(d);
-    if (bloqueadasSet.has(iso)) return true;
-    if (modalidade === 'pessoa') {
-      const restantes = vagasRestantes(iso);
-      if (restantes != null && restantes <= 0) return true;
-    }
-    return false;
+    return !diaOperacional(d) || bloqueadasSet.has(toISO(d));
   }
 
   const dateISO = date ? toISO(date.date) : null;
-  const restantesNaData = compartilhado && dateISO != null ? vagasRestantes(dateISO) : null;
-  /** Teto do seletor de pessoas: capacidade do modelo e, no Por Pessoa compartilhado, as vagas da data. */
-  const limitePessoas = limiteDaModalidade(modalidade);
-  const maxGuests = capacidadeMaxima(limitePessoas, modalidade === 'pessoa' ? restantesNaData : null);
-  const guestsMinPessoa = precoPessoaCapacidadeMinima ?? 1;
 
   // Preço do modelo Roteiro na data escolhida: as regras do gestor (alta/baixa
   // temporada, fim de semana, feriado) podem sobrepor `preco_base`, então o
@@ -237,18 +196,13 @@ export default function BookingCard({
 
   // Preço unitário e multiplicador do modelo escolhido — mesma fórmula do
   // servidor (`/reservas/novo`), só para a prévia exibida aqui.
-  const unitario =
-    modalidade === 'roteiro'
-      ? precoNaData ?? preco
-      : modalidade === 'diaria'
-        ? precoDiariaValor
-        : precoPessoaValor;
-  const multiplicador = modalidade === 'diaria' ? diarias : modalidade === 'pessoa' ? guests : 1;
+  const unitario = modalidade === 'roteiro' ? precoNaData ?? preco : precoDiariaValor;
+  const multiplicador = modalidade === 'diaria' ? diarias : 1;
   const subtotalModelo = unitario != null ? unitario * multiplicador : null;
   const valorEstimado = subtotalModelo != null ? subtotalModelo + totalAdicionais : null;
 
   // Só o modelo Roteiro varia por data: sem data escolhida ele anuncia o menor
-  // preço da janela ("a partir de"); Por Diária e Por Pessoa têm valor fixo.
+  // preço da janela ("a partir de"); Por Diária tem valor fixo.
   const precoVariaPorData = modalidade === 'roteiro';
   const mostrarAPartirDe = precoVariaPorData && !dateISO;
   const precoCabecalho = mostrarAPartirDe ? precoMinimoRoteiro ?? preco : unitario;
@@ -288,19 +242,6 @@ export default function BookingCard({
       }
     }
 
-    if (modalidade === 'pessoa') {
-      if (guests < guestsMinPessoa) {
-        setError(`Este roteiro exige um grupo mínimo de ${guestsMinPessoa} pessoas.`);
-        setActive('guests');
-        return;
-      }
-      if (restantesNaData != null && guests > restantesNaData) {
-        setError(`Restam apenas ${restantesNaData} vaga${restantesNaData === 1 ? '' : 's'} nesta data.`);
-        setActive('guests');
-        return;
-      }
-    }
-
     setError(null);
 
     const params = new URLSearchParams({ roteiro: roteiroId, modalidade });
@@ -331,12 +272,6 @@ export default function BookingCard({
                 onClick={() => {
                   setModalidade(m.id);
                   setError(null);
-                  // O Por Pessoa pode ter um máximo menor — ajusta o grupo ao trocar de modelo.
-                  const limite = limiteDaModalidade(m.id);
-                  if (limite != null && guests > limite) {
-                    setGuests(limite);
-                    setAjustadoPara(limite);
-                  }
                 }}
                 className={`flex-1 rounded-lg py-2 text-xs font-semibold transition-colors ${
                   modalidade === m.id ? 'bg-white text-[#0B2447] shadow-sm' : 'text-slate-500 hover:text-slate-700'
@@ -401,11 +336,6 @@ export default function BookingCard({
               </span>
             </p>
           )}
-          {modalidade === 'pessoa' && restantesNaData != null && (
-            <p className="mt-1.5 text-xs text-slate-500">
-              {restantesNaData > 0 ? `${restantesNaData} vaga${restantesNaData === 1 ? '' : 's'} restante${restantesNaData === 1 ? '' : 's'} nesta data.` : 'Data esgotada.'}
-            </p>
-          )}
         </div>
 
         {/* Diárias (modelo Por Diária) */}
@@ -435,15 +365,15 @@ export default function BookingCard({
             <GuestPicker
               value={guests}
               onChange={(v) => {
-                setGuests(Math.max(1, maxGuests != null ? Math.min(v, maxGuests) : v));
+                setGuests(Math.max(1, limitePessoas != null ? Math.min(v, limitePessoas) : v));
                 setAjustadoPara(null);
                 setError(null);
               }}
               isOpen={active === 'guests'}
               onOpen={() => open('guests')}
               onClose={() => setActive(null)}
-              min={modalidade === 'pessoa' ? guestsMinPessoa : 1}
-              max={maxGuests ?? undefined}
+              min={1}
+              max={limitePessoas ?? undefined}
             />
           </div>
           {ajustadoPara != null ? (

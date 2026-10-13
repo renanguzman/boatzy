@@ -8,10 +8,10 @@ import {
   Plus, ChevronDown, ChevronUp, Trash2, HelpCircle, BookOpen, Check,
 } from 'lucide-react';
 import GaleriaImagensEditor, { type GaleriaItem } from '@/components/painel/GaleriaImagensEditor';
+import { enviarFotosNovas, mensagemFalhaEnvio, MENSAGEM_SEM_FOTOS } from '@/lib/galeria-upload';
 import {
   criarRoteiro,
   criarRegraRoteiro,
-  salvarImagemRoteiro,
   salvarCatalogoRoteiro,
   salvarBloqueiosRoteiro,
   salvarParadasRoteiro,
@@ -164,7 +164,7 @@ export default function NovoRoteiroForm({ estados, embarcacoes, catalogo: catalo
   const [, startTransition] = useTransition();
   const numeroInputRef = useRef<HTMLInputElement>(null);
 
-  const [form, setForm] = useState<Omit<CriarRoteiroPayload, 'municipio_id' | 'disponibilidade_dias_semana'> & {
+  const [form, setForm] = useState<Omit<CriarRoteiroPayload, 'municipio_id' | 'disponibilidade_dias_semana' | 'id' | 'imagens'> & {
     municipio_id: string; estado_id: string;
   }>({
     embarcacao_id: embarcacaoInicial?.id ?? '',
@@ -175,9 +175,6 @@ export default function NovoRoteiroForm({ estados, embarcacoes, catalogo: catalo
     origem: '', destino: '',
     preco_base: '',
     preco_diaria_ativo: false, preco_diaria_valor: '', preco_diaria_minimo: '1',
-    preco_pessoa_ativo: false, preco_pessoa_valor: '',
-    preco_pessoa_capacidade_minima: '', preco_pessoa_capacidade_maxima: '',
-    preco_pessoa_modo_capacidade: 'exclusivo',
     estado_id: '', municipio_id: '',
     latitude: '', longitude: '',
     cep: '', bairro: '', logradouro: '', logradouro_numero: '', complemento: '',
@@ -383,18 +380,12 @@ export default function NovoRoteiroForm({ estados, embarcacoes, catalogo: catalo
 
   // ─── Imagens ──────────────────────────────────────────────────────────────
 
-  async function uploadImagem(item: GaleriaItem, roteiroId: string, ordem: number) {
-    if (!item.file) return null;
-    const body = new FormData();
-    body.append('file', item.file);
-    body.append('roteiroId', roteiroId);
-    const res = await fetch('/api/painel/roteiros/upload', { method: 'POST', body });
-    if (!res.ok) return null;
-    const { publicUrl } = await res.json();
-    const saved = await salvarImagemRoteiro({
-      roteiroId, urlImagem: publicUrl, titulo: item.titulo, principal: item.principal, ordem,
-    });
-    return saved.ok ? (publicUrl as string) : null;
+  // Id do novo roteiro, gerado no 1º salvar e mantido nas novas tentativas:
+  // as fotos sobem para a pasta dele ANTES de o registro existir.
+  const novoIdRef = useRef<string | null>(null);
+
+  function atualizarImagem(key: string, patch: Partial<GaleriaItem>) {
+    setImagens(prev => prev.map(it => (it.key === key ? { ...it, ...patch } : it)));
   }
 
   // ─── Submit ───────────────────────────────────────────────────────────────
@@ -408,9 +399,31 @@ export default function NovoRoteiroForm({ estados, embarcacoes, catalogo: catalo
       etapas.ir(ETAPA_ROT.informacoes);
       return;
     }
+    if (imagens.length === 0) {
+      setFeedback({ type: 'error', msg: MENSAGEM_SEM_FOTOS });
+      etapas.ir(ETAPA_ROT.fotos);
+      return;
+    }
     setSubmitting(true);
+    novoIdRef.current ??= crypto.randomUUID();
+    const roteiroIdNovo = novoIdRef.current;
+
+    // Envia as fotos primeiro: se alguma falhar, nada é salvo.
+    const envio = await enviarFotosNovas({
+      itens: imagens, endpoint: '/api/painel/roteiros/upload',
+      entidadeId: roteiroIdNovo, atualizar: atualizarImagem,
+    });
+    if (envio.falhas > 0) {
+      setFeedback({ type: 'error', msg: mensagemFalhaEnvio(envio.falhas) });
+      etapas.ir(ETAPA_ROT.fotos);
+      setSubmitting(false);
+      return;
+    }
 
     const result = await criarRoteiro({
+      id:                 roteiroIdNovo,
+      // A ordem da lista é a da galeria.
+      imagens:            imagens.map((it, ordem) => ({ url: envio.urls[it.key], titulo: it.titulo, principal: it.principal, ordem })),
       embarcacao_id:      form.embarcacao_id,
       nome:               form.nome,
       descricao:          form.descricao,
@@ -423,11 +436,6 @@ export default function NovoRoteiroForm({ estados, embarcacoes, catalogo: catalo
       preco_diaria_ativo: form.preco_diaria_ativo,
       preco_diaria_valor: form.preco_diaria_valor,
       preco_diaria_minimo: form.preco_diaria_minimo,
-      preco_pessoa_ativo: form.preco_pessoa_ativo,
-      preco_pessoa_valor: form.preco_pessoa_valor,
-      preco_pessoa_capacidade_minima: form.preco_pessoa_capacidade_minima,
-      preco_pessoa_capacidade_maxima: form.preco_pessoa_capacidade_maxima,
-      preco_pessoa_modo_capacidade: form.preco_pessoa_modo_capacidade,
       municipio_id:       form.municipio_id,
       latitude:           form.latitude,
       longitude:          form.longitude,
@@ -485,15 +493,6 @@ export default function NovoRoteiroForm({ estados, embarcacoes, catalogo: catalo
           valorCustomizado: i.valorCustomizado !== '' ? parseFloat(i.valorCustomizado) : null,
         })),
       );
-    }
-
-    // Upload de imagens
-    // (a posição na lista é a ordem da galeria)
-    for (let i = 0; i < imagens.length; i++) {
-      const item = imagens[i];
-      setImagens(prev => prev.map(it => it.key === item.key ? { ...it, status: 'uploading' } : it));
-      const url = await uploadImagem(item, roteiroId, i);
-      setImagens(prev => prev.map(it => it.key === item.key ? { ...it, status: url ? 'done' : 'error' } : it));
     }
 
     setFeedback({ type: 'success', msg: 'Roteiro cadastrado com sucesso!' });
@@ -695,71 +694,6 @@ export default function NovoRoteiroForm({ estados, embarcacoes, catalogo: catalo
                   <input className={inputCls} type="number" min="1" step="1" placeholder="1"
                     value={form.preco_diaria_minimo} onChange={e => setField('preco_diaria_minimo', e.target.value)} />
                 </Field>
-              </div>
-            )}
-
-            {/* Por Pessoa */}
-            <button type="button" onClick={() => setField('preco_pessoa_ativo', !form.preco_pessoa_ativo)}
-              className={`w-full flex items-start gap-3 rounded-xl border p-4 text-left transition-colors ${
-                form.preco_pessoa_ativo ? 'border-[#0B2447]/20 bg-[#0B2447]/[0.03]' : 'border-slate-200 hover:border-slate-300'
-              }`}>
-              <div className={`mt-0.5 flex h-5 w-5 items-center justify-center rounded-md border-2 shrink-0 ${
-                form.preco_pessoa_ativo ? 'bg-[#0B2447] border-[#0B2447] text-white' : 'border-slate-300'
-              }`}>
-                {form.preco_pessoa_ativo && <Check className="w-3.5 h-3.5" />}
-              </div>
-              <div>
-                <p className="text-sm font-semibold text-[#0B2447]">Por Pessoa</p>
-                <p className="text-xs text-slate-500 mt-0.5">
-                  Bilheteria — valor fixo por pessoa, ideal para eventos e passeios públicos com vagas.
-                </p>
-              </div>
-            </button>
-
-            {form.preco_pessoa_ativo && (
-              <div className="ml-8 space-y-4 rounded-xl border border-slate-100 bg-slate-50/50 p-4">
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                  <Field label="Valor por pessoa (R$)" required>
-                    <div className="relative">
-                      <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-sm text-slate-400 font-medium">R$</span>
-                      <input className={`${inputCls} pl-10`} type="number" min="0" step="0.01" placeholder="0,00"
-                        value={form.preco_pessoa_valor} onChange={e => setField('preco_pessoa_valor', e.target.value)} />
-                    </div>
-                  </Field>
-                  <Field label="Capacidade mínima" hint="Grupo mínimo por reserva (opcional).">
-                    <input className={inputCls} type="number" min="1" step="1" placeholder="ex: 2"
-                      value={form.preco_pessoa_capacidade_minima}
-                      onChange={e => setField('preco_pessoa_capacidade_minima', e.target.value)} />
-                  </Field>
-                  <Field label="Capacidade máxima" required hint="Total de vagas disponíveis na data.">
-                    <input className={inputCls} type="number" min="1" step="1" placeholder="ex: 20"
-                      value={form.preco_pessoa_capacidade_maxima}
-                      onChange={e => setField('preco_pessoa_capacidade_maxima', e.target.value)} />
-                  </Field>
-                </div>
-
-                <div>
-                  <p className="text-xs font-medium text-slate-600 mb-2">Como a capacidade é controlada</p>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                    {(['exclusivo', 'compartilhado'] as const).map(modo => (
-                      <button key={modo} type="button" onClick={() => setField('preco_pessoa_modo_capacidade', modo)}
-                        className={`text-left rounded-xl border p-3 transition-colors ${
-                          form.preco_pessoa_modo_capacidade === modo
-                            ? 'border-[#0B2447] bg-white shadow-sm'
-                            : 'border-slate-200 bg-white/60 hover:border-slate-300'
-                        }`}>
-                        <p className="text-xs font-bold text-[#0B2447]">
-                          {modo === 'exclusivo' ? 'Exclusivo' : 'Compartilhado'}
-                        </p>
-                        <p className="text-[11px] text-slate-500 mt-0.5 leading-relaxed">
-                          {modo === 'exclusivo'
-                            ? 'Uma reserva usa o roteiro inteiro na data — só muda a forma de cobrar, por pessoa.'
-                            : 'Vários clientes reservam a mesma data até atingir a capacidade máxima.'}
-                        </p>
-                      </button>
-                    ))}
-                  </div>
-                </div>
               </div>
             )}
           </div>
@@ -1085,7 +1019,6 @@ export default function NovoRoteiroForm({ estados, embarcacoes, catalogo: catalo
           items={imagens}
           onChange={setImagens}
           disabled={submitting}
-          onError={msg => setFeedback({ type: 'error', msg })}
           exemploTitulo="Vista do mirante"
         />
       </SectionCard>

@@ -87,10 +87,10 @@ export default async function NovaReservaPage({
   let precoUnitario: number | null;
   // Modelo de cobrança efetivamente resolvido (validado contra os modelos
   // ativos do roteiro — parâmetro de URL não é fonte confiável).
-  let modalidade: 'roteiro' | 'diaria' | 'pessoa' = 'roteiro';
+  let modalidade: 'roteiro' | 'diaria' = 'roteiro';
   let diarias: number | undefined;
   let multiplicador = 1;
-  let rotuloLinha = 'Diária';
+  const rotuloLinha = 'Diária';
 
   let adicionais: { id: string; descricao: string; valor: number; tipo: string }[] = [];
   const adicionalIds = (sp.adicionais ?? '')
@@ -103,7 +103,6 @@ export default async function NovaReservaPage({
     .select(`
       id, owner_id, nome, preco_base, latitude, longitude, quantidade_pessoas,
       preco_diaria_ativo, preco_diaria_valor, preco_diaria_minimo,
-      preco_pessoa_ativo, preco_pessoa_valor, preco_pessoa_capacidade_maxima,
       municipios ( nome, estados ( uf ), latitude, longitude ),
       embarcacao ( capacidade )
     `)
@@ -120,9 +119,6 @@ export default async function NovaReservaPage({
     preco_diaria_ativo: boolean;
     preco_diaria_valor: number | null;
     preco_diaria_minimo: number;
-    preco_pessoa_ativo: boolean;
-    preco_pessoa_valor: number | null;
-    preco_pessoa_capacidade_maxima: number | null;
     quantidade_pessoas: number | null;
     embarcacao: { capacidade: number | null } | null;
     latitude: number | null;
@@ -138,13 +134,7 @@ export default async function NovaReservaPage({
     modalidade = 'diaria';
     diarias = Math.max(roteiro.preco_diaria_minimo || 1, parseInt(sp.diarias ?? '', 10) || roteiro.preco_diaria_minimo || 1);
     multiplicador = diarias;
-    rotuloLinha = 'Diária';
     precoUnitario = Number(roteiro.preco_diaria_valor);
-  } else if (sp.modalidade === 'pessoa' && roteiro.preco_pessoa_ativo && roteiro.preco_pessoa_valor != null) {
-    modalidade = 'pessoa';
-    multiplicador = pessoas;
-    rotuloLinha = 'Pessoa';
-    precoUnitario = Number(roteiro.preco_pessoa_valor);
   } else {
     modalidade = 'roteiro';
     // Mesma resolução por data que `criarReserva` usa para cobrar: as regras
@@ -157,7 +147,6 @@ export default async function NovaReservaPage({
   const limitePessoas = capacidadeMaxima(
     roteiro.quantidade_pessoas,
     roteiro.embarcacao?.capacidade,
-    modalidade === 'pessoa' ? roteiro.preco_pessoa_capacidade_maxima : null,
   );
 
   const localidade = roteiro.municipios

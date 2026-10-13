@@ -3,6 +3,7 @@ import type { ItemRevisao } from '@/components/painel/etapas/RevisaoChecklist';
 import type { GaleriaItem } from '@/components/painel/GaleriaImagensEditor';
 import type { EmbarcacaoCardData } from '@/components/ui/EmbarcacaoCard';
 import { formatarComprimento } from '@/lib/comprimento';
+import { FOTOS_RECOMENDADAS } from '@/lib/upload';
 
 /**
  * Etapas do cadastro/edição de embarcação (`NovaEmbarcacaoForm` e
@@ -21,8 +22,6 @@ export const ETAPA_EMB = {
   informacoes: 0, detalhes: 1, localizacao: 2, fotos: 3, revisao: 4,
 } as const;
 
-/** Fotos recomendadas para uma publicação atrativa (aviso, não bloqueia). */
-const FOTOS_RECOMENDADAS = 5;
 
 function plural(n: number, um: string, varios: string) {
   return `${n} ${n === 1 ? um : varios}`;
@@ -83,9 +82,9 @@ export function revisaoEmbarcacao(args: {
     },
     {
       label: 'Fotos',
-      status: nFotos >= FOTOS_RECOMENDADAS ? 'ok' : 'aviso',
+      status: nFotos === 0 ? 'erro' : nFotos >= FOTOS_RECOMENDADAS ? 'ok' : 'aviso',
       resumo: nFotos === 0
-        ? 'Nenhuma foto — publicações com fotos recebem muito mais reservas.'
+        ? 'Nenhuma foto — envie pelo menos 1 (obrigatório para salvar).'
         : nFotos < FOTOS_RECOMENDADAS
           ? `${plural(nFotos, 'foto', 'fotos')} — recomendamos pelo menos ${FOTOS_RECOMENDADAS}.`
           : plural(nFotos, 'foto', 'fotos'),

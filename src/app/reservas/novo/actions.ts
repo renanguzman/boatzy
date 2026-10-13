@@ -3,13 +3,16 @@
 import { after } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { supabaseAdmin } from '@/lib/supabase';
-import { getDisponibilidadeRoteiro, expandirIntervalo, somarDiasISO } from '@/lib/reservas';
+import { getDatasOcupadasRoteiro, expandirIntervalo, somarDiasISO } from '@/lib/reservas';
 import { getTaxaEfetiva } from '@/lib/taxas';
 import { expirarPedidosVencidosSemFalhar } from '@/lib/pagamentos/pedidos';
 import { notificarGestorNovaSolicitacao } from '@/lib/emails/reserva-solicitada';
 import { formatCurrencyPrecise } from '@/lib/utils';
 import { capacidadeMaxima, mensagemCapacidadeExcedida } from '@/lib/capacidade';
-import type { CupomTipoDesconto, ReservaModalidadePreco, PrecoPessoaModoCapacidade } from '@/types/supabase';
+import type { CupomTipoDesconto, ReservaModalidadePreco } from '@/types/supabase';
+
+/** Modelos aceitos em novas solicitações ('pessoa' existe no banco só para reservas antigas). */
+export type ModalidadeReserva = Exclude<ReservaModalidadePreco, 'pessoa'>;
 import { obterTermoParaAceite, validarAceite, gravarAceite, type AceitePreparado } from '@/lib/termos/aceite';
 import type { AceiteErroCodigo, AceiteTermoCliente } from '@/lib/termos/tipos';
 import { hojeISO, dataMaximaReservaISO, MESES_ANTECEDENCIA_RESERVA } from '@/lib/datas';
@@ -27,7 +30,7 @@ export type CriarReservaInput = {
   adicionaisIds: string[]; // ids de roteiro_catalogo
   cupomCodigo?: string;
   /** Modelo de cobrança escolhido. Padrão 'roteiro'. */
-  modalidade?: ReservaModalidadePreco;
+  modalidade?: ModalidadeReserva;
   /** Quantidade de diárias — obrigatório quando `modalidade === 'diaria'`. */
   diarias?: number;
   /** Aceite do termo `reserva_cliente` feito na tela — obrigatório quando há versão vigente. */
@@ -49,21 +52,14 @@ type AlvoResolvido = {
   /** Taxa de serviço efetiva (%) do gestor dono do alvo — específica ou geral (ver SPEC §14). */
   taxaPercent: number;
   /** Modelo de cobrança efetivamente resolvido. */
-  modalidade: ReservaModalidadePreco;
-  /** Valor unitário do modelo (dia, diária ou pessoa) — snapshot gravado em `reserva.preco_base`. */
+  modalidade: ModalidadeReserva;
+  /** Valor unitário do modelo (dia ou diária) — snapshot gravado em `reserva.preco_base`. */
   precoUnitario: number | null;
-  /** Multiplicador do subtotal: diárias, pessoas, ou 1 (modelo Roteiro). */
+  /** Multiplicador do subtotal: diárias, ou 1 (modelo Roteiro). */
   multiplicador: number;
   /** Diárias mínimas exigidas pelo roteiro no modelo Por Diária. */
   precoDiariaMinimo: number;
-  /** Config do modelo Por Pessoa do roteiro — usada para validar grupo mínimo e capacidade. */
-  pessoaCapacidadeMinima: number | null;
-  pessoaCapacidadeMaxima: number | null;
-  pessoaModoCapacidade: PrecoPessoaModoCapacidade;
-  /**
-   * Máximo de pessoas do grupo: menor entre a capacidade da embarcação, a do
-   * roteiro e (Por Pessoa) o máximo do modelo — ver src/lib/capacidade.ts.
-   */
+  /** Máximo de pessoas do grupo: menor entre a capacidade da embarcação e a do roteiro — ver src/lib/capacidade.ts. */
   capacidadeMaxima: number | null;
 };
 
@@ -73,7 +69,7 @@ type ResolverAlvoInput = {
   roteiroId: string;
   adicionaisIds: string[];
   /** Modelo de cobrança escolhido. */
-  modalidade: ReservaModalidadePreco;
+  modalidade: ModalidadeReserva;
   diarias?: number;
   pessoas: number;
   /**
@@ -125,8 +121,6 @@ async function resolverAlvo(input: ResolverAlvoInput): Promise<ResolverAlvoResul
     .select(`
       id, nome, preco_base, owner_id, embarcacao_id, ativo, quantidade_pessoas,
       preco_diaria_ativo, preco_diaria_valor, preco_diaria_minimo,
-      preco_pessoa_ativo, preco_pessoa_valor,
-      preco_pessoa_capacidade_minima, preco_pessoa_capacidade_maxima, preco_pessoa_modo_capacidade,
       embarcacao ( capacidade )
     `)
     .eq('id', input.roteiroId)
@@ -137,9 +131,6 @@ async function resolverAlvo(input: ResolverAlvoInput): Promise<ResolverAlvoResul
   if (input.modalidade === 'diaria' && !roteiro.preco_diaria_ativo) {
     return { ok: false, error: 'Este roteiro não tem o modelo Por Diária disponível.' };
   }
-  if (input.modalidade === 'pessoa' && !roteiro.preco_pessoa_ativo) {
-    return { ok: false, error: 'Este roteiro não tem o modelo Por Pessoa disponível.' };
-  }
 
   // No modelo Roteiro o preço do dia vem de `get_preco_roteiro`, que aplica as
   // regras do gestor (data_fixa > periodo_anual > dia_semana) com fallback em
@@ -148,14 +139,9 @@ async function resolverAlvo(input: ResolverAlvoInput): Promise<ResolverAlvoResul
   const precoUnitario =
     input.modalidade === 'diaria'
       ? roteiro.preco_diaria_valor != null ? Number(roteiro.preco_diaria_valor) : null
-      : input.modalidade === 'pessoa'
-        ? roteiro.preco_pessoa_valor != null ? Number(roteiro.preco_pessoa_valor) : null
-        : await precoRoteiroNaData(roteiro.id, input.data, roteiro.preco_base);
+      : await precoRoteiroNaData(roteiro.id, input.data, roteiro.preco_base);
 
-  const multiplicador =
-    input.modalidade === 'diaria' ? Math.max(1, input.diarias ?? 1)
-    : input.modalidade === 'pessoa' ? input.pessoas
-    : 1;
+  const multiplicador = input.modalidade === 'diaria' ? Math.max(1, input.diarias ?? 1) : 1;
 
   const alvo: AlvoResolvido = {
     nome: roteiro.nome,
@@ -167,13 +153,9 @@ async function resolverAlvo(input: ResolverAlvoInput): Promise<ResolverAlvoResul
     taxaPercent: await getTaxaEfetiva(roteiro.owner_id),
     modalidade: input.modalidade,
     precoDiariaMinimo: roteiro.preco_diaria_minimo || 1,
-    pessoaCapacidadeMinima: roteiro.preco_pessoa_capacidade_minima,
-    pessoaCapacidadeMaxima: roteiro.preco_pessoa_capacidade_maxima,
-    pessoaModoCapacidade: roteiro.preco_pessoa_modo_capacidade,
     capacidadeMaxima: capacidadeMaxima(
       roteiro.quantidade_pessoas,
       (roteiro.embarcacao as unknown as { capacidade: number | null } | null)?.capacidade,
-      input.modalidade === 'pessoa' ? roteiro.preco_pessoa_capacidade_maxima : null,
     ),
   };
 
@@ -314,7 +296,7 @@ export type ValidarCupomInput = {
   adicionaisIds: string[];
   codigo: string;
   /** Modelo de cobrança escolhido — afeta o subtotal usado para validar o cupom. Padrão 'roteiro'. */
-  modalidade?: ReservaModalidadePreco;
+  modalidade?: ModalidadeReserva;
   diarias?: number;
   pessoas: number;
   /** Data escolhida: no modelo Roteiro define o preço sobre o qual o desconto incide. */
@@ -407,7 +389,7 @@ export async function criarReserva(input: CriarReservaInput): Promise<CriarReser
   }
   if (!input.pessoas || input.pessoas < 1) return { ok: false, error: 'Informe o número de pessoas.' };
 
-  const modalidade: ReservaModalidadePreco = input.modalidade ?? 'roteiro';
+  const modalidade: ModalidadeReserva = input.modalidade ?? 'roteiro';
   if (modalidade === 'diaria' && (!input.diarias || input.diarias < 1)) {
     return { ok: false, error: 'Informe a quantidade de diárias.' };
   }
@@ -422,9 +404,6 @@ export async function criarReserva(input: CriarReservaInput): Promise<CriarReser
       error: `Este roteiro exige no mínimo ${alvo.precoDiariaMinimo} diária${alvo.precoDiariaMinimo > 1 ? 's' : ''}.`,
     };
   }
-  if (modalidade === 'pessoa' && alvo.pessoaCapacidadeMinima && input.pessoas < alvo.pessoaCapacidadeMinima) {
-    return { ok: false, error: `Este roteiro exige um grupo mínimo de ${alvo.pessoaCapacidadeMinima} pessoas.` };
-  }
   // Capacidade da embarcação/roteiro — a tela já limita, mas a URL pode ser editada.
   if (alvo.capacidadeMaxima != null && input.pessoas > alvo.capacidadeMaxima) {
     return { ok: false, error: mensagemCapacidadeExcedida(alvo.capacidadeMaxima) };
@@ -438,26 +417,13 @@ export async function criarReserva(input: CriarReservaInput): Promise<CriarReser
   // Bloqueia a data (ou o intervalo, no modelo Por Diária) se a embarcação
   // (ou o roteiro, quando sem vínculo) já tiver reserva CONFIRMADA que
   // conflite — valida sempre pela embarcação quando ela existe, pois uma
-  // mesma embarcação pode atender vários roteiros. No modelo Por Pessoa
-  // compartilhado, só há conflito se ultrapassar a capacidade máxima.
-  const disponibilidade = await getDisponibilidadeRoteiro({
+  // mesma embarcação pode atender vários roteiros.
+  const ocupadas = new Set(await getDatasOcupadasRoteiro({
     roteiroId: alvo.roteiroId,
     embarcacaoId: alvo.embarcacaoId,
-    pessoaModoCapacidade: alvo.pessoaModoCapacidade,
-  });
-  const intervalo = expandirIntervalo(input.data, dataFim ?? input.data);
-  const exclusivas = new Set(disponibilidade.datasExclusivasOcupadas);
-  if (intervalo.some((d) => exclusivas.has(d))) {
+  }));
+  if (expandirIntervalo(input.data, dataFim ?? input.data).some((d) => ocupadas.has(d))) {
     return { ok: false, error: 'Essa data não está mais disponível. Escolha outra data.' };
-  }
-  if (modalidade === 'pessoa' && alvo.pessoaModoCapacidade === 'compartilhado') {
-    const maxima = alvo.pessoaCapacidadeMaxima ?? 0;
-    const semVaga = intervalo.some(
-      (d) => (disponibilidade.vagasPessoaOcupadas[d] ?? 0) + input.pessoas > maxima,
-    );
-    if (semVaga) {
-      return { ok: false, error: 'Não há vagas suficientes nessa data. Escolha outra data ou reduza o número de pessoas.' };
-    }
   }
 
   // Cálculo (servidor) — mesma fórmula do resumo/BookingCard.

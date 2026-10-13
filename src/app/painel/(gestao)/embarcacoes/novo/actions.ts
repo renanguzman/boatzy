@@ -6,12 +6,17 @@ import { checkRoleInDb } from '@/lib/roles';
 import type { EmbarcacaoStatus, ModalidadeCapitao } from '@/types/supabase';
 import { isComprimentoUnidade, type ComprimentoUnidade } from '@/lib/comprimento';
 import { normalizarTituloImagem } from '@/lib/galeria';
+import { ehUrlDoStorage, ehUuid, prepararImagensNovas, type ImagemNovaPayload } from '@/lib/upload-imagem-server';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Tipos
 // ─────────────────────────────────────────────────────────────────────────────
 
 export type CriarEmbarcacaoPayload = {
+  /** Id gerado no formulário: as fotos sobem para o storage antes de o registro existir. */
+  id: string;
+  /** Fotos já enviadas ao storage (mínimo 1). */
+  imagens: ImagemNovaPayload[];
   nome: string;
   descricao: string;
   embarcacao_tipo_id: string;
@@ -61,12 +66,17 @@ export async function criarEmbarcacao(
     return { ok: false, error: 'O nome da embarcação é obrigatório.' };
   }
 
+  if (!ehUuid(payload.id)) return { ok: false, error: 'Cadastro inválido. Recarregue a página e tente novamente.' };
+  const imagens = prepararImagensNovas(payload.imagens);
+  if (!imagens.ok) return { ok: false, error: imagens.error };
+
   const autorizado = await checkRoleInDb(user.id, ['gestor', 'admin']);
   if (!autorizado) return { ok: false, error: 'Acesso não autorizado.' };
 
   const { data, error } = await supabaseAdmin
     .from('embarcacao')
     .insert({
+      id: payload.id,
       owner_id: user.id,
       nome: payload.nome.trim(),
       descricao: payload.descricao.trim() || null,
@@ -92,7 +102,17 @@ export async function criarEmbarcacao(
     .single();
 
   if (error || !data) {
+    if (error?.code === '23505') return { ok: false, error: 'Esta embarcação já foi cadastrada. Confira a lista de embarcações.' };
     return { ok: false, error: error?.message ?? 'Erro ao salvar embarcação.' };
+  }
+
+  // Sem as fotos o cadastro não vale: desfaz a embarcação se o registro delas falhar.
+  const { error: imgErr } = await supabaseAdmin
+    .from('embarcacao_imagens')
+    .insert(imagens.linhas.map(l => ({ ...l, embarcacao_id: data.id })));
+  if (imgErr) {
+    await supabaseAdmin.from('embarcacao').delete().eq('id', data.id);
+    return { ok: false, error: `Não foi possível registrar as fotos (${imgErr.message}). Nada foi salvo — tente novamente.` };
   }
 
   return { ok: true, embarcacaoId: data.id, ownerId: user.id };
@@ -120,6 +140,7 @@ export async function salvarImagem(
 
   const { data: emb } = await query.single();
   if (!emb) return { ok: false, error: 'Embarcação não encontrada ou sem permissão.' };
+  if (!ehUrlDoStorage(payload.urlImagem)) return { ok: false, error: 'A foto não foi enviada corretamente. Envie-a novamente.' };
 
   if (payload.principal) {
     await supabaseAdmin

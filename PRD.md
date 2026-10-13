@@ -201,7 +201,7 @@ Vale nas **duas abas** de `/buscar` (Roteiros e Embarcações), sempre resolvido
 
 #### ✅ Implementado — Filtro por Modelo de Cobrança (busca de roteiros)
 
-- No painel **"Filtros"** de `/buscar` (aba Roteiros), nova seção **"Modelo de cobrança"** com um botão para cada um dos 3 modelos do roteiro (ver 6.8 → Modelos de cobrança): **Passeios (Roteiro)**, **Por Diária**, **Por Pessoa**. Multi-seleção — pode marcar mais de um.
+- No painel **"Filtros"** de `/buscar` (aba Roteiros), nova seção **"Modelo de cobrança"** com um botão para cada modelo do roteiro (ver 6.8 → Modelos de cobrança): **Passeios (Roteiro)** e **Por Diária** (o **Por Pessoa** saiu em 12/10/2026). Multi-seleção — pode marcar mais de um.
 - Nenhum selecionado = sem filtro (mostra roteiros com qualquer modelo). Com um ou mais marcados, só aparecem roteiros que tenham **pelo menos um** dos modelos escolhidos ativo.
 - Só existe na aba **Roteiros** — a aba Embarcações não tem esse filtro, pois embarcação não tem preço próprio (preço é do roteiro).
 - Vira **chip removível** ("Cobrança: ...") e fica na URL, como os demais filtros avançados; sobrevive a uma nova busca de destino/data/pessoas.
@@ -747,7 +747,10 @@ Todos os números são do **gestor logado** (`owner_id`):
 - Apenas navegação — não altera campos, validações ou o que é salvo no roteiro.
 - Detalhes técnicos: SPEC §30.5.
 
-#### ✅ Implementado — Modelos de cobrança do roteiro: Roteiro, Por Diária e Por Pessoa
+#### ✅ Implementado — Modelos de cobrança do roteiro: Roteiro, Por Diária ~~e Por Pessoa~~
+
+> ⛔ **Por Pessoa removido em 12/10/2026** — ver "Modelo de cobrança Por Pessoa removido". Hoje
+> existem só **Roteiro** e **Por Diária**; o texto sobre Por Pessoa abaixo é histórico.
 
 - Além do modelo já existente (**Roteiro**, diária única — preço base + regras), o gestor pode
   ativar independentemente, por roteiro, dois modelos novos, no cadastro (`/painel/roteiros/novo`)
@@ -1436,6 +1439,46 @@ A taxa padrão configurada inicialmente é **10%**. Admins podem alterá-la a qu
   (`sem_capitao`, `opcional`) continuam existindo no banco; embarcações antigas com esses valores
   não são migradas automaticamente.
 - Detalhes técnicos: SPEC §38.1.
+
+---
+
+### ✅ Fotos de embarcação e roteiro — envio confiável, erros claros e foto obrigatória (12/10/2026)
+
+- **Pelo menos 1 foto é obrigatória** para salvar uma embarcação ou um roteiro (cadastro e edição).
+  Continua o aviso de que o ideal são 5 ou mais — com 1 a 4 fotos o registro é salvo normalmente.
+- **As fotos sobem antes de qualquer coisa ser salva.** Se alguma falhar, o cadastro **não é salvo**,
+  o painel volta para a etapa Fotos e cada foto com problema mostra o motivo (ex.: sessão expirada,
+  falha de conexão, arquivo corrompido, armazenamento indisponível). O usuário remove/troca a foto e
+  salva de novo — as que já subiram não são enviadas outra vez. Antes, o cadastro era dado como
+  "salvo com sucesso" mesmo com fotos perdidas.
+- **Arquivos inválidos são barrados na hora de adicionar**, com o motivo de cada um: formato HEIC do
+  iPhone (com instrução de como mudar), formato não suportado, arquivo vazio, acima de 20 MB ou
+  imagem corrompida.
+- **Fotos de até 20 MB sobem direto para o armazenamento (Cloudflare R2)**, sem passar pelo servidor
+  da Vercel — que limita cada envio a 4,5 MB. A foto vai no tamanho original, com barra de progresso
+  na miniatura, e o servidor confere depois que o arquivo gravado é mesmo uma imagem.
+- O admin passa a conseguir enviar fotos ao editar cadastros de outros gestores, e fotos com o mesmo
+  nome de arquivo não se sobrescrevem mais.
+- Detalhes técnicos: SPEC §44.
+
+---
+
+### ✅ Modelo de cobrança "Por Pessoa" removido (12/10/2026)
+
+- **Painel/admin:** o step **Preço** do roteiro passa a ter só **Roteiro (diária única)** e **Por
+  Diária** — saíram o valor por pessoa, a capacidade mínima/máxima do modelo e a escolha
+  Exclusivo/Compartilhado. A revisão e a pré-visualização também não mostram mais o Por Pessoa.
+- **Site:** o card de reserva do roteiro mostra só as abas Roteiro e Por Diária; a confirmação da
+  reserva não aceita mais o modelo (um link antigo com `modalidade=pessoa` cai no modelo Roteiro); o
+  filtro **"Modelo de cobrança"** da busca perdeu a opção Por Pessoa.
+- **Roteiros existentes:** quem tinha o Por Pessoa ativo (1 roteiro na base hoje — "Passeio ao Caixa
+  D'aço…") tem o modelo desligado por migration, e o "a partir de" do card passa a usar o menor valor
+  entre Roteiro e Por Diária (deixa de anunciar "/pessoa").
+- **Disponibilidade:** sem vagas compartilhadas, toda reserva confirmada ocupa a data inteira do
+  roteiro/embarcação (ou o intervalo, no Por Diária).
+- **Histórico preservado:** reservas antigas Por Pessoa (nenhuma na base hoje) continuam exibidas com
+  o rótulo "Por pessoa" no painel, pedidos e e-mails; as colunas ficam no banco.
+- Detalhes técnicos: SPEC §43.
 
 ---
 

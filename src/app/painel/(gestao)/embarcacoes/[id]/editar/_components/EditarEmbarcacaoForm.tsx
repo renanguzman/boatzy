@@ -7,6 +7,7 @@ import {
   Loader2, AlertCircle, CheckCircle, ShieldCheck, Waves,
 } from 'lucide-react';
 import GaleriaImagensEditor, { itensDeImagensSalvas, type GaleriaItem } from '@/components/painel/GaleriaImagensEditor';
+import { enviarFotosNovas, mensagemFalhaEnvio, MENSAGEM_SEM_FOTOS } from '@/lib/galeria-upload';
 import {
   atualizarEmbarcacao,
   atualizarComodidades,
@@ -298,18 +299,8 @@ export default function EditarEmbarcacaoForm({
 
   // ─── Imagens ───────────────────────────────────────────────────────────────
 
-  async function uploadImagem(item: GaleriaItem, embarcacaoId: string, ordem: number) {
-    if (!item.file) return null;
-    const body = new FormData();
-    body.append('file', item.file);
-    body.append('embarcacaoId', embarcacaoId);
-    const res = await fetch('/api/painel/embarcacoes/upload', { method: 'POST', body });
-    if (!res.ok) return null;
-    const { publicUrl } = await res.json();
-    const saved = await salvarImagem({
-      embarcacaoId, urlImagem: publicUrl, titulo: item.titulo, principal: item.principal, ordem,
-    });
-    return saved.ok ? (publicUrl as string) : null;
+  function atualizarImagem(key: string, patch: Partial<GaleriaItem>) {
+    setImagens(prev => prev.map(it => (it.key === key ? { ...it, ...patch } : it)));
   }
 
   // ─── Submit ────────────────────────────────────────────────────────────────
@@ -323,7 +314,24 @@ export default function EditarEmbarcacaoForm({
       etapas.ir(ETAPA_EMB.informacoes);
       return;
     }
+    if (imagens.length === 0) {
+      setFeedback({ type: 'error', msg: MENSAGEM_SEM_FOTOS });
+      etapas.ir(ETAPA_EMB.fotos);
+      return;
+    }
     setSubmitting(true);
+
+    // 0. Envia as fotos novas antes de tudo: se alguma falhar, nada é salvo.
+    const envio = await enviarFotosNovas({
+      itens: imagens, endpoint: '/api/painel/embarcacoes/upload',
+      entidadeId: embarcacao.id, atualizar: atualizarImagem,
+    });
+    if (envio.falhas > 0) {
+      setFeedback({ type: 'error', msg: mensagemFalhaEnvio(envio.falhas) });
+      etapas.ir(ETAPA_EMB.fotos);
+      setSubmitting(false);
+      return;
+    }
 
     // 1. Atualizar campos base
     const result = await atualizarEmbarcacao(embarcacao.id, {
@@ -369,13 +377,24 @@ export default function EditarEmbarcacaoForm({
         it.id ? [{ id: it.id, titulo: it.titulo, ordem, principal: it.principal }] : []),
     );
 
-    // 5. Upload das novas, cada uma já com a sua posição
+    // 5. Registra as fotos novas (já no storage), cada uma com a sua posição
+    const falhasRegistro: string[] = [];
     for (let ordem = 0; ordem < imagens.length; ordem++) {
       const item = imagens[ordem];
       if (!item.file) continue;
-      setImagens(prev => prev.map(it => it.key === item.key ? { ...it, status: 'uploading' } : it));
-      const url = await uploadImagem(item, embarcacao.id, ordem);
-      setImagens(prev => prev.map(it => it.key === item.key ? { ...it, status: url ? 'done' : 'error' } : it));
+      const salvo = await salvarImagem({
+        embarcacaoId: embarcacao.id, urlImagem: envio.urls[item.key],
+        titulo: item.titulo, principal: item.principal, ordem,
+      });
+      if (!salvo.ok) falhasRegistro.push(salvo.error ?? 'erro desconhecido');
+    }
+    if (falhasRegistro.length > 0) {
+      setFeedback({
+        type: 'error',
+        msg: `Os dados foram salvos, mas ${falhasRegistro.length === 1 ? '1 foto não pôde ser registrada' : `${falhasRegistro.length} fotos não puderam ser registradas`} (${falhasRegistro[0]}). Recarregue a página para conferir a galeria e envie a foto novamente.`,
+      });
+      setSubmitting(false);
+      return;
     }
 
     setFeedback({ type: 'success', msg: 'Embarcação atualizada com sucesso!' });
@@ -660,7 +679,6 @@ export default function EditarEmbarcacaoForm({
           items={imagens}
           onChange={setImagens}
           disabled={submitting}
-          onError={msg => setFeedback({ type: 'error', msg })}
           exemploTitulo="Proa do iate"
         />
       </SectionCard>

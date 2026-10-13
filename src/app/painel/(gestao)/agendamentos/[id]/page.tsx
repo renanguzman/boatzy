@@ -45,8 +45,6 @@ type ReservaDetalhe = {
   roteiro: {
     nome: string;
     embarcacao_id: string | null;
-    preco_pessoa_modo_capacidade: 'compartilhado' | 'exclusivo';
-    preco_pessoa_capacidade_maxima: number | null;
     municipios: { nome: string; estados: { uf: string } | null } | null;
   } | null;
   embarcacao: { nome: string } | null;
@@ -125,7 +123,7 @@ export default async function ReservaDetalhePage({ params }: { params: Promise<{
        preco_base, total_adicionais, taxa_servico, taxa_percent, total_estimado, cupom_codigo, desconto_valor,
        status, observacao_gestor, solicitado_em, respondido_em,
        cliente:users!reserva_cliente_id_fkey ( name, email, cpf_cnpj, avatar_url ),
-       roteiro ( nome, embarcacao_id, preco_pessoa_modo_capacidade, preco_pessoa_capacidade_maxima, municipios ( nome, estados ( uf ) ) ),
+       roteiro ( nome, embarcacao_id, municipios ( nome, estados ( uf ) ) ),
        embarcacao ( nome ),
        reserva_adicional ( id, descricao, valor, tipo ),
        pedido ( numero, status, expira_em, pago_em, valor_total, valor_itens )`,
@@ -161,12 +159,8 @@ export default async function ReservaDetalhePage({ params }: { params: Promise<{
         : await haConflitoReservaRoteiro({
             roteiroId: r.roteiro_id!,
             embarcacaoId: r.roteiro?.embarcacao_id ?? null,
-            pessoaModoCapacidade: r.roteiro?.preco_pessoa_modo_capacidade ?? 'exclusivo',
-            pessoaCapacidadeMaxima: r.roteiro?.preco_pessoa_capacidade_maxima ?? null,
-            modalidadePreco: r.modalidade_preco,
             dataReserva: r.data_reserva,
             dataFimReserva: r.data_fim_reserva,
-            quantidadePessoas: r.quantidade_pessoas,
           });
   }
   // Equipe: opções de atendente (gestor + membros vinculados à embarcação) e

@@ -4519,6 +4519,9 @@ Relatório a nível de gestor: nº de atendimentos por membro em um mês —
 
 ## 33. Modelos de cobrança do roteiro — Roteiro / Por Diária / Por Pessoa
 
+> ⛔ **Por Pessoa removido em 12/10/2026 (§43).** Só Roteiro e Por Diária estão ativos; as
+> menções a Por Pessoa/capacidade compartilhada nesta seção são históricas.
+
 Até aqui um roteiro só tinha um jeito de cobrar: **preço base** (R$/dia, + `roteiro_preco_regra`)
 com data única e capacidade exclusiva (1 reserva confirmada bloqueia o dia inteiro, na embarcação
 inteira). Esta seção acrescenta dois modelos novos, que o gestor ativa **independentemente** por
@@ -5527,4 +5530,105 @@ banco (`roteiro_disponibilidade_bloqueio`, uma linha por data).
   "N roteiro(s)" com nomes no `title`, ou "Nenhum"), a partir do embed `roteiro ( id, nome )` que a
   página já carregava. **Não ordenável** — a ordenação do admin é server-side (`SORT_COLUMNS`) e só
   cobre colunas da própria tabela `embarcacao`.
+
+---
+
+## 43. Remoção do modelo de cobrança "Por Pessoa" (12/10/2026)
+
+- **Banco:** migration `20261012b_desativar_modelo_por_pessoa.sql` faz
+  `UPDATE roteiro SET preco_pessoa_ativo = false WHERE preco_pessoa_ativo` — dispara
+  `trg_roteiro_preco_minimo` e recalcula `preco_minimo`/`preco_minimo_modelo`. Sem DROP: colunas
+  `preco_pessoa_*`, enum `'pessoa'` em `reserva.modalidade_preco`, `calcular_preco_minimo_roteiro` e
+  o ramo `'pessoa'` de `buscar_roteiros` continuam, inertes. `src/types/supabase.ts` inalterado.
+- **Painel:** `NovoRoteiroForm`/`EditarRoteiroForm` sem o bloco Por Pessoa (estado, UI, payload);
+  `CriarRoteiroPayload`/`AtualizarRoteiroPayload` sem `preco_pessoa_*` e sem as validações do modelo;
+  insert/update não tocam mais nessas colunas. `revisaoRoteiro` (`etapasRoteiro.ts`) e
+  `montarPreviewRoteiro` sem Por Pessoa; páginas de edição (painel/admin) não selecionam as colunas.
+- **Disponibilidade (`src/lib/reservas.ts`):** `getDisponibilidadeRoteiro` (com
+  `vagasPessoaOcupadas`) virou `getDatasOcupadasRoteiro({ roteiroId, embarcacaoId }) → string[]` —
+  toda reserva que ocupa data trava o dia (ou intervalo). `haConflitoReservaRoteiro` recebe só
+  `{ roteiroId, embarcacaoId, dataReserva, dataFimReserva }` (agendamentos atualizados).
+- **Site:** `RoteiroDetalheDados` sem `preco_pessoa_*`; `RoteiroDetalheView` sem
+  `vagasPessoaOcupadas`; `BookingCard` com `Modalidade = 'roteiro' | 'diaria'` e limite de pessoas
+  = `capacidadeMaxima(capacidade)`; `/roteiros/[id]` usa `getDatasOcupadasRoteiro`.
+- **Reserva:** `src/app/reservas/novo/actions.ts` exporta
+  `ModalidadeReserva = Exclude<ReservaModalidadePreco, 'pessoa'>`, usado em `CriarReservaInput`,
+  `ValidarCupomInput`, `ResolverAlvoInput` e `ConfirmarReserva`; `resolverAlvo` sem o ramo pessoa
+  (grupo mínimo, vagas). A página ignora `?modalidade=pessoa` (cai em `roteiro`).
+- **Busca:** `MODELOS_PRECO` = `roteiro`, `diaria` (`parseModelosPreco` descarta `pessoa` vindo da URL).
+- **Mantido para histórico:** rótulos de `'pessoa'` em `agendamentos/[id]`, `ReservaAcoes`,
+  `pedidos/_lib/rotulos.ts`, `emails/reserva-solicitada.ts`, `pagamentos/valores.ts` e
+  `precos-roteiro.ts` (unidade `/pessoa`).
+
+---
+
+## 44. Upload de fotos (embarcação e roteiro) — envio antes de salvar, erros claros, mínimo de 1 foto (12/10/2026)
+
+### 44.1 Fluxo no salvar (4 formulários: `NovaEmbarcacaoForm`, `EditarEmbarcacaoForm`, `NovoRoteiroForm`, `EditarRoteiroForm`)
+
+1. Validações dos campos; **sem foto → erro** `MENSAGEM_SEM_FOTOS` e vai para a etapa Fotos.
+2. **Envia as fotos novas primeiro** (`enviarFotosNovas`, `src/lib/galeria-upload.ts`). Cada item
+   passa por `status: 'uploading' → 'done' | 'error'` com `erro` (mensagem) e `urlEnviada`. Com
+   qualquer falha: `mensagemFalhaEnvio(n)`, volta para a etapa Fotos e **nada é salvo**. Numa nova
+   tentativa, fotos já enviadas (`urlEnviada`) não sobem de novo.
+3. Cadastro **novo**: o id do registro é gerado no navegador (`crypto.randomUUID()`, guardado num
+   `useRef` entre tentativas) e as fotos sobem para a pasta dele antes de o registro existir. Depois
+   `criarEmbarcacao`/`criarRoteiro` recebem `id` + `imagens: ImagemNovaPayload[]`
+   (`{ url, titulo, principal, ordem }`), validam (`prepararImagensNovas`: mínimo 1, URL do bucket,
+   exatamente uma principal), inserem o registro **com esse id** e as linhas de `*_imagens`; se as
+   fotos não puderem ser registradas, o registro é apagado (rollback) e a action devolve erro.
+   Id duplicado (`23505`) → mensagem de "já cadastrado".
+4. **Edição**: após o envio, segue o fluxo de antes (atualizar dados, excluir removidas, atualizar
+   título/ordem/principal) e registra as novas com `salvarImagem`/`salvarImagemRoteiro` usando a
+   URL já enviada. Se o registro de alguma falhar (erro de banco), mostra erro e não redireciona.
+5. `salvarImagem`/`salvarImagemRoteiro` recusam URL fora do bucket (`ehUrlDoStorage`).
+
+### 44.2 Envio direto ao R2 com URL assinada (sem passar pela Vercel)
+
+A Vercel limita o corpo de requisição de funções a 4,5 MB (413). Por isso o arquivo **não passa pela
+rota**: o navegador envia direto ao bucket R2 por uma URL assinada. Fluxo por foto
+(`enviarImagem`, `src/lib/galeria-upload.ts`):
+
+1. `POST /api/painel/{embarcacoes|roteiros}/upload` `{ acao: 'preparar', entidadeId, nome, tipo, tamanho }`
+   → `{ uploadUrl, key }`. O servidor valida sessão, papel, permissão no registro, tipo (JPG/PNG/WEBP)
+   e tamanho (≤ 20 MB) e assina um `PutObjectCommand` com **`content-length` e `content-type`
+   assinados** (`signableHeaders`), válido por 10 min — um PUT com outro tamanho ou tipo recebe 403
+   do R2 (testado).
+2. `PUT uploadUrl` direto no R2 via `XMLHttpRequest` (header `Content-Type` = tipo do arquivo), com
+   progresso (`GaleriaItem.progresso`, barra + % na miniatura).
+3. `POST …/upload` `{ acao: 'confirmar', entidadeId, key }` → `{ publicUrl }`. O servidor confere que a
+   key é da pasta do registro, lê `bytes=0-15` do objeto e valida a assinatura binária (JPG/PNG/WEBP)
+   e o tamanho; se inválido, **apaga o objeto** e devolve erro.
+
+Mensagens de falha: rede/CORS ("não foi possível enviar ao armazenamento…"), 403 no PUT (link
+expirado/recusado), timeout, 401 (sessão), `{ error }` da rota. A otimização forçada de fotos > 4 MB
+foi removida — as fotos sobem no tamanho original (até 20 MB). Removidos também a rota órfã
+`/api/painel/embarcacoes/presigned-url` e `buildR2Key`.
+
+`validarImagem(file)` (ao adicionar no `GaleriaImagensEditor`) continua barrando HEIC/HEIF, tipo
+fora de JPG/PNG/WEBP, arquivo vazio, acima de 20 MB e imagem que não decodifica.
+
+**Pré-requisito — CORS do bucket R2** (`boatzy-prod`, aplicado em 12/10/2026 via `PutBucketCors`):
+`AllowedOrigins` = `https://boatzy.app`, `https://www.boatzy.app`, `http://localhost:3000`,
+`http://localhost:3001`; `AllowedMethods` = GET/PUT/POST/DELETE; `AllowedHeaders` = `content-type`;
+`ExposeHeaders` = `ETag`; `MaxAgeSeconds` = 3600. Outra origem (ex.: deploy de preview `*.vercel.app`
+ou novo domínio) precisa ser incluída — senão o navegador bloqueia o PUT no preflight e a foto falha
+com "não foi possível enviar ao armazenamento de imagens". Testado: PUT de 23 MB pelo navegador → 200.
+
+### 44.3 Servidor — `src/lib/upload-imagem-server.ts` (`processarUploadImagemGaleria`)
+
+Rotas `/api/painel/embarcacoes/upload` e `/api/painel/roteiros/upload` são wrappers dele (JSON, sem
+arquivo). Registro existente: dono **ou admin**; inexistente (cadastro novo, id gerado no navegador):
+pasta do próprio usuário. Key `{embarcacoes|roteiros}/{ownerId}/{id}/{8 chars aleatórios}-{nome}` —
+arquivos com o mesmo nome não se sobrescrevem. Falha no R2 → 502 com mensagem.
+
+### 44.4 `GaleriaImagensEditor`
+
+- `GaleriaItem` ganhou `erro?`, `urlEnviada?` e `progresso?`; prop `onError` removida (recusas aparecem no próprio
+  editor: lista "N arquivos não foram adicionados" com nome + motivo, fechável).
+- Item com erro: borda vermelha + "Não enviada (arquivo): motivo"; a linha continua editável e
+  removível (só fica travada durante o envio). Resumo "N fotos não foram enviadas" acima da lista.
+- Contador: vermelho sem fotos ("Obrigatório: pelo menos 1"), âmbar de 1 a 4 ("X de 5 recomendadas —
+  não impede salvar"), verde com 5+. Constantes `FOTOS_MINIMAS = 1` e `FOTOS_RECOMENDADAS = 5` em
+  `src/lib/upload.ts` (usadas também na Revisão, onde 0 fotos agora é `erro`).
 

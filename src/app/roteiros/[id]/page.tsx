@@ -5,7 +5,7 @@ import RoteiroDetalheView, { type RoteiroDetalheDados } from './_components/Rote
 import type { AvaliacaoPublica } from '@/components/avaliacoes/AvaliacoesSection';
 import { supabaseAdmin } from '@/lib/supabase';
 import { createClient } from '@/lib/supabase/server';
-import { getDisponibilidadeRoteiro } from '@/lib/reservas';
+import { getDatasOcupadasRoteiro } from '@/lib/reservas';
 
 type RoteiroDetalhe = RoteiroDetalheDados & {
   owner_id: string;
@@ -30,8 +30,6 @@ export default async function RoteiroDetalhePage({
       id, owner_id, embarcacao_id, nome, descricao, origem, destino, duracao, quantidade_pessoas, preco_base,
       preco_minimo_roteiro,
       preco_diaria_ativo, preco_diaria_valor, preco_diaria_minimo,
-      preco_pessoa_ativo, preco_pessoa_valor, preco_pessoa_capacidade_minima,
-      preco_pessoa_capacidade_maxima, preco_pessoa_modo_capacidade,
       disponibilidade_dias_semana, horario_saida,
       latitude, longitude, cep, bairro, logradouro, logradouro_numero, complemento,
       municipios ( nome, estados ( uf, nome ) ),
@@ -59,14 +57,11 @@ export default async function RoteiroDetalhePage({
 
   const roteiro = data as unknown as RoteiroDetalhe;
 
-  // Disponibilidade nos 3 modelos de cobrança: datas exclusivamente ocupadas
-  // (reserva confirmada do próprio roteiro, da embarcação vinculada, ou de
-  // outro roteiro que a compartilhe) + vagas já ocupadas do modelo Por
-  // Pessoa quando ele opera em capacidade compartilhada.
-  const disponibilidade = await getDisponibilidadeRoteiro({
+  // Datas ocupadas por reserva confirmada do próprio roteiro, da embarcação
+  // vinculada ou de outro roteiro que a compartilhe.
+  const datasOcupadas = await getDatasOcupadasRoteiro({
     roteiroId: roteiro.id,
     embarcacaoId: roteiro.embarcacao_id,
-    pessoaModoCapacidade: roteiro.preco_pessoa_modo_capacidade,
   });
 
   // Avaliações de reservas concluídas deste roteiro (mais recentes primeiro).
@@ -106,9 +101,8 @@ export default async function RoteiroDetalhePage({
         isFavorito={isFavorito}
         datasBloqueadas={[
           ...(roteiro.roteiro_disponibilidade_bloqueio?.map((b) => b.data) ?? []),
-          ...disponibilidade.datasExclusivasOcupadas,
+          ...datasOcupadas,
         ]}
-        vagasPessoaOcupadas={disponibilidade.vagasPessoaOcupadas}
         initialData={sp.data}
         initialFlex={sp.flex ? parseInt(sp.flex) : undefined}
         initialPessoas={sp.pessoas ? parseInt(sp.pessoas) : undefined}

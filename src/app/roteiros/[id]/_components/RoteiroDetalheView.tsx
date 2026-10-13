@@ -17,7 +17,6 @@ import { CartProvider } from './CartContext';
 import LocalizacaoMap from './LocalizacaoMap';
 import GaleriaRoteiro from './GaleriaRoteiro';
 import AvaliacoesSection, { type AvaliacaoPublica } from '@/components/avaliacoes/AvaliacoesSection';
-import type { PrecoPessoaModoCapacidade } from '@/types/supabase';
 import { formatarComprimento } from '@/lib/comprimento';
 import { ordenarImagens } from '@/lib/galeria';
 import { capacidadeMaxima } from '@/lib/capacidade';
@@ -37,11 +36,6 @@ export type RoteiroDetalheDados = {
   preco_diaria_ativo: boolean;
   preco_diaria_valor: number | null;
   preco_diaria_minimo: number;
-  preco_pessoa_ativo: boolean;
-  preco_pessoa_valor: number | null;
-  preco_pessoa_capacidade_minima: number | null;
-  preco_pessoa_capacidade_maxima: number | null;
-  preco_pessoa_modo_capacidade: PrecoPessoaModoCapacidade;
   disponibilidade_dias_semana: number[] | null;
   horario_saida: string | null;
   latitude: number | null;
@@ -90,7 +84,6 @@ export default function RoteiroDetalheView({
   ehDono,
   isFavorito,
   datasBloqueadas,
-  vagasPessoaOcupadas,
   initialData,
   initialFlex,
   initialPessoas,
@@ -99,10 +92,8 @@ export default function RoteiroDetalheView({
   avaliacoes: AvaliacaoPublica[];
   ehDono: boolean;
   isFavorito: boolean;
-  /** Bloqueios manuais + datas exclusivamente ocupadas (ISO yyyy-mm-dd). */
+  /** Bloqueios manuais + datas ocupadas por reserva confirmada (ISO yyyy-mm-dd). */
   datasBloqueadas: string[];
-  /** Vagas já ocupadas por data no modelo Por Pessoa (capacidade compartilhada). */
-  vagasPessoaOcupadas: Record<string, number>;
   initialData?: string;
   initialFlex?: number;
   initialPessoas?: number;
@@ -455,12 +446,6 @@ export default function RoteiroDetalheView({
                 precoDiariaAtivo={roteiro.preco_diaria_ativo}
                 precoDiariaValor={roteiro.preco_diaria_valor}
                 precoDiariaMinimo={roteiro.preco_diaria_minimo}
-                precoPessoaAtivo={roteiro.preco_pessoa_ativo}
-                precoPessoaValor={roteiro.preco_pessoa_valor}
-                precoPessoaCapacidadeMinima={roteiro.preco_pessoa_capacidade_minima}
-                precoPessoaCapacidadeMaxima={roteiro.preco_pessoa_capacidade_maxima}
-                precoPessoaModoCapacidade={roteiro.preco_pessoa_modo_capacidade}
-                vagasPessoaOcupadas={vagasPessoaOcupadas}
                 capacidade={capacidadeMaxima(
                   roteiro.quantidade_pessoas,
                   roteiro.embarcacao?.capacidade != null

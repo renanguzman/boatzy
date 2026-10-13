@@ -14,10 +14,11 @@ import {
 import { restrictToVerticalAxis, restrictToParentElement } from '@dnd-kit/modifiers';
 import { CSS } from '@dnd-kit/utilities';
 import {
-  AlertCircle, CheckCircle, ChevronDown, ChevronUp, GripVertical, ImagePlus,
-  Loader2, Star, Trash2, Undo2, Upload,
+  AlertCircle, AlertTriangle, CheckCircle, ChevronDown, ChevronUp, GripVertical, ImagePlus,
+  Loader2, Star, Trash2, Undo2, Upload, X,
 } from 'lucide-react';
-import { MAX_IMAGE_SIZE_BYTES, MAX_IMAGE_SIZE_ERROR } from '@/lib/upload';
+import { FOTOS_MINIMAS, FOTOS_RECOMENDADAS, MAX_IMAGE_SIZE_MB } from '@/lib/upload';
+import { validarImagem } from '@/lib/galeria-upload';
 import { TITULO_IMAGEM_MAX, ordenarImagens } from '@/lib/galeria';
 
 // ─── Tipos e helpers ──────────────────────────────────────────────────────────
@@ -35,6 +36,12 @@ export type GaleriaItem = {
   titulo: string;
   principal: boolean;
   status?: 'uploading' | 'done' | 'error';
+  /** Motivo da falha no envio (status 'error'), pronto para exibir. */
+  erro?: string;
+  /** URL no storage após um envio bem-sucedido — evita reenviar numa nova tentativa de salvar. */
+  urlEnviada?: string;
+  /** Progresso do envio (0–100) enquanto `status` é 'uploading'. */
+  progresso?: number;
 };
 
 let seq = 0;
@@ -68,17 +75,18 @@ type Props = {
   onChange: (items: GaleriaItem[]) => void;
   /** Bloqueia a edição (ex.: durante o envio do formulário). */
   disabled?: boolean;
-  /** Mensagem para arquivos recusados (tamanho). */
-  onError?: (msg: string) => void;
   /** Exemplo de título no placeholder ("Proa do iate", "Vista do mirante"…). */
   exemploTitulo?: string;
 };
 
 export default function GaleriaImagensEditor({
-  items, onChange, disabled = false, onError, exemploTitulo = 'Proa do iate',
+  items, onChange, disabled = false, exemploTitulo = 'Proa do iate',
 }: Props) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [dragging, setDragging] = useState(false);
+  const [validando, setValidando] = useState(false);
+  // Arquivos recusados na última seleção, com o motivo de cada um.
+  const [recusados, setRecusados] = useState<{ nome: string; motivo: string }[]>([]);
   const [activeKey, setActiveKey] = useState<string | null>(null);
   const [removida, setRemovida] = useState<{ item: GaleriaItem; index: number } | null>(null);
 
@@ -99,10 +107,15 @@ export default function GaleriaImagensEditor({
 
   // ── Mutações ────────────────────────────────────────────────────────────────
 
-  function addFiles(files: FileList | File[]) {
-    const imagens = Array.from(files).filter(f => f.type.startsWith('image/'));
-    const aceitas = imagens.filter(f => f.size <= MAX_IMAGE_SIZE_BYTES);
-    if (aceitas.length < imagens.length) onError?.(MAX_IMAGE_SIZE_ERROR);
+  async function addFiles(files: FileList | File[]) {
+    const lista = Array.from(files);
+    if (lista.length === 0) return;
+    setValidando(true);
+    const motivos = await Promise.all(lista.map(validarImagem));
+    setValidando(false);
+
+    const aceitas = lista.filter((_, i) => motivos[i] == null);
+    setRecusados(lista.flatMap((f, i) => (motivos[i] ? [{ nome: f.name, motivo: motivos[i]! }] : [])));
     if (aceitas.length === 0) return;
     onChange(garantirPrincipal([
       ...items,
@@ -158,6 +171,7 @@ export default function GaleriaImagensEditor({
 
   const activeIndex = activeKey ? items.findIndex(i => i.key === activeKey) : -1;
   const compacto = items.length > 0;
+  const comErro = items.filter(i => i.status === 'error').length;
 
   // ── Render ──────────────────────────────────────────────────────────────────
 
@@ -193,12 +207,59 @@ export default function GaleriaImagensEditor({
             {compacto ? 'Adicionar mais fotos — ' : 'Arraste as imagens ou '}
             <span className="text-[#0B3D91] underline">clique para selecionar</span>
           </p>
-          <p className="text-xs text-slate-400 mt-0.5">JPG, PNG ou WEBP • Máximo 20 MB por arquivo</p>
+          <p className="text-xs text-slate-400 mt-0.5">
+            JPG, PNG ou WEBP • Máximo {MAX_IMAGE_SIZE_MB} MB por arquivo
+            {validando && <span className="ml-1.5 inline-flex items-center gap-1 text-slate-500"><Loader2 className="w-3 h-3 animate-spin" /> verificando…</span>}
+          </p>
         </div>
         <input ref={fileInputRef} type="file" accept="image/jpeg,image/png,image/webp"
           multiple className="hidden"
           onChange={e => { if (e.target.files) addFiles(e.target.files); e.target.value = ''; }} />
       </div>
+
+      {/* Quantidade: mínimo obrigatório e recomendado */}
+      <p className={`mt-3 flex items-center gap-1.5 text-xs ${
+        items.length < FOTOS_MINIMAS ? 'text-red-600' : items.length < FOTOS_RECOMENDADAS ? 'text-amber-700' : 'text-emerald-700'
+      }`}>
+        {items.length < FOTOS_MINIMAS
+          ? <><AlertCircle className="w-3.5 h-3.5" /> Obrigatório: envie pelo menos {FOTOS_MINIMAS} foto. O ideal são {FOTOS_RECOMENDADAS} ou mais.</>
+          : items.length < FOTOS_RECOMENDADAS
+            ? <><AlertTriangle className="w-3.5 h-3.5" /> {items.length} de {FOTOS_RECOMENDADAS} fotos recomendadas — publicações com mais fotos recebem mais reservas (não impede salvar).</>
+            : <><CheckCircle className="w-3.5 h-3.5" /> {items.length} fotos — ótimo!</>}
+      </p>
+
+      {/* Arquivos recusados na seleção */}
+      {recusados.length > 0 && (
+        <div role="alert" className="mt-3 rounded-xl border border-red-200 bg-red-50 px-4 py-3">
+          <div className="flex items-start justify-between gap-3">
+            <p className="text-sm font-semibold text-red-700">
+              {recusados.length === 1 ? '1 arquivo não foi adicionado:' : `${recusados.length} arquivos não foram adicionados:`}
+            </p>
+            <button type="button" onClick={() => setRecusados([])} aria-label="Fechar aviso"
+              className="shrink-0 rounded-md p-0.5 text-red-400 hover:bg-red-100 hover:text-red-600">
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+          <ul className="mt-1.5 space-y-1">
+            {recusados.map((r, i) => (
+              <li key={`${r.nome}-${i}`} className="text-xs text-red-700">
+                <span className="font-semibold break-all">{r.nome}</span>: {r.motivo}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
+      {/* Fotos que falharam no envio */}
+      {comErro > 0 && (
+        <div role="alert" className="mt-3 flex items-start gap-2 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+          <AlertCircle className="mt-0.5 w-4 h-4 shrink-0" />
+          <span>
+            {comErro === 1 ? '1 foto não foi enviada' : `${comErro} fotos não foram enviadas`} — o motivo aparece em cada uma abaixo.
+            Remova ou troque a imagem e salve de novo (as fotos já enviadas não sobem outra vez).
+          </span>
+        </div>
+      )}
 
       {/* Lista ordenável */}
       {items.length > 0 && (
@@ -327,7 +388,8 @@ function RowView({
   handleProps?: React.HTMLAttributes<HTMLButtonElement>;
 }) {
   const Tag = overlay ? 'div' : 'li';
-  const bloqueado = disabled || !!item.status;
+  // Com erro a linha fica livre: o usuário precisa poder remover/ajustar a foto.
+  const bloqueado = disabled || item.status === 'uploading';
   const iconBtn = `w-8 h-8 rounded-lg flex items-center justify-center transition
     text-slate-400 hover:text-[#0B2447] hover:bg-slate-100 disabled:opacity-30 disabled:hover:bg-transparent disabled:cursor-not-allowed`;
 
@@ -336,7 +398,7 @@ function RowView({
       ref={rowRef}
       style={style}
       className={`flex items-stretch gap-2 sm:gap-3 rounded-xl border bg-white p-2 sm:p-2.5 transition-shadow
-        ${item.principal ? 'border-[#0B2447]/40 ring-1 ring-[#0B2447]/10' : 'border-slate-200'}
+        ${item.status === 'error' ? 'border-red-300 ring-1 ring-red-100' : item.principal ? 'border-[#0B2447]/40 ring-1 ring-[#0B2447]/10' : 'border-slate-200'}
         ${placeholder ? 'opacity-40' : ''}
         ${overlay ? 'shadow-xl ring-2 ring-[#0B2447]/20 cursor-grabbing' : ''}`}
     >
@@ -361,8 +423,14 @@ function RowView({
           {index + 1}
         </span>
         {item.status === 'uploading' && (
-          <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
+          <div className="absolute inset-0 bg-black/45 flex flex-col items-center justify-center gap-1">
             <Loader2 className="w-5 h-5 text-white animate-spin" />
+            {item.progresso != null && (
+              <span className="text-[11px] font-semibold tabular-nums text-white">{item.progresso}%</span>
+            )}
+            <div className="absolute inset-x-0 bottom-0 h-1 bg-white/25">
+              <div className="h-full bg-cyan-400 transition-[width] duration-200" style={{ width: `${item.progresso ?? 0}%` }} />
+            </div>
           </div>
         )}
         {item.status === 'done' && (
@@ -371,7 +439,7 @@ function RowView({
           </div>
         )}
         {item.status === 'error' && (
-          <div className="absolute top-1 right-1 w-5 h-5 rounded-full bg-red-500 flex items-center justify-center" title="Falha no envio">
+          <div className="absolute top-1 right-1 w-5 h-5 rounded-full bg-red-500 flex items-center justify-center" title={item.erro ?? 'Falha no envio'}>
             <AlertCircle className="w-3 h-3 text-white" />
           </div>
         )}
@@ -379,6 +447,12 @@ function RowView({
 
       {/* Título + principal/remover */}
       <div className="flex-1 min-w-0 flex flex-col justify-center gap-2">
+        {item.status === 'error' && (
+          <p className="flex items-start gap-1.5 rounded-lg bg-red-50 px-2.5 py-1.5 text-xs text-red-700">
+            <AlertCircle className="mt-0.5 w-3.5 h-3.5 shrink-0" />
+            <span><span className="font-semibold">Não enviada{item.file ? ` (${item.file.name})` : ''}:</span> {item.erro ?? 'falha no envio.'}</span>
+          </p>
+        )}
         <div className="relative">
           <input
             type="text"

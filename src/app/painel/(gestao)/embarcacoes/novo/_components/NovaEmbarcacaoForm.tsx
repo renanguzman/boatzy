@@ -7,9 +7,9 @@ import {
   Loader2, AlertCircle, CheckCircle, Sparkles, ShieldCheck, Waves,
 } from 'lucide-react';
 import GaleriaImagensEditor, { type GaleriaItem } from '@/components/painel/GaleriaImagensEditor';
+import { enviarFotosNovas, mensagemFalhaEnvio, MENSAGEM_SEM_FOTOS } from '@/lib/galeria-upload';
 import {
   criarEmbarcacao,
-  salvarImagem,
   salvarComodidades,
   salvarEquipamentosSeguranca,
   salvarAcessorios,
@@ -93,7 +93,7 @@ export default function NovaEmbarcacaoForm({ tipos, estados, comodidades, equipa
   const numeroInputRef = useRef<HTMLInputElement>(null);
 
   // ── Form base ────────────────────────────────────────────────────────────
-  const [form, setForm] = useState<Omit<CriarEmbarcacaoPayload, 'municipio_id'> & {
+  const [form, setForm] = useState<Omit<CriarEmbarcacaoPayload, 'municipio_id' | 'id' | 'imagens'> & {
     municipio_id: string; estado_id: string;
   }>({
     nome: '', descricao: '',
@@ -266,20 +266,12 @@ export default function NovaEmbarcacaoForm({ tipos, estados, comodidades, equipa
 
   // ─── Imagens ──────────────────────────────────────────────────────────────
 
-  async function uploadImagem(item: GaleriaItem, embarcacaoId: string, ordem: number) {
-    if (!item.file) return null;
-    const body = new FormData();
-    body.append('file', item.file);
-    body.append('embarcacaoId', embarcacaoId);
+  // Id da nova embarcação, gerado no 1º salvar e mantido nas novas tentativas:
+  // as fotos sobem para a pasta dela ANTES de o registro existir.
+  const novoIdRef = useRef<string | null>(null);
 
-    const res = await fetch('/api/painel/embarcacoes/upload', { method: 'POST', body });
-    if (!res.ok) return null;
-
-    const { publicUrl } = await res.json();
-    const saved = await salvarImagem({
-      embarcacaoId, urlImagem: publicUrl, titulo: item.titulo, principal: item.principal, ordem,
-    });
-    return saved.ok ? (publicUrl as string) : null;
+  function atualizarImagem(key: string, patch: Partial<GaleriaItem>) {
+    setImagens(prev => prev.map(it => (it.key === key ? { ...it, ...patch } : it)));
   }
 
   // ─── Submit ───────────────────────────────────────────────────────────────
@@ -293,10 +285,31 @@ export default function NovaEmbarcacaoForm({ tipos, estados, comodidades, equipa
       etapas.ir(ETAPA_EMB.informacoes);
       return;
     }
+    if (imagens.length === 0) {
+      setFeedback({ type: 'error', msg: MENSAGEM_SEM_FOTOS });
+      etapas.ir(ETAPA_EMB.fotos);
+      return;
+    }
     setSubmitting(true);
+    novoIdRef.current ??= crypto.randomUUID();
+    const embarcacaoIdNovo = novoIdRef.current;
 
-    // 1. Criar embarcação
+    // 1. Envia as fotos primeiro: se alguma falhar, nada é salvo.
+    const envio = await enviarFotosNovas({
+      itens: imagens, endpoint: '/api/painel/embarcacoes/upload',
+      entidadeId: embarcacaoIdNovo, atualizar: atualizarImagem,
+    });
+    if (envio.falhas > 0) {
+      setFeedback({ type: 'error', msg: mensagemFalhaEnvio(envio.falhas) });
+      etapas.ir(ETAPA_EMB.fotos);
+      setSubmitting(false);
+      return;
+    }
+
+    // 2. Cria a embarcação já com as fotos (a ordem da lista é a da galeria).
     const result = await criarEmbarcacao({
+      id: embarcacaoIdNovo,
+      imagens: imagens.map((it, ordem) => ({ url: envio.urls[it.key], titulo: it.titulo, principal: it.principal, ordem })),
       nome: form.nome, descricao: form.descricao,
       embarcacao_tipo_id: form.embarcacao_tipo_id,
       status: form.status as EmbarcacaoStatus,
@@ -332,15 +345,6 @@ export default function NovaEmbarcacaoForm({ tipos, estados, comodidades, equipa
     // 5. Salvar comodidades
     if (comodidadesSelecionadas.length > 0) {
       await salvarComodidades(embarcacaoId, comodidadesSelecionadas);
-    }
-
-    // 5. Upload de imagens
-    //    A posição na lista é a ordem da galeria.
-    for (let i = 0; i < imagens.length; i++) {
-      const item = imagens[i];
-      setImagens(prev => prev.map(it => it.key === item.key ? { ...it, status: 'uploading' } : it));
-      const url = await uploadImagem(item, embarcacaoId, i);
-      setImagens(prev => prev.map(it => it.key === item.key ? { ...it, status: url ? 'done' : 'error' } : it));
     }
 
     setFeedback({ type: 'success', msg: 'Embarcação cadastrada com sucesso!' });
@@ -639,7 +643,6 @@ export default function NovaEmbarcacaoForm({ tipos, estados, comodidades, equipa
           items={imagens}
           onChange={setImagens}
           disabled={submitting}
-          onError={msg => setFeedback({ type: 'error', msg })}
           exemploTitulo="Proa do iate"
         />
       </SectionCard>

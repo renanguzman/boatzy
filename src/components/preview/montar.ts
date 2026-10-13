@@ -4,7 +4,6 @@ import { normalizarTituloImagem } from '@/lib/galeria';
 import { isComprimentoUnidade } from '@/lib/comprimento';
 import type { PreviewDados } from './mensagens';
 import type { CatalogoItem, ItemSelecionado } from '@/app/painel/(gestao)/roteiros/_components/CatalogoSelector';
-import type { PrecoPessoaModoCapacidade } from '@/types/supabase';
 import { duracaoParaHoras, duracaoTexto, type DuracaoUnidade } from '@/lib/duracao';
 
 /**
@@ -131,9 +130,6 @@ export function montarPreviewRoteiro(args: {
     duracao_valor: string; duracao_unidade: DuracaoUnidade; quantidade_pessoas: string;
     preco_base: string;
     preco_diaria_ativo: boolean; preco_diaria_valor: string; preco_diaria_minimo: string;
-    preco_pessoa_ativo: boolean; preco_pessoa_valor: string;
-    preco_pessoa_capacidade_minima: string; preco_pessoa_capacidade_maxima: string;
-    preco_pessoa_modo_capacidade: PrecoPessoaModoCapacidade;
     horario_saida: string;
     estado_id: string; municipio_id: string;
   };
@@ -167,11 +163,6 @@ export function montarPreviewRoteiro(args: {
     preco_diaria_ativo: form.preco_diaria_ativo,
     preco_diaria_valor: form.preco_diaria_ativo ? numOuNull(form.preco_diaria_valor) : null,
     preco_diaria_minimo: Math.max(1, inteiro(form.preco_diaria_minimo) ?? 1),
-    preco_pessoa_ativo: form.preco_pessoa_ativo,
-    preco_pessoa_valor: form.preco_pessoa_ativo ? numOuNull(form.preco_pessoa_valor) : null,
-    preco_pessoa_capacidade_minima: inteiro(form.preco_pessoa_capacidade_minima),
-    preco_pessoa_capacidade_maxima: form.preco_pessoa_ativo ? inteiro(form.preco_pessoa_capacidade_maxima) : null,
-    preco_pessoa_modo_capacidade: form.preco_pessoa_modo_capacidade,
     disponibilidade_dias_semana: args.diasOperacao.length > 0 ? args.diasOperacao : null,
     horario_saida: textoOuNull(form.horario_saida),
     ...endereco(form),

@@ -27,15 +27,6 @@ export const R2_BUCKET     = process.env.R2_BUCKET_NAME!;
 export const R2_PUBLIC_URL = process.env.R2_PUBLIC_URL!;
 
 /**
- * Monta o caminho (key) de uma imagem no R2.
- * Estrutura: embarcacoes/{userId}/{embarcacaoId}/{filename}
- */
-export function buildR2Key(userId: string, embarcacaoId: string, filename: string): string {
-  const safeFilename = filename.replace(/[^a-zA-Z0-9._-]/g, '_');
-  return `embarcacoes/${userId}/${embarcacaoId}/${safeFilename}`;
-}
-
-/**
  * Monta o caminho (key) da foto de um membro da equipe no R2.
  * Estrutura: equipe/{gestorId}/{membroId}/{filename}
  * — pasta `equipe` + pasta com o id do gestor, conforme especificado.
