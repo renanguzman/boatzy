@@ -4,7 +4,7 @@ import { revalidatePath } from 'next/cache';
 import { createClient } from '@/lib/supabase/server';
 import { supabaseAdmin } from '@/lib/supabase';
 import { checkRoleInDb } from '@/lib/roles';
-import type { AnuncioVendaStatus } from '@/types/supabase';
+import { verificarEdicaoSensivel } from '@/lib/publicacao/server';
 
 type ActionResult = { ok: boolean; error?: string };
 type CriarResult = { ok: true; anuncioId: string } | { ok: false; error: string };
@@ -54,7 +54,8 @@ async function getGestor(): Promise<{ userId: string } | { error: string }> {
 }
 
 /**
- * Cria um anúncio de venda aproveitando uma embarcação do gestor.
+ * Cria um anúncio de venda aproveitando uma embarcação do gestor. O anúncio
+ * nasce Em análise (trigger no banco) e só vai ao site após a aprovação.
  * Grava o primeiro registro do histórico de preço junto. Se a
  * embarcação não tem tipo, exige `tipoId` e grava na própria
  * embarcação (o filtro de busca por tipo é obrigatório).
@@ -124,12 +125,13 @@ export async function criarAnuncio(payload: AnuncioPayload): Promise<CriarResult
 /**
  * Atualiza os campos de venda do anúncio (a embarcação vinculada não muda).
  * Alteração de preço gera novo registro no histórico — é ele que
- * alimenta o selo "Preço reduzido" no site.
+ * alimenta o selo "Preço reduzido" no site. Fabricante, anos e descrição
+ * são sensíveis: em anúncio Ativo, a edição o devolve para análise.
  */
 export async function atualizarAnuncio(
   anuncioId: string,
   payload: Omit<AnuncioPayload, 'embarcacaoId'>,
-): Promise<ActionResult> {
+): Promise<ActionResult & { voltouParaAnalise?: boolean }> {
   const gestor = await getGestor();
   if ('error' in gestor) return { ok: false, error: gestor.error };
 
@@ -176,42 +178,11 @@ export async function atualizarAnuncio(
       .insert({ anuncio_id: anuncioId, preco });
   }
 
+  const campos = await verificarEdicaoSensivel('anuncio_venda', anuncioId, gestor.userId, 'gestor');
+  // O tipo é campo sensível da embarcação vinculada.
+  if (payload.tipoId) await verificarEdicaoSensivel('embarcacao', anuncio.embarcacao_id, gestor.userId, 'gestor');
+
   revalidatePath('/painel/vendas');
   revalidatePath(`/painel/vendas/${anuncioId}/editar`);
-  return { ok: true };
-}
-
-/**
- * Ciclo de vida do anúncio: ativo ↔ pausado; vendido/cancelado são
- * terminais (liberam a embarcação para um novo anúncio, preservando
- * histórico e leads — não há exclusão).
- */
-export async function alterarStatusAnuncio(
-  anuncioId: string,
-  novoStatus: AnuncioVendaStatus,
-): Promise<ActionResult> {
-  const gestor = await getGestor();
-  if ('error' in gestor) return { ok: false, error: gestor.error };
-
-  const { data: anuncio } = await supabaseAdmin
-    .from('anuncio_venda')
-    .select('id, status')
-    .eq('id', anuncioId)
-    .eq('owner_id', gestor.userId)
-    .single();
-
-  if (!anuncio) return { ok: false, error: 'Anúncio não encontrado ou sem permissão.' };
-  if (anuncio.status === 'vendido' || anuncio.status === 'cancelado') {
-    return { ok: false, error: 'Anúncios encerrados não mudam de status — crie um novo anúncio.' };
-  }
-
-  const { error } = await supabaseAdmin
-    .from('anuncio_venda')
-    .update({ status: novoStatus })
-    .eq('id', anuncioId);
-
-  if (error) return { ok: false, error: error.message };
-
-  revalidatePath('/painel/vendas');
-  return { ok: true };
+  return { ok: true, voltouParaAnalise: !!campos };
 }

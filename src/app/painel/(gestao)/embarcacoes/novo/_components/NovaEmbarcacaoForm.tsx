@@ -17,7 +17,7 @@ import {
   type CriarEmbarcacaoPayload,
 } from '../actions';
 import MapaPicker from './MapaPicker';
-import type { EmbarcacaoStatus, ModalidadeCapitao } from '@/types/supabase';
+import type { ModalidadeCapitao } from '@/types/supabase';
 import { COMPRIMENTO_UNIDADES, type ComprimentoUnidade } from '@/lib/comprimento';
 import PreviewPublicacaoModal from '@/components/preview/PreviewPublicacaoModal';
 import BotaoPreview from '@/components/preview/BotaoPreview';
@@ -98,7 +98,6 @@ export default function NovaEmbarcacaoForm({ tipos, estados, comodidades, equipa
   }>({
     nome: '', descricao: '',
     embarcacao_tipo_id: '',
-    status: 'ativo',
     modalidade_capitao: 'com_capitao' as ModalidadeCapitao,
     capacidade: '', comprimento: '', comprimento_unidade: 'm', quartos: '', banheiros: '', tripulacao: '',
     estado_id: '', municipio_id: '',
@@ -312,7 +311,6 @@ export default function NovaEmbarcacaoForm({ tipos, estados, comodidades, equipa
       imagens: imagens.map((it, ordem) => ({ url: envio.urls[it.key], titulo: it.titulo, principal: it.principal, ordem })),
       nome: form.nome, descricao: form.descricao,
       embarcacao_tipo_id: form.embarcacao_tipo_id,
-      status: form.status as EmbarcacaoStatus,
       modalidade_capitao: form.modalidade_capitao,
       capacidade: form.capacidade, comprimento: form.comprimento,
       comprimento_unidade: form.comprimento_unidade,
@@ -347,7 +345,7 @@ export default function NovaEmbarcacaoForm({ tipos, estados, comodidades, equipa
       await salvarComodidades(embarcacaoId, comodidadesSelecionadas);
     }
 
-    setFeedback({ type: 'success', msg: 'Embarcação cadastrada com sucesso!' });
+    setFeedback({ type: 'success', msg: 'Embarcação enviada para análise! Ela aparece no site assim que a equipe Boatzy aprovar.' });
     setSubmitting(false);
     setTimeout(() => router.push('/painel/embarcacoes'), 1200);
   }
@@ -389,14 +387,6 @@ export default function NovaEmbarcacaoForm({ tipos, estados, comodidades, equipa
             <select className={selectCls} value={form.modalidade_capitao}
               onChange={e => setField('modalidade_capitao', e.target.value as ModalidadeCapitao)}>
               <option value="com_capitao">Com capitão obrigatório</option>
-            </select>
-          </Field>
-          <Field label="Status">
-            <select className={selectCls} value={form.status}
-              onChange={e => setField('status', e.target.value as EmbarcacaoStatus)}>
-              <option value="ativo">Ativo</option>
-              <option value="inativo">Inativo</option>
-              <option value="em_manutencao">Em Manutenção</option>
             </select>
           </Field>
         </div>
@@ -686,7 +676,7 @@ export default function NovaEmbarcacaoForm({ tipos, estados, comodidades, equipa
         labelAtual={ETAPAS_EMBARCACAO[etapas.atual].label}
         proximoLabel={etapas.ehUltima ? null : ETAPAS_EMBARCACAO[etapas.atual + 1].label}
         modo="novo"
-        rotuloSalvar="Publicar embarcação"
+        rotuloSalvar="Enviar para análise"
         onVoltar={etapas.anterior}
         onProximo={etapas.proxima}
         onPreview={() => setPreviewAberto(true)}

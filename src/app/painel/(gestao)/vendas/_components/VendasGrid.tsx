@@ -1,9 +1,8 @@
 'use client';
 
-import { useState, useMemo, useTransition } from 'react';
+import { useState, useMemo } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
 import {
   Search,
   ChevronUp,
@@ -13,18 +12,14 @@ import {
   Ship,
   Tag,
   Users,
-  CheckCircle2,
-  Ban,
   Filter,
   ChevronsLeft,
   ChevronsRight,
   ChevronLeft,
   ChevronRight,
-  Loader2,
-  AlertTriangle,
 } from 'lucide-react';
 import type { AnuncioVendaStatus } from '@/types/supabase';
-import { alterarStatusAnuncio } from '../actions';
+import AcoesStatusGestor from '@/components/publicacao/AcoesStatusGestor';
 
 const PAGE_SIZE = 10;
 
@@ -105,29 +100,11 @@ function ThSortable({ col, label, className = '', sortKey, sortDir, onSort }: {
   );
 }
 
-/** Encerramento (vendido/cancelado) exige confirmação — é terminal. */
-type Encerramento = { anuncio: AnuncioListItem; novoStatus: Extract<AnuncioVendaStatus, 'vendido' | 'cancelado'> };
-
 export default function VendasGrid({ anuncios }: { anuncios: AnuncioListItem[] }) {
-  const router = useRouter();
   const [search, setSearch]   = useState('');
   const [sortKey, setSortKey] = useState<SortKey>('created_at');
   const [sortDir, setSortDir] = useState<SortDir>('desc');
   const [page, setPage]       = useState(1);
-
-  const [confirming, setConfirming] = useState<Encerramento | null>(null);
-  const [pendingId, setPendingId]   = useState<string | null>(null);
-  const [, startTransition]         = useTransition();
-
-  function runStatus(id: string, novoStatus: AnuncioVendaStatus) {
-    setPendingId(id);
-    startTransition(async () => {
-      await alterarStatusAnuncio(id, novoStatus);
-      setConfirming(null);
-      setPendingId(null);
-      router.refresh();
-    });
-  }
 
   function handleSort(key: SortKey) {
     if (sortKey === key) {
@@ -214,8 +191,8 @@ export default function VendasGrid({ anuncios }: { anuncios: AnuncioListItem[] }
               <tbody>
                 {paged.map((a) => {
                   const img = getImage(a);
-                  const vigente = a.status === 'ativo' || a.status === 'pausado';
-                  const isPending = pendingId === a.id;
+                  // Vigente = ainda não encerrado (vendido/cancelado).
+                  const vigente = a.status !== 'vendido' && a.status !== 'cancelado';
 
                   return (
                     <tr
@@ -289,51 +266,12 @@ export default function VendasGrid({ anuncios }: { anuncios: AnuncioListItem[] }
                         </span>
                       </td>
 
-                      {/* Status */}
+                      {/* Status da publicação + ações do dono */}
                       <td className="py-4 px-4">
-                        {vigente ? (
-                          (() => {
-                            const isAtivo = a.status === 'ativo';
-                            return (
-                              <div className="flex items-center gap-2">
-                                <button
-                                  type="button"
-                                  role="switch"
-                                  aria-checked={isAtivo}
-                                  disabled={isPending}
-                                  onClick={() => runStatus(a.id, isAtivo ? 'pausado' : 'ativo')}
-                                  title={isAtivo ? 'Pausar anúncio (sai do site)' : 'Reativar anúncio'}
-                                  className={`relative inline-flex h-5 w-9 flex-shrink-0 items-center rounded-full transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${
-                                    isAtivo ? 'bg-emerald-500' : 'bg-slate-300'
-                                  }`}
-                                >
-                                  <span
-                                    className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform ${
-                                      isAtivo ? 'translate-x-4' : 'translate-x-0.5'
-                                    }`}
-                                  />
-                                </button>
-                                {isPending ? (
-                                  <Loader2 className="w-3.5 h-3.5 animate-spin text-slate-400" />
-                                ) : (
-                                  <span className={`text-[11px] font-semibold ${isAtivo ? 'text-emerald-700' : 'text-slate-500'}`}>
-                                    {isAtivo ? 'Ativo' : 'Pausado'}
-                                  </span>
-                                )}
-                              </div>
-                            );
-                          })()
-                        ) : (
-                          <span
-                            className={`inline-block text-[11px] font-semibold px-2.5 py-1 rounded-full whitespace-nowrap ${
-                              a.status === 'vendido'
-                                ? 'bg-blue-50 text-blue-700'
-                                : 'bg-slate-100 text-slate-500'
-                            }`}
-                          >
-                            {a.status === 'vendido' ? 'Vendido' : 'Cancelado'}
-                          </span>
-                        )}
+                        <AcoesStatusGestor
+                          entidade="anuncio_venda" id={a.id}
+                          nome={a.embarcacao?.nome ?? 'Anúncio'} status={a.status}
+                        />
                       </td>
 
                       {/* Ações */}
@@ -354,22 +292,6 @@ export default function VendasGrid({ anuncios }: { anuncios: AnuncioListItem[] }
                             >
                               <Pencil className="w-4 h-4" />
                             </Link>
-                            <button
-                              title="Marcar como vendido"
-                              disabled={isPending}
-                              onClick={() => setConfirming({ anuncio: a, novoStatus: 'vendido' })}
-                              className="w-8 h-8 flex items-center justify-center rounded-lg text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 transition-colors disabled:opacity-50"
-                            >
-                              <CheckCircle2 className="w-4 h-4" />
-                            </button>
-                            <button
-                              title="Cancelar anúncio"
-                              disabled={isPending}
-                              onClick={() => setConfirming({ anuncio: a, novoStatus: 'cancelado' })}
-                              className="w-8 h-8 flex items-center justify-center rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50 transition-colors disabled:opacity-50"
-                            >
-                              <Ban className="w-4 h-4" />
-                            </button>
                           </div>
                         ) : (
                           // Encerrado: só o funil (os leads ficam preservados).
@@ -466,66 +388,6 @@ export default function VendasGrid({ anuncios }: { anuncios: AnuncioListItem[] }
         )}
       </div>
 
-      {/* Modal de confirmação de encerramento (vendido/cancelado) */}
-      {confirming && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          <div
-            className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm"
-            onClick={() => pendingId || setConfirming(null)}
-          />
-          <div className="relative bg-white rounded-2xl shadow-xl border border-slate-100 w-full max-w-md p-6">
-            <div className="flex items-start gap-3 mb-4">
-              <div className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 ${
-                confirming.novoStatus === 'vendido' ? 'bg-emerald-50' : 'bg-amber-50'
-              }`}>
-                {confirming.novoStatus === 'vendido' ? (
-                  <CheckCircle2 className="w-5 h-5 text-emerald-500" />
-                ) : (
-                  <AlertTriangle className="w-5 h-5 text-amber-500" />
-                )}
-              </div>
-              <div>
-                <h3 className="text-base font-bold text-[#0B2447]">
-                  {confirming.novoStatus === 'vendido' ? 'Marcar como vendido?' : 'Cancelar anúncio?'}
-                </h3>
-                <p className="text-sm text-slate-500 mt-0.5">
-                  O anúncio de <strong>{confirming.anuncio.embarcacao?.nome}</strong> será encerrado.
-                </p>
-              </div>
-            </div>
-
-            <p className="text-sm text-slate-500 mb-5">
-              Essa ação é definitiva: o anúncio sai do site e não pode ser reaberto — mas o
-              histórico de preço e os interessados ficam preservados, e a embarcação fica livre
-              para um novo anúncio.
-            </p>
-
-            <div className="flex items-center justify-end gap-2">
-              <button
-                type="button"
-                disabled={!!pendingId}
-                onClick={() => setConfirming(null)}
-                className="px-4 py-2 text-sm font-semibold text-slate-500 hover:text-slate-700 transition-colors disabled:opacity-50"
-              >
-                Voltar
-              </button>
-              <button
-                type="button"
-                disabled={!!pendingId}
-                onClick={() => runStatus(confirming.anuncio.id, confirming.novoStatus)}
-                className={`flex items-center gap-1.5 px-4 py-2 rounded-xl text-white text-sm font-semibold transition-colors disabled:opacity-60 disabled:cursor-not-allowed ${
-                  confirming.novoStatus === 'vendido'
-                    ? 'bg-emerald-600 hover:bg-emerald-700'
-                    : 'bg-red-600 hover:bg-red-700'
-                }`}
-              >
-                {pendingId && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
-                {confirming.novoStatus === 'vendido' ? 'Marcar vendido' : 'Cancelar anúncio'}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }

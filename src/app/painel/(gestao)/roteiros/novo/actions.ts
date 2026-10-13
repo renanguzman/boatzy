@@ -7,6 +7,16 @@ import { duracaoParaHoras, duracaoTexto, type DuracaoUnidade } from '@/lib/durac
 import type { PrecoRegraTipo } from '@/types/supabase';
 import { normalizarTituloImagem } from '@/lib/galeria';
 import { ehUrlDoStorage, ehUuid, prepararImagensNovas, type ImagemNovaPayload } from '@/lib/upload-imagem-server';
+import { verificarEdicaoSensivel } from '@/lib/publicacao/server';
+
+/** Dono do roteiro ou admin (o admin edita qualquer roteiro pelo administrator). */
+async function podeGerenciarRoteiro(roteiroId: string, userId: string): Promise<{ isAdmin: boolean } | null> {
+  const isAdmin = await checkRoleInDb(userId, ['admin']);
+  let query = supabaseAdmin.from('roteiro').select('id').eq('id', roteiroId);
+  if (!isAdmin) query = query.eq('owner_id', userId);
+  const { data } = await query.maybeSingle();
+  return data ? { isAdmin } : null;
+}
 
 // ─── Tipos ───────────────────────────────────────────────────────────────────
 
@@ -185,6 +195,8 @@ export async function salvarImagemRoteiro(
   });
 
   if (error) return { ok: false, error: error.message };
+  // Foto nova em roteiro Ativo é edição sensível (pipeline de aprovação).
+  await verificarEdicaoSensivel('roteiro', payload.roteiroId, user.id, isAdmin ? 'admin' : 'gestor');
   return { ok: true };
 }
 
@@ -196,6 +208,9 @@ export async function criarRegraRoteiro(
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return { ok: false, error: 'Não autenticado.' };
+  if (!(await podeGerenciarRoteiro(payload.roteiroId, user.id))) {
+    return { ok: false, error: 'Roteiro não encontrado ou sem permissão.' };
+  }
 
   const { error } = await supabaseAdmin.from('roteiro_preco_regra').insert({
     roteiro_id:         payload.roteiroId,
@@ -233,6 +248,9 @@ export async function salvarCatalogoRoteiro(
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return { ok: false, error: 'Não autenticado.' };
+  if (!(await podeGerenciarRoteiro(roteiroId, user.id))) {
+    return { ok: false, error: 'Roteiro não encontrado ou sem permissão.' };
+  }
 
   const rows = itens.map(i => ({
     roteiro_id:        roteiroId,
@@ -290,6 +308,8 @@ export async function salvarParadasRoteiro(
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return { ok: false, error: 'Não autenticado.' };
+  const acesso = await podeGerenciarRoteiro(roteiroId, user.id);
+  if (!acesso) return { ok: false, error: 'Roteiro não encontrado ou sem permissão.' };
 
   // Substitui o conjunto de paradas pelo informado, preservando a ordem.
   await supabaseAdmin
@@ -298,12 +318,13 @@ export async function salvarParadasRoteiro(
     .eq('roteiro_id', roteiroId);
 
   const nomes = paradas.map(p => p.trim()).filter(Boolean);
-  if (nomes.length === 0) return { ok: true };
+  if (nomes.length > 0) {
+    const rows = nomes.map((nome, i) => ({ roteiro_id: roteiroId, ordem: i, nome }));
+    const { error } = await supabaseAdmin.from('roteiro_parada').insert(rows);
+    if (error) return { ok: false, error: error.message };
+  }
 
-  const rows = nomes.map((nome, i) => ({ roteiro_id: roteiroId, ordem: i, nome }));
-  const { error } = await supabaseAdmin.from('roteiro_parada').insert(rows);
-
-  if (error) return { ok: false, error: error.message };
+  await verificarEdicaoSensivel('roteiro', roteiroId, user.id, acesso.isAdmin ? 'admin' : 'gestor');
   return { ok: true };
 }
 

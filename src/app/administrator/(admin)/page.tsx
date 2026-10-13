@@ -14,9 +14,11 @@ import {
   ChevronRight,
   UserCog,
   Receipt,
+  ClipboardCheck,
 } from 'lucide-react';
 import { createClient } from '@/lib/supabase/server';
 import { supabaseAdmin } from '@/lib/supabase';
+import { contarPendentesAnalise } from '@/lib/publicacao/server';
 
 export default async function AdministratorDashboardPage() {
   const supabase = await createClient();
@@ -148,6 +150,15 @@ export default async function AdministratorDashboardPage() {
     },
   ];
 
+  // Pipeline de aprovação: fila aguardando a decisão do admin.
+  const pendentes = await contarPendentesAnalise();
+  const filaAnalise = [
+    { label: 'Embarcações', n: pendentes.embarcacao, href: '/administrator/embarcacoes?st=em_analise' },
+    { label: 'Roteiros', n: pendentes.roteiro, href: '/administrator/roteiros?st=em_analise' },
+    { label: 'Anúncios de venda', n: pendentes.anuncio_venda, href: '/administrator/vendas?st=em_analise' },
+  ];
+  const totalFila = filaAnalise.reduce((a, f) => a + f.n, 0);
+
   return (
     <div className="p-8 space-y-8">
       {/* Cabeçalho */}
@@ -161,6 +172,28 @@ export default async function AdministratorDashboardPage() {
         <div className="hidden md:flex items-center gap-2 px-4 py-2 rounded-xl bg-white border border-slate-200 text-xs font-semibold text-slate-500">
           <UserCog className="w-4 h-4 text-[#0B3D91]" />
           Administração Geral
+        </div>
+      </div>
+
+      {/* Fila de análise (pipeline de aprovação) */}
+      <div className={`rounded-2xl border p-5 shadow-sm ${totalFila > 0 ? 'border-amber-200 bg-amber-50/60' : 'border-slate-100 bg-white'}`}>
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <p className="flex items-center gap-2 text-sm font-bold text-[#0B2447]">
+            <ClipboardCheck className={`h-5 w-5 ${totalFila > 0 ? 'text-amber-600' : 'text-slate-400'}`} />
+            {totalFila > 0
+              ? `${totalFila} ${totalFila === 1 ? 'cadastro aguarda' : 'cadastros aguardam'} análise`
+              : 'Nenhum cadastro aguardando análise'}
+          </p>
+          <div className="flex flex-wrap gap-2">
+            {filaAnalise.map((f) => (
+              <Link key={f.label} href={f.href}
+                className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-sm font-medium text-slate-700 hover:border-[#0B2447]/30">
+                {f.label}
+                <span className={`rounded-full px-1.5 text-xs font-bold ${f.n > 0 ? 'bg-amber-500 text-white' : 'bg-slate-100 text-slate-500'}`}>{f.n}</span>
+                <ChevronRight className="h-3.5 w-3.5 text-slate-400" />
+              </Link>
+            ))}
+          </div>
         </div>
       </div>
 

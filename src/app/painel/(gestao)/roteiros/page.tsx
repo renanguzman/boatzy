@@ -20,9 +20,10 @@ export default async function RoteirosPage() {
       quantidade_pessoas,
       origem,
       destino,
+      status,
       ativo,
       created_at,
-      embarcacao ( nome ),
+      embarcacao ( nome, status ),
       municipios ( nome, estados ( uf ) ),
       roteiro_imagens ( url_imagem, principal )
     `)

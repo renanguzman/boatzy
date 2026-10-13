@@ -6,6 +6,7 @@ import { checkRoleInDb } from '@/lib/roles';
 import { buildKeyFromUrl, deleteFromR2 } from '@/lib/r2';
 import { duracaoParaHoras, duracaoTexto, type DuracaoUnidade } from '@/lib/duracao';
 import { normalizarTituloImagem } from '@/lib/galeria';
+import { verificarEdicaoSensivel } from '@/lib/publicacao/server';
 
 // ─── Tipos ───────────────────────────────────────────────────────────────────
 
@@ -62,7 +63,16 @@ async function getAuthorizedUser(roteiroId: string) {
   const { data: roteiro } = await query.single();
   if (!roteiro) return { error: 'Roteiro não encontrado ou sem permissão.' };
 
-  return { userId: user.id, ok: true as const };
+  return { userId: user.id, isAdmin, ok: true as const };
+}
+
+/**
+ * Pipeline de aprovação: depois de gravar campo sensível, gestor com
+ * roteiro Ativo → volta para análise; admin → edição já aprovada.
+ */
+async function verificarEdicao(roteiroId: string, auth: { userId?: string; isAdmin?: boolean }) {
+  if (!auth.userId) return null;
+  return verificarEdicaoSensivel('roteiro', roteiroId, auth.userId, auth.isAdmin ? 'admin' : 'gestor');
 }
 
 // ─── Action: atualizar roteiro ────────────────────────────────────────────────
@@ -115,6 +125,7 @@ export async function atualizarRoteiro(
     .eq('id', roteiroId);
 
   if (error) return { ok: false, error: error.message };
+  await verificarEdicao(roteiroId, result);
   return { ok: true };
 }
 
@@ -160,12 +171,13 @@ export async function salvarParadasRoteiro(
     .eq('roteiro_id', roteiroId);
 
   const nomes = paradas.map(p => p.trim()).filter(Boolean);
-  if (nomes.length === 0) return { ok: true };
+  if (nomes.length > 0) {
+    const rows = nomes.map((nome, i) => ({ roteiro_id: roteiroId, ordem: i, nome }));
+    const { error } = await supabaseAdmin.from('roteiro_parada').insert(rows);
+    if (error) return { ok: false, error: error.message };
+  }
 
-  const rows = nomes.map((nome, i) => ({ roteiro_id: roteiroId, ordem: i, nome }));
-  const { error } = await supabaseAdmin.from('roteiro_parada').insert(rows);
-
-  if (error) return { ok: false, error: error.message };
+  await verificarEdicao(roteiroId, result);
   return { ok: true };
 }
 
@@ -197,6 +209,7 @@ export async function excluirImagemRoteiro(
     .eq('roteiro_id', roteiroId);
 
   if (error) return { ok: false, error: error.message };
+  await verificarEdicao(roteiroId, result);
   return { ok: true };
 }
 

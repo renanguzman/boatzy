@@ -64,8 +64,8 @@ export default async function PainelDashboardPage() {
 
   const [{ data: embarcacoesData }, { data: roteirosData }, { data: reservasData }, { data: anunciosData }, { data: funilData }] =
     await Promise.all([
-      supabaseAdmin.from('embarcacao').select('id, status').eq('owner_id', user.id),
-      supabaseAdmin.from('roteiro').select('id, ativo').eq('owner_id', user.id),
+      supabaseAdmin.from('embarcacao').select('id, nome, status').eq('owner_id', user.id),
+      supabaseAdmin.from('roteiro').select('id, nome, status, ativo').eq('owner_id', user.id),
       supabaseAdmin
         .from('reserva')
         .select(
@@ -75,7 +75,7 @@ export default async function PainelDashboardPage() {
         )
         .eq('owner_id', user.id)
         .order('solicitado_em', { ascending: false }),
-      supabaseAdmin.from('anuncio_venda').select('id, status').eq('owner_id', user.id),
+      supabaseAdmin.from('anuncio_venda').select('id, status, embarcacao ( nome )').eq('owner_id', user.id),
       // Leads dos anúncios de venda (1 linha por lead↔anúncio) — RPC vendas_funil.
       supabaseAdmin.rpc('vendas_funil', { p_gestor: user.id }),
     ]);
@@ -92,6 +92,18 @@ export default async function PainelDashboardPage() {
   const roteirosAtivos = roteiros.filter((r) => r.ativo).length;
   const totalClientes = new Set(reservas.map((r) => r.cliente_id)).size;
   const anunciosAtivos = anunciosVenda.filter((a) => a.status === 'ativo').length;
+
+  /* ── Pipeline de aprovação: devolvidos (pedem ação) e em análise ── */
+  const publicacoes = [
+    ...embarcacoes.map((e) => ({ id: e.id, nome: e.nome, status: e.status as string, href: `/painel/embarcacoes/${e.id}/editar`, tipo: 'Embarcação' })),
+    ...roteiros.map((r) => ({ id: r.id, nome: r.nome, status: r.status as string, href: `/painel/roteiros/${r.id}/editar`, tipo: 'Roteiro' })),
+    ...anunciosVenda.map((a) => ({
+      id: a.id, nome: (a.embarcacao as unknown as { nome: string } | null)?.nome ?? 'Anúncio',
+      status: a.status as string, href: `/painel/vendas/${a.id}/editar`, tipo: 'Anúncio',
+    })),
+  ];
+  const devolvidos = publicacoes.filter((p) => p.status === 'retorno');
+  const emAnalise = publicacoes.filter((p) => p.status === 'em_analise').length;
 
   const stats = [
     {
@@ -183,6 +195,33 @@ export default async function PainelDashboardPage() {
 
   return (
     <div className="p-8">
+      {/* Pipeline de aprovação */}
+      {devolvidos.length > 0 && (
+        <div className="mb-6 rounded-2xl border border-orange-200 bg-orange-50/60 p-5">
+          <p className="flex items-center gap-2 text-sm font-bold text-orange-800">
+            <AlertTriangle className="h-4 w-4" />
+            {devolvidos.length === 1 ? '1 cadastro foi devolvido' : `${devolvidos.length} cadastros foram devolvidos`} pela equipe Boatzy para ajustes
+          </p>
+          <ul className="mt-3 flex flex-wrap gap-2">
+            {devolvidos.map((d) => (
+              <li key={d.id}>
+                <Link href={d.href}
+                  className="inline-flex items-center gap-1.5 rounded-xl border border-orange-200 bg-white px-3 py-1.5 text-sm font-medium text-slate-700 hover:border-orange-300">
+                  <span className="text-xs text-slate-400">{d.tipo}</span> {d.nome}
+                  <ChevronRight className="h-3.5 w-3.5 text-slate-400" />
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+      {emAnalise > 0 && (
+        <p className="mb-6 flex items-center gap-2 rounded-xl border border-amber-200 bg-amber-50/50 px-4 py-2.5 text-sm text-amber-800">
+          <Clock className="h-4 w-4" />
+          {emAnalise === 1 ? '1 cadastro aguarda' : `${emAnalise} cadastros aguardam`} a análise da equipe Boatzy — ele{emAnalise === 1 ? '' : 's'} aparece{emAnalise === 1 ? '' : 'm'} no site assim que for{emAnalise === 1 ? '' : 'em'} aprovado{emAnalise === 1 ? '' : 's'}.
+        </p>
+      )}
+
       {/* Stats Grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-5 gap-5 mb-8">
         {stats.map((stat) => (

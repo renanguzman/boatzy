@@ -6,6 +6,7 @@ import AdminHeader from '@/components/administrator/AdminHeader';
 import SignOutLink from '@/components/painel/SignOutLink';
 import { createClient } from '@/lib/supabase/server';
 import { checkRoleInDb } from '@/lib/roles';
+import { contarPendentesAnalise } from '@/lib/publicacao/server';
 
 export default async function AdminLayout({ children }: { children: React.ReactNode }) {
   const supabase = await createClient();
@@ -45,7 +46,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
 
   return (
     <div className="flex h-screen overflow-hidden bg-[#F8F9FB]">
-      <AdminSidebar />
+      <AdminSidebar pendentes={await contarPendentesAnalise()} />
       <div className="flex-1 flex flex-col overflow-auto">
         <AdminHeader />
         <main className="flex-1 overflow-auto">{children}</main>

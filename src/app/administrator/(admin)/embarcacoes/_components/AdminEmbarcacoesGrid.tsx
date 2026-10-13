@@ -15,18 +15,22 @@ import {
   ChevronLeft,
   ChevronRight,
   Loader2,
-  AlertTriangle,
+  ClipboardCheck,
 } from 'lucide-react';
-import { alternarStatusEmbarcacaoAdmin } from '../actions';
+import type { PublicacaoStatus } from '@/types/supabase';
+import { formatarData } from '@/lib/datas';
+import StatusPublicacaoBadge from '@/components/publicacao/StatusPublicacaoBadge';
 
 const PAGE_SIZES = [10, 25, 50];
 
-export type EmbarcacaoStatus = 'ativo' | 'inativo' | 'em_manutencao';
+export type EmbarcacaoStatus = PublicacaoStatus;
 
 export type AdminEmbarcacaoListItem = {
   id: string;
   nome: string;
   status: EmbarcacaoStatus;
+  enviado_analise_em: string | null;
+  revisao: number;
   capacidade: number | null;
   created_at: string;
   gestor: { name: string; email: string } | null;
@@ -111,11 +115,6 @@ export default function AdminEmbarcacoesGrid({ embarcacoes, total, page, perPage
   const [search, setSearch] = useState(searchParams.get('q') ?? '');
   const [isNavigating, startNavigation] = useTransition();
 
-  // Toggle de status (ativo/inativo) com confirmação ao desativar.
-  const [confirming, setConfirming] = useState<AdminEmbarcacaoListItem | null>(null);
-  const [pendingId, setPendingId]   = useState<string | null>(null);
-  const [, startTransition]         = useTransition();
-
   const setParams = useCallback(
     (updates: Record<string, string | null>) => {
       const params = new URLSearchParams(searchParams.toString());
@@ -137,27 +136,6 @@ export default function AdminEmbarcacoesGrid({ embarcacoes, total, page, perPage
     const t = setTimeout(() => setParams({ q: search, page: null }), 400);
     return () => clearTimeout(t);
   }, [search, searchParams, setParams]);
-
-  function runToggle(id: string, novoStatus: 'ativo' | 'inativo') {
-    setPendingId(id);
-    startTransition(async () => {
-      await alternarStatusEmbarcacaoAdmin(id, novoStatus);
-      setConfirming(null);
-      setPendingId(null);
-      router.refresh();
-    });
-  }
-
-  function handleToggle(item: AdminEmbarcacaoListItem) {
-    if (pendingId) return;
-    if (item.status === 'ativo') {
-      // Desativar exige confirmação (mostra roteiros vinculados).
-      setConfirming(item);
-    } else {
-      // Reativar é direto (reativa os roteiros vinculados em cascata).
-      runToggle(item.id, 'ativo');
-    }
-  }
 
   function handleSort(key: SortKey) {
     if (sortKey === key) {
@@ -280,40 +258,14 @@ export default function AdminEmbarcacoesGrid({ embarcacoes, total, page, perPage
                       </td>
 
 
-                      {/* Status — toggle ativo/inativo */}
+                      {/* Status da publicação */}
                       <td className="py-4 px-4">
-                        {(() => {
-                          const isAtivo   = e.status === 'ativo';
-                          const isPending = pendingId === e.id;
-                          return (
-                            <div className="flex items-center gap-2">
-                              <button
-                                type="button"
-                                role="switch"
-                                aria-checked={isAtivo}
-                                disabled={isPending}
-                                onClick={() => handleToggle(e)}
-                                title={isAtivo ? 'Desativar embarcação' : 'Ativar embarcação'}
-                                className={`relative inline-flex h-5 w-9 flex-shrink-0 items-center rounded-full transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${
-                                  isAtivo ? 'bg-emerald-500' : 'bg-slate-300'
-                                }`}
-                              >
-                                <span
-                                  className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform ${
-                                    isAtivo ? 'translate-x-4' : 'translate-x-0.5'
-                                  }`}
-                                />
-                              </button>
-                              {isPending ? (
-                                <Loader2 className="w-3.5 h-3.5 animate-spin text-slate-400" />
-                              ) : (
-                                <span className={`text-[11px] font-semibold ${isAtivo ? 'text-emerald-700' : 'text-slate-500'}`}>
-                                  {isAtivo ? 'Ativo' : 'Inativo'}
-                                </span>
-                              )}
-                            </div>
-                          );
-                        })()}
+                        <StatusPublicacaoBadge status={e.status} />
+                        {e.status === 'em_analise' && e.enviado_analise_em && (
+                          <p className="mt-1 text-[10px] text-slate-400 whitespace-nowrap">
+                            desde {formatarData(e.enviado_analise_em)}{e.revisao > 1 ? ` · ${e.revisao}ª análise` : ''}
+                          </p>
+                        )}
                       </td>
 
                       {/* Localização */}
@@ -347,6 +299,17 @@ export default function AdminEmbarcacoesGrid({ embarcacoes, total, page, perPage
                       {/* Ações */}
                       <td className="py-4 px-4 pr-6">
                         <div className="flex items-center justify-end gap-1">
+                          <Link
+                            href={`/administrator/embarcacoes/${e.id}`}
+                            title={e.status === 'em_analise' ? 'Analisar' : 'Análise e histórico'}
+                            className={`h-8 flex items-center justify-center gap-1 rounded-lg transition-colors ${
+                              e.status === 'em_analise'
+                                ? 'px-2.5 bg-amber-50 text-amber-700 hover:bg-amber-100 text-xs font-semibold'
+                                : 'w-8 text-slate-400 hover:text-[#0B2447] hover:bg-slate-100'}`}
+                          >
+                            <ClipboardCheck className="w-4 h-4" />
+                            {e.status === 'em_analise' && 'Analisar'}
+                          </Link>
                           <Link
                             href={`/administrator/embarcacoes/${e.id}/editar`}
                             title="Editar"
@@ -452,68 +415,6 @@ export default function AdminEmbarcacoesGrid({ embarcacoes, total, page, perPage
         )}
       </div>
 
-      {/* Modal de confirmação de desativação */}
-      {confirming && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          <div
-            className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm"
-            onClick={() => pendingId || setConfirming(null)}
-          />
-          <div className="relative bg-white rounded-2xl shadow-xl border border-slate-100 w-full max-w-md p-6">
-            <div className="flex items-start gap-3 mb-4">
-              <div className="w-10 h-10 rounded-xl bg-amber-50 flex items-center justify-center flex-shrink-0">
-                <AlertTriangle className="w-5 h-5 text-amber-500" />
-              </div>
-              <div>
-                <h3 className="text-base font-bold text-[#0B2447]">Desativar embarcação?</h3>
-                <p className="text-sm text-slate-500 mt-0.5">
-                  <strong>{confirming.nome}</strong> deixará de aparecer na busca do site.
-                </p>
-              </div>
-            </div>
-
-            {confirming.roteiro.length > 0 ? (
-              <div className="rounded-xl border border-amber-200 bg-amber-50/60 p-4 mb-5">
-                <p className="text-xs font-semibold text-amber-800 mb-2">
-                  {confirming.roteiro.length} roteiro{confirming.roteiro.length !== 1 ? 's' : ''} vinculado{confirming.roteiro.length !== 1 ? 's' : ''} também {confirming.roteiro.length !== 1 ? 'ficarão inativos' : 'ficará inativo'} e {confirming.roteiro.length !== 1 ? 'sairão' : 'sairá'} da busca:
-                </p>
-                <ul className="space-y-1 max-h-40 overflow-y-auto">
-                  {confirming.roteiro.map((r) => (
-                    <li key={r.id} className="text-sm text-amber-900 flex items-center gap-2">
-                      <span className="w-1.5 h-1.5 rounded-full bg-amber-400 flex-shrink-0" />
-                      {r.nome}
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            ) : (
-              <p className="text-sm text-slate-500 mb-5">
-                Nenhum roteiro está vinculado a esta embarcação.
-              </p>
-            )}
-
-            <div className="flex items-center justify-end gap-2">
-              <button
-                type="button"
-                disabled={!!pendingId}
-                onClick={() => setConfirming(null)}
-                className="px-4 py-2 text-sm font-semibold text-slate-500 hover:text-slate-700 transition-colors disabled:opacity-50"
-              >
-                Cancelar
-              </button>
-              <button
-                type="button"
-                disabled={!!pendingId}
-                onClick={() => runToggle(confirming.id, 'inativo')}
-                className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-red-600 hover:bg-red-700 text-white text-sm font-semibold transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
-              >
-                {pendingId && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
-                Desativar
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }

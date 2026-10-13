@@ -19,6 +19,7 @@ import {
   Receipt,
   LogOut,
   LayoutList,
+  BadgeDollarSign,
 } from 'lucide-react';
 import clsx from 'clsx';
 
@@ -27,6 +28,7 @@ const navItems = [
   { href: '/administrator/avaliacoes', label: 'AVALIAÇÕES', icon: Star, exact: false },
   { href: '/administrator/embarcacoes', label: 'EMBARCAÇÕES', icon: Ship, exact: false },
   { href: '/administrator/roteiros', label: 'ROTEIROS', icon: MapPin, exact: false },
+  { href: '/administrator/vendas', label: 'ANÚNCIOS DE VENDA', icon: BadgeDollarSign, exact: false },
   { href: '/administrator/cupons', label: 'CUPONS', icon: TicketPercent, exact: false },
   { href: '/administrator/publicidade', label: 'PUBLICIDADE', icon: Megaphone, exact: false },
   { href: '/administrator/taxas', label: 'TAXAS', icon: Percent, exact: false },
@@ -38,7 +40,17 @@ const navItems = [
   { href: '/administrator/configuracoes', label: 'CONFIGURAÇÕES', icon: Settings, exact: false },
 ];
 
-export default function AdminSidebar() {
+/** Itens com fila de análise (pipeline de aprovação) — contador ao lado do rótulo. */
+const PENDENTES_POR_HREF: Record<string, 'embarcacao' | 'roteiro' | 'anuncio_venda'> = {
+  '/administrator/embarcacoes': 'embarcacao',
+  '/administrator/roteiros': 'roteiro',
+  '/administrator/vendas': 'anuncio_venda',
+};
+
+export default function AdminSidebar({ pendentes }: {
+  /** Registros Em análise por entidade (pipeline de aprovação). */
+  pendentes?: Record<'embarcacao' | 'roteiro' | 'anuncio_venda', number>;
+}) {
   const pathname = usePathname();
   const router = useRouter();
 
@@ -75,6 +87,20 @@ export default function AdminSidebar() {
             >
               <Icon className="w-4 h-4 flex-shrink-0" />
               <span className="flex-1">{label}</span>
+              {(() => {
+                const n = PENDENTES_POR_HREF[href] ? pendentes?.[PENDENTES_POR_HREF[href]] ?? 0 : 0;
+                return n > 0 ? (
+                  <span
+                    title={`${n} aguardando análise`}
+                    className={clsx(
+                      'min-w-5 rounded-full px-1.5 py-0.5 text-center text-[10px] font-bold',
+                      active ? 'bg-white text-[#0B2447]' : 'bg-amber-500 text-white',
+                    )}
+                  >
+                    {n}
+                  </span>
+                ) : null;
+              })()}
             </Link>
           );
         })}

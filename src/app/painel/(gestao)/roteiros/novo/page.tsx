@@ -19,7 +19,9 @@ export default async function NovoRoteiroPage({
       .from('embarcacao')
       .select('id, nome, capacidade')
       .eq('owner_id', user.id)
-      .eq('status', 'ativo')
+      // Embarcação ainda em análise já pode receber roteiro: ele só aparece no
+      // site quando os dois estiverem aprovados.
+      .neq('status', 'inativo')
       .order('nome'),
     supabaseAdmin
       .from('catalogo')

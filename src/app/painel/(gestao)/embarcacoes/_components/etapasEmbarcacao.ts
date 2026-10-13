@@ -11,7 +11,7 @@ import { FOTOS_RECOMENDADAS } from '@/lib/upload';
  * grupo de seções — manter a ordem em sincronia com eles.
  */
 export const ETAPAS_EMBARCACAO: EtapaDef[] = [
-  { id: 'informacoes',     label: 'Informações',     desc: 'Nome, tipo e status' },
+  { id: 'informacoes',     label: 'Informações',     desc: 'Nome, tipo e capitão' },
   { id: 'detalhes',        label: 'Detalhes',        desc: 'Especificações e comodidades' },
   { id: 'localizacao',     label: 'Localização',     desc: 'Onde ela fica' },
   { id: 'fotos',           label: 'Fotos',           desc: 'Galeria e títulos' },
@@ -30,7 +30,7 @@ function plural(n: number, um: string, varios: string) {
 /** Checklist da etapa Revisão + dados do card de busca, a partir do estado do form. */
 export function revisaoEmbarcacao(args: {
   form: {
-    nome: string; embarcacao_tipo_id: string; modalidade_capitao: string; status: string;
+    nome: string; embarcacao_tipo_id: string; modalidade_capitao: string;
     capacidade: string; comprimento: string; comprimento_unidade: string;
     estado_id: string; municipio_id: string;
     latitude: string; longitude: string; bairro: string;
@@ -59,7 +59,7 @@ export function revisaoEmbarcacao(args: {
       status: !form.nome.trim() ? 'erro' : !tipo ? 'aviso' : 'ok',
       resumo: !form.nome.trim()
         ? 'O nome da embarcação é obrigatório.'
-        : [form.nome.trim(), tipo ?? 'Tipo não definido', capitao, form.status === 'ativo' ? 'Ativa' : 'Inativa'].filter(Boolean).join(' · '),
+        : [form.nome.trim(), tipo ?? 'Tipo não definido', capitao].filter(Boolean).join(' · '),
       onEditar: () => ir(ETAPA_EMB.informacoes),
     },
     {

@@ -2,6 +2,9 @@ import { notFound, redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
 import { supabaseAdmin } from '@/lib/supabase';
 import AnuncioForm from '../../_components/AnuncioForm';
+import AvisoStatusPublicacao from '@/components/publicacao/AvisoStatusPublicacao';
+import TimelinePublicacao from '@/components/publicacao/TimelinePublicacao';
+import { listarTimeline, ultimaDecisaoAdmin } from '@/lib/publicacao/server';
 import { toOption, EMBARCACAO_OPTION_SELECT, type EmbarcacaoRow } from '../../_components/embarcacao-option';
 
 export default async function EditarAnuncioPage({ params }: { params: Promise<{ id: string }> }) {
@@ -13,7 +16,7 @@ export default async function EditarAnuncioPage({ params }: { params: Promise<{ 
 
   const { data: anuncio } = await supabaseAdmin
     .from('anuncio_venda')
-    .select('id, embarcacao_id, fabricante, ano_modelo, ano_fabricacao, preco, descricao_venda, status')
+    .select('id, embarcacao_id, fabricante, ano_modelo, ano_fabricacao, preco, descricao_venda, status, enviado_analise_em')
     .eq('id', id)
     .eq('owner_id', user.id)
     .single();
@@ -24,7 +27,7 @@ export default async function EditarAnuncioPage({ params }: { params: Promise<{ 
     redirect('/painel/vendas');
   }
 
-  const [{ data: embarcacao }, { data: historico }, { data: tipos }] = await Promise.all([
+  const [{ data: embarcacao }, { data: historico }, { data: tipos }, timeline, ultimaDecisao] = await Promise.all([
     supabaseAdmin
       .from('embarcacao')
       .select(EMBARCACAO_OPTION_SELECT)
@@ -39,6 +42,8 @@ export default async function EditarAnuncioPage({ params }: { params: Promise<{ 
       .from('embarcacao_tipo')
       .select('id, nome')
       .order('nome'),
+    listarTimeline('anuncio_venda', anuncio.id, { incluirInterna: false }),
+    ultimaDecisaoAdmin('anuncio_venda', anuncio.id),
   ]);
 
   if (!embarcacao) notFound();
@@ -52,6 +57,12 @@ export default async function EditarAnuncioPage({ params }: { params: Promise<{ 
           {option.nome} — reduções de preço ganham destaque no site.
         </p>
       </div>
+
+      <AvisoStatusPublicacao
+        entidade="anuncio_venda" id={anuncio.id} nome={option.nome}
+        status={anuncio.status} enviadoAnaliseEm={anuncio.enviado_analise_em}
+        ultimaDecisao={ultimaDecisao}
+      />
 
       <AnuncioForm
         modo="editar"
@@ -67,7 +78,12 @@ export default async function EditarAnuncioPage({ params }: { params: Promise<{ 
           descricaoVenda: anuncio.descricao_venda ?? '',
         }}
         historico={historico ?? []}
+        statusAtual={anuncio.status}
       />
+
+      <div className="mt-6 max-w-4xl">
+        <TimelinePublicacao eventos={timeline} />
+      </div>
     </div>
   );
 }

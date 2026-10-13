@@ -1,4 +1,6 @@
+import Link from 'next/link';
 import { redirect, notFound } from 'next/navigation';
+import { ClipboardCheck } from 'lucide-react';
 import { createClient } from '@/lib/supabase/server';
 import { supabaseAdmin } from '@/lib/supabase';
 import EditarRoteiroForm from '@/app/painel/(gestao)/roteiros/[id]/editar/_components/EditarRoteiroForm';
@@ -50,7 +52,8 @@ export default async function AdminEditarRoteiroPage({
       .from('embarcacao')
       .select('id, nome, capacidade')
       .eq('owner_id', roteiro.owner_id)
-      .eq('status', 'ativo')
+      // Inativa não recebe roteiro; a já vinculada continua selecionável.
+      .or(roteiro.embarcacao_id ? `status.neq.inativo,id.eq.${roteiro.embarcacao_id}` : 'status.neq.inativo')
       .order('nome'),
     supabaseAdmin
       .from('catalogo')
@@ -98,7 +101,14 @@ export default async function AdminEditarRoteiroPage({
   return (
     <div className="p-8">
       <div className="mb-6">
-        <h1 className="text-2xl font-bold text-[#0B2447]">Editar Roteiro</h1>
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <h1 className="text-2xl font-bold text-[#0B2447]">Editar Roteiro</h1>
+          <Link href={`/administrator/roteiros/${id}`}
+            className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-50">
+            <ClipboardCheck className="h-4 w-4" /> Análise, status e histórico
+          </Link>
+        </div>
+        {/* Edição do admin já nasce aprovada: não devolve o registro para análise. */}
         <p className="text-sm text-slate-400 mt-1">
           {gestor
             ? <>Gestor responsável: <span className="font-semibold text-slate-500">{gestor.name}</span> ({gestor.email})</>

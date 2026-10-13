@@ -19,6 +19,8 @@ import {
 } from 'lucide-react';
 import { criarAnuncio, atualizarAnuncio } from '../actions';
 import { FUSO_HORARIO } from '@/lib/datas';
+import type { AnuncioVendaStatus } from '@/types/supabase';
+import ConfirmarNovaAnaliseModal from '@/components/publicacao/ConfirmarNovaAnaliseModal';
 
 const inputCls = `w-full rounded-xl border border-slate-200 px-3.5 py-2.5 text-sm text-slate-800
   placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-[#0B2447]/20
@@ -55,6 +57,8 @@ type Props = {
     descricaoVenda: string;
   };
   historico?: PrecoHistoricoItem[];
+  /** Editar: status atual — anúncio Ativo volta para análise se mudar campo sensível. */
+  statusAtual?: AnuncioVendaStatus;
 };
 
 function SectionCard({ icon: Icon, title, children }: {
@@ -85,7 +89,7 @@ function Field({ label, required, hint, children }: {
   );
 }
 
-export default function AnuncioForm({ modo, anuncioId, embarcacoes, tipos, initial, historico }: Props) {
+export default function AnuncioForm({ modo, anuncioId, embarcacoes, tipos, initial, historico, statusAtual }: Props) {
   const router = useRouter();
 
   const [form, setForm] = useState({
@@ -100,6 +104,7 @@ export default function AnuncioForm({ modo, anuncioId, embarcacoes, tipos, initi
 
   const [feedback, setFeedback] = useState<{ type: 'error' | 'success'; msg: string } | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [confirmarAnalise, setConfirmarAnalise] = useState<string[] | null>(null);
 
   const selecionada = useMemo(
     () => embarcacoes.find((e) => e.id === form.embarcacaoId) ?? null,
@@ -111,9 +116,30 @@ export default function AnuncioForm({ modo, anuncioId, embarcacoes, tipos, initi
     setForm((f) => ({ ...f, [k]: v }));
   }
 
-  async function handleSubmit(e: React.FormEvent) {
+  /** Campos sensíveis (exigem nova aprovação) alterados em relação ao salvo. */
+  function camposSensiveisAlterados(): string[] {
+    if (modo !== 'editar' || !initial) return [];
+    const campos: string[] = [];
+    if (form.fabricante.trim() !== initial.fabricante.trim()) campos.push('fabricante');
+    if (form.anoModelo !== initial.anoModelo) campos.push('ano_modelo');
+    if (form.anoFabricacao !== initial.anoFabricacao) campos.push('ano_fabricacao');
+    if (form.descricaoVenda.trim() !== initial.descricaoVenda.trim()) campos.push('descricao_venda');
+    return campos;
+  }
+
+  function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (submitting) return;
+    const campos = camposSensiveisAlterados();
+    if (statusAtual === 'ativo' && campos.length > 0) {
+      setConfirmarAnalise(campos);
+      return;
+    }
+    void salvar();
+  }
+
+  async function salvar() {
+    setConfirmarAnalise(null);
     setFeedback(null);
     setSubmitting(true);
 
@@ -136,9 +162,14 @@ export default function AnuncioForm({ modo, anuncioId, embarcacoes, tipos, initi
       return;
     }
 
+    const voltouParaAnalise = 'voltouParaAnalise' in result && result.voltouParaAnalise;
     setFeedback({
       type: 'success',
-      msg: modo === 'novo' ? 'Anúncio publicado com sucesso!' : 'Anúncio atualizado com sucesso!',
+      msg: modo === 'novo'
+        ? 'Anúncio enviado para análise! Ele aparece no site assim que a equipe Boatzy aprovar.'
+        : voltouParaAnalise
+          ? 'Alterações salvas e enviadas para análise.'
+          : 'Anúncio atualizado com sucesso!',
     });
     setSubmitting(false);
     setTimeout(() => router.push('/painel/vendas'), 1200);
@@ -403,9 +434,17 @@ export default function AnuncioForm({ modo, anuncioId, embarcacoes, tipos, initi
         >
           {submitting
             ? <><Loader2 className="w-4 h-4 animate-spin" /> Salvando...</>
-            : <><ChevronRight className="w-4 h-4" /> {modo === 'novo' ? 'Publicar anúncio' : 'Salvar alterações'}</>}
+            : <><ChevronRight className="w-4 h-4" /> {modo === 'novo' ? 'Enviar para análise' : 'Salvar alterações'}</>}
         </button>
       </div>
+
+      {confirmarAnalise && (
+        <ConfirmarNovaAnaliseModal
+          campos={confirmarAnalise}
+          onConfirmar={() => void salvar()}
+          onCancelar={() => setConfirmarAnalise(null)}
+        />
+      )}
     </form>
   );
 }

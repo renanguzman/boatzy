@@ -1005,6 +1005,8 @@ não bloqueia nada (várias solicitações pendentes podem coexistir até o gest
 
 ## 15-C. Status (ativação) de Embarcação e Roteiro
 
+> **Substituído (13/10/2026) pela §45 — Pipeline de aprovação de publicações.** O toggle e o cascade descritos abaixo não existem mais: `roteiro.ativo` passou a ser derivado por trigger e todo status muda por `transicionar_publicacao`.
+
 Migration: `supabase/migrations/019_roteiro_ativo.sql` (coluna `roteiro.ativo`). Embarcação já tinha `status` (`ativo` | `inativo` | `em_manutencao`, migration 005).
 
 ### Modelo
@@ -5632,3 +5634,167 @@ arquivos com o mesmo nome não se sobrescrevem. Falha no R2 → 502 com mensagem
   não impede salvar"), verde com 5+. Constantes `FOTOS_MINIMAS = 1` e `FOTOS_RECOMENDADAS = 5` em
   `src/lib/upload.ts` (usadas também na Revisão, onde 0 fotos agora é `erro`).
 
+## 45. Pipeline de aprovação de publicações — embarcação, roteiro e anúncio de venda (13/10/2026)
+
+Só o admin publica. Migrations: `20261013_publicacao_status_enum.sql` (valores de enum, separada porque
+o Postgres não usa valor novo de enum na mesma transação), `20261013b_publicacao_pipeline.sql` (pipeline)
+e `20261013c_rls_service_role_all_restrito.sql` (correção de segurança, ver 45.8). **Aplicar as três, em
+ordem, antes do deploy do código.**
+
+### 45.1 Status
+
+| Entidade | Enum | Valores |
+|---|---|---|
+| `embarcacao.status` | `publicacao_status` (ex-`embarcacao_status`, renomeado) | `em_analise`, `retorno`, `ativo`, `inativo`, `em_manutencao` |
+| `roteiro.status` (nova) | `publicacao_status` | idem |
+| `anuncio_venda.status` | `anuncio_venda_status` | `em_analise`, `retorno`, `ativo`, `pausado`, `vendido`, `cancelado` |
+
+Default das três: `em_analise`. TS: `PublicacaoStatus` (`EmbarcacaoStatus` é alias) e `AnuncioVendaStatus`
+em `src/types/supabase.ts`.
+
+**`roteiro.ativo` passou a ser derivado** (trigger `publicacao_2_deriva_ativo` + `publicacao_propaga_roteiros`
+na embarcação): `ativo = status = 'ativo' AND (embarcacao_id IS NULL OR embarcação.status = 'ativo')`. É o
+"visível no site"; as RPCs de busca e as páginas públicas continuam filtrando `ativo = true`. Escrita direta
+em `ativo` é sobrescrita. O cascade manual das server actions foi removido.
+
+Índice único de anúncio vigente por embarcação agora cobre `em_analise, retorno, ativo, pausado`.
+
+### 45.2 Colunas de controle (nas 3 tabelas)
+
+`status_alterado_em`, `enviado_analise_em` (fila/SLA), `aprovado_em`, `aprovado_por` (FK users),
+`primeira_aprovacao_em`, `revisao` (nº de envios para análise), `snapshot_aprovado jsonb` (campos sensíveis
+na última aprovação). Índices parciais `*_fila_analise_idx (enviado_analise_em) WHERE status='em_analise'`.
+
+### 45.3 Matriz de transições (`publicacao_tipo_transicao`, espelhada em `src/lib/publicacao/config.ts`)
+
+Embarcação / roteiro:
+
+| Papel | De → Para | Tipo do evento |
+|---|---|---|
+| gestor | `retorno` → `em_analise` | `envio_analise` |
+| gestor | `inativo`/`em_manutencao` → `em_analise` | `reativacao` |
+| gestor | `ativo` → `em_analise` | `edicao_sensivel` (automático, ver 45.5) |
+| gestor | `em_analise`/`retorno`/`ativo`/`em_manutencao` → `inativo` | `inativacao` |
+| gestor | `ativo` → `em_manutencao` | `manutencao` |
+| admin | `em_analise` → `ativo` | `aprovacao` |
+| admin | `em_analise` → `retorno` | `retorno` (observação obrigatória) |
+| admin | `em_analise`/`retorno`/`ativo`/`em_manutencao` → `inativo` | `moderacao` (observação obrigatória) |
+
+Anúncio: gestor `retorno→em_analise` (`envio_analise`), `pausado→em_analise` (`reativacao`),
+`ativo→em_analise` (`edicao_sensivel`), `ativo→pausado` (`pausa`), `ativo|pausado→vendido` (`venda`),
+`em_analise|retorno|ativo|pausado→cancelado` (`cancelamento`); admin `em_analise→ativo` (`aprovacao`),
+`em_analise→retorno` (`retorno`), `em_analise|retorno|ativo→pausado` (`moderacao`). Gestor nunca chega
+a `ativo`.
+
+### 45.4 Funções SQL (EXECUTE só para `service_role`)
+
+- `transicionar_publicacao(p_entidade, p_id, p_para, p_ator_id, p_ator_papel, p_observacao?, p_observacao_interna?, p_campos?) → jsonb`
+  — porta única. `SELECT … FOR UPDATE`; gestor precisa ser o `owner_id`; valida a matriz; exige observação
+  em `retorno`/`moderacao`; atualiza status + controle (`em_analise` → `enviado_analise_em`, `revisao+1`;
+  `aprovacao` → `aprovado_em/por`, `primeira_aprovacao_em`, `snapshot_aprovado`); grava `publicacao_evento`.
+  Erros: `entidade_invalida`, `papel_invalido`, `registro_nao_encontrado`, `sem_permissao`,
+  `status_inalterado`, `transicao_invalida`, `observacao_obrigatoria` (traduzidos em `src/lib/publicacao/server.ts`).
+- `publicacao_snapshot(entidade, id) → jsonb` — campos sensíveis normalizados (trim, vazio = NULL, CEP só
+  dígitos; fotos = conjunto de URLs ordenado; paradas na ordem). Chaves: embarcação `nome, descricao,
+  embarcacao_tipo_id, modalidade_capitao, capacidade, comprimento, comprimento_unidade, quartos, banheiros,
+  tripulacao, localizacao{…}, fotos`; roteiro `nome, descricao, origem, destino, embarcacao_id,
+  duracao_horas, paradas, fotos`; anúncio `fabricante, ano_modelo, ano_fabricacao, descricao_venda`.
+- `publicacao_campos_alterados(entidade, id) → text[]` — chaves que diferem do `snapshot_aprovado`
+  (NULL = nunca aprovado).
+- `publicacao_verificar_edicao(entidade, id, ator_id, ator_papel) → text[]` — ver 45.5.
+
+### 45.5 Edição sensível
+
+Toda server action que grava campo sensível chama `verificarEdicaoSensivel` no fim: `atualizarEmbarcacao`,
+`excluirImagem`, `salvarImagem`, `atualizarRoteiro`, `salvarParadasRoteiro` (novo e editar),
+`excluirImagemRoteiro`, `salvarImagemRoteiro`, `atualizarAnuncio` (e a embarcação, se o anúncio gravou o tipo).
+Regras de `publicacao_verificar_edicao`:
+- status `ativo` + papel `gestor` + campos alterados → `transicionar_publicacao(… 'em_analise' …, p_campos)`;
+- status `ativo` + papel `admin` → atualiza `snapshot_aprovado` (edição do admin já é aprovada);
+- status `em_analise` + `gestor` e último evento `edicao_sensivel` → só atualiza `campos_alterados` desse
+  evento (as várias actions de um mesmo salvamento — dados, fotos, paradas — consolidam a lista);
+- demais: no-op.
+No cliente, `EditarEmbarcacaoForm`/`EditarRoteiroForm`/`AnuncioForm` detectam os mesmos campos e, se
+`avisarNovaAnalise` (registro ativo e quem edita não é admin), abrem `ConfirmarNovaAnaliseModal` antes de salvar.
+`AvisoStatusPublicacao` (props novas: `ehAdmin?: boolean`) renderiza, quando `status === 'ativo'`, um callout fixo no topo
+da edição: para gestor (âmbar) lista os campos sensíveis da entidade (`AVISO_EDICAO`) e os que salvam direto; para
+admin (`ehAdmin`, cinza) informa que a edição já nasce aprovada. As páginas de embarcação e roteiro passam `ehAdmin={isAdmin}`;
+o anúncio de venda é só do gestor.
+
+### 45.6 Timeline — `publicacao_evento`
+
+`id, embarcacao_id | roteiro_id | anuncio_venda_id (exatamente um — CHECK num_nonnulls), owner_id, tipo
+(criacao, envio_analise, reativacao, edicao_sensivel, aprovacao, retorno, moderacao, inativacao,
+manutencao, pausa, venda, cancelamento, migracao), status_anterior, status_novo, observacao (visível ao
+gestor), observacao_interna (só admin), campos_alterados text[], ator_id, ator_papel (gestor|admin|sistema),
+created_at`. RLS habilitada **só com policy de service_role**: toda leitura passa pelo servidor
+(`listarTimeline(entidade, id, { incluirInterna })`), que omite a observação interna e mostra o admin como
+"Equipe Boatzy" para o gestor.
+
+### 45.7 Triggers
+
+- `publicacao_1_insert` (BEFORE INSERT, 3 tabelas): força `status='em_analise'`, `revisao=1`,
+  `enviado_analise_em=now()` e zera os campos de aprovação — ignora o status enviado.
+- `publicacao_evento_criacao` (AFTER INSERT): evento `criacao`.
+- `publicacao_1_protege` (BEFORE UPDATE): bloqueia mudança de `status` ou das colunas de controle fora de
+  `transicionar_publicacao`/`publicacao_verificar_edicao` (flag de transação `boatzy.transicao_publicacao`).
+  Erro `status_protegido` (P0001). Fecha a brecha do `owner_update_own` via chave pública.
+- `publicacao_2_deriva_ativo` (roteiro) e `publicacao_propaga_roteiros` (embarcação) — 45.1.
+
+### 45.8 RLS
+
+- `embarcacao.public_read`: `primeira_aprovacao_em IS NOT NULL OR owner OR admin` — cadastro nunca aprovado
+  não é lido pela chave pública; os já publicados continuam legíveis (joins de reservas/chat/favoritos). As
+  telas públicas filtram `status = 'ativo'` explicitamente.
+- `20261013c`: `ALTER POLICY service_role_all … TO service_role` em 16 tabelas (`users`, `user_roles`,
+  `usuario_taxa`, `taxa_plataforma`, `estados`, `municipios`, `embarcacao*`, `comodidade`, `acessorios`,
+  `equipamentos_seguranca` e vínculos). Sem `TO`, a policy valia para PUBLIC (leitura/escrita total com a
+  chave anon, inclusive auto-atribuição de `admin`).
+- `podeGerenciarRoteiro` (`roteiros/novo/actions.ts`): `criarRegraRoteiro`, `salvarCatalogoRoteiro` e
+  `salvarParadasRoteiro` passaram a exigir dono ou admin.
+
+### 45.9 Código
+
+- `src/lib/publicacao/config.ts` (client-safe): tipos, `STATUS_INFO` (rótulo/cores/descrição),
+  `TIPO_EVENTO_LABEL`, `CAMPO_SENSIVEL_LABEL`, `tipoTransicao` (espelho), `acoesGestor(entidade, status)`.
+- `src/lib/publicacao/server.ts` (server-only): `transicionarPublicacao`, `verificarEdicaoSensivel`,
+  `camposAlteradosDesdeAprovacao`, `listarTimeline`, `ultimaDecisaoAdmin`, `contarPendentesAnalise`,
+  `contarPorStatus`.
+- `src/lib/publicacao/actions.ts` (server actions): `alterarStatusPublicacao(entidade, id, para, mensagem?)`
+  (gestor; papel `gestor`, posse validada no banco), `decidirPublicacaoAdmin({ entidade, id, decisao:
+  'aprovar'|'devolver'|'moderar', observacao, observacaoInterna })` (admin; e-mail ao gestor via `after()`),
+  `contarReservasFuturas(entidade, id)` (reservas pendente/aguardando_pagamento/confirmada a partir de hoje).
+- `src/lib/emails/publicacao-decisao.ts`: `notificarGestorDecisaoPublicacao` (aprovação/retorno/moderação;
+  nunca envia a observação interna).
+- Componentes `src/components/publicacao/`: `StatusPublicacaoBadge`, `AcoesStatusGestor` (modo `grid` |
+  `pagina`; modal com mensagem opcional, roteiros afetados e reservas futuras), `AvisoStatusPublicacao`
+  (faixa do topo da edição), `TimelinePublicacao`, `ConfirmarNovaAnaliseModal`, `PainelDecisaoAdmin`,
+  `FiltroStatusPublicacao` (abas `?st=`), `RevisaoAdmin` (cabeçalho, campos alterados, galeria, dados).
+- Removidas: `alternarStatusEmbarcacao`, `alternarStatusRoteiro`, `alternarStatusEmbarcacaoAdmin`,
+  `alternarStatusRoteiroAdmin`, `alterarStatusAnuncio` (e os arquivos `actions.ts` que só as continham).
+
+### 45.10 Rotas
+
+- Painel: listagens com badge + "Alterar"; edição de embarcação/roteiro/anúncio com `AvisoStatusPublicacao`
+  + timeline; dashboard com alerta de devolvidos/em análise. Roteiro novo/edição lista embarcações não
+  inativas (+ a vinculada).
+- Administrator: `/administrator/embarcacoes`, `/roteiros` (abas `st`, padrão `em_analise` quando há fila,
+  ordenada por `enviado_analise_em` asc), **`/administrator/vendas`** (novo, até 100 por aba), revisão em
+  `/administrator/{embarcacoes|roteiros|vendas}/[id]`; contador por item no `AdminSidebar` (prop
+  `pendentes` vinda do layout) e card "Fila de análise" no dashboard.
+
+### 45.11 Migração de dados
+
+Status mantidos; roteiro com `ativo=false` só por causa da embarcação desativada vira `status='ativo'`
+(reaparece quando a embarcação voltar, como no cascade antigo); demais `ativo=false` → `inativo`. Todos os
+registros existentes recebem `aprovado_em = primeira_aprovacao_em = created_at`, `snapshot_aprovado` atual e
+um evento `migracao`.
+
+### 45.12 Teste
+
+Validado em Postgres local (PGlite) aplicando as 83 migrations com dados legados: matriz completa (válidas e
+inválidas por papel), observação obrigatória, bloqueio de UPDATE direto (service role e gestor via RLS),
+edição sensível (gestor devolve, admin atualiza snapshot, consolidação de campos), derivação/propagação de
+`roteiro.ativo`, ciclo do anúncio e índice de vigente, RLS de leitura e permissões das funções.
+Observação: `embarcacao.banheiros`/`tripulacao` existem em produção mas não em nenhuma migration
+(drift pré-existente).

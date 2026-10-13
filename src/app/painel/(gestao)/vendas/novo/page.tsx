@@ -22,7 +22,7 @@ export default async function NovoAnuncioPage() {
       .from('anuncio_venda')
       .select('embarcacao_id')
       .eq('owner_id', user.id)
-      .in('status', ['ativo', 'pausado']),
+      .in('status', ['em_analise', 'retorno', 'ativo', 'pausado']),
     supabaseAdmin
       .from('embarcacao_tipo')
       .select('id, nome')

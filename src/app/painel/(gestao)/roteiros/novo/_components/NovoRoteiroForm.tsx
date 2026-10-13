@@ -495,7 +495,7 @@ export default function NovoRoteiroForm({ estados, embarcacoes, catalogo: catalo
       );
     }
 
-    setFeedback({ type: 'success', msg: 'Roteiro cadastrado com sucesso!' });
+    setFeedback({ type: 'success', msg: 'Roteiro enviado para análise! Ele aparece no site assim que a equipe Boatzy aprovar.' });
     setSubmitting(false);
     setTimeout(() => router.push('/painel/roteiros'), 1200);
   }
@@ -1062,7 +1062,7 @@ export default function NovoRoteiroForm({ estados, embarcacoes, catalogo: catalo
         labelAtual={ETAPAS_ROTEIRO[etapas.atual].label}
         proximoLabel={etapas.ehUltima ? null : ETAPAS_ROTEIRO[etapas.atual + 1].label}
         modo="novo"
-        rotuloSalvar="Publicar roteiro"
+        rotuloSalvar="Enviar para análise"
         onVoltar={etapas.anterior}
         onProximo={etapas.proxima}
         onPreview={() => setPreviewAberto(true)}

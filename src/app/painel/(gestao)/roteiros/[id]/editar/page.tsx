@@ -1,6 +1,10 @@
 import { redirect, notFound } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
 import { supabaseAdmin } from '@/lib/supabase';
+import { checkRoleInDb } from '@/lib/roles';
+import { listarTimeline, ultimaDecisaoAdmin } from '@/lib/publicacao/server';
+import AvisoStatusPublicacao from '@/components/publicacao/AvisoStatusPublicacao';
+import TimelinePublicacao from '@/components/publicacao/TimelinePublicacao';
 import EditarRoteiroForm from './_components/EditarRoteiroForm';
 
 export default async function EditarRoteiroPage({
@@ -24,10 +28,13 @@ export default async function EditarRoteiroPage({
     { data: catalogoVinculado },
     { data: bloqueios },
     { data: paradas },
+    timeline,
+    ultimaDecisao,
+    isAdmin,
   ] = await Promise.all([
     supabaseAdmin
       .from('roteiro')
-      .select('id, embarcacao_id, nome, descricao, duracao, duracao_horas, quantidade_pessoas, origem, destino, municipio_id, cep, bairro, logradouro, logradouro_numero, complemento, latitude, longitude, preco_base, preco_diaria_ativo, preco_diaria_valor, preco_diaria_minimo, disponibilidade_dias_semana, horario_saida')
+      .select('id, embarcacao_id, nome, descricao, duracao, duracao_horas, quantidade_pessoas, origem, destino, municipio_id, cep, bairro, logradouro, logradouro_numero, complemento, latitude, longitude, preco_base, preco_diaria_ativo, preco_diaria_valor, preco_diaria_minimo, disponibilidade_dias_semana, horario_saida, status, enviado_analise_em')
       .eq('id', id)
       .eq('owner_id', user.id)
       .single(),
@@ -42,11 +49,11 @@ export default async function EditarRoteiroPage({
       .eq('roteiro_id', id)
       .order('prioridade', { ascending: false }),
     supabaseAdmin.from('estados').select('id, uf, nome').order('nome'),
+    // Embarcação inativa não recebe roteiro novo (a vinculada continua listada abaixo).
     supabaseAdmin
       .from('embarcacao')
-      .select('id, nome, capacidade')
+      .select('id, nome, capacidade, status')
       .eq('owner_id', user.id)
-      .eq('status', 'ativo')
       .order('nome'),
     supabaseAdmin
       .from('catalogo')
@@ -68,9 +75,16 @@ export default async function EditarRoteiroPage({
       .select('nome')
       .eq('roteiro_id', id)
       .order('ordem'),
+    listarTimeline('roteiro', id, { incluirInterna: false }),
+    ultimaDecisaoAdmin('roteiro', id),
+    checkRoleInDb(user.id, ['admin']),
   ]);
 
   if (!roteiro) notFound();
+
+  const embarcacoesSelecionaveis = (embarcacoes ?? [])
+    .filter(e => e.status !== 'inativo' || e.id === roteiro.embarcacao_id)
+    .map(({ id: embId, nome, capacidade }) => ({ id: embId, nome, capacidade }));
 
   let estadoId: number | null = null;
   let municipios: { id: number; nome: string }[] = [];
@@ -102,6 +116,14 @@ export default async function EditarRoteiroPage({
         </p>
       </div>
 
+      <div className="max-w-4xl">
+        <AvisoStatusPublicacao
+          ehAdmin={isAdmin}
+          entidade="roteiro" id={roteiro.id} nome={roteiro.nome} status={roteiro.status}
+          enviadoAnaliseEm={roteiro.enviado_analise_em} ultimaDecisao={ultimaDecisao}
+        />
+      </div>
+
       <EditarRoteiroForm
         roteiro={{
           ...roteiro,
@@ -118,7 +140,7 @@ export default async function EditarRoteiroPage({
         }}
         estados={estados ?? []}
         municipiosIniciais={municipios}
-        embarcacoes={embarcacoes ?? []}
+        embarcacoes={embarcacoesSelecionaveis}
         catalogo={(catalogo ?? []) as { id: string; descricao: string; valor: number; tipo: 'produto' | 'servico' }[]}
         catalogoIniciais={(catalogoVinculado ?? []).map(c => ({
           catalogoId: c.catalogo_id,
@@ -126,7 +148,12 @@ export default async function EditarRoteiroPage({
         }))}
         bloqueiosIniciais={(bloqueios ?? []).map(b => b.data)}
         paradasIniciais={(paradas ?? []).map(p => p.nome)}
+        avisarNovaAnalise={roteiro.status === 'ativo' && !isAdmin}
       />
+
+      <div className="mt-6 max-w-4xl">
+        <TimelinePublicacao eventos={timeline} />
+      </div>
     </div>
   );
 }

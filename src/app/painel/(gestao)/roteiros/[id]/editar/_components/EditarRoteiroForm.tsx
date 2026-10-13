@@ -29,6 +29,7 @@ import CatalogoSelector, { type CatalogoItem, type ItemSelecionado } from '../..
 import DisponibilidadePicker from '@/components/painel/DisponibilidadePicker';
 import { horasParaPartes } from '@/lib/duracao';
 import type { PrecoRegraTipo } from '@/types/supabase';
+import ConfirmarNovaAnaliseModal from '@/components/publicacao/ConfirmarNovaAnaliseModal';
 import PreviewPublicacaoModal from '@/components/preview/PreviewPublicacaoModal';
 import BotaoPreview from '@/components/preview/BotaoPreview';
 import { montarPreviewRoteiro } from '@/components/preview/montar';
@@ -158,6 +159,11 @@ type Props = {
   paradasIniciais: string[];
   /** Rota de retorno após salvar/cancelar (o admin reutiliza o form com outra rota). */
   voltarHref?: string;
+  /**
+   * Pipeline de aprovação: true quando quem edita é o gestor e o roteiro
+   * está Ativo — mudar campo sensível tira do site até nova aprovação.
+   */
+  avisarNovaAnalise?: boolean;
 };
 
 // ─── Helpers de UI ────────────────────────────────────────────────────────────
@@ -236,7 +242,7 @@ const emptyRegra = (): Omit<RegraLocal, 'localId'> => ({
 
 // ─── Componente principal ─────────────────────────────────────────────────────
 
-export default function EditarRoteiroForm({ roteiro, estados, municipiosIniciais, embarcacoes, catalogo: catalogoInicial, catalogoIniciais, bloqueiosIniciais, paradasIniciais, voltarHref = '/painel/roteiros' }: Props) {
+export default function EditarRoteiroForm({ roteiro, estados, municipiosIniciais, embarcacoes, catalogo: catalogoInicial, catalogoIniciais, bloqueiosIniciais, paradasIniciais, voltarHref = '/painel/roteiros', avisarNovaAnalise = false }: Props) {
   const router = useRouter();
   const [, startTransition] = useTransition();
   const numeroInputRef = useRef<HTMLInputElement>(null);
@@ -308,6 +314,7 @@ export default function EditarRoteiroForm({ roteiro, estados, municipiosIniciais
   );
   const [feedback, setFeedback]     = useState<{ type: 'error' | 'success'; msg: string } | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [confirmarAnalise, setConfirmarAnalise] = useState<string[] | null>(null);
   const [itensCatalogo, setItensCatalogo] = useState<ItemSelecionado[]>(catalogoIniciais);
   const [catalogo, setCatalogo] = useState<CatalogoItem[]>(catalogoInicial);
 
@@ -496,9 +503,35 @@ export default function EditarRoteiroForm({ roteiro, estados, municipiosIniciais
 
   // ─── Submit ───────────────────────────────────────────────────────────────
 
-  async function handleSubmit(e: React.FormEvent) {
+  /** Campos sensíveis alterados (espelha `publicacao_snapshot` — exigem nova aprovação). */
+  function camposSensiveisAlterados(): string[] {
+    const campos: string[] = [];
+    if (form.nome.trim() !== roteiro.nome.trim()) campos.push('nome');
+    if (form.descricao.trim() !== roteiro.descricao.trim()) campos.push('descricao');
+    if (form.origem.trim() !== (roteiro.origem ?? '').trim()) campos.push('origem');
+    if (form.destino.trim() !== (roteiro.destino ?? '').trim()) campos.push('destino');
+    if (form.embarcacao_id !== (roteiro.embarcacao_id ?? '')) campos.push('embarcacao_id');
+    if (form.duracao_valor !== duracaoInicial.valor || form.duracao_unidade !== duracaoInicial.unidade) campos.push('duracao_horas');
+    const nomesParadas = paradas.map(p => p.nome.trim()).filter(Boolean);
+    if (nomesParadas.join('\n') !== paradasIniciais.map(p => p.trim()).filter(Boolean).join('\n')) campos.push('paradas');
+    const idsMantidos = new Set(imagens.map(i => i.id).filter(Boolean));
+    if (imagens.some(i => i.file) || roteiro.roteiro_imagens.some(i => !idsMantidos.has(i.id))) campos.push('fotos');
+    return campos;
+  }
+
+  function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (submitting) return;
+    if (avisarNovaAnalise) {
+      const campos = camposSensiveisAlterados();
+      if (campos.length > 0) { setConfirmarAnalise(campos); return; }
+    }
+    void salvar();
+  }
+
+  async function salvar() {
+    const enviandoParaAnalise = !!confirmarAnalise;
+    setConfirmarAnalise(null);
     setFeedback(null);
     if (!form.nome.trim() || !form.descricao.trim()) {
       setFeedback({ type: 'error', msg: 'Informe o nome e a descrição do roteiro.' });
@@ -628,7 +661,12 @@ export default function EditarRoteiroForm({ roteiro, estados, municipiosIniciais
       return;
     }
 
-    setFeedback({ type: 'success', msg: 'Roteiro atualizado com sucesso!' });
+    setFeedback({
+      type: 'success',
+      msg: enviandoParaAnalise
+        ? 'Alterações salvas e enviadas para análise. O roteiro volta ao site após a aprovação.'
+        : 'Roteiro atualizado com sucesso!',
+    });
     setSubmitting(false);
     setTimeout(() => router.push(voltarHref), 1200);
   }
@@ -1243,6 +1281,14 @@ export default function EditarRoteiroForm({ roteiro, estados, municipiosIniciais
         tipo="roteiro"
         dados={previewDados}
       />
+
+      {confirmarAnalise && (
+        <ConfirmarNovaAnaliseModal
+          campos={confirmarAnalise}
+          onConfirmar={() => void salvar()}
+          onCancelar={() => setConfirmarAnalise(null)}
+        />
+      )}
     </form>
   );
 }

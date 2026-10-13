@@ -1,6 +1,10 @@
 import { redirect, notFound } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
 import { supabaseAdmin } from '@/lib/supabase';
+import { checkRoleInDb } from '@/lib/roles';
+import { listarTimeline, ultimaDecisaoAdmin } from '@/lib/publicacao/server';
+import AvisoStatusPublicacao from '@/components/publicacao/AvisoStatusPublicacao';
+import TimelinePublicacao from '@/components/publicacao/TimelinePublicacao';
 import EditarEmbarcacaoForm from './_components/EditarEmbarcacaoForm';
 
 export default async function EditarEmbarcacaoPage({
@@ -25,10 +29,14 @@ export default async function EditarEmbarcacaoPage({
     { data: equipamentosVinculados },
     { data: acessorios },
     { data: acessoriosVinculados },
+    { data: roteiros },
+    timeline,
+    ultimaDecisao,
+    isAdmin,
   ] = await Promise.all([
     supabaseAdmin
       .from('embarcacao')
-      .select('id, nome, descricao, embarcacao_tipo_id, status, modalidade_capitao, capacidade, comprimento, comprimento_unidade, quartos, banheiros, tripulacao, municipio_id, latitude, longitude, cep, bairro, logradouro, logradouro_numero, complemento')
+      .select('id, nome, descricao, embarcacao_tipo_id, status, modalidade_capitao, capacidade, comprimento, comprimento_unidade, quartos, banheiros, tripulacao, municipio_id, latitude, longitude, cep, bairro, logradouro, logradouro_numero, complemento, enviado_analise_em')
       .eq('id', id)
       .eq('owner_id', user.id)
       .single(),
@@ -45,6 +53,10 @@ export default async function EditarEmbarcacaoPage({
     supabaseAdmin.from('embarcacao_equipamentos_seguranca').select('equipamento_seguranca_id').eq('embarcacao_id', id),
     supabaseAdmin.from('acessorios').select('id, nome').order('nome'),
     supabaseAdmin.from('embarcacao_acessorios').select('acessorio_id').eq('embarcacao_id', id),
+    supabaseAdmin.from('roteiro').select('nome').eq('embarcacao_id', id).eq('owner_id', user.id),
+    listarTimeline('embarcacao', id, { incluirInterna: false }),
+    ultimaDecisaoAdmin('embarcacao', id),
+    checkRoleInDb(user.id, ['admin']),
   ]);
 
   if (!emb) notFound();
@@ -79,6 +91,15 @@ export default async function EditarEmbarcacaoPage({
         </p>
       </div>
 
+      <div className="max-w-4xl">
+        <AvisoStatusPublicacao
+          ehAdmin={isAdmin}
+          entidade="embarcacao" id={emb.id} nome={emb.nome} status={emb.status}
+          enviadoAnaliseEm={emb.enviado_analise_em} ultimaDecisao={ultimaDecisao}
+          roteirosVinculados={(roteiros ?? []).map(r => r.nome)}
+        />
+      </div>
+
       <EditarEmbarcacaoForm
         embarcacao={{
           ...emb,
@@ -94,7 +115,12 @@ export default async function EditarEmbarcacaoPage({
         equipamentosSegurancaIniciais={(equipamentosVinculados ?? []).map(e => e.equipamento_seguranca_id)}
         acessorios={acessorios ?? []}
         acessoriosIniciais={(acessoriosVinculados ?? []).map(a => a.acessorio_id)}
+        avisarNovaAnalise={emb.status === 'ativo' && !isAdmin}
       />
+
+      <div className="mt-6 max-w-4xl">
+        <TimelinePublicacao eventos={timeline} />
+      </div>
     </div>
   );
 }

@@ -1,7 +1,9 @@
 import type { ConfirmacaoTipo, DispositivoTipo, GeoGpsStatus } from '@/lib/termos/tipos';
 
 export type UserRole = 'admin' | 'gestor' | 'cliente';
-export type EmbarcacaoStatus = 'ativo' | 'inativo' | 'em_manutencao';
+/** Status de publicação (embarcação e roteiro) — pipeline de aprovação, SPEC §45. */
+export type PublicacaoStatus = 'em_analise' | 'retorno' | 'ativo' | 'inativo' | 'em_manutencao';
+export type EmbarcacaoStatus = PublicacaoStatus;
 export type PrecoRegraTipo = 'dia_semana' | 'periodo_anual' | 'data_fixa';
 export type ModalidadeCapitao = 'sem_capitao' | 'com_capitao' | 'opcional';
 export type CatalogoTipo = 'produto' | 'servico';
@@ -19,7 +21,7 @@ export type ReservaModalidadePreco = 'roteiro' | 'diaria' | 'pessoa';
 /** Como a capacidade do modelo Por Pessoa é controlada — ver `roteiro.preco_pessoa_modo_capacidade`. */
 export type PrecoPessoaModoCapacidade = 'compartilhado' | 'exclusivo';
 export type AvaliacaoStatus = 'pendente' | 'aprovada';
-export type AnuncioVendaStatus = 'ativo' | 'pausado' | 'vendido' | 'cancelado';
+export type AnuncioVendaStatus = 'em_analise' | 'retorno' | 'ativo' | 'pausado' | 'vendido' | 'cancelado';
 export type AnuncioInteracaoTipo =
   | 'visualizou'
   | 'revelou_contato'
@@ -574,6 +576,14 @@ export type Database = {
           created_at: string;
           updated_at: string;
           data_criacao: string;
+          /** Pipeline de aprovação — colunas de controle (só mudam via transicionar_publicacao). */
+          status_alterado_em: string;
+          enviado_analise_em: string | null;
+          aprovado_em: string | null;
+          aprovado_por: string | null;
+          primeira_aprovacao_em: string | null;
+          revisao: number;
+          snapshot_aprovado: Record<string, unknown> | null;
         };
         Insert: {
           id?: string;
@@ -813,9 +823,19 @@ export type Database = {
           preco_minimo: number | null;
           preco_minimo_modelo: ReservaModalidadePreco | null;
           preco_minimo_roteiro: number | null;
+          /** Derivado por trigger: roteiro Ativo E embarcação vinculada Ativa (visível no site). */
           ativo: boolean;
           created_at: string;
           updated_at: string;
+          status: PublicacaoStatus;
+          /** Pipeline de aprovação — colunas de controle (só mudam via transicionar_publicacao). */
+          status_alterado_em: string;
+          enviado_analise_em: string | null;
+          aprovado_em: string | null;
+          aprovado_por: string | null;
+          primeira_aprovacao_em: string | null;
+          revisao: number;
+          snapshot_aprovado: Record<string, unknown> | null;
         };
         Insert: {
           id?: string;
@@ -1207,6 +1227,14 @@ export type Database = {
           visualizacoes: number;
           created_at: string;
           updated_at: string;
+          /** Pipeline de aprovação — colunas de controle (só mudam via transicionar_publicacao). */
+          status_alterado_em: string;
+          enviado_analise_em: string | null;
+          aprovado_em: string | null;
+          aprovado_por: string | null;
+          primeira_aprovacao_em: string | null;
+          revisao: number;
+          snapshot_aprovado: Record<string, unknown> | null;
         };
         Insert: {
           id?: string;
@@ -1247,6 +1275,35 @@ export type Database = {
           {
             foreignKeyName: 'anuncio_venda_owner_id_fkey';
             columns: ['owner_id'];
+            isOneToOne: false;
+            referencedRelation: 'users';
+            referencedColumns: ['id'];
+          },
+        ];
+      };
+      publicacao_evento: {
+        Row: {
+          id: string;
+          embarcacao_id: string | null;
+          roteiro_id: string | null;
+          anuncio_venda_id: string | null;
+          owner_id: string;
+          tipo: string;
+          status_anterior: string | null;
+          status_novo: string;
+          observacao: string | null;
+          observacao_interna: string | null;
+          campos_alterados: string[] | null;
+          ator_id: string | null;
+          ator_papel: 'gestor' | 'admin' | 'sistema';
+          created_at: string;
+        };
+        Insert: never;
+        Update: never;
+        Relationships: [
+          {
+            foreignKeyName: 'publicacao_evento_ator_id_fkey';
+            columns: ['ator_id'];
             isOneToOne: false;
             referencedRelation: 'users';
             referencedColumns: ['id'];
@@ -2329,6 +2386,32 @@ export type Database = {
     };
     Views: Record<string, never>;
     Functions: {
+      /** Pipeline de aprovação — porta única de mudança de status (SPEC §45). */
+      transicionar_publicacao: {
+        Args: {
+          p_entidade: string;
+          p_id: string;
+          p_para: string;
+          p_ator_id: string;
+          p_ator_papel: string;
+          p_observacao?: string | null;
+          p_observacao_interna?: string | null;
+          p_campos?: string[] | null;
+        };
+        Returns: { evento_id: string; tipo: string; status_anterior: string; status_novo: string };
+      };
+      publicacao_verificar_edicao: {
+        Args: { p_entidade: string; p_id: string; p_ator_id: string; p_ator_papel: string };
+        Returns: string[] | null;
+      };
+      publicacao_campos_alterados: {
+        Args: { p_entidade: string; p_id: string };
+        Returns: string[] | null;
+      };
+      publicacao_snapshot: {
+        Args: { p_entidade: string; p_id: string };
+        Returns: Record<string, unknown> | null;
+      };
       get_taxa_usuario: {
         Args: { p_user_id: string };
         Returns: number;
@@ -2536,7 +2619,7 @@ export type Database = {
     };
     Enums: {
       user_role: UserRole;
-      embarcacao_status: EmbarcacaoStatus;
+      publicacao_status: PublicacaoStatus;
       preco_regra_tipo: PrecoRegraTipo;
       modalidade_capitao: ModalidadeCapitao;
       catalogo_tipo: CatalogoTipo;

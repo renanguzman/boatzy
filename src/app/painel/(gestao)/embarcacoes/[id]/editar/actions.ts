@@ -4,9 +4,10 @@ import { createClient } from '@/lib/supabase/server';
 import { supabaseAdmin } from '@/lib/supabase';
 import { checkRoleInDb } from '@/lib/roles';
 import { buildKeyFromUrl, deleteFromR2 } from '@/lib/r2';
-import type { EmbarcacaoStatus, ModalidadeCapitao } from '@/types/supabase';
+import type { ModalidadeCapitao } from '@/types/supabase';
 import { isComprimentoUnidade, type ComprimentoUnidade } from '@/lib/comprimento';
 import { normalizarTituloImagem } from '@/lib/galeria';
+import { verificarEdicaoSensivel } from '@/lib/publicacao/server';
 
 // ─── Tipos ───────────────────────────────────────────────────────────────────
 
@@ -14,7 +15,6 @@ export type AtualizarEmbarcacaoPayload = {
   nome: string;
   descricao: string;
   embarcacao_tipo_id: string;
-  status: EmbarcacaoStatus;
   modalidade_capitao: ModalidadeCapitao;
   capacidade: string;
   comprimento: string;
@@ -56,7 +56,16 @@ async function getAuthorizedUser(embarcacaoId: string) {
   const { data: emb } = await query.single();
   if (!emb) return { error: 'Embarcação não encontrada ou sem permissão.' };
 
-  return { userId: user.id, ok: true as const };
+  return { userId: user.id, isAdmin, ok: true as const };
+}
+
+/**
+ * Pipeline de aprovação: depois de gravar campo sensível, gestor com
+ * embarcação Ativa → volta para análise; admin → edição já aprovada.
+ */
+async function verificarEdicao(embarcacaoId: string, auth: { userId?: string; isAdmin?: boolean }) {
+  if (!auth.userId) return null;
+  return verificarEdicaoSensivel('embarcacao', embarcacaoId, auth.userId, auth.isAdmin ? 'admin' : 'gestor');
 }
 
 // ─── Action: atualizar embarcação ─────────────────────────────────────────────
@@ -76,7 +85,6 @@ export async function atualizarEmbarcacao(
       nome: payload.nome.trim(),
       descricao: payload.descricao.trim() || null,
       embarcacao_tipo_id: payload.embarcacao_tipo_id || null,
-      status: payload.status,
       modalidade_capitao: payload.modalidade_capitao,
       capacidade: payload.capacidade ? parseInt(payload.capacidade, 10) : null,
       comprimento: payload.comprimento ? parseFloat(payload.comprimento) : null,
@@ -96,6 +104,7 @@ export async function atualizarEmbarcacao(
     .eq('id', embarcacaoId);
 
   if (error) return { ok: false, error: error.message };
+  await verificarEdicao(embarcacaoId, result);
   return { ok: true };
 }
 
@@ -127,6 +136,7 @@ export async function excluirImagem(
     .eq('embarcacao_id', embarcacaoId);
 
   if (error) return { ok: false, error: error.message };
+  await verificarEdicao(embarcacaoId, result);
   return { ok: true };
 }
 

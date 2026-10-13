@@ -3,7 +3,8 @@
 import { createClient } from '@/lib/supabase/server';
 import { supabaseAdmin } from '@/lib/supabase';
 import { checkRoleInDb } from '@/lib/roles';
-import type { EmbarcacaoStatus, ModalidadeCapitao } from '@/types/supabase';
+import { verificarEdicaoSensivel } from '@/lib/publicacao/server';
+import type { ModalidadeCapitao } from '@/types/supabase';
 import { isComprimentoUnidade, type ComprimentoUnidade } from '@/lib/comprimento';
 import { normalizarTituloImagem } from '@/lib/galeria';
 import { ehUrlDoStorage, ehUuid, prepararImagensNovas, type ImagemNovaPayload } from '@/lib/upload-imagem-server';
@@ -20,7 +21,6 @@ export type CriarEmbarcacaoPayload = {
   nome: string;
   descricao: string;
   embarcacao_tipo_id: string;
-  status: EmbarcacaoStatus;
   modalidade_capitao: ModalidadeCapitao;
   capacidade: string;
   comprimento: string;
@@ -81,7 +81,6 @@ export async function criarEmbarcacao(
       nome: payload.nome.trim(),
       descricao: payload.descricao.trim() || null,
       embarcacao_tipo_id: payload.embarcacao_tipo_id || null,
-      status: payload.status,
       modalidade_capitao: payload.modalidade_capitao,
       capacidade: payload.capacidade ? parseInt(payload.capacidade, 10) : null,
       comprimento: payload.comprimento ? parseFloat(payload.comprimento) : null,
@@ -158,6 +157,8 @@ export async function salvarImagem(
   });
 
   if (error) return { ok: false, error: error.message };
+  // Foto nova em embarcação Ativa é edição sensível (pipeline de aprovação).
+  await verificarEdicaoSensivel('embarcacao', payload.embarcacaoId, user.id, isAdmin ? 'admin' : 'gestor');
   return { ok: true };
 }
 

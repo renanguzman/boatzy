@@ -660,6 +660,8 @@ Todos os números são do **gestor logado** (`owner_id`):
 
 #### ✅ Implementado — Ativar/Desativar embarcação no grid (com cascade para roteiros)
 
+> **Substituído (13/10/2026):** o liga/desliga de status deu lugar à **pipeline de aprovação de publicações** — ver "Pipeline de aprovação de publicações" (seção 10) e `SPEC.md` §45.
+
 - A coluna **Status** no grid de embarcações (`/painel/embarcacoes`) virou um **toggle ativo/inativo**, acionável direto na listagem.
 - Ao **desativar**, uma confirmação mostra quais **roteiros vinculados** ficarão inativos e some da busca; o gestor confirma.
 - **Cascade:** desativar a embarcação desativa os roteiros vinculados; **reativar** a embarcação reativa os roteiros vinculados (comportamento simétrico).
@@ -862,6 +864,8 @@ Todos os números são do **gestor logado** (`owner_id`):
 
 #### ✅ Implementado — Gestão de Embarcações (`/administrator/embarcacoes`)
 
+> **Substituído (13/10/2026):** o toggle Ativo/Inativo deu lugar às abas de status, à fila "Em análise" e à tela de revisão da **pipeline de aprovação de publicações** — ver "Pipeline de aprovação de publicações" (seção 10) e `SPEC.md` §45.
+
 - Lista geral de **todas** as embarcações da plataforma (de todos os gestores), no mesmo padrão visual da lista do `/painel`, com busca, ordenação por coluna e **paginação no servidor** (10/25/50 por página, padrão 10) — apenas a página atual é carregada do banco, para suportar grande volume de registros.
 - Busca (com debounce) por nome da embarcação ou gestor (nome/e-mail); ordenação disponível nas colunas Embarcação, Status e Capacidade.
 - Cada linha mostra: foto + nome + ID curto, **gestor responsável (nome + e-mail)**, tipo, status (toggle Ativo/Inativo), localização (município/UF) e capacidade.
@@ -872,6 +876,8 @@ Todos os números são do **gestor logado** (`owner_id`):
 - Não há criação nem exclusão de embarcação pelo admin nesta versão — cadastro continua sendo feito pelo gestor no `/painel`.
 
 #### ✅ Implementado — Gestão de Roteiros (`/administrator/roteiros`)
+
+> **Substituído (13/10/2026):** o toggle Ativo/Inativo deu lugar às abas de status, à fila "Em análise" e à tela de revisão da **pipeline de aprovação de publicações** — ver "Pipeline de aprovação de publicações" (seção 10) e `SPEC.md` §45.
 
 - Mesma lógica do módulo de Embarcações, adaptada a roteiros: lista geral de **todos** os roteiros da plataforma (de todos os gestores), com busca, ordenação por coluna e **paginação no servidor** (10/25/50 por página, padrão 10) — apenas a página atual é carregada do banco.
 - Busca (com debounce) por nome, origem, destino ou gestor (nome/e-mail); ordenação disponível nas colunas Roteiro, Duração, Pessoas e Status.
@@ -1055,6 +1061,7 @@ decisões de escopo: `docs/planejamento-vendas.md`.
   com os dados herdados) + campos da venda (fabricante*, anos*, valor*, detalhes); se a embarcação
   não tem categoria, o form exige e grava na embarcação; edição com **histórico de preço**
   (data, valor, variação %) — alterar o valor grava novo registro no histórico. Detalhes: SPEC §29.5.
+  > **Atualização (13/10/2026):** o anúncio passou a nascer **Em análise** e só vai ao site após aprovação do admin; o toggle Ativo/Pausado virou o menu de status da pipeline (pausar, solicitar reativação, vendido, cancelar). Ver "Pipeline de aprovação de publicações".
 - ✅ **Fase 3 — Site: busca e resultados de Vendas:** o toggle da busca (Hero e barras compactas)
   ganhou a 3ª aba **Vendas**, com filtros próprios: **Tipo** de embarcação (obrigatório — Lancha,
   Iate, Jet Ski…; sem ele o botão Buscar abre o seletor), **Localidade** (Estado → carrega as
@@ -1273,7 +1280,10 @@ A taxa padrão configurada inicialmente é **10%**. Admins podem alterá-la a qu
 1. Owner acessa dashboard  
 2. Preenche dados  
 3. Faz upload de imagens  
-4. Publica embarcação  
+4. Envia para análise (o cadastro nasce **Em análise**)  
+5. Admin aprova (publica) ou devolve com observação (**Retorno** → owner ajusta e reenvia)  
+
+> Vale também para roteiros e anúncios de venda — ver "Pipeline de aprovação de publicações".
 
 ---
 
@@ -1563,6 +1573,74 @@ A taxa padrão configurada inicialmente é **10%**. Admins podem alterá-la a qu
 - Detalhes técnicos: SPEC §39.
 
 ---
+
+### ✅ Pipeline de aprovação de publicações — embarcação, roteiro e anúncio de venda (13/10/2026)
+
+**Objetivo:** só a equipe Boatzy (administrator) publica no site. O gestor cria o cadastro e o envia
+para análise; pode tirar do ar quando quiser, mas para voltar sempre passa por nova análise.
+
+**Status** (embarcação e roteiro): **Em análise · Retorno · Ativo · Inativo · Em manutenção**.
+Anúncio de venda: **Em análise · Retorno · Ativo · Pausado · Vendido · Cancelado** (Pausado faz o
+papel de Inativo; Vendido/Cancelado continuam terminais).
+
+**Regras:**
+- Todo cadastro novo nasce **Em análise** ao concluir o wizard (o campo Status saiu do formulário;
+  o botão final virou "Enviar para análise").
+- **Em análise** só sai pelo administrator: **Aprovar** (→ Ativo, publica) ou **Devolver** (→ Retorno,
+  observação obrigatória). Só o admin coloca um registro no ar.
+- **Retorno:** o gestor vê a observação no topo da tela de edição (e recebe e-mail), ajusta e usa
+  "Reenviar para análise" (com mensagem opcional para a equipe).
+- O gestor pode **Inativar** ou colocar **Em manutenção** (anúncio: **Pausar**) — o registro sai do site.
+  Para voltar: "Solicitar reativação" → Em análise (nunca direto para Ativo).
+- **Edição de registro Ativo:** mudar campo sensível devolve para análise (sai do site até a
+  aprovação), com confirmação antes de salvar. Sensíveis — embarcação: nome, descrição, tipo, capitão,
+  capacidade, comprimento, quartos, banheiros, tripulação, localização e fotos; roteiro: nome, descrição,
+  origem, destino, paradas, duração, embarcação vinculada e fotos; anúncio: fabricante, anos e descrição.
+  Preços, regras de preço, disponibilidade, bloqueios, horários, comodidades/acessórios/equipamentos e
+  catálogo salvam direto. Edição feita pelo admin já nasce aprovada.
+- **Aviso permanente ao dono:** nas telas de edição (embarcação, roteiro, anúncio), registro Ativo exibe uma
+  faixa de atenção listando os campos sensíveis e avisando que alterá-los tira o registro do site até nova
+  aprovação (e quais campos salvam direto). Para admin a faixa é neutra: informa que a edição já nasce aprovada.
+- **Moderação:** o admin pode **retirar do ar** qualquer registro (→ Inativo; anúncio → Pausado) com
+  observação obrigatória; o gestor é avisado por e-mail e pode solicitar reativação.
+- **Embarcação × roteiro:** o roteiro só aparece no site se ele **e** a embarcação estiverem Ativos.
+  Tirar a embarcação do ar esconde os roteiros sem mudar o status deles (voltam juntos quando a
+  embarcação é reaprovada). Roteiro já pode ser criado para embarcação Em análise/Retorno/Em manutenção
+  (só não para Inativa). Anúncio só aparece com a embarcação Ativa.
+- Ao tirar do ar, o gestor é avisado das **reservas futuras em aberto** (continuam valendo; só novas
+  reservas ficam bloqueadas).
+
+**Timeline (histórico de status):** gestor e admin veem todo o log — data/hora (Brasília), o que
+aconteceu, status resultante, quem fez (para o gestor, ações do admin aparecem como "Equipe Boatzy"),
+observação e campos alterados. **Duas observações** em cada decisão do admin: a **observação ao gestor**
+(visível na timeline e no e-mail) e a **observação interna** (só o admin vê).
+
+**Telas:**
+- Painel do gestor: badge de status + "Alterar" nas listagens (embarcações, roteiros, vendas); faixa de
+  status com ações e observação da equipe no topo das telas de edição; timeline no fim; alerta no
+  dashboard para cadastros devolvidos e em análise.
+- Administrator: abas por status com contador em Embarcações, Roteiros e no novo **Anúncios de venda**
+  (`/administrator/vendas`); a lista abre na fila "Em análise" (mais antigos primeiro); contador de
+  pendências no menu e card "Fila de análise" no dashboard; **tela de revisão** por registro
+  (`/administrator/{embarcacoes|roteiros|vendas}/[id]`) com dados, fotos, campos alterados desde a última
+  aprovação (destacados), decisão (aprovar / devolver / retirar do ar) e timeline completa.
+- E-mail ao gestor em aprovação, devolução e retirada do ar.
+
+**Controle adicional registrado:** data de envio para análise (fila e SLA), nº da análise (revisões),
+última aprovação e quem aprovou, data da primeira publicação e o "retrato" dos campos sensíveis na
+última aprovação (base do "o que mudou").
+
+**Registros existentes:** mantiveram o status (Ativo continua Ativo, marcado como já aprovado) e
+ganharam o evento inicial "Registro anterior à aprovação de publicações" na timeline.
+
+**Segurança (feita junto):** status só muda pela função do banco (UPDATE direto é bloqueado, inclusive
+via chave pública); embarcação nunca aprovada deixou de ser legível pela chave pública; corrigidas as
+policies `service_role_all` abertas a qualquer papel (16 tabelas, incluindo `user_roles`) e a falta de
+verificação de posse em regras de preço, catálogo e paradas do roteiro.
+
+**Fora de escopo / próximos passos:** previsão de retorno da manutenção; SLA/alerta de fila parada;
+notificação ao admin por e-mail a cada envio; paginação/busca na lista de anúncios do admin (hoje
+mostra os 100 primeiros por aba).
 
 ## 11. Não Incluído no MVP
 

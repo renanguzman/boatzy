@@ -6,9 +6,11 @@ import Link from 'next/link';
 import { useRouter, usePathname, useSearchParams } from 'next/navigation';
 import {
   Search, ChevronUp, ChevronDown, Pencil, MapPin,
-  ChevronsLeft, ChevronsRight, ChevronLeft, ChevronRight, Loader2,
+  ChevronsLeft, ChevronsRight, ChevronLeft, ChevronRight, Loader2, ClipboardCheck, EyeOff,
 } from 'lucide-react';
-import { alternarStatusRoteiroAdmin } from '../actions';
+import type { PublicacaoStatus } from '@/types/supabase';
+import { formatarData } from '@/lib/datas';
+import StatusPublicacaoBadge from '@/components/publicacao/StatusPublicacaoBadge';
 
 const PAGE_SIZES = [10, 25, 50];
 
@@ -20,10 +22,14 @@ export type AdminRoteiroListItem = {
   quantidade_pessoas: number | null;
   origem: string | null;
   destino: string | null;
+  status: PublicacaoStatus;
+  /** Visível no site: roteiro Ativo E embarcação Ativa (derivado no banco). */
   ativo: boolean;
+  enviado_analise_em: string | null;
+  revisao: number;
   created_at: string;
   gestor: { name: string; email: string } | null;
-  embarcacao: { nome: string } | null;
+  embarcacao: { nome: string; status: PublicacaoStatus } | null;
   municipios: { nome: string; estados: { uf: string } | null } | null;
   roteiro_imagens: { url_imagem: string; principal: boolean }[];
 };
@@ -99,10 +105,6 @@ export default function AdminRoteirosGrid({ roteiros, total, page, perPage }: Pr
   const [search, setSearch] = useState(searchParams.get('q') ?? '');
   const [isNavigating, startNavigation] = useTransition();
 
-  // Toggle de status (ativo/inativo) — direto, sem cascata (roteiro é folha).
-  const [pendingId, setPendingId] = useState<string | null>(null);
-  const [, startTransition]       = useTransition();
-
   const setParams = useCallback(
     (updates: Record<string, string | null>) => {
       const params = new URLSearchParams(searchParams.toString());
@@ -124,16 +126,6 @@ export default function AdminRoteirosGrid({ roteiros, total, page, perPage }: Pr
     const t = setTimeout(() => setParams({ q: search, page: null }), 400);
     return () => clearTimeout(t);
   }, [search, searchParams, setParams]);
-
-  function handleToggle(item: AdminRoteiroListItem) {
-    if (pendingId) return;
-    setPendingId(item.id);
-    startTransition(async () => {
-      await alternarStatusRoteiroAdmin(item.id, !item.ativo);
-      setPendingId(null);
-      router.refresh();
-    });
-  }
 
   function handleSort(key: SortKey) {
     if (sortKey === key) {
@@ -265,43 +257,35 @@ export default function AdminRoteirosGrid({ roteiros, total, page, perPage }: Pr
                         )}
                       </td>
 
-                      {/* Status — toggle ativo/inativo */}
+                      {/* Status da publicação */}
                       <td className="py-4 px-4">
-                        {(() => {
-                          const isPending = pendingId === r.id;
-                          return (
-                            <div className="flex items-center gap-2">
-                              <button
-                                type="button"
-                                role="switch"
-                                aria-checked={r.ativo}
-                                disabled={isPending}
-                                onClick={() => handleToggle(r)}
-                                title={r.ativo ? 'Desativar roteiro' : 'Ativar roteiro'}
-                                className={`relative inline-flex h-5 w-9 flex-shrink-0 items-center rounded-full transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${
-                                  r.ativo ? 'bg-emerald-500' : 'bg-slate-300'
-                                }`}
-                              >
-                                <span
-                                  className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform ${
-                                    r.ativo ? 'translate-x-4' : 'translate-x-0.5'
-                                  }`}
-                                />
-                              </button>
-                              {isPending ? (
-                                <Loader2 className="w-3.5 h-3.5 animate-spin text-slate-400" />
-                              ) : (
-                                <span className={`text-[11px] font-semibold ${r.ativo ? 'text-emerald-700' : 'text-slate-500'}`}>
-                                  {r.ativo ? 'Ativo' : 'Inativo'}
-                                </span>
-                              )}
-                            </div>
-                          );
-                        })()}
+                        <StatusPublicacaoBadge status={r.status} />
+                        {r.status === 'em_analise' && r.enviado_analise_em && (
+                          <p className="mt-1 text-[10px] text-slate-400 whitespace-nowrap">
+                            desde {formatarData(r.enviado_analise_em)}{r.revisao > 1 ? ` · ${r.revisao}ª análise` : ''}
+                          </p>
+                        )}
+                        {r.status === 'ativo' && !r.ativo && (
+                          <p className="mt-1 flex items-center gap-1 text-[10px] text-amber-700 whitespace-nowrap"
+                            title="O roteiro só aparece no site quando a embarcação vinculada também está ativa.">
+                            <EyeOff className="w-3 h-3" /> Fora do site: embarcação não ativa
+                          </p>
+                        )}
                       </td>
 
                       <td className="py-4 px-4 pr-6">
                         <div className="flex items-center justify-end gap-1">
+                          <Link
+                            href={`/administrator/roteiros/${r.id}`}
+                            title={r.status === 'em_analise' ? 'Analisar' : 'Análise e histórico'}
+                            className={`h-8 flex items-center justify-center gap-1 rounded-lg transition-colors ${
+                              r.status === 'em_analise'
+                                ? 'px-2.5 bg-amber-50 text-amber-700 hover:bg-amber-100 text-xs font-semibold'
+                                : 'w-8 text-slate-400 hover:text-[#0B2447] hover:bg-slate-100'}`}
+                          >
+                            <ClipboardCheck className="w-4 h-4" />
+                            {r.status === 'em_analise' && 'Analisar'}
+                          </Link>
                           <Link
                             href={`/administrator/roteiros/${r.id}/editar`}
                             title="Editar"

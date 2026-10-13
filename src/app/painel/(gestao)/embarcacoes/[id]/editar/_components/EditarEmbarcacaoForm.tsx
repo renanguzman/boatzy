@@ -23,6 +23,7 @@ import {
 } from '../../../novo/actions';
 import MapaPicker from '../../../novo/_components/MapaPicker';
 import type { EmbarcacaoStatus, ModalidadeCapitao } from '@/types/supabase';
+import ConfirmarNovaAnaliseModal from '@/components/publicacao/ConfirmarNovaAnaliseModal';
 import { COMPRIMENTO_UNIDADES, type ComprimentoUnidade } from '@/lib/comprimento';
 import PreviewPublicacaoModal from '@/components/preview/PreviewPublicacaoModal';
 import BotaoPreview from '@/components/preview/BotaoPreview';
@@ -72,6 +73,11 @@ type Props = {
   acessoriosIniciais: string[];
   /** Rota de retorno após salvar/cancelar (o admin reutiliza o form com outra rota). */
   voltarHref?: string;
+  /**
+   * Pipeline de aprovação: true quando quem edita é o gestor e a embarcação
+   * está Ativa — mudar campo sensível tira do site até nova aprovação.
+   */
+  avisarNovaAnalise?: boolean;
 };
 
 // ─── Helpers de UI ────────────────────────────────────────────────────────────
@@ -120,6 +126,7 @@ export default function EditarEmbarcacaoForm({
   equipamentosSeguranca, equipamentosSegurancaIniciais,
   acessorios, acessoriosIniciais,
   voltarHref = '/painel/embarcacoes',
+  avisarNovaAnalise = false,
 }: Props) {
   const router = useRouter();
   const [, startTransition] = useTransition();
@@ -132,7 +139,6 @@ export default function EditarEmbarcacaoForm({
     nome:        embarcacao.nome,
     descricao:   embarcacao.descricao   ?? '',
     embarcacao_tipo_id:      embarcacao.embarcacao_tipo_id      ?? '',
-    status:      embarcacao.status,
     modalidade_capitao: embarcacao.modalidade_capitao ?? 'sem_capitao',
     capacidade:  embarcacao.capacidade  != null ? String(embarcacao.capacidade)  : '',
     comprimento: embarcacao.comprimento != null ? String(embarcacao.comprimento) : '',
@@ -192,6 +198,7 @@ export default function EditarEmbarcacaoForm({
   // ── Feedback ───────────────────────────────────────────────────────────────
   const [feedback,   setFeedback]   = useState<{ type: 'error' | 'success'; msg: string } | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [confirmarAnalise, setConfirmarAnalise] = useState<string[] | null>(null);
 
   // ── Pré-visualização (mesmo layout da página pública) ──────────────────────
   const [previewAberto, setPreviewAberto] = useState(false);
@@ -305,9 +312,45 @@ export default function EditarEmbarcacaoForm({
 
   // ─── Submit ────────────────────────────────────────────────────────────────
 
-  async function handleSubmit(e: React.FormEvent) {
+  /** Campos sensíveis alterados (espelha `publicacao_snapshot` — exigem nova aprovação). */
+  function camposSensiveisAlterados(): string[] {
+    const num = (v: number | null) => (v != null ? String(v) : '');
+    const txt = (v: string | null) => (v ?? '').trim();
+    const campos: string[] = [];
+    if (form.nome.trim() !== embarcacao.nome.trim()) campos.push('nome');
+    if (form.descricao.trim() !== txt(embarcacao.descricao)) campos.push('descricao');
+    if (form.embarcacao_tipo_id !== (embarcacao.embarcacao_tipo_id ?? '')) campos.push('embarcacao_tipo_id');
+    if (form.modalidade_capitao !== (embarcacao.modalidade_capitao ?? 'sem_capitao')) campos.push('modalidade_capitao');
+    if (form.capacidade !== num(embarcacao.capacidade)) campos.push('capacidade');
+    if (form.comprimento !== num(embarcacao.comprimento) || form.comprimento_unidade !== (embarcacao.comprimento_unidade ?? 'm')) campos.push('comprimento');
+    if (form.quartos !== num(embarcacao.quartos)) campos.push('quartos');
+    if (form.banheiros !== num(embarcacao.banheiros)) campos.push('banheiros');
+    if (form.tripulacao !== num(embarcacao.tripulacao)) campos.push('tripulacao');
+    if (
+      form.municipio_id !== num(embarcacao.municipio_id) ||
+      form.latitude !== num(embarcacao.latitude) || form.longitude !== num(embarcacao.longitude) ||
+      form.cep.replace(/\D/g, '') !== (embarcacao.cep ?? '').replace(/\D/g, '') ||
+      form.bairro.trim() !== txt(embarcacao.bairro) || form.logradouro.trim() !== txt(embarcacao.logradouro) ||
+      form.logradouro_numero.trim() !== txt(embarcacao.logradouro_numero) || form.complemento.trim() !== txt(embarcacao.complemento)
+    ) campos.push('localizacao');
+    const idsMantidos = new Set(imagens.map(i => i.id).filter(Boolean));
+    if (imagens.some(i => i.file) || embarcacao.embarcacao_imagens.some(i => !idsMantidos.has(i.id))) campos.push('fotos');
+    return campos;
+  }
+
+  function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (submitting) return;
+    if (avisarNovaAnalise) {
+      const campos = camposSensiveisAlterados();
+      if (campos.length > 0) { setConfirmarAnalise(campos); return; }
+    }
+    void salvar();
+  }
+
+  async function salvar() {
+    const enviandoParaAnalise = !!confirmarAnalise;
+    setConfirmarAnalise(null);
     setFeedback(null);
     if (!form.nome.trim()) {
       setFeedback({ type: 'error', msg: 'Informe o nome da embarcação.' });
@@ -337,7 +380,6 @@ export default function EditarEmbarcacaoForm({
     const result = await atualizarEmbarcacao(embarcacao.id, {
       nome: form.nome, descricao: form.descricao,
       embarcacao_tipo_id: form.embarcacao_tipo_id,
-      status: form.status as EmbarcacaoStatus,
       modalidade_capitao: form.modalidade_capitao as ModalidadeCapitao,
       capacidade: form.capacidade, comprimento: form.comprimento,
       comprimento_unidade: form.comprimento_unidade,
@@ -397,7 +439,12 @@ export default function EditarEmbarcacaoForm({
       return;
     }
 
-    setFeedback({ type: 'success', msg: 'Embarcação atualizada com sucesso!' });
+    setFeedback({
+      type: 'success',
+      msg: enviandoParaAnalise
+        ? 'Alterações salvas e enviadas para análise. A embarcação volta ao site após a aprovação.'
+        : 'Embarcação atualizada com sucesso!',
+    });
     setSubmitting(false);
     setTimeout(() => router.push(voltarHref), 1200);
   }
@@ -439,14 +486,6 @@ export default function EditarEmbarcacaoForm({
             <select className={selectCls} value={form.modalidade_capitao}
               onChange={e => setField('modalidade_capitao', e.target.value as ModalidadeCapitao)}>
               <option value="com_capitao">Com capitão obrigatório</option>
-            </select>
-          </Field>
-          <Field label="Status">
-            <select className={selectCls} value={form.status}
-              onChange={e => setField('status', e.target.value as EmbarcacaoStatus)}>
-              <option value="ativo">Ativo</option>
-              <option value="inativo">Inativo</option>
-              <option value="em_manutencao">Em Manutenção</option>
             </select>
           </Field>
         </div>
@@ -736,6 +775,14 @@ export default function EditarEmbarcacaoForm({
         tipo="embarcacao"
         dados={previewDados}
       />
+
+      {confirmarAnalise && (
+        <ConfirmarNovaAnaliseModal
+          campos={confirmarAnalise}
+          onConfirmar={() => void salvar()}
+          onCancelar={() => setConfirmarAnalise(null)}
+        />
+      )}
     </form>
   );
 }
