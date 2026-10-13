@@ -3,7 +3,7 @@
 import { createClient } from '@/lib/supabase/server';
 import { supabaseAdmin } from '@/lib/supabase';
 import { checkRoleInDb } from '@/lib/roles';
-import type { EmbarcacaoStatus, ModalidadeCapitao, PrecoRegraTipo } from '@/types/supabase';
+import type { EmbarcacaoStatus, ModalidadeCapitao } from '@/types/supabase';
 import { isComprimentoUnidade, type ComprimentoUnidade } from '@/lib/comprimento';
 import { normalizarTituloImagem } from '@/lib/galeria';
 
@@ -23,7 +23,6 @@ export type CriarEmbarcacaoPayload = {
   quartos: string;
   banheiros: string;
   tripulacao: string;
-  preco_base: string;
   municipio_id: string;
   latitude: string;
   longitude: string;
@@ -32,8 +31,6 @@ export type CriarEmbarcacaoPayload = {
   logradouro: string;
   logradouro_numero: string;
   complemento: string;
-  /** Dias da semana em que a embarcação opera (0=Dom..6=Sáb). Vazio = todos os dias. */
-  disponibilidade_dias_semana: number[];
 };
 
 export type CriarEmbarcacaoResult =
@@ -82,7 +79,6 @@ export async function criarEmbarcacao(
       quartos: payload.quartos ? parseInt(payload.quartos, 10) : null,
       banheiros: payload.banheiros !== '' ? parseInt(payload.banheiros, 10) : null,
       tripulacao: payload.tripulacao ? parseInt(payload.tripulacao, 10) : null,
-      preco_base: payload.preco_base ? parseFloat(payload.preco_base) : null,
       municipio_id: payload.municipio_id ? parseInt(payload.municipio_id, 10) : null,
       latitude: payload.latitude ? parseFloat(payload.latitude) : null,
       longitude: payload.longitude ? parseFloat(payload.longitude) : null,
@@ -91,8 +87,6 @@ export async function criarEmbarcacao(
       logradouro: payload.logradouro.trim() || null,
       logradouro_numero: payload.logradouro_numero.trim() || null,
       complemento: payload.complemento.trim() || null,
-      disponibilidade_dias_semana:
-        payload.disponibilidade_dias_semana.length > 0 ? payload.disponibilidade_dias_semana : null,
     })
     .select('id')
     .single();
@@ -141,90 +135,6 @@ export async function salvarImagem(
     principal: payload.principal,
     ordem: Math.max(0, Math.trunc(payload.ordem ?? 0)),
   });
-
-  if (error) return { ok: false, error: error.message };
-  return { ok: true };
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Action: criar regra de preço vinculada a uma embarcação
-// ─────────────────────────────────────────────────────────────────────────────
-
-export type CriarRegraPayload = {
-  embarcacaoId: string;
-  nome: string;
-  valor: number;
-  tipo: PrecoRegraTipo;
-  prioridade: number;
-  diasSemana?: number[];
-  periodoMesInicio?: number;
-  periodoDiaInicio?: number;
-  periodoMesFim?: number;
-  periodoDiaFim?: number;
-  dataInicio?: string;
-  dataFim?: string;
-};
-
-export async function criarRegra(
-  payload: CriarRegraPayload,
-): Promise<{ ok: boolean; error?: string }> {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return { ok: false, error: 'Não autenticado.' };
-
-  const { error } = await supabaseAdmin.from('embarcacao_preco_regra').insert({
-    embarcacao_id: payload.embarcacaoId,
-    nome: payload.nome,
-    valor: payload.valor,
-    tipo: payload.tipo,
-    prioridade: payload.prioridade,
-    ativo: true,
-    dias_semana: payload.diasSemana ?? null,
-    periodo_mes_inicio: payload.periodoMesInicio ?? null,
-    periodo_dia_inicio: payload.periodoDiaInicio ?? null,
-    periodo_mes_fim: payload.periodoMesFim ?? null,
-    periodo_dia_fim: payload.periodoDiaFim ?? null,
-    data_inicio: payload.dataInicio ?? null,
-    data_fim: payload.dataFim ?? null,
-  });
-
-  if (error) return { ok: false, error: error.message };
-  return { ok: true };
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Action: salvar datas bloqueadas (disponibilidade)
-// ─────────────────────────────────────────────────────────────────────────────
-
-export async function salvarBloqueiosEmbarcacao(
-  embarcacaoId: string,
-  datas: string[],
-): Promise<{ ok: boolean; error?: string }> {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return { ok: false, error: 'Não autenticado.' };
-
-  const { data: embarcacao } = await supabaseAdmin
-    .from('embarcacao')
-    .select('id')
-    .eq('id', embarcacaoId)
-    .eq('owner_id', user.id)
-    .single();
-
-  if (!embarcacao) return { ok: false, error: 'Embarcação não encontrada ou sem permissão.' };
-
-  // Substitui o conjunto de bloqueios pelo informado.
-  await supabaseAdmin
-    .from('embarcacao_disponibilidade_bloqueio')
-    .delete()
-    .eq('embarcacao_id', embarcacaoId);
-
-  if (datas.length === 0) return { ok: true };
-
-  const rows = datas.map(data => ({ embarcacao_id: embarcacaoId, data }));
-  const { error } = await supabaseAdmin
-    .from('embarcacao_disponibilidade_bloqueio')
-    .insert(rows);
 
   if (error) return { ok: false, error: error.message };
   return { ok: true };

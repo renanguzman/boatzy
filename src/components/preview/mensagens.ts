@@ -13,7 +13,7 @@ export const PREVIEW_PRONTO = 'boatzy:preview-pronto';
 export const PREVIEW_DADOS = 'boatzy:preview-dados';
 
 export type PreviewDados =
-  | { tipo: 'embarcacao'; embarcacao: EmbarcacaoDetalheDados; datasBloqueadas: string[] }
+  | { tipo: 'embarcacao'; embarcacao: EmbarcacaoDetalheDados }
   | { tipo: 'roteiro'; roteiro: RoteiroDetalheDados; datasBloqueadas: string[] };
 
 export type PreviewMensagem =

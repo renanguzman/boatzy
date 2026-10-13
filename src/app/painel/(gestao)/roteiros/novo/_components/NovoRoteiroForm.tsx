@@ -86,7 +86,13 @@ type RegraLocal = {
   dataFim: string;
 };
 
-type Props = { estados: Estado[]; embarcacoes: Embarcacao[]; catalogo: CatalogoItem[] };
+type Props = {
+  estados: Estado[];
+  embarcacoes: Embarcacao[];
+  catalogo: CatalogoItem[];
+  /** Embarcação pré-selecionada (`?embarcacao=` vindo da lista de embarcações); ignorada se não estiver na lista. */
+  embarcacaoInicialId?: string;
+};
 
 // ─── Helpers de UI ────────────────────────────────────────────────────────────
 
@@ -152,7 +158,8 @@ const emptyRegra = (): Omit<RegraLocal, 'localId'> => ({
 
 // ─── Componente principal ─────────────────────────────────────────────────────
 
-export default function NovoRoteiroForm({ estados, embarcacoes, catalogo: catalogoInicial }: Props) {
+export default function NovoRoteiroForm({ estados, embarcacoes, catalogo: catalogoInicial, embarcacaoInicialId }: Props) {
+  const embarcacaoInicial = embarcacoes.find(e => e.id === embarcacaoInicialId);
   const router = useRouter();
   const [, startTransition] = useTransition();
   const numeroInputRef = useRef<HTMLInputElement>(null);
@@ -160,9 +167,11 @@ export default function NovoRoteiroForm({ estados, embarcacoes, catalogo: catalo
   const [form, setForm] = useState<Omit<CriarRoteiroPayload, 'municipio_id' | 'disponibilidade_dias_semana'> & {
     municipio_id: string; estado_id: string;
   }>({
-    embarcacao_id: '',
+    embarcacao_id: embarcacaoInicial?.id ?? '',
     nome: '', descricao: '',
-    duracao_valor: '', duracao_unidade: 'horas', quantidade_pessoas: '',
+    duracao_valor: '', duracao_unidade: 'horas',
+    // Mesma herança de capacidade de `setEmbarcacao`.
+    quantidade_pessoas: embarcacaoInicial?.capacidade != null ? String(embarcacaoInicial.capacidade) : '',
     origem: '', destino: '',
     preco_base: '',
     preco_diaria_ativo: false, preco_diaria_valor: '', preco_diaria_minimo: '1',

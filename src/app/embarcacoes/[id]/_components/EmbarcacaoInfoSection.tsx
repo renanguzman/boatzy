@@ -19,9 +19,6 @@ export type EmbarcacaoInfo = {
 
 /**
  * Badges + título/localidade + descrição + specs + comodidades da embarcação.
- * Compartilhado entre `/embarcacoes/[id]` (detalhe com reserva direta) e
- * `/embarcacoes/[id]/roteiros` (roteiros da embarcação) — mesma "cara" nas
- * duas telas.
  */
 export default function EmbarcacaoInfoSection({ embarcacao }: { embarcacao: EmbarcacaoInfo }) {
   const localidade = embarcacao.municipios

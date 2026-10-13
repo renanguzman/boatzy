@@ -213,6 +213,7 @@ export default function AdminEmbarcacoesGrid({ embarcacoes, total, page, perPage
                   <ThSortable col="status"     label="Status"     sortKey={sortKey} sortDir={sortDir} onSort={handleSort} />
                   <ThPlain    label="Localização" />
                   <ThSortable col="capacidade" label="Capacidade" sortKey={sortKey} sortDir={sortDir} onSort={handleSort} />
+                  <ThPlain    label="Roteiros" />
                   <th className="pb-3 px-4 pr-6 text-[10px] font-bold text-slate-400 tracking-wider uppercase text-right">
                     Ações
                   </th>
@@ -326,6 +327,20 @@ export default function AdminEmbarcacoesGrid({ embarcacoes, total, page, perPage
                           <span className="text-sm font-medium text-slate-700">{e.capacidade} pax</span>
                         ) : (
                           <span className="text-slate-300 text-xs">—</span>
+                        )}
+                      </td>
+
+                      {/* Roteiros vinculados */}
+                      <td className="py-4 px-4">
+                        {e.roteiro.length > 0 ? (
+                          <span
+                            title={e.roteiro.map((r) => r.nome).join('\n')}
+                            className="inline-flex items-center gap-1 text-[11px] font-semibold px-2.5 py-1 rounded-full bg-cyan-50 text-cyan-700 whitespace-nowrap"
+                          >
+                            {e.roteiro.length} {e.roteiro.length === 1 ? 'roteiro' : 'roteiros'}
+                          </span>
+                        ) : (
+                          <span className="text-xs text-slate-400 whitespace-nowrap">Nenhum</span>
                         )}
                       </td>
 

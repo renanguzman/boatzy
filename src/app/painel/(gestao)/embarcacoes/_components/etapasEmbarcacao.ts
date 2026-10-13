@@ -14,19 +14,15 @@ export const ETAPAS_EMBARCACAO: EtapaDef[] = [
   { id: 'detalhes',        label: 'Detalhes',        desc: 'Especificações e comodidades' },
   { id: 'localizacao',     label: 'Localização',     desc: 'Onde ela fica' },
   { id: 'fotos',           label: 'Fotos',           desc: 'Galeria e títulos' },
-  { id: 'preco',           label: 'Preço',           desc: 'Base e regras' },
-  { id: 'disponibilidade', label: 'Disponibilidade', desc: 'Dias e bloqueios' },
   { id: 'revisao',         label: 'Revisão',         desc: 'Conferir e salvar' },
 ];
 
 export const ETAPA_EMB = {
-  informacoes: 0, detalhes: 1, localizacao: 2, fotos: 3, preco: 4, disponibilidade: 5, revisao: 6,
+  informacoes: 0, detalhes: 1, localizacao: 2, fotos: 3, revisao: 4,
 } as const;
 
 /** Fotos recomendadas para uma publicação atrativa (aviso, não bloqueia). */
 const FOTOS_RECOMENDADAS = 5;
-
-const DIAS = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
 
 function plural(n: number, um: string, varios: string) {
   return `${n} ${n === 1 ? um : varios}`;
@@ -37,7 +33,7 @@ export function revisaoEmbarcacao(args: {
   form: {
     nome: string; embarcacao_tipo_id: string; modalidade_capitao: string; status: string;
     capacidade: string; comprimento: string; comprimento_unidade: string;
-    preco_base: string; estado_id: string; municipio_id: string;
+    estado_id: string; municipio_id: string;
     latitude: string; longitude: string; bairro: string;
   };
   tipos: { id: string; nome: string }[];
@@ -45,9 +41,6 @@ export function revisaoEmbarcacao(args: {
   municipios: { id: number; nome: string }[];
   comodidadesSelecionadas: string[];
   imagens: GaleriaItem[];
-  diasOperacao: number[];
-  bloqueios: string[];
-  totalRegras: number;
   ir: (etapa: number) => void;
 }): { itens: ItemRevisao[]; card: EmbarcacaoCardData } {
   const { form, ir } = args;
@@ -56,7 +49,6 @@ export function revisaoEmbarcacao(args: {
   const uf = args.estados.find(e => String(e.id) === form.estado_id)?.uf ?? null;
   const localidade = municipio ? (uf ? `${municipio}, ${uf}` : municipio) : null;
   const comprimento = formatarComprimento(form.comprimento, form.comprimento_unidade);
-  const preco = form.preco_base ? Number(form.preco_base) : null;
   const temMapa = !!form.latitude && !!form.longitude;
   const capitao = { com_capitao: 'Com capitão', sem_capitao: 'Sem capitão', opcional: 'Capitão opcional' }[form.modalidade_capitao] ?? '';
   const nFotos = args.imagens.length;
@@ -99,28 +91,11 @@ export function revisaoEmbarcacao(args: {
           : plural(nFotos, 'foto', 'fotos'),
       onEditar: () => ir(ETAPA_EMB.fotos),
     },
-    {
-      label: 'Preço',
-      status: preco ? 'ok' : 'aviso',
-      resumo: preco
-        ? `${preco.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}/dia · ${plural(args.totalRegras, 'regra', 'regras')}`
-        : 'Preço base não informado.',
-      onEditar: () => ir(ETAPA_EMB.preco),
-    },
-    {
-      label: 'Disponibilidade',
-      status: 'ok',
-      resumo: `${args.diasOperacao.length === 0 || args.diasOperacao.length === 7
-        ? 'Todos os dias'
-        : [...args.diasOperacao].sort().map(d => DIAS[d]).join(', ')} · ${plural(args.bloqueios.length, 'data bloqueada', 'datas bloqueadas')}`,
-      onEditar: () => ir(ETAPA_EMB.disponibilidade),
-    },
   ];
 
   const card: EmbarcacaoCardData = {
     id: 'preview',
     nome: form.nome.trim() || 'Nome da embarcação',
-    preco_base: preco,
     capacidade: form.capacidade ? Number(form.capacidade) : null,
     tipo,
     localidade,

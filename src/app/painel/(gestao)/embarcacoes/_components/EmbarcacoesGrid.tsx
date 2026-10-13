@@ -8,7 +8,7 @@ import {
   Search,
   ChevronUp,
   ChevronDown,
-  Eye,
+  MapPinPlus,
   Pencil,
   Trash2,
   Ship,
@@ -37,7 +37,7 @@ export type EmbarcacaoListItem = {
   roteiro: { id: string; nome: string }[];
 };
 
-type SortKey = 'nome' | 'tipo' | 'status' | 'localidade' | 'capacidade' | 'created_at';
+type SortKey = 'nome' | 'tipo' | 'status' | 'localidade' | 'capacidade' | 'roteiros' | 'created_at';
 type SortDir = 'asc' | 'desc';
 
 function getImage(imgs: { url_imagem: string; principal: boolean }[]): string | null {
@@ -56,6 +56,7 @@ function getSortValue(item: EmbarcacaoListItem, key: SortKey): string | number {
     case 'status':    return item.status;
     case 'localidade':return getLocalidade(item.municipios).toLowerCase();
     case 'capacidade':return item.capacidade ?? -1;
+    case 'roteiros':  return item.roteiro.length;
     case 'created_at':return item.created_at;
   }
 }
@@ -199,6 +200,7 @@ export default function EmbarcacoesGrid({ embarcacoes }: { embarcacoes: Embarcac
                   <ThSortable col="status"     label="Status"      sortKey={sortKey} sortDir={sortDir} onSort={handleSort} />
                   <ThSortable col="localidade" label="Localização" sortKey={sortKey} sortDir={sortDir} onSort={handleSort} />
                   <ThSortable col="capacidade" label="Capacidade"  sortKey={sortKey} sortDir={sortDir} onSort={handleSort} />
+                  <ThSortable col="roteiros"   label="Roteiros"    sortKey={sortKey} sortDir={sortDir} onSort={handleSort} />
                   <th className="pb-3 px-4 pr-6 text-[10px] font-bold text-slate-400 tracking-wider uppercase text-right">
                     Ações
                   </th>
@@ -303,15 +305,41 @@ export default function EmbarcacoesGrid({ embarcacoes }: { embarcacoes: Embarcac
                         )}
                       </td>
 
+                      {/* Roteiros vinculados */}
+                      <td className="py-4 px-4">
+                        {e.roteiro.length > 0 ? (
+                          <span
+                            title={e.roteiro.map((r) => r.nome).join('\n')}
+                            className="inline-flex items-center gap-1 text-[11px] font-semibold px-2.5 py-1 rounded-full bg-cyan-50 text-cyan-700 whitespace-nowrap"
+                          >
+                            {e.roteiro.length} {e.roteiro.length === 1 ? 'roteiro' : 'roteiros'}
+                          </span>
+                        ) : (
+                          <span className="text-xs text-slate-400 whitespace-nowrap">Nenhum</span>
+                        )}
+                      </td>
+
                       {/* Ações */}
                       <td className="py-4 px-4 pr-6">
                         <div className="flex items-center justify-end gap-1">
-                          <button
-                            title="Visualizar"
-                            className="w-8 h-8 flex items-center justify-center rounded-lg text-slate-400 hover:text-[#0B2447] hover:bg-slate-100 transition-colors"
-                          >
-                            <Eye className="w-4 h-4" />
-                          </button>
+                          {e.status === 'ativo' ? (
+                            <Link
+                              href={`/painel/roteiros/novo?embarcacao=${e.id}`}
+                              title="Criar roteiro com esta embarcação"
+                              aria-label={`Criar roteiro com ${e.nome}`}
+                              className="w-8 h-8 flex items-center justify-center rounded-lg text-slate-400 hover:text-[#0B2447] hover:bg-slate-100 transition-colors"
+                            >
+                              <MapPinPlus className="w-4 h-4" />
+                            </Link>
+                          ) : (
+                            // O cadastro de roteiro só lista embarcações ativas.
+                            <span
+                              title="Ative a embarcação para criar um roteiro com ela"
+                              className="w-8 h-8 flex items-center justify-center rounded-lg text-slate-200 cursor-not-allowed"
+                            >
+                              <MapPinPlus className="w-4 h-4" />
+                            </span>
+                          )}
                           <Link
                             href={`/painel/embarcacoes/${e.id}/editar`}
                             title="Editar"

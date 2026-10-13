@@ -14,7 +14,6 @@ import RemoverFavoritoButton from './_components/RemoverFavoritoButton';
 type EmbarcacaoFavoritaRow = {
   id: string;
   nome: string;
-  preco_base: number | null;
   capacidade: number | null;
   status: string;
   embarcacao_tipo: { nome: string } | null;
@@ -73,7 +72,6 @@ function toEmbarcacaoCardData(e: EmbarcacaoFavoritaRow): EmbarcacaoCardData {
   return {
     id: e.id,
     nome: e.nome,
-    preco_base: e.preco_base,
     capacidade: e.capacidade,
     tipo: e.embarcacao_tipo?.nome ?? null,
     localidade: e.municipios
@@ -106,7 +104,7 @@ export default async function FavoritosPage() {
          embarcacao ( embarcacao_tipo ( nome ) )
        ),
        embarcacao (
-         id, nome, preco_base, capacidade, status,
+         id, nome, capacidade, status,
          embarcacao_tipo ( nome ),
          municipios ( nome, estados ( uf ) ),
          embarcacao_imagens ( url_imagem, principal )

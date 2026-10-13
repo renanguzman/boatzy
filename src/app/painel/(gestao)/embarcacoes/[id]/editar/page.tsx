@@ -17,7 +17,6 @@ export default async function EditarEmbarcacaoPage({
   const [
     { data: emb },
     { data: imagens },
-    { data: regras },
     { data: tipos },
     { data: estados },
     { data: comodidades },
@@ -26,11 +25,10 @@ export default async function EditarEmbarcacaoPage({
     { data: equipamentosVinculados },
     { data: acessorios },
     { data: acessoriosVinculados },
-    { data: bloqueios },
   ] = await Promise.all([
     supabaseAdmin
       .from('embarcacao')
-      .select('id, nome, descricao, embarcacao_tipo_id, status, modalidade_capitao, capacidade, comprimento, comprimento_unidade, quartos, banheiros, tripulacao, preco_base, disponibilidade_dias_semana, municipio_id, latitude, longitude, cep, bairro, logradouro, logradouro_numero, complemento')
+      .select('id, nome, descricao, embarcacao_tipo_id, status, modalidade_capitao, capacidade, comprimento, comprimento_unidade, quartos, banheiros, tripulacao, municipio_id, latitude, longitude, cep, bairro, logradouro, logradouro_numero, complemento')
       .eq('id', id)
       .eq('owner_id', user.id)
       .single(),
@@ -39,11 +37,6 @@ export default async function EditarEmbarcacaoPage({
       .select('id, url_imagem, titulo, principal, ordem')
       .eq('embarcacao_id', id)
       .order('ordem'),
-    supabaseAdmin
-      .from('embarcacao_preco_regra')
-      .select('id, nome, valor, tipo, prioridade, ativo, dias_semana, periodo_mes_inicio, periodo_dia_inicio, periodo_mes_fim, periodo_dia_fim, data_inicio, data_fim')
-      .eq('embarcacao_id', id)
-      .order('prioridade', { ascending: false }),
     supabaseAdmin.from('embarcacao_tipo').select('id, nome').order('nome'),
     supabaseAdmin.from('estados').select('id, uf, nome').order('nome'),
     supabaseAdmin.from('comodidade').select('id, nome').order('nome'),
@@ -52,11 +45,6 @@ export default async function EditarEmbarcacaoPage({
     supabaseAdmin.from('embarcacao_equipamentos_seguranca').select('equipamento_seguranca_id').eq('embarcacao_id', id),
     supabaseAdmin.from('acessorios').select('id, nome').order('nome'),
     supabaseAdmin.from('embarcacao_acessorios').select('acessorio_id').eq('embarcacao_id', id),
-    supabaseAdmin
-      .from('embarcacao_disponibilidade_bloqueio')
-      .select('data')
-      .eq('embarcacao_id', id)
-      .order('data'),
   ]);
 
   if (!emb) notFound();
@@ -96,14 +84,6 @@ export default async function EditarEmbarcacaoPage({
           ...emb,
           estado_id: estadoId,
           embarcacao_imagens: imagens ?? [],
-          embarcacao_preco_regra: (regras ?? []) as {
-            id: string; nome: string; valor: number; tipo: string;
-            prioridade: number; ativo: boolean;
-            dias_semana: number[] | null;
-            periodo_mes_inicio: number | null; periodo_dia_inicio: number | null;
-            periodo_mes_fim: number | null; periodo_dia_fim: number | null;
-            data_inicio: string | null; data_fim: string | null;
-          }[],
         }}
         tipos={tipos ?? []}
         estados={estados ?? []}
@@ -114,7 +94,6 @@ export default async function EditarEmbarcacaoPage({
         equipamentosSegurancaIniciais={(equipamentosVinculados ?? []).map(e => e.equipamento_seguranca_id)}
         acessorios={acessorios ?? []}
         acessoriosIniciais={(acessoriosVinculados ?? []).map(a => a.acessorio_id)}
-        bloqueiosIniciais={(bloqueios ?? []).map(b => b.data)}
       />
     </div>
   );

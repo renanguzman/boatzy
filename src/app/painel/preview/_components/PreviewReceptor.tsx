@@ -59,12 +59,7 @@ export default function PreviewReceptor({ tipo }: { tipo: PreviewDados['tipo'] }
           <Loader2 className="h-4 w-4 animate-spin" /> Carregando pré-visualização…
         </div>
       ) : dados.tipo === 'embarcacao' ? (
-        <EmbarcacaoDetalheView
-          embarcacao={dados.embarcacao}
-          avaliacoes={[]}
-          ehDono={false}
-          datasBloqueadas={dados.datasBloqueadas}
-        />
+        <EmbarcacaoDetalheView embarcacao={dados.embarcacao} roteiros={[]} voltarHref="/buscar?tipo=embarcacao" ehDono={false} />
       ) : (
         <RoteiroDetalheView
           roteiro={dados.roteiro}

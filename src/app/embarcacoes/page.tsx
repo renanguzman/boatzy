@@ -2,8 +2,7 @@ import { redirect } from 'next/navigation';
 
 // A listagem de embarcações mora em /buscar?tipo=embarcacao (aba
 // "Embarcações"). Esta rota apenas redireciona preservando os filtros
-// compatíveis. O detalhe /embarcacoes/[id] segue ativo (links diretos e
-// fluxo de reserva direta de embarcação).
+// compatíveis.
 
 type SearchParams = {
   municipio?: string;

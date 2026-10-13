@@ -1,5 +1,4 @@
 import type { GaleriaItem } from '@/components/painel/GaleriaImagensEditor';
-import type { EmbarcacaoDetalheDados } from '@/app/embarcacoes/[id]/_components/EmbarcacaoDetalheView';
 import type { RoteiroDetalheDados } from '@/app/roteiros/[id]/_components/RoteiroDetalheView';
 import { normalizarTituloImagem } from '@/lib/galeria';
 import { isComprimentoUnidade } from '@/lib/comprimento';
@@ -44,7 +43,7 @@ export function imagensParaPreview(items: GaleriaItem[]) {
 /** Estado/município escolhidos → `municipios ( nome, estados ( uf, nome ) )`. */
 export function municipioParaPreview(
   estados: Estado[], municipios: Municipio[], estadoId: string, municipioId: string,
-): EmbarcacaoDetalheDados['municipios'] {
+): { nome: string; estados: { uf: string; nome: string } | null } | null {
   const m = municipios.find(x => String(x.id) === municipioId);
   if (!m) return null;
   const e = estados.find(x => String(x.id) === estadoId);
@@ -72,10 +71,10 @@ function endereco(f: EnderecoForm) {
 // ─── Embarcação ───────────────────────────────────────────────────────────────
 
 export function montarPreviewEmbarcacao(args: {
-  form: EnderecoForm & {
-    nome: string; descricao: string; embarcacao_tipo_id: string; modalidade_capitao: string;
+  form: {
+    nome: string; descricao: string; embarcacao_tipo_id: string;
     capacidade: string; comprimento: string; comprimento_unidade: string;
-    quartos: string; banheiros: string; tripulacao: string; preco_base: string;
+    quartos: string; banheiros: string; tripulacao: string;
     estado_id: string; municipio_id: string;
   };
   tipos: Opcao[];
@@ -88,14 +87,11 @@ export function montarPreviewEmbarcacao(args: {
   acessorios: Opcao[];
   acessoriosSelecionados: string[];
   imagens: GaleriaItem[];
-  diasOperacao: number[];
-  bloqueios: string[];
 }): PreviewDados {
   const { form } = args;
   const tipo = args.tipos.find(t => t.id === form.embarcacao_tipo_id);
   return {
     tipo: 'embarcacao',
-    datasBloqueadas: args.bloqueios,
     embarcacao: {
       id: 'preview',
       nome: form.nome.trim() || 'Nome da embarcação',
@@ -106,10 +102,6 @@ export function montarPreviewEmbarcacao(args: {
       quartos: numOuNull(form.quartos),
       banheiros: numOuNull(form.banheiros),
       tripulacao: numOuNull(form.tripulacao),
-      modalidade_capitao: form.modalidade_capitao,
-      preco_base: numOuNull(form.preco_base),
-      disponibilidade_dias_semana: args.diasOperacao.length > 0 ? args.diasOperacao : null,
-      ...endereco(form),
       embarcacao_tipo: tipo ? { nome: tipo.nome } : null,
       municipios: municipioParaPreview(args.estados, args.municipios, form.estado_id, form.municipio_id),
       embarcacao_comodidades: args.comodidades

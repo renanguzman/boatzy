@@ -11,14 +11,12 @@ import type { AceiteTermoCliente, TermoParaAceite } from '@/lib/termos/tipos';
 import type { CupomTipoDesconto, ReservaModalidadePreco } from '@/types/supabase';
 
 type Props = {
-  tipo: 'roteiro' | 'embarcacao';
-  roteiroId?: string;
-  embarcacaoId?: string;
+  roteiroId: string;
   data: string;
   flex: number;
   pessoas: number;
   adicionaisIds: string[];
-  /** Modelo de cobrança escolhido (BookingCard) — 'roteiro' sempre para reserva de embarcação. */
+  /** Modelo de cobrança escolhido no BookingCard do roteiro. */
   modalidade: ReservaModalidadePreco;
   /** Quantidade de diárias — só relevante quando `modalidade === 'diaria'`. */
   diarias?: number;
@@ -57,7 +55,7 @@ function formatContagem(ms: number): string {
 }
 
 export default function ConfirmarReserva({
-  tipo, roteiroId, embarcacaoId, data, flex, pessoas, adicionaisIds, modalidade, diarias,
+  roteiroId, data, flex, pessoas, adicionaisIds, modalidade, diarias,
   precoUnitario, multiplicador, rotuloLinha, totalAdicionais, taxaPercent, termo,
 }: Props) {
   const router = useRouter();
@@ -98,7 +96,7 @@ export default function ConfirmarReserva({
     setValidando(true);
     setErroCupom(null);
     const result = await validarCupom({
-      tipo, roteiroId, embarcacaoId, adicionaisIds, codigo: cupomInput, modalidade, diarias, pessoas, data,
+      roteiroId, adicionaisIds, codigo: cupomInput, modalidade, diarias, pessoas, data,
     });
     setValidando(false);
     if (result.ok) {
@@ -119,7 +117,7 @@ export default function ConfirmarReserva({
     setLoading(true);
     setError(null);
     const result = await criarReserva({
-      tipo, roteiroId, embarcacaoId, data, flex, pessoas, adicionaisIds, modalidade, diarias,
+      roteiroId, data, flex, pessoas, adicionaisIds, modalidade, diarias,
       cupomCodigo: cupomAplicado?.codigo,
       aceiteTermo: aceiteTermo ?? undefined,
     });

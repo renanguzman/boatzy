@@ -22,7 +22,6 @@ export type AtualizarEmbarcacaoPayload = {
   quartos: string;
   banheiros: string;
   tripulacao: string;
-  preco_base: string;
   municipio_id: string;
   latitude: string;
   longitude: string;
@@ -31,8 +30,6 @@ export type AtualizarEmbarcacaoPayload = {
   logradouro: string;
   logradouro_numero: string;
   complemento: string;
-  /** Dias da semana em que a embarcação opera (0=Dom..6=Sáb). Vazio = todos os dias. */
-  disponibilidade_dias_semana: number[];
 };
 
 type ActionResult = { ok: boolean; error?: string };
@@ -87,7 +84,6 @@ export async function atualizarEmbarcacao(
       quartos: payload.quartos ? parseInt(payload.quartos, 10) : null,
       banheiros: payload.banheiros !== '' ? parseInt(payload.banheiros, 10) : null,
       tripulacao: payload.tripulacao ? parseInt(payload.tripulacao, 10) : null,
-      preco_base: payload.preco_base ? parseFloat(payload.preco_base) : null,
       municipio_id: payload.municipio_id ? parseInt(payload.municipio_id, 10) : null,
       latitude: payload.latitude ? parseFloat(payload.latitude) : null,
       longitude: payload.longitude ? parseFloat(payload.longitude) : null,
@@ -96,36 +92,8 @@ export async function atualizarEmbarcacao(
       logradouro: payload.logradouro.trim() || null,
       logradouro_numero: payload.logradouro_numero.trim() || null,
       complemento: payload.complemento.trim() || null,
-      disponibilidade_dias_semana:
-        payload.disponibilidade_dias_semana.length > 0 ? payload.disponibilidade_dias_semana : null,
     })
     .eq('id', embarcacaoId);
-
-  if (error) return { ok: false, error: error.message };
-  return { ok: true };
-}
-
-// ─── Action: salvar datas bloqueadas (disponibilidade) ───────────────────────
-
-export async function salvarBloqueiosEmbarcacao(
-  embarcacaoId: string,
-  datas: string[],
-): Promise<ActionResult> {
-  const result = await getAuthorizedUser(embarcacaoId);
-  if ('error' in result && result.error) return { ok: false, error: result.error };
-
-  // Substitui o conjunto de bloqueios pelo informado.
-  await supabaseAdmin
-    .from('embarcacao_disponibilidade_bloqueio')
-    .delete()
-    .eq('embarcacao_id', embarcacaoId);
-
-  if (datas.length === 0) return { ok: true };
-
-  const rows = datas.map(data => ({ embarcacao_id: embarcacaoId, data }));
-  const { error } = await supabaseAdmin
-    .from('embarcacao_disponibilidade_bloqueio')
-    .insert(rows);
 
   if (error) return { ok: false, error: error.message };
   return { ok: true };
@@ -269,24 +237,5 @@ export async function atualizarAcessorios(
     if (error) return { ok: false, error: error.message };
   }
 
-  return { ok: true };
-}
-
-// ─── Action: excluir regra de preço ──────────────────────────────────────────
-
-export async function excluirRegra(
-  embarcacaoId: string,
-  regraId: string,
-): Promise<ActionResult> {
-  const result = await getAuthorizedUser(embarcacaoId);
-  if ('error' in result && result.error) return { ok: false, error: result.error };
-
-  const { error } = await supabaseAdmin
-    .from('embarcacao_preco_regra')
-    .delete()
-    .eq('id', regraId)
-    .eq('embarcacao_id', embarcacaoId);
-
-  if (error) return { ok: false, error: error.message };
   return { ok: true };
 }

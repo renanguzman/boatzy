@@ -3,7 +3,7 @@
 import { after } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { supabaseAdmin } from '@/lib/supabase';
-import { getDatasReservadasEmbarcacao, getDisponibilidadeRoteiro, expandirIntervalo, somarDiasISO } from '@/lib/reservas';
+import { getDisponibilidadeRoteiro, expandirIntervalo, somarDiasISO } from '@/lib/reservas';
 import { getTaxaEfetiva } from '@/lib/taxas';
 import { expirarPedidosVencidosSemFalhar } from '@/lib/pagamentos/pedidos';
 import { notificarGestorNovaSolicitacao } from '@/lib/emails/reserva-solicitada';
@@ -12,18 +12,21 @@ import { capacidadeMaxima, mensagemCapacidadeExcedida } from '@/lib/capacidade';
 import type { CupomTipoDesconto, ReservaModalidadePreco, PrecoPessoaModoCapacidade } from '@/types/supabase';
 import { obterTermoParaAceite, validarAceite, gravarAceite, type AceitePreparado } from '@/lib/termos/aceite';
 import type { AceiteErroCodigo, AceiteTermoCliente } from '@/lib/termos/tipos';
-import { hojeISO } from '@/lib/datas';
+import { hojeISO, dataMaximaReservaISO, MESES_ANTECEDENCIA_RESERVA } from '@/lib/datas';
 
+/**
+ * Toda solicitação nova é de roteiro: a embarcação não tem preço nem
+ * disponibilidade próprios. Reservas antigas com `tipo = 'embarcacao'`
+ * continuam existindo e sendo exibidas, mas não são mais criadas.
+ */
 export type CriarReservaInput = {
-  tipo: 'roteiro' | 'embarcacao';
-  roteiroId?: string;
-  embarcacaoId?: string;
+  roteiroId: string;
   data: string; // 'yyyy-mm-dd'
   flex?: number;
   pessoas: number;
-  adicionaisIds: string[]; // ids de roteiro_catalogo (apenas roteiro)
+  adicionaisIds: string[]; // ids de roteiro_catalogo
   cupomCodigo?: string;
-  /** Modelo de cobrança escolhido (só se aplica a `tipo: 'roteiro'`). Padrão 'roteiro'. */
+  /** Modelo de cobrança escolhido. Padrão 'roteiro'. */
   modalidade?: ReservaModalidadePreco;
   /** Quantidade de diárias — obrigatório quando `modalidade === 'diaria'`. */
   diarias?: number;
@@ -37,15 +40,15 @@ export type CriarReservaResult =
 
 const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
 
-/** Dados resolvidos no servidor para montar a reserva, comuns aos dois tipos. */
+/** Dados resolvidos no servidor para montar a reserva. */
 type AlvoResolvido = {
   nome: string;
   ownerId: string;
-  roteiroId: string | null;
+  roteiroId: string;
   embarcacaoId: string | null;
   /** Taxa de serviço efetiva (%) do gestor dono do alvo — específica ou geral (ver SPEC §14). */
   taxaPercent: number;
-  /** Modelo de cobrança efetivamente resolvido ('roteiro' sempre para `tipo: 'embarcacao'`). */
+  /** Modelo de cobrança efetivamente resolvido. */
   modalidade: ReservaModalidadePreco;
   /** Valor unitário do modelo (dia, diária ou pessoa) — snapshot gravado em `reserva.preco_base`. */
   precoUnitario: number | null;
@@ -67,11 +70,9 @@ type AlvoResolvido = {
 type Adicional = { roteiro_catalogo_id: string; descricao: string; valor: number; tipo: 'produto' | 'servico' };
 
 type ResolverAlvoInput = {
-  tipo: 'roteiro' | 'embarcacao';
-  roteiroId?: string;
-  embarcacaoId?: string;
+  roteiroId: string;
   adicionaisIds: string[];
-  /** Modelo de cobrança escolhido (ignorado para `tipo: 'embarcacao'`, sempre 'roteiro'). */
+  /** Modelo de cobrança escolhido. */
   modalidade: ReservaModalidadePreco;
   diarias?: number;
   pessoas: number;
@@ -112,42 +113,12 @@ async function precoRoteiroNaData(
 }
 
 /**
- * Resolve o alvo (roteiro ou embarcação) e seus adicionais no servidor —
+ * Resolve o roteiro e seus adicionais no servidor —
  * fonte da verdade de preço/owner. Reaproveitado por `criarReserva` e pela
  * pré-visualização de cupom (`validarCupom`): nunca confiamos num subtotal
  * vindo do cliente.
  */
 async function resolverAlvo(input: ResolverAlvoInput): Promise<ResolverAlvoResult> {
-  if (input.tipo === 'embarcacao') {
-    if (!input.embarcacaoId) return { ok: false, error: 'Embarcação inválida.' };
-    const { data: emb, error: embErr } = await supabaseAdmin
-      .from('embarcacao')
-      .select('id, nome, preco_base, owner_id, status, capacidade')
-      .eq('id', input.embarcacaoId)
-      .eq('status', 'ativo')
-      .single();
-    if (embErr || !emb) return { ok: false, error: 'Embarcação não encontrada ou indisponível.' };
-    return {
-      ok: true,
-      alvo: {
-        nome: emb.nome,
-        precoUnitario: emb.preco_base != null ? Number(emb.preco_base) : null,
-        multiplicador: 1,
-        ownerId: emb.owner_id,
-        roteiroId: null,
-        embarcacaoId: emb.id,
-        taxaPercent: await getTaxaEfetiva(emb.owner_id),
-        modalidade: 'roteiro',
-        precoDiariaMinimo: 1,
-        pessoaCapacidadeMinima: null,
-        pessoaCapacidadeMaxima: null,
-        pessoaModoCapacidade: 'exclusivo',
-        capacidadeMaxima: capacidadeMaxima(emb.capacidade),
-      },
-      adicionais: [],
-    };
-  }
-
   if (!input.roteiroId) return { ok: false, error: 'Roteiro inválido.' };
   const { data: roteiro, error: roteiroErr } = await supabaseAdmin
     .from('roteiro')
@@ -339,9 +310,7 @@ function limitarDescontoATaxa(descontoCupom: number, taxaServico: number): numbe
 }
 
 export type ValidarCupomInput = {
-  tipo: 'roteiro' | 'embarcacao';
-  roteiroId?: string;
-  embarcacaoId?: string;
+  roteiroId: string;
   adicionaisIds: string[];
   codigo: string;
   /** Modelo de cobrança escolhido — afeta o subtotal usado para validar o cupom. Padrão 'roteiro'. */
@@ -433,9 +402,12 @@ export async function criarReserva(input: CriarReservaInput): Promise<CriarReser
 
   // Validação dos campos obrigatórios.
   if (!input.data || !ISO_DATE.test(input.data)) return { ok: false, error: 'Data inválida.' };
+  if (input.data > dataMaximaReservaISO()) {
+    return { ok: false, error: `As reservas ficam abertas até ${MESES_ANTECEDENCIA_RESERVA} meses à frente. Escolha uma data mais próxima.` };
+  }
   if (!input.pessoas || input.pessoas < 1) return { ok: false, error: 'Informe o número de pessoas.' };
 
-  const modalidade: ReservaModalidadePreco = input.tipo === 'embarcacao' ? 'roteiro' : (input.modalidade ?? 'roteiro');
+  const modalidade: ReservaModalidadePreco = input.modalidade ?? 'roteiro';
   if (modalidade === 'diaria' && (!input.diarias || input.diarias < 1)) {
     return { ok: false, error: 'Informe a quantidade de diárias.' };
   }
@@ -468,30 +440,23 @@ export async function criarReserva(input: CriarReservaInput): Promise<CriarReser
   // conflite — valida sempre pela embarcação quando ela existe, pois uma
   // mesma embarcação pode atender vários roteiros. No modelo Por Pessoa
   // compartilhado, só há conflito se ultrapassar a capacidade máxima.
-  if (input.tipo === 'embarcacao') {
-    const datasIndisponiveis = await getDatasReservadasEmbarcacao(alvo.embarcacaoId!);
-    if (datasIndisponiveis.includes(input.data)) {
-      return { ok: false, error: 'Essa data não está mais disponível. Escolha outra data.' };
-    }
-  } else {
-    const disponibilidade = await getDisponibilidadeRoteiro({
-      roteiroId: alvo.roteiroId!,
-      embarcacaoId: alvo.embarcacaoId,
-      pessoaModoCapacidade: alvo.pessoaModoCapacidade,
-    });
-    const intervalo = expandirIntervalo(input.data, dataFim ?? input.data);
-    const exclusivas = new Set(disponibilidade.datasExclusivasOcupadas);
-    if (intervalo.some((d) => exclusivas.has(d))) {
-      return { ok: false, error: 'Essa data não está mais disponível. Escolha outra data.' };
-    }
-    if (modalidade === 'pessoa' && alvo.pessoaModoCapacidade === 'compartilhado') {
-      const maxima = alvo.pessoaCapacidadeMaxima ?? 0;
-      const semVaga = intervalo.some(
-        (d) => (disponibilidade.vagasPessoaOcupadas[d] ?? 0) + input.pessoas > maxima,
-      );
-      if (semVaga) {
-        return { ok: false, error: 'Não há vagas suficientes nessa data. Escolha outra data ou reduza o número de pessoas.' };
-      }
+  const disponibilidade = await getDisponibilidadeRoteiro({
+    roteiroId: alvo.roteiroId,
+    embarcacaoId: alvo.embarcacaoId,
+    pessoaModoCapacidade: alvo.pessoaModoCapacidade,
+  });
+  const intervalo = expandirIntervalo(input.data, dataFim ?? input.data);
+  const exclusivas = new Set(disponibilidade.datasExclusivasOcupadas);
+  if (intervalo.some((d) => exclusivas.has(d))) {
+    return { ok: false, error: 'Essa data não está mais disponível. Escolha outra data.' };
+  }
+  if (modalidade === 'pessoa' && alvo.pessoaModoCapacidade === 'compartilhado') {
+    const maxima = alvo.pessoaCapacidadeMaxima ?? 0;
+    const semVaga = intervalo.some(
+      (d) => (disponibilidade.vagasPessoaOcupadas[d] ?? 0) + input.pessoas > maxima,
+    );
+    if (semVaga) {
+      return { ok: false, error: 'Não há vagas suficientes nessa data. Escolha outra data ou reduza o número de pessoas.' };
     }
   }
 
@@ -555,7 +520,7 @@ export async function criarReserva(input: CriarReservaInput): Promise<CriarReser
   const { data: reserva, error: insertErr } = await supabaseAdmin
     .from('reserva')
     .insert({
-      tipo: input.tipo,
+      tipo: 'roteiro',
       roteiro_id: alvo.roteiroId,
       embarcacao_id: alvo.embarcacaoId,
       cliente_id: user.id,
@@ -586,7 +551,7 @@ export async function criarReserva(input: CriarReservaInput): Promise<CriarReser
     return { ok: false, error: insertErr?.message ?? 'Não foi possível criar a reserva.' };
   }
 
-  // Snapshot dos adicionais (apenas roteiro).
+  // Snapshot dos adicionais.
   if (adicionais.length > 0) {
     const { error: addErr } = await supabaseAdmin.from('reserva_adicional').insert(
       adicionais.map((a) => ({

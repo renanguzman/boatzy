@@ -3,7 +3,12 @@ import { createClient } from '@/lib/supabase/server';
 import { supabaseAdmin } from '@/lib/supabase';
 import NovoRoteiroForm from './_components/NovoRoteiroForm';
 
-export default async function NovoRoteiroPage() {
+export default async function NovoRoteiroPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ embarcacao?: string }>;
+}) {
+  const { embarcacao: embarcacaoInicialId } = await searchParams;
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect('/painel/login');
@@ -36,6 +41,7 @@ export default async function NovoRoteiroPage() {
       <NovoRoteiroForm
         estados={estados ?? []}
         embarcacoes={embarcacoes ?? []}
+        embarcacaoInicialId={embarcacaoInicialId}
         catalogo={(catalogo ?? []) as { id: string; descricao: string; valor: number; tipo: 'produto' | 'servico' }[]}
       />
     </div>

@@ -3,25 +3,21 @@
 import { useState, useTransition, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import {
-  Info, ClipboardCheck, Ruler, DollarSign, MapPin, ImageIcon, CalendarDays,
-  Loader2, AlertCircle, CheckCircle,
-  Plus, ChevronDown, ChevronUp, Trash2, HelpCircle, Sparkles, ShieldCheck, Waves,
+  Info, ClipboardCheck, Ruler, MapPin, ImageIcon,
+  Loader2, AlertCircle, CheckCircle, Sparkles, ShieldCheck, Waves,
 } from 'lucide-react';
 import GaleriaImagensEditor, { type GaleriaItem } from '@/components/painel/GaleriaImagensEditor';
 import {
   criarEmbarcacao,
-  criarRegra,
   salvarImagem,
   salvarComodidades,
   salvarEquipamentosSeguranca,
   salvarAcessorios,
-  salvarBloqueiosEmbarcacao,
   getMunicipiosByEstado,
   type CriarEmbarcacaoPayload,
 } from '../actions';
 import MapaPicker from './MapaPicker';
-import DisponibilidadePicker from '@/components/painel/DisponibilidadePicker';
-import type { EmbarcacaoStatus, ModalidadeCapitao, PrecoRegraTipo } from '@/types/supabase';
+import type { EmbarcacaoStatus, ModalidadeCapitao } from '@/types/supabase';
 import { COMPRIMENTO_UNIDADES, type ComprimentoUnidade } from '@/lib/comprimento';
 import PreviewPublicacaoModal from '@/components/preview/PreviewPublicacaoModal';
 import BotaoPreview from '@/components/preview/BotaoPreview';
@@ -33,56 +29,11 @@ import { useEtapas } from '@/components/painel/etapas/useEtapas';
 import EmbarcacaoCard from '@/components/ui/EmbarcacaoCard';
 import { ETAPAS_EMBARCACAO, ETAPA_EMB, revisaoEmbarcacao } from '../../_components/etapasEmbarcacao';
 
-// ─── Constantes ───────────────────────────────────────────────────────────────
-
-const DIAS_SEMANA = [
-  { value: 0, label: 'Dom' }, { value: 1, label: 'Seg' }, { value: 2, label: 'Ter' },
-  { value: 3, label: 'Qua' }, { value: 4, label: 'Qui' }, { value: 5, label: 'Sex' },
-  { value: 6, label: 'Sáb' },
-];
-const MESES = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
-const DIAS_MES: Record<number, number> = {
-  1:31, 2:29, 3:31, 4:30, 5:31, 6:30, 7:31, 8:31, 9:30, 10:31, 11:30, 12:31,
-};
-
-const TIPO_CONFIG: Record<PrecoRegraTipo, { label: string; badgeCls: string; dot: string }> = {
-  dia_semana:    { label: 'Dias da Semana',  badgeCls: 'bg-blue-50 text-blue-700 border-blue-200',    dot: 'bg-blue-500'   },
-  periodo_anual: { label: 'Período Anual',   badgeCls: 'bg-amber-50 text-amber-700 border-amber-200',  dot: 'bg-amber-500'  },
-  data_fixa:     { label: 'Data Específica', badgeCls: 'bg-violet-50 text-violet-700 border-violet-200', dot: 'bg-violet-500' },
-};
-
-// Níveis de precificação em ORDEM DE PRIORIDADE (maior → menor). Esta é a única
-// fonte de verdade da ordem exibida nas instruções — evita inversões visuais.
-const PRECO_NIVEIS = [
-  { nivel: 1, emoji: '📌', titulo: 'Data Específica',  desc: 'Intervalo único, sem repetição. Ex: Réveillon 29/12 → 02/01 = ', exemplo: 'R$ 3.000',
-    cardCls: 'border-violet-200 bg-violet-50/70', tituloCls: 'text-violet-700', descCls: 'text-violet-600', numCls: 'bg-violet-600' },
-  { nivel: 2, emoji: '☀️', titulo: 'Período Anual',   desc: 'Intervalo que repete todo ano. Ex: Verão 01/Dez → 28/Fev = ',    exemplo: 'R$ 2.000',
-    cardCls: 'border-amber-200 bg-amber-50/70',  tituloCls: 'text-amber-700',  descCls: 'text-amber-600',  numCls: 'bg-amber-500' },
-  { nivel: 3, emoji: '🗓', titulo: 'Dias da Semana',   desc: 'Recorrente toda semana. Ex: todo Sábado e Domingo = ',           exemplo: 'R$ 1.500',
-    cardCls: 'border-blue-200 bg-blue-50/70',    tituloCls: 'text-blue-700',   descCls: 'text-blue-600',   numCls: 'bg-blue-500' },
-  { nivel: 4, emoji: '🏷️', titulo: 'Preço Base',       desc: 'Padrão aplicado quando nenhuma regra acima vale para a data.',   exemplo: '',
-    cardCls: 'border-slate-200 bg-white',        tituloCls: 'text-slate-600',  descCls: 'text-slate-400',  numCls: 'bg-slate-400' },
-] as const;
-
 // ─── Tipos ────────────────────────────────────────────────────────────────────
 
 type Tipo      = { id: string; nome: string };
 type Estado    = { id: number; uf: string; nome: string };
 type Municipio = { id: number; nome: string };
-
-type RegraLocal = {
-  localId: string;
-  tipo: PrecoRegraTipo;
-  nome: string;
-  valor: string;
-  diasSemana: number[];
-  periodoMesInicio: number;
-  periodoDiaInicio: number;
-  periodoMesFim: number;
-  periodoDiaFim: number;
-  dataInicio: string;
-  dataFim: string;
-};
 
 type Comodidade = { id: string; nome: string };
 type EquipamentoSeguranca = { id: string; nome: string };
@@ -134,33 +85,6 @@ function Field({ label, required, hint, className, children }: {
   );
 }
 
-function fmtBRL(v: string | number): string {
-  const n = typeof v === 'string' ? parseFloat(v) : v;
-  if (!v || isNaN(n)) return '';
-  return n.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
-}
-
-function formatRegraResumo(r: RegraLocal): string {
-  if (r.tipo === 'dia_semana')
-    return r.diasSemana.map(d => DIAS_SEMANA[d].label).join(', ');
-  if (r.tipo === 'periodo_anual')
-    return `${String(r.periodoDiaInicio).padStart(2,'0')}/${MESES[r.periodoMesInicio-1]} → ${String(r.periodoDiaFim).padStart(2,'0')}/${MESES[r.periodoMesFim-1]}`;
-  if (r.tipo === 'data_fixa' && r.dataInicio && r.dataFim) {
-    const fmt = (d: string) => d.split('-').reverse().join('/');
-    return `${fmt(r.dataInicio)} → ${fmt(r.dataFim)}`;
-  }
-  return '';
-}
-
-const emptyRegra = (): Omit<RegraLocal, 'localId'> => ({
-  tipo: 'dia_semana',
-  nome: '', valor: '',
-  diasSemana: [],
-  periodoMesInicio: 12, periodoDiaInicio: 1,
-  periodoMesFim: 2,    periodoDiaFim: 28,
-  dataInicio: '', dataFim: '',
-});
-
 // ─── Componente principal ─────────────────────────────────────────────────────
 
 export default function NovaEmbarcacaoForm({ tipos, estados, comodidades, equipamentosSeguranca, acessorios }: Props) {
@@ -169,15 +93,14 @@ export default function NovaEmbarcacaoForm({ tipos, estados, comodidades, equipa
   const numeroInputRef = useRef<HTMLInputElement>(null);
 
   // ── Form base ────────────────────────────────────────────────────────────
-  const [form, setForm] = useState<Omit<CriarEmbarcacaoPayload, 'municipio_id' | 'disponibilidade_dias_semana'> & {
+  const [form, setForm] = useState<Omit<CriarEmbarcacaoPayload, 'municipio_id'> & {
     municipio_id: string; estado_id: string;
   }>({
     nome: '', descricao: '',
     embarcacao_tipo_id: '',
     status: 'ativo',
-    modalidade_capitao: 'sem_capitao' as ModalidadeCapitao,
+    modalidade_capitao: 'com_capitao' as ModalidadeCapitao,
     capacidade: '', comprimento: '', comprimento_unidade: 'm', quartos: '', banheiros: '', tripulacao: '',
-    preco_base: '',
     estado_id: '', municipio_id: '',
     latitude: '', longitude: '',
     cep: '', bairro: '', logradouro: '', logradouro_numero: '', complemento: '',
@@ -190,16 +113,6 @@ export default function NovaEmbarcacaoForm({ tipos, estados, comodidades, equipa
   // ── CEP lookup ────────────────────────────────────────────────────────────
   const [cepLoading, setCepLoading] = useState(false);
   const [cepError,   setCepError]   = useState<string | null>(null);
-
-  // ── Regras de preço ───────────────────────────────────────────────────────
-  const [regras, setRegras]                       = useState<RegraLocal[]>([]);
-  const [showRegraForm, setShowRegraForm]         = useState(false);
-  const [showInstrucoes, setShowInstrucoes]       = useState(false);
-  const [rf, setRf]                               = useState(emptyRegra());
-
-  // ── Disponibilidade ──────────────────────────────────────────────────────
-  const [diasOperacao, setDiasOperacao] = useState<number[]>([]);
-  const [bloqueios, setBloqueios]       = useState<string[]>([]);
 
   // ── Equipamentos de segurança ─────────────────────────────────────────────
   const [equipamentosSelecionados, setEquipamentosSelecionados] = useState<string[]>([]);
@@ -241,8 +154,7 @@ export default function NovaEmbarcacaoForm({ tipos, estados, comodidades, equipa
   // ── Etapas (wizard) ─────────────────────────────────────────────────────────
   const etapas = useEtapas(ETAPAS_EMBARCACAO.length, { ids: ETAPAS_EMBARCACAO.map(e => e.id) });
   const revisao = revisaoEmbarcacao({
-    form, tipos, estados, municipios, comodidadesSelecionadas, imagens, diasOperacao, bloqueios,
-    totalRegras: regras.length,
+    form, tipos, estados, municipios, comodidadesSelecionadas, imagens,
     ir: etapas.ir,
   });
 
@@ -255,7 +167,7 @@ export default function NovaEmbarcacaoForm({ tipos, estados, comodidades, equipa
         form, tipos, estados, municipios, comodidades, comodidadesSelecionadas,
         equipamentosSeguranca, equipamentosSegurancaSelecionados: equipamentosSelecionados,
         acessorios, acessoriosSelecionados,
-        imagens, diasOperacao, bloqueios,
+        imagens,
       })
     : null;
 
@@ -352,40 +264,6 @@ export default function NovaEmbarcacaoForm({ tipos, estados, comodidades, equipa
     });
   }
 
-  // ─── Regras ───────────────────────────────────────────────────────────────
-
-  function setRfField<K extends keyof typeof rf>(k: K, v: typeof rf[K]) {
-    setRf(r => ({ ...r, [k]: v }));
-  }
-
-  function toggleDia(day: number) {
-    setRf(r => ({
-      ...r,
-      diasSemana: r.diasSemana.includes(day)
-        ? r.diasSemana.filter(d => d !== day)
-        : [...r.diasSemana, day].sort(),
-    }));
-  }
-
-  function podeAdicionarRegra(): boolean {
-    if (!rf.nome.trim() || !rf.valor || parseFloat(rf.valor) <= 0) return false;
-    if (rf.tipo === 'dia_semana'    && rf.diasSemana.length === 0)            return false;
-    if (rf.tipo === 'data_fixa'     && (!rf.dataInicio || !rf.dataFim))       return false;
-    if (rf.tipo === 'data_fixa'     && rf.dataInicio > rf.dataFim)            return false;
-    return true;
-  }
-
-  function handleAddRegra() {
-    if (!podeAdicionarRegra()) return;
-    setRegras(prev => [...prev, { ...rf, localId: crypto.randomUUID() }]);
-    setRf(emptyRegra());
-    setShowRegraForm(false);
-  }
-
-  function handleRemoveRegra(localId: string) {
-    setRegras(prev => prev.filter(r => r.localId !== localId));
-  }
-
   // ─── Imagens ──────────────────────────────────────────────────────────────
 
   async function uploadImagem(item: GaleriaItem, embarcacaoId: string, ordem: number) {
@@ -427,11 +305,10 @@ export default function NovaEmbarcacaoForm({ tipos, estados, comodidades, equipa
       comprimento_unidade: form.comprimento_unidade,
       quartos: form.quartos,
       banheiros: form.banheiros, tripulacao: form.tripulacao,
-      preco_base: form.preco_base, municipio_id: form.municipio_id,
+      municipio_id: form.municipio_id,
       latitude: form.latitude, longitude: form.longitude,
       cep: form.cep, bairro: form.bairro, logradouro: form.logradouro,
       logradouro_numero: form.logradouro_numero, complemento: form.complemento,
-      disponibilidade_dias_semana: diasOperacao,
     });
 
     if (!result.ok) {
@@ -441,29 +318,6 @@ export default function NovaEmbarcacaoForm({ tipos, estados, comodidades, equipa
     }
 
     const { embarcacaoId } = result;
-
-    // Salvar datas bloqueadas (exceções de disponibilidade)
-    if (bloqueios.length > 0) {
-      await salvarBloqueiosEmbarcacao(embarcacaoId, bloqueios);
-    }
-
-    // 2. Criar regras de preço dinâmico
-    for (const regra of regras) {
-      await criarRegra({
-        embarcacaoId,
-        nome: regra.nome,
-        valor: parseFloat(regra.valor),
-        tipo: regra.tipo,
-        prioridade: 0,
-        diasSemana:        regra.tipo === 'dia_semana'    ? regra.diasSemana       : undefined,
-        periodoMesInicio:  regra.tipo === 'periodo_anual' ? regra.periodoMesInicio : undefined,
-        periodoDiaInicio:  regra.tipo === 'periodo_anual' ? regra.periodoDiaInicio : undefined,
-        periodoMesFim:     regra.tipo === 'periodo_anual' ? regra.periodoMesFim    : undefined,
-        periodoDiaFim:     regra.tipo === 'periodo_anual' ? regra.periodoDiaFim    : undefined,
-        dataInicio:        regra.tipo === 'data_fixa'     ? regra.dataInicio       : undefined,
-        dataFim:           regra.tipo === 'data_fixa'     ? regra.dataFim          : undefined,
-      });
-    }
 
     // 3. Salvar equipamentos de segurança
     if (equipamentosSelecionados.length > 0) {
@@ -530,9 +384,7 @@ export default function NovaEmbarcacaoForm({ tipos, estados, comodidades, equipa
           <Field label="Capitão">
             <select className={selectCls} value={form.modalidade_capitao}
               onChange={e => setField('modalidade_capitao', e.target.value as ModalidadeCapitao)}>
-              <option value="sem_capitao">Sem capitão (locatário pilota)</option>
               <option value="com_capitao">Com capitão obrigatório</option>
-              <option value="opcional">Capitão opcional</option>
             </select>
           </Field>
           <Field label="Status">
@@ -686,261 +538,6 @@ export default function NovaEmbarcacaoForm({ tipos, estados, comodidades, equipa
           )}
         </SectionCard>
       )}
-
-      </div>
-
-      <div hidden={etapas.atual !== ETAPA_EMB.preco} className="space-y-6">
-      {/* ── 4. Preço ─────────────────────────────────────────────────────── */}
-      <SectionCard icon={DollarSign} title="Preço">
-        {/* Preço base */}
-        <div className="max-w-xs mb-6">
-          <Field label="Preço base (R$ / dia)"
-            hint="Aplicado quando nenhuma regra específica estiver vigente na data da reserva.">
-            <div className="relative">
-              <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-sm text-slate-400 font-medium">R$</span>
-              <input className={`${inputCls} pl-10`} type="number" min="0" step="0.01"
-                placeholder="0,00" value={form.preco_base}
-                onChange={e => setField('preco_base', e.target.value)} />
-            </div>
-          </Field>
-        </div>
-
-        {/* Divisor */}
-        <div className="border-t border-slate-100 mb-5" />
-
-        {/* Instruções */}
-        <button type="button"
-          onClick={() => setShowInstrucoes(v => !v)}
-          className="flex items-center gap-2 text-sm font-semibold text-[#0B2447] mb-4 hover:text-[#0B3D91] transition-colors">
-          <HelpCircle className="w-4 h-4" />
-          Como funciona a precificação dinâmica?
-          {showInstrucoes
-            ? <ChevronUp className="w-3.5 h-3.5 ml-1" />
-            : <ChevronDown className="w-3.5 h-3.5 ml-1" />}
-        </button>
-
-        {showInstrucoes && (
-          <div className="mb-6 rounded-xl border border-slate-100 bg-slate-50/60 p-5">
-            <p className="text-sm text-slate-600 leading-relaxed">
-              Para cada data, o sistema aplica <strong>a primeira regra que se encaixa</strong>, seguindo esta ordem — do mais específico (nº&nbsp;1) ao mais geral (nº&nbsp;4):
-            </p>
-            <ol className="mt-4 space-y-2">
-              {PRECO_NIVEIS.map(n => (
-                <li key={n.nivel} className={`flex items-start gap-3 rounded-xl border p-3 ${n.cardCls}`}>
-                  <span className={`flex-shrink-0 w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold text-white ${n.numCls}`}>
-                    {n.nivel}
-                  </span>
-                  <div className="flex-1 min-w-0">
-                    <p className={`text-xs font-bold ${n.tituloCls}`}>{n.emoji} {n.titulo}</p>
-                    <p className={`text-xs leading-relaxed ${n.descCls}`}>
-                      {n.desc}{n.exemplo && <strong>{n.exemplo}</strong>}
-                    </p>
-                  </div>
-                </li>
-              ))}
-            </ol>
-            <p className="mt-4 text-xs text-slate-500 leading-relaxed bg-slate-100/70 rounded-lg p-3">
-              💡 Quando mais de uma regra cai na mesma data, vence a de <strong>menor número</strong>. Ex: 31/12 é domingo, está no verão <em>e</em> é Réveillon — o sistema cobra os <strong>R$ 3.000</strong> da Data Específica (nº&nbsp;1).
-            </p>
-          </div>
-        )}
-
-        {/* Lista de regras adicionadas */}
-        {regras.length > 0 && (
-          <div className="space-y-2 mb-5">
-            <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">
-              Regras adicionadas ({regras.length})
-            </p>
-            {regras.map(regra => {
-              const cfg = TIPO_CONFIG[regra.tipo];
-              return (
-                <div key={regra.localId}
-                  className="flex items-center gap-3 bg-white border border-slate-100 rounded-xl px-4 py-3 shadow-sm">
-                  <span className={`w-2 h-2 rounded-full flex-shrink-0 ${cfg.dot}`} />
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${cfg.badgeCls}`}>
-                        {cfg.label}
-                      </span>
-                      <span className="text-sm font-semibold text-[#0B2447] truncate">{regra.nome}</span>
-                    </div>
-                    <p className="text-xs text-slate-400 mt-0.5">{formatRegraResumo(regra)}</p>
-                  </div>
-                  <span className="text-sm font-bold text-emerald-700 whitespace-nowrap">{fmtBRL(regra.valor)}</span>
-                  <button type="button" onClick={() => handleRemoveRegra(regra.localId)}
-                    className="w-7 h-7 flex items-center justify-center rounded-lg text-slate-300 hover:text-red-500 hover:bg-red-50 transition-colors flex-shrink-0">
-                    <Trash2 className="w-3.5 h-3.5" />
-                  </button>
-                </div>
-              );
-            })}
-          </div>
-        )}
-
-        {/* Botão adicionar / formulário inline */}
-        {!showRegraForm ? (
-          <button type="button" onClick={() => setShowRegraForm(true)}
-            className="flex items-center gap-2 text-sm font-semibold text-[#0B3D91] hover:text-[#0B2447]
-              border border-dashed border-[#0B3D91]/30 hover:border-[#0B2447]/40 rounded-xl px-4 py-3
-              w-full justify-center transition-colors hover:bg-slate-50/50">
-            <Plus className="w-4 h-4" />
-            Adicionar regra de preço
-          </button>
-        ) : (
-          <div className="rounded-xl border border-slate-200 bg-slate-50/40 p-5 space-y-4">
-            <p className="text-sm font-bold text-[#0B2447]">Nova regra</p>
-
-            {/* Tipo — tabs */}
-            <div className="flex gap-1 bg-slate-100 rounded-xl p-1">
-              {(['data_fixa','periodo_anual','dia_semana'] as PrecoRegraTipo[]).map(t => (
-                <button key={t} type="button" onClick={() => setRfField('tipo', t)}
-                  className={`flex-1 text-xs font-semibold py-2 rounded-lg transition-all ${
-                    rf.tipo === t
-                      ? 'bg-white text-[#0B2447] shadow-sm'
-                      : 'text-slate-500 hover:text-slate-700'
-                  }`}>
-                  {TIPO_CONFIG[t].label}
-                </button>
-              ))}
-            </div>
-
-            {/* Nome + Valor */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <Field label="Nome da regra" required>
-                <input className={inputCls}
-                  placeholder={
-                    rf.tipo === 'dia_semana' ? 'ex: Fim de Semana' :
-                    rf.tipo === 'periodo_anual' ? 'ex: Alta Temporada' : 'ex: Réveillon 2025'
-                  }
-                  value={rf.nome} onChange={e => setRfField('nome', e.target.value)} />
-              </Field>
-              <Field label="Preço (R$ / dia)" required>
-                <div className="relative">
-                  <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-sm text-slate-400 font-medium">R$</span>
-                  <input className={`${inputCls} pl-10`} type="number" min="0" step="0.01"
-                    placeholder="0,00" value={rf.valor}
-                    onChange={e => setRfField('valor', e.target.value)} />
-                </div>
-              </Field>
-            </div>
-
-            {/* Campos condicionais por tipo ────────────────────────────── */}
-
-            {rf.tipo === 'dia_semana' && (
-              <div>
-                <p className="text-xs font-medium text-slate-600 mb-2">
-                  Dias da semana <span className="text-red-500">*</span>
-                </p>
-                <div className="flex gap-2 flex-wrap">
-                  {DIAS_SEMANA.map(d => {
-                    const active = rf.diasSemana.includes(d.value);
-                    return (
-                      <button key={d.value} type="button" onClick={() => toggleDia(d.value)}
-                        className={`w-12 h-10 rounded-xl text-xs font-bold transition-all ${
-                          active
-                            ? 'bg-[#0B2447] text-white shadow-md shadow-[#0B2447]/20'
-                            : 'bg-white border border-slate-200 text-slate-500 hover:border-[#0B2447]/30'
-                        }`}>
-                        {d.label}
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-            )}
-
-            {rf.tipo === 'periodo_anual' && (
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <p className="text-xs font-medium text-slate-600 mb-2">
-                    Início <span className="text-red-500">*</span>
-                  </p>
-                  <div className="flex gap-2">
-                    <select className={`${selectCls} flex-1`}
-                      value={rf.periodoMesInicio}
-                      onChange={e => setRfField('periodoMesInicio', parseInt(e.target.value))}>
-                      {MESES.map((m, i) => <option key={i} value={i+1}>{m}</option>)}
-                    </select>
-                    <select className={`${selectCls} w-20`}
-                      value={rf.periodoDiaInicio}
-                      onChange={e => setRfField('periodoDiaInicio', parseInt(e.target.value))}>
-                      {Array.from({ length: DIAS_MES[rf.periodoMesInicio] }, (_, i) => i+1).map(d => (
-                        <option key={d} value={d}>{String(d).padStart(2,'0')}</option>
-                      ))}
-                    </select>
-                  </div>
-                </div>
-                <div>
-                  <p className="text-xs font-medium text-slate-600 mb-2">
-                    Fim <span className="text-red-500">*</span>
-                  </p>
-                  <div className="flex gap-2">
-                    <select className={`${selectCls} flex-1`}
-                      value={rf.periodoMesFim}
-                      onChange={e => setRfField('periodoMesFim', parseInt(e.target.value))}>
-                      {MESES.map((m, i) => <option key={i} value={i+1}>{m}</option>)}
-                    </select>
-                    <select className={`${selectCls} w-20`}
-                      value={rf.periodoDiaFim}
-                      onChange={e => setRfField('periodoDiaFim', parseInt(e.target.value))}>
-                      {Array.from({ length: DIAS_MES[rf.periodoMesFim] }, (_, i) => i+1).map(d => (
-                        <option key={d} value={d}>{String(d).padStart(2,'0')}</option>
-                      ))}
-                    </select>
-                  </div>
-                </div>
-                <p className="col-span-2 text-xs text-slate-400">
-                  💡 Para períodos que cruzam o ano (ex: Dez → Mar), o sistema identifica automaticamente.
-                </p>
-              </div>
-            )}
-
-            {rf.tipo === 'data_fixa' && (
-              <div className="grid grid-cols-2 gap-4">
-                <Field label="Data inicial" required>
-                  <input className={inputCls} type="date"
-                    value={rf.dataInicio} onChange={e => setRfField('dataInicio', e.target.value)} />
-                </Field>
-                <Field label="Data final" required>
-                  <input className={inputCls} type="date" min={rf.dataInicio}
-                    value={rf.dataFim} onChange={e => setRfField('dataFim', e.target.value)} />
-                </Field>
-              </div>
-            )}
-
-            {/* Ações do formulário de regra */}
-            <div className="flex items-center justify-end gap-2 pt-1">
-              <button type="button" onClick={() => { setShowRegraForm(false); setRf(emptyRegra()); }}
-                className="px-4 py-2 text-sm font-semibold text-slate-500 hover:text-slate-700 transition-colors">
-                Cancelar
-              </button>
-              <button type="button" onClick={handleAddRegra} disabled={!podeAdicionarRegra()}
-                className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-[#0B2447] hover:bg-[#0B3D91]
-                  text-white text-sm font-semibold transition-colors
-                  disabled:opacity-40 disabled:cursor-not-allowed">
-                <Plus className="w-3.5 h-3.5" />
-                Adicionar regra
-              </button>
-            </div>
-          </div>
-        )}
-      </SectionCard>
-
-      </div>
-
-      <div hidden={etapas.atual !== ETAPA_EMB.disponibilidade} className="space-y-6">
-      {/* ── 4. Disponibilidade ──────────────────────────────────────────── */}
-      <SectionCard icon={CalendarDays} title="Disponibilidade">
-        <p className="text-xs text-slate-400 mb-5">
-          Defina os dias da semana em que a embarcação opera e bloqueie datas específicas em que ela não estará disponível para reserva.
-        </p>
-        <DisponibilidadePicker
-          diasSemana={diasOperacao}
-          onDiasSemanaChange={setDiasOperacao}
-          bloqueios={bloqueios}
-          onBloqueiosChange={setBloqueios}
-        />
-      </SectionCard>
 
       </div>
 

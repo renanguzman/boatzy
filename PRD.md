@@ -162,7 +162,7 @@ Visualização:
   a embarcação certa) e sem paginação (mostra todos, num carrossel).
 - O seletor `TipoEmbarcacaoPicker` lista apenas tipos com pelo menos um roteiro ativo vinculado (mesma filosofia do autocomplete de locais).
 - Em `/buscar`: chip removível "Tipo: \<nome\>", título contextualizado ("Embarcações com Lancha em …"), grid com `EmbarcacaoCard` (foto, tipo, localidade, capacidade, avaliação/favorito) — o card leva para `/embarcacoes/[id]/roteiros`, preservando os filtros atuais para o botão "voltar" daquela página.
-- A rota `/embarcacoes` (listagem) **redireciona** para `/buscar?tipo=embarcacao` preservando os filtros compatíveis, caindo na etapa "lista de embarcações". O detalhe `/embarcacoes/[id]` (reserva direta da embarcação) **permanece ativo** (acessível por link direto), apenas sem entrada pela busca.
+- A rota `/embarcacoes` (listagem) **redireciona** para `/buscar?tipo=embarcacao` preservando os filtros compatíveis, caindo na etapa "lista de embarcações". O endereço `/embarcacoes/[id]` **redireciona** para `/embarcacoes/[id]/roteiros` (desde 12/10/2026 não existe mais reserva direta de embarcação — ver "Embarcação sem preço e disponibilidade próprios").
 - A aba **Roteiros** (padrão) não muda: continua retornando roteiros diretamente via `buscar_roteiros`.
 
 #### ✅ Implementado — Filtro de comodidades (busca de embarcações)
@@ -203,7 +203,7 @@ Vale nas **duas abas** de `/buscar` (Roteiros e Embarcações), sempre resolvido
 
 - No painel **"Filtros"** de `/buscar` (aba Roteiros), nova seção **"Modelo de cobrança"** com um botão para cada um dos 3 modelos do roteiro (ver 6.8 → Modelos de cobrança): **Passeios (Roteiro)**, **Por Diária**, **Por Pessoa**. Multi-seleção — pode marcar mais de um.
 - Nenhum selecionado = sem filtro (mostra roteiros com qualquer modelo). Com um ou mais marcados, só aparecem roteiros que tenham **pelo menos um** dos modelos escolhidos ativo.
-- Só existe na aba **Roteiros** — a aba Embarcações não tem esse filtro, pois a reserva direta de embarcação não tem esses submodelos.
+- Só existe na aba **Roteiros** — a aba Embarcações não tem esse filtro, pois embarcação não tem preço próprio (preço é do roteiro).
 - Vira **chip removível** ("Cobrança: ...") e fica na URL, como os demais filtros avançados; sobrevive a uma nova busca de destino/data/pessoas.
 - Detalhes técnicos: SPEC §33.9.
 
@@ -251,8 +251,8 @@ Exibir:
 
 - Destino do card da embarcação na busca (aba Embarcações, ver 6.3): mostra a embarcação em
   detalhe — galeria de fotos, badge de tipo, descrição, especificações técnicas
-  (capacidade, comprimento, quartos, suítes, banheiros, tripulação) e comodidades a bordo — no mesmo
-  visual da página de detalhe da embarcação (`/embarcacoes/[id]`).
+  (capacidade, comprimento, quartos, suítes, banheiros, tripulação) e comodidades a bordo, além do
+  botão "Converse com o dono". É a página da embarcação (`/embarcacoes/[id]` redireciona para cá).
 - Abaixo, um **carrossel** com todos os **roteiros ativos** que aquela embarcação realiza (setas de
   navegação; roteiros inativos nunca aparecem). Clicar num roteiro do carrossel leva ao detalhe
   normal (`/roteiros/[id]`).
@@ -338,7 +338,13 @@ gestor. Detalhes técnicos: SPEC §20.4–20.5.
   adicionais, total e a **resposta do gestor** (observação + data). Detalhes: SPEC §20.6.
 - `/minha-conta`: o cliente vê seus dados (avatar, nome, e-mail, "cliente desde", provedores de login vinculados) e **edita** nome, CPF (máscara + validação), celular (seletor de país + máscara) e **data de nascimento** (campo opcional, tipo data, sem restrição de idade — só valida que a data existe e não é futura). Tem também a seção **"Meu endereço"** (totalmente opcional): CEP, estado, município, bairro, logradouro, número e complemento — ao preencher o CEP os demais campos são autopreenchidos via ViaCEP (mesma lógica do cadastro de roteiro). Tem também a seção **"Notificações"** com o toggle **"Receber e-mail de notificação de novas conversas"** (padrão habilitado). Quando ativo, o usuário recebe **um e-mail agrupado** avisando de mensagens de chat não lidas — nunca um e-mail por mensagem: um job (Vercel Cron, a cada 5 min) aplica uma **janela anti-bombardeio** (envia após ~5 min sem novas mensagens, no máximo ~30 min) e junta tudo num único aviso via Resend. Detalhes: SPEC §21.4c. Também **altera a senha** — mas **apenas para contas criadas por e-mail** (exige a senha atual + nova senha forte com checklist); contas somente-SSO veem um aviso de que a senha é gerenciada pelo provedor. Detalhes: SPEC §20.6 / §Minha conta.
 
-#### ✅ Implementado — Reserva de **embarcação** pelo site
+#### ⛔ Descontinuado (12/10/2026) — Reserva de **embarcação** pelo site
+
+> Removido: a embarcação deixou de ter preço e disponibilidade próprios e não é mais reservada
+> diretamente — toda reserva nova é de roteiro. Reservas antigas do tipo embarcação continuam
+> visíveis (calendário do gestor, agendamentos, "Minhas reservas", pedidos). O botão "Converse com o
+> dono" foi mantido, agora na página `/embarcacoes/[id]/roteiros`. Ver "Embarcação sem preço e
+> disponibilidade próprios". Histórico abaixo.
 
 - A página `/embarcacoes/[id]` ganhou a sidebar `EmbarcacaoBookingCard` (data/pessoas obrigatórios,
   disponibilidade, preço/dia + taxa) — mesmo fluxo do roteiro, **sem adicionais**.
@@ -362,7 +368,7 @@ gestor. Detalhes técnicos: SPEC §20.4–20.5.
   recurso realmente compartilhado), não apenas pelo roteiro isolado.
 - Só reserva **confirmada** bloqueia — solicitações **pendentes** continuam podendo coexistir
   livremente até o gestor decidir qual confirmar.
-- O calendário de `/roteiros/[id]` e `/embarcacoes/[id]` já nasce refletindo isso (datas somem do
+- O calendário de `/roteiros/[id]` já nasce refletindo isso (datas somem do
   seletor, junto dos bloqueios manuais do gestor); tentar solicitar ou confirmar uma reserva numa
   data já tomada é recusado com uma mensagem clara.
 - No painel, ao abrir uma solicitação pendente cuja data já foi tomada por outra reserva
@@ -634,7 +640,7 @@ Todos os números são do **gestor logado** (`owner_id`):
 - **Lado gestor (painel):** a partir da lista de Clientes, o gestor abre o chat (`/painel/clientes/[id]/chat`). Cada linha tem ícone de chat com **badge de não lidas**; há um **badge com o total geral** no item `CLIENTES` da sidebar, ao vivo.
 - ✅ **Sino de notificações (topbar do painel):** exibe badge com o total de mensagens não lidas dos clientes, ao vivo. Ao clicar, abre um dropdown com a lista de conversas (avatar, nome, prévia da última mensagem, tempo relativo, contagem por conversa) e atalho direto para cada chat; footer leva a Clientes. Estado vazio quando não há não lidas. **Futuramente o sino agregará outros tipos de notificação** (ex.: novas solicitações de reserva). Detalhes: SPEC §21.4b.
 - **Lado cliente (site):** em **Minhas reservas**, cada reserva tem o botão **"Conversar com o gestor"** (`/minhas-reservas/[id]/chat`) com **badge de não lidas** por reserva. O **menu do usuário (dropdown)** exibe um **badge de aviso** quando há qualquer conversa não lida (no avatar e ao lado de "Minhas reservas"), atualizado ao vivo.
-- ✅ **Entrada direta pelo detalhe de embarcação/roteiro:** o botão **"Converse com o dono"** em `/embarcacoes/[id]` e `/roteiros/[id]` (oculto para o próprio dono) abre `.../chat`, que exige login (deslogado → `/entrar?redirect_to=...`, retornando ao chat após autenticar) e, uma vez logado, garante a conversa com o dono e já registra a origem (`embarcacao` ou `roteiro`) exibida no cabeçalho da conversa — mesmo padrão usado em "Conversar com o vendedor" (vendas) e "Conversar com o gestor" (reservas).
+- ✅ **Entrada direta pelo detalhe de embarcação/roteiro:** o botão **"Converse com o dono"** em `/embarcacoes/[id]/roteiros` e `/roteiros/[id]` (oculto para o próprio dono) abre `.../chat`, que exige login (deslogado → `/entrar?redirect_to=...`, retornando ao chat após autenticar) e, uma vez logado, garante a conversa com o dono e já registra a origem (`embarcacao` ou `roteiro`) exibida no cabeçalho da conversa — mesmo padrão usado em "Conversar com o vendedor" (vendas) e "Conversar com o gestor" (reservas).
 - ✅ **Aviso "converse pela plataforma" (lado cliente):** a primeira vez que o cliente abre qualquer conversa pelo site, um modal bloqueante pede confirmação de ciência ("Estou ciente") de que toda a tratativa deve ocorrer pelo chat da Boatzy e de que a plataforma **não se responsabiliza** por combinações feitas por outros meios (WhatsApp, telefone, e-mail, redes sociais). A confirmação fica registrada com data/hora na conta do cliente e não é pedida de novo. Exclusivo do lado cliente — o gestor não vê esse aviso no painel.
 - ✅ **Mascaramento automático de telefone no chat:** qualquer mensagem (de cliente ou de gestor) que contenha um número em formato de telefone tem os dígitos ocultados automaticamente (ex.: `(11) 91234-5678` vira `(**) *****-****`) antes de ser salva — dificulta a combinação de continuar a negociação fora da plataforma. Aplica-se aos dois lados da conversa.
 - Detalhes técnicos em `SPEC.md` §21.6 e §21.7.
@@ -858,7 +864,7 @@ Todos os números são do **gestor logado** (`owner_id`):
 - Cada linha mostra: foto + nome + ID curto, **gestor responsável (nome + e-mail)**, tipo, status (toggle Ativo/Inativo), localização (município/UF) e capacidade.
 - Ações por embarcação:
   - **Ativar/Desativar** — toggle direto na lista; desativar exige confirmação e mostra os roteiros vinculados, que ficam inativos em cascata (reativar reativa os roteiros — mesmo comportamento do painel do gestor).
-  - **Editar** — abre `/administrator/embarcacoes/[id]/editar`, reutilizando o formulário completo de edição do painel (dados, endereço/mapa, comodidades, fotos, regras de preço e disponibilidade). A página mostra o gestor responsável no cabeçalho.
+  - **Editar** — abre `/administrator/embarcacoes/[id]/editar`, reutilizando o formulário completo de edição do painel (dados, endereço/mapa, comodidades, fotos). A página mostra o gestor responsável no cabeçalho.
 - O admin pode editar qualquer embarcação, independentemente do dono; gestores continuam restritos às próprias (a verificação de posse das server actions passa a abrir exceção para a role `admin`).
 - Não há criação nem exclusão de embarcação pelo admin nesta versão — cadastro continua sendo feito pelo gestor no `/painel`.
 
@@ -1349,7 +1355,8 @@ A taxa padrão configurada inicialmente é **10%**. Admins podem alterá-la a qu
   em **7 etapas**, com indicador de progresso clicável e navegação livre (dá para ir e voltar a
   qualquer etapa sem perder o que foi preenchido).
   - Embarcação: Informações → Detalhes (especificações + comodidades) → Localização → Fotos →
-    Preço → Disponibilidade → Revisão.
+    Revisão (**5 etapas** desde 12/10/2026 — Preço e Disponibilidade saíram; ver "Embarcação sem
+    preço e disponibilidade próprios").
   - Roteiro: Informações → Localização → Fotos → Preço → Disponibilidade → Adicionais → Revisão.
 - **Rodapé fixo** com progresso, Voltar, Pré-visualizar e "Próximo: <etapa>". No cadastro novo,
   a última etapa publica; na **edição, "Salvar alterações" fica disponível em qualquer etapa**.
@@ -1416,6 +1423,101 @@ A taxa padrão configurada inicialmente é **10%**. Admins podem alterá-la a qu
 - Os filtros de faixa de preço e a ordenação "Menor/Maior preço" da busca passam a usar esse mesmo
   preço mínimo, para não esconder um roteiro anunciado mais barato do que o preço base.
 - Detalhes técnicos: SPEC §36.2–36.4.
+
+---
+
+### ✅ Capitão obrigatório como única opção no cadastro de embarcação (12/10/2026)
+
+- No step "Informações" do cadastro/edição de embarcação (painel), o select **"Capitão"** passou a
+  ter **apenas a opção "Com capitão obrigatório"** — as opções "Sem capitão (locatário pilota)" e
+  "Capitão opcional" foram temporariamente removidas do select, tanto no cadastro novo quanto na
+  edição. O valor padrão de embarcações novas também passou a ser `com_capitao`.
+- Restrição apenas de UI (por enquanto): o campo `modalidade_capitao` e seus demais valores
+  (`sem_capitao`, `opcional`) continuam existindo no banco; embarcações antigas com esses valores
+  não são migradas automaticamente.
+- Detalhes técnicos: SPEC §38.1.
+
+---
+
+### ✅ Gestão de Embarcações (painel) — coluna Roteiros e atalho para criar roteiro (12/10/2026)
+
+- A página passou a se chamar **"Gestão de Embarcações"**.
+- Nova coluna **Roteiros** na lista: quantos roteiros estão vinculados a cada embarcação (passando o
+  mouse aparecem os nomes); ordenável como as demais colunas.
+- Nas ações, o ícone de "olho" (que não fazia nada) foi trocado por **"Criar roteiro com esta
+  embarcação"**: abre o cadastro de novo roteiro já com a embarcação selecionada (e a capacidade
+  herdada). Para embarcações inativas o atalho fica desabilitado, pois só embarcações ativas podem
+  receber roteiros.
+- No **administrator** (`/administrator/embarcacoes`) a lista também ganhou a coluna **Roteiros**,
+  com a mesma contagem (sem ordenação por essa coluna).
+- Detalhes técnicos: SPEC §42.
+
+---
+
+### ✅ Reserva de roteiro limitada a 3 meses à frente (12/10/2026)
+
+- No detalhe do roteiro (site), o calendário de reserva mostra no máximo até **3 meses a partir de
+  hoje** (ex.: hoje 12/10/2026 → até 12/01/2027). Datas depois disso aparecem desabilitadas, a
+  navegação de meses para no limite e o calendário informa "Reservas abertas até dd/mm/aaaa".
+- Se o cliente chega da busca com uma data além do limite, ela é descartada e ele escolhe outra.
+- A regra também vale no servidor: uma data além do limite (ex.: URL editada) não chega à tela de
+  confirmação nem cria a reserva.
+- A busca (home e `/buscar`) não muda — o limite é só para reservar. No modelo Por Diária vale a data
+  de check-in.
+- Detalhes técnicos: SPEC §41.
+
+---
+
+### ✅ Bloqueio de vários dias de uma vez na disponibilidade do roteiro (12/10/2026)
+
+- No step **Disponibilidade** do roteiro (painel e admin), o calendário de datas bloqueadas ganhou
+  duas formas rápidas de marcar indisponibilidade, além do clique dia a dia:
+  - **Modo "Período"**: o gestor clica no primeiro e no último dia (pode trocar de mês entre os
+    cliques) e todo o intervalo é bloqueado de uma vez, com prévia ao passar o mouse. Começando num
+    dia já bloqueado, o período é **liberado** — mesmo gesto para desfazer.
+  - **"Bloquear \<mês\> inteiro"**: um clique bloqueia o mês exibido; quando o mês já está todo
+    bloqueado o botão vira "Liberar \<mês\> inteiro".
+- A lista de datas bloqueadas passa a mostrar **períodos** ("20/10 – 10/11/2026 · 22 dias") em vez de
+  um chip por dia, com remoção do período inteiro e "Limpar todas".
+- Ao lado do calendário, um **resumo para conferência** em texto, atualizado a cada clique:
+  - **Período em que o roteiro estará disponível para reservas** — ex.: "Toda semana, sexta a
+    domingo, a partir de hoje, sem data final — exceto nos períodos indisponíveis", com as próximas
+    datas livres;
+  - **Período em que o roteiro estará indisponível na plataforma** — dias da semana sem operação e
+    cada período bloqueado (ex.: "31/10 a 30/11/2026 · 31 dias — 14 dias de operação bloqueados"),
+    avisando quando um bloqueio não tem efeito porque o roteiro já não opera naqueles dias.
+- Datas passadas nunca são afetadas. Nada muda para o cliente: as datas bloqueadas continuam
+  indisponíveis no calendário de reserva do roteiro.
+- Detalhes técnicos: SPEC §40.
+
+---
+
+### ✅ Embarcação sem preço e disponibilidade próprios (12/10/2026)
+
+- **Motivo:** o preço e a disponibilidade só valem de fato no **roteiro** — é ele que o cliente
+  reserva. Os da embarcação eram dados duplicados que o gestor precisava manter sem efeito real.
+- **Cadastro/edição de embarcação (painel e admin):** saíram os steps **Preço** (preço base +
+  regras de precificação dinâmica) e **Disponibilidade** (dias de operação + datas bloqueadas). O
+  wizard passa a ter **5 etapas**: Informações → Detalhes → Localização → Fotos → Revisão. A
+  Revisão não mostra mais preço/disponibilidade.
+- **Página pública da embarcação:** acabou a **reserva direta de embarcação**. `/embarcacoes/[id]`
+  redireciona para `/embarcacoes/[id]/roteiros` (embarcação em detalhe + carrossel dos roteiros
+  ativos dela + "Converse com o dono"). Links antigos de confirmação (`/reservas/novo?embarcacao=…`)
+  voltam para a busca. Toda reserva nova é de **roteiro**.
+- **Busca, aba Embarcações:** o card não mostra preço (já não mostrava); os filtros **Faixa de
+  preço** e **Data** e a ordenação **Menor/Maior preço** deixam de existir nessa aba (continuam na
+  aba Roteiros). O ponto da embarcação no mapa mostra "Ver detalhes" no lugar do preço.
+- **Home ("Mais bem avaliadas") e Favoritos:** o card de embarcação segue sem preço e passa a abrir
+  direto `/embarcacoes/[id]/roteiros`.
+- **Sem impacto:** preço, regras e disponibilidade do **roteiro**; reservas antigas do tipo
+  embarcação (seguem exibidas e geridas normalmente no painel, em "Minhas reservas" e nos pedidos);
+  bloqueio de datas por reserva confirmada (continua valendo pela embarcação, recurso compartilhado
+  entre roteiros).
+- **Banco:** nada foi apagado — `embarcacao.preco_base`, `embarcacao.disponibilidade_dias_semana`,
+  `embarcacao_preco_regra`, `embarcacao_disponibilidade_bloqueio` e `get_preco_embarcacao` ficam no
+  banco, sem uso pela aplicação. Só a RPC de busca de embarcações foi recriada sem os filtros de
+  preço/data.
+- Detalhes técnicos: SPEC §39.
 
 ---
 

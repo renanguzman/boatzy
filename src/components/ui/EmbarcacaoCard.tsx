@@ -10,7 +10,6 @@ import { alternarFavoritoEmbarcacao } from '@/lib/favoritos-actions';
 export type EmbarcacaoCardData = {
   id: string;
   nome: string;
-  preco_base: number | null;
   capacidade: number | null;
   tipo: string | null;
   localidade: string | null;
@@ -30,7 +29,7 @@ export default function EmbarcacaoCard({
   initialFavorito?: boolean;
   /** Média/total de avaliações (de roteiros feitos na embarcação); null = sem avaliações. */
   avaliacaoResumo?: AvaliacaoResumoCard | null;
-  /** Destino do card; padrão é o detalhe da embarcação (`/embarcacoes/[id]`). */
+  /** Destino do card; padrão é a página da embarcação com seus roteiros. */
   href?: string;
 }) {
   const router = useRouter();
@@ -79,7 +78,7 @@ export default function EmbarcacaoCard({
 
   return (
     <Link
-      href={href ?? `/embarcacoes/${embarcacao.id}`}
+      href={href ?? `/embarcacoes/${embarcacao.id}/roteiros`}
       className="group block rounded-2xl overflow-hidden bg-white border border-slate-100 hover:border-slate-200 hover:shadow-xl transition-all duration-300"
       id={`embarcacao-card-${embarcacao.id}`}
     >

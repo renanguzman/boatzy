@@ -20,7 +20,7 @@ export type BuscaSearchParams = {
   tipo_embarcacao?: string;
   /** Rótulo do tipo para chip/título (evita query extra). */
   tipo_nome?: string;
-  /** Faixa de preço (preco_base), em reais. */
+  /** Faixa de preço (`preco_minimo` do roteiro), em reais — só na aba Roteiros. */
   preco_min?: string;
   preco_max?: string;
   /** Faixa de duração do passeio, em horas (1 dia = 24h). */
@@ -60,9 +60,17 @@ export type Ordenacao = (typeof ORDENACOES)[number]['value'];
 
 export const ORDENACAO_PADRAO: Ordenacao = 'relevancia';
 
-/** Valida o param `ordenar` vindo da URL (qualquer lixo cai no padrão). */
-export function normalizarOrdenacao(valor: string | undefined): Ordenacao {
-  const encontrada = ORDENACOES.find((o) => o.value === valor);
+// Embarcação não tem preço próprio (é do roteiro): na aba Embarcações não há
+// ordenação por preço.
+const ORDENACOES_SO_ROTEIRO: readonly Ordenacao[] = ['preco_asc', 'preco_desc'];
+
+export function ordenacoesDaAba(abaEmbarcacao: boolean) {
+  return abaEmbarcacao ? ORDENACOES.filter((o) => !ORDENACOES_SO_ROTEIRO.includes(o.value)) : ORDENACOES;
+}
+
+/** Valida o param `ordenar` vindo da URL (qualquer lixo ou opção fora da aba cai no padrão). */
+export function normalizarOrdenacao(valor: string | undefined, abaEmbarcacao: boolean): Ordenacao {
+  const encontrada = ordenacoesDaAba(abaEmbarcacao).find((o) => o.value === valor);
   return encontrada ? encontrada.value : ORDENACAO_PADRAO;
 }
 
@@ -90,10 +98,10 @@ export function buildBuscarUrl(
   return qs ? `/buscar?${qs}` : '/buscar';
 }
 
-/** Quantos filtros avançados (preço/duração/modelo de cobrança) estão ativos. */
-export function contarFiltrosAvancados(params: BuscaSearchParams): number {
+/** Quantos filtros avançados (preço/duração/modelo de cobrança) estão ativos na aba. */
+export function contarFiltrosAvancados(params: BuscaSearchParams, abaEmbarcacao: boolean): number {
   let n = 0;
-  if (params.preco_min || params.preco_max) n++;
+  if (!abaEmbarcacao && (params.preco_min || params.preco_max)) n++;
   if (params.duracao_min || params.duracao_max) n++;
   if (params.modelo_preco) n++;
   return n;

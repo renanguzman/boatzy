@@ -1,19 +1,12 @@
 import { notFound } from 'next/navigation';
 import Header from '@/components/layout/Header';
 import Footer from '@/components/layout/Footer';
-import GaleriaRoteiro from '../../../roteiros/[id]/_components/GaleriaRoteiro';
-import EmbarcacaoInfoSection, { type EmbarcacaoInfo } from '../_components/EmbarcacaoInfoSection';
-import RoteirosCarousel, { type RoteiroCarouselItem } from '@/components/ui/RoteirosCarousel';
+import EmbarcacaoDetalheView, { type EmbarcacaoDetalheDados } from '../_components/EmbarcacaoDetalheView';
+import { type RoteiroCarouselItem } from '@/components/ui/RoteirosCarousel';
 import { type RoteiroCardData } from '@/app/buscar/_components/RoteiroCard';
 import { supabaseAdmin } from '@/lib/supabase';
 import { createClient } from '@/lib/supabase/server';
 import { getAvaliacoesResumoPorRoteiro } from '@/lib/avaliacoes';
-import { ordenarImagens } from '@/lib/galeria';
-
-type EmbarcacaoDetalhe = EmbarcacaoInfo & {
-  id: string;
-  embarcacao_imagens: { id: string; url_imagem: string; titulo: string | null; principal: boolean; ordem: number }[];
-};
 
 const ROTEIRO_SELECT = `id, nome, descricao, quantidade_pessoas, preco_minimo, preco_minimo_modelo,
    duracao,
@@ -35,7 +28,7 @@ export default async function RoteirosDaEmbarcacaoPage({
   const { data, error } = await supabaseAdmin
     .from('embarcacao')
     .select(`
-      id, nome, descricao, capacidade, comprimento, comprimento_unidade, quartos, banheiros, tripulacao,
+      id, owner_id, nome, descricao, capacidade, comprimento, comprimento_unidade, quartos, banheiros, tripulacao,
       embarcacao_tipo ( nome ),
       municipios ( nome, estados ( uf ) ),
       embarcacao_comodidades ( comodidade ( nome ) ),
@@ -49,9 +42,7 @@ export default async function RoteirosDaEmbarcacaoPage({
 
   if (error || !data) notFound();
 
-  const embarcacao = data as unknown as EmbarcacaoDetalhe;
-
-  const images = ordenarImagens(embarcacao.embarcacao_imagens);
+  const embarcacao = data as unknown as EmbarcacaoDetalheDados & { owner_id: string };
 
   const { data: roteirosData, error: roteirosError } = await supabaseAdmin
     .from('roteiro')
@@ -92,19 +83,12 @@ export default async function RoteirosDaEmbarcacaoPage({
     <div className="min-h-screen bg-white">
       <Header />
 
-      <GaleriaRoteiro images={images} nome={embarcacao.nome} voltarHref={voltarHref} />
-
-      <section className="pb-16">
-        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-          <div className="max-w-4xl">
-            <EmbarcacaoInfoSection embarcacao={embarcacao} />
-          </div>
-
-          <div className="mt-4">
-            <RoteirosCarousel title="Roteiros desta embarcação" items={carouselItems} />
-          </div>
-        </div>
-      </section>
+      <EmbarcacaoDetalheView
+        embarcacao={embarcacao}
+        roteiros={carouselItems}
+        voltarHref={voltarHref}
+        ehDono={user?.id === embarcacao.owner_id}
+      />
 
       <Footer />
     </div>

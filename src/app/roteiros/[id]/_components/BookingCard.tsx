@@ -10,7 +10,7 @@ import { useCart } from './CartContext';
 import AddonsAccordion from './AddonsAccordion';
 import RoteiroAcoes from './RoteiroAcoes';
 import { useModoPreview } from '@/components/preview/ModoPreview';
-import { FUSO_HORARIO } from '@/lib/datas';
+import { FUSO_HORARIO, MESES_ANTECEDENCIA_RESERVA, dataMaximaReservaISO } from '@/lib/datas';
 import { capacidadeMaxima, mensagemCapacidadeExcedida } from '@/lib/capacidade';
 import { getPrecoRoteiroNaData } from '@/lib/precos-roteiro-actions';
 
@@ -142,7 +142,11 @@ export default function BookingCard({
     return capacidadeMaxima(capacidade, m === 'pessoa' ? precoPessoaCapacidadeMaxima : null);
   }
 
-  const initialDate = parseISO(initialData);
+  // Reserva aceita no máximo MESES_ANTECEDENCIA_RESERVA meses à frente; data
+  // vinda da busca além desse limite é descartada.
+  const dataMaximaISO = dataMaximaReservaISO();
+  const dataMaxima = parseISO(dataMaximaISO)!;
+  const initialDate = initialData && initialData <= dataMaximaISO ? parseISO(initialData) : null;
   const [date, setDate] = useState<DateValue | null>(
     initialDate
       ? { date: initialDate, flexibility: (initialFlex ?? 0) as DateValue['flexibility'] }
@@ -255,6 +259,11 @@ export default function BookingCard({
     // Data e Pessoas são obrigatórios para solicitar a reserva.
     if (!date) {
       setError('Selecione a data da reserva.');
+      setActive('date');
+      return;
+    }
+    if (toISO(date.date) > dataMaximaISO) {
+      setError(`As reservas ficam abertas até ${MESES_ANTECEDENCIA_RESERVA} meses à frente. Escolha uma data até ${dataMaximaISO.split('-').reverse().join('/')}.`);
       setActive('date');
       return;
     }
@@ -381,6 +390,7 @@ export default function BookingCard({
               onOpen={() => open('date')}
               onClose={() => setActive(null)}
               isDateDisabled={isDateDisabled}
+              dataMaxima={dataMaxima}
             />
           </div>
           {modalidade === 'diaria' && checkout && (

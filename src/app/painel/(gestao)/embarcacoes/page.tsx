@@ -33,9 +33,9 @@ export default async function EmbarcacoesPage() {
       {/* Header */}
       <div className="mb-6 flex items-start justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-[#0B2447]">Vessel Directory</h1>
+          <h1 className="text-2xl font-bold text-[#0B2447]">Gestão de Embarcações</h1>
           <p className="text-sm text-slate-400 mt-1">
-            Gerencie sua frota — dados, imagens e disponibilidade em um só lugar.
+            Gerencie sua frota — dados, imagens e roteiros em um só lugar.
           </p>
         </div>
         <Link

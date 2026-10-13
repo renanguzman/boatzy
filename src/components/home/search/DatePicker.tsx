@@ -21,6 +21,8 @@ type Props = {
   isDateDisabled?: (date: Date) => boolean;
   /** Onde o calendário abre em relação ao campo — 'esquerda' para campos em coluna lateral. */
   alinhamentoPainel?: 'centro' | 'esquerda';
+  /** Última data selecionável (inclusive); depois dela os dias ficam desabilitados e a navegação para. */
+  dataMaxima?: Date;
 };
 
 const MESES = [
@@ -76,9 +78,14 @@ type MonthCalendarProps = {
   today: Date;
   onSelect: (date: Date) => void;
   isDateDisabled?: (date: Date) => boolean;
+  dataMaxima?: Date;
 };
 
-function MonthCalendar({ year, month, selected, flexibility, today, onSelect, isDateDisabled }: MonthCalendarProps) {
+function fmtDataCurta(d: Date) {
+  return `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear()}`;
+}
+
+function MonthCalendar({ year, month, selected, flexibility, today, onSelect, isDateDisabled, dataMaxima }: MonthCalendarProps) {
   const daysInMonth = getDaysInMonth(year, month);
   const firstDay = getFirstDayOfWeek(year, month);
   const cells: (Date | null)[] = [];
@@ -101,8 +108,9 @@ function MonthCalendar({ year, month, selected, flexibility, today, onSelect, is
           if (!date) return <div key={`e-${i}`} />;
 
           const isPast = date < today && !isSameDay(date, today);
+          const isAfterMax = !!dataMaxima && date > dataMaxima && !isSameDay(date, dataMaxima);
           const isUnavailable = isDateDisabled ? isDateDisabled(date) : false;
-          const isDisabled = isPast || isUnavailable;
+          const isDisabled = isPast || isAfterMax || isUnavailable;
           const isSelected = selected ? isSameDay(date, selected) : false;
           const inRange = selected ? isInRange(date, selected, flexibility) : false;
 
@@ -112,10 +120,14 @@ function MonthCalendar({ year, month, selected, flexibility, today, onSelect, is
               type="button"
               disabled={isDisabled}
               onClick={() => !isDisabled && onSelect(date)}
-              title={isUnavailable && !isPast ? 'Indisponível para este roteiro' : undefined}
+              title={
+                isAfterMax ? `Reservas abertas até ${fmtDataCurta(dataMaxima!)}`
+                : isUnavailable && !isPast ? 'Indisponível para este roteiro'
+                : undefined
+              }
               className={[
                 'h-9 w-full rounded-full text-sm transition-colors flex items-center justify-center',
-                isPast
+                isPast || isAfterMax
                   ? 'text-slate-300 cursor-default'
                   : isUnavailable
                   ? 'text-slate-300 line-through cursor-default'
@@ -135,7 +147,7 @@ function MonthCalendar({ year, month, selected, flexibility, today, onSelect, is
   );
 }
 
-export default function DatePicker({ value, onChange, isOpen, onOpen, onClose, compact, semRotulo, isDateDisabled, alinhamentoPainel = 'centro' }: Props) {
+export default function DatePicker({ value, onChange, isOpen, onOpen, onClose, compact, semRotulo, isDateDisabled, alinhamentoPainel = 'centro', dataMaxima }: Props) {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
 
@@ -195,6 +207,11 @@ export default function DatePicker({ value, onChange, isOpen, onOpen, onClose, c
   const canGoPrev =
     viewYear > today.getFullYear() ||
     (viewYear === today.getFullYear() && viewMonth > today.getMonth());
+  // Avança enquanto o 2º mês exibido ainda não for o mês da data máxima.
+  const canGoNext =
+    !dataMaxima ||
+    secondYear < dataMaxima.getFullYear() ||
+    (secondYear === dataMaxima.getFullYear() && secondMonth < dataMaxima.getMonth());
 
   return (
     <div className="relative flex-1 min-w-0">
@@ -235,11 +252,20 @@ export default function DatePicker({ value, onChange, isOpen, onOpen, onClose, c
             >
               <ChevronLeft className="h-4 w-4" />
             </button>
-            <div className="flex-1" />
+            <div className="flex-1 text-center">
+              {dataMaxima && (
+                <span className="text-xs text-slate-400">
+                  Reservas abertas até <span className="font-medium text-slate-600">{fmtDataCurta(dataMaxima)}</span>
+                </span>
+              )}
+            </div>
             <button
               type="button"
               onClick={nextMonth}
-              className="p-2 rounded-full hover:bg-slate-100 text-slate-700 transition-colors"
+              disabled={!canGoNext}
+              className={`p-2 rounded-full transition-colors ${
+                canGoNext ? 'hover:bg-slate-100 text-slate-700' : 'text-slate-200 cursor-default'
+              }`}
             >
               <ChevronRight className="h-4 w-4" />
             </button>
@@ -255,6 +281,7 @@ export default function DatePicker({ value, onChange, isOpen, onOpen, onClose, c
               today={today}
               onSelect={handleSelectDay}
               isDateDisabled={isDateDisabled}
+              dataMaxima={dataMaxima}
             />
             <div className="w-px bg-slate-100 shrink-0" />
             <MonthCalendar
@@ -265,6 +292,7 @@ export default function DatePicker({ value, onChange, isOpen, onOpen, onClose, c
               today={today}
               onSelect={handleSelectDay}
               isDateDisabled={isDateDisabled}
+              dataMaxima={dataMaxima}
             />
           </div>
 

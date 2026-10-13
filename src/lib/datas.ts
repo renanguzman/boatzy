@@ -36,6 +36,21 @@ export function hojeISO(): string {
   return dataISONoFuso(new Date());
 }
 
+/** Antecedência máxima para o cliente reservar um roteiro, em meses a partir de hoje. */
+export const MESES_ANTECEDENCIA_RESERVA = 3;
+
+/**
+ * Última data ('AAAA-MM-DD') que o cliente pode reservar: hoje (Brasília) + N
+ * meses, com o dia ajustado ao fim do mês quando não existe (30/11 + 3 → 28/02).
+ */
+export function dataMaximaReservaISO(meses: number = MESES_ANTECEDENCIA_RESERVA): string {
+  const [ano, mes, dia] = hojeISO().split('-').map(Number);
+  const alvo = new Date(Date.UTC(ano, mes - 1 + meses, 1));
+  const ultimoDia = new Date(Date.UTC(alvo.getUTCFullYear(), alvo.getUTCMonth() + 1, 0)).getUTCDate();
+  alvo.setUTCDate(Math.min(dia, ultimoDia));
+  return alvo.toISOString().slice(0, 10);
+}
+
 /** Ano, mês (0–11) e dia de um instante no horário de Brasília. */
 export function partesNoFuso(d: Date): { ano: number; mes: number; dia: number } {
   const [ano, mes, dia] = dataISONoFuso(d).split('-').map(Number);

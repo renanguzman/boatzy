@@ -2357,14 +2357,10 @@ export type Database = {
           p_lat?: number | null;
           p_lng?: number | null;
           p_raio_km?: number | null;
-          p_data?: string | null;
-          p_flex?: number | null;
           p_pessoas?: number | null;
           p_limit?: number | null;
           p_offset?: number | null;
           p_tipo_id?: string | null;
-          p_preco_min?: number | null;
-          p_preco_max?: number | null;
           p_duracao_min?: number | null;
           p_duracao_max?: number | null;
           p_ordenar?: string | null;

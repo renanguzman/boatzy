@@ -123,10 +123,10 @@ export default function FiltrosLaterais({
   // ── Contagem + limpar tudo (mantém aba e ordenação) ────────────────────────
   const grupos = [
     !!(params.municipio || params.lat),
-    !!params.data,
+    !abaEmbarcacao && !!params.data,
     pessoasUrl > 0,
     !!params.tipo_embarcacao,
-    !!(params.preco_min || params.preco_max),
+    !abaEmbarcacao && !!(params.preco_min || params.preco_max),
     !!(params.duracao_min || params.duracao_max),
     modelos.length > 0,
     comodidadesSel.length > 0,
@@ -156,20 +156,22 @@ export default function FiltrosLaterais({
           </CampoFiltro>
         </FiltroSecao>
 
-        <FiltroSecao titulo="Data" icone={CalendarDays}
-          acao={dataAtual ? { label: 'Limpar', onClick: () => mudarData(null) } : null}>
-          <CampoFiltro>
-            <DatePicker
-              value={dataAtual}
-              onChange={mudarData}
-              isOpen={painel === 'date'}
-              onOpen={() => setPainel((p) => (p === 'date' ? null : 'date'))}
-              onClose={() => setPainel(null)}
-              alinhamentoPainel="esquerda"
-              semRotulo
-            />
-          </CampoFiltro>
-        </FiltroSecao>
+        {!abaEmbarcacao && (
+          <FiltroSecao titulo="Data" icone={CalendarDays}
+            acao={dataAtual ? { label: 'Limpar', onClick: () => mudarData(null) } : null}>
+            <CampoFiltro>
+              <DatePicker
+                value={dataAtual}
+                onChange={mudarData}
+                isOpen={painel === 'date'}
+                onOpen={() => setPainel((p) => (p === 'date' ? null : 'date'))}
+                onClose={() => setPainel(null)}
+                alinhamentoPainel="esquerda"
+                semRotulo
+              />
+            </CampoFiltro>
+          </FiltroSecao>
+        )}
       </div>
 
       <FiltroSecao titulo="Quantidade de pessoas" icone={Users}>
@@ -195,18 +197,20 @@ export default function FiltrosLaterais({
         </FiltroSecao>
       )}
 
-      <FiltroSecao titulo="Faixa de preço" icone={Wallet}
-        acao={params.preco_min || params.preco_max ? { label: 'Limpar', onClick: () => aplicar({ preco_min: null, preco_max: null }) } : null}>
-        <FaixaNumerica
-          key={`preco-${params.preco_min ?? ''}-${params.preco_max ?? ''}`}
-          rotulo="Preço"
-          prefixo="R$"
-          step={50}
-          min={params.preco_min ?? ''}
-          max={params.preco_max ?? ''}
-          onAplicar={(a, b) => aplicar({ preco_min: a || null, preco_max: b || null })}
-        />
-      </FiltroSecao>
+      {!abaEmbarcacao && (
+        <FiltroSecao titulo="Faixa de preço" icone={Wallet}
+          acao={params.preco_min || params.preco_max ? { label: 'Limpar', onClick: () => aplicar({ preco_min: null, preco_max: null }) } : null}>
+          <FaixaNumerica
+            key={`preco-${params.preco_min ?? ''}-${params.preco_max ?? ''}`}
+            rotulo="Preço"
+            prefixo="R$"
+            step={50}
+            min={params.preco_min ?? ''}
+            max={params.preco_max ?? ''}
+            onAplicar={(a, b) => aplicar({ preco_min: a || null, preco_max: b || null })}
+          />
+        </FiltroSecao>
+      )}
 
       <FiltroSecao titulo="Duração do passeio" icone={Clock}
         acao={durMin != null || durMax != null ? { label: 'Limpar', onClick: () => aplicar({ duracao_min: null, duracao_max: null }) } : null}>

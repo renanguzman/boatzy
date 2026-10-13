@@ -3,8 +3,8 @@
 import { useRouter } from 'next/navigation';
 import { ArrowUpDown } from 'lucide-react';
 import {
-  ORDENACOES,
   ORDENACAO_PADRAO,
+  ordenacoesDaAba,
   buildBuscarUrl,
   type BuscaSearchParams,
   type Ordenacao,
@@ -14,9 +14,10 @@ type Props = {
   /** Params atuais da URL — vêm da página (Server Component). */
   params: BuscaSearchParams;
   valor: Ordenacao;
+  abaEmbarcacao: boolean;
 };
 
-export default function OrdenarSelect({ params, valor }: Props) {
+export default function OrdenarSelect({ params, valor, abaEmbarcacao }: Props) {
   const router = useRouter();
 
   function handleChange(e: React.ChangeEvent<HTMLSelectElement>) {
@@ -40,7 +41,7 @@ export default function OrdenarSelect({ params, valor }: Props) {
         className="rounded-xl border border-slate-300 bg-white px-2.5 py-1.5 text-sm font-medium text-slate-700
           focus:outline-none focus:ring-2 focus:ring-[#0B2447]/20 focus:border-[#0B2447]/40 transition cursor-pointer"
       >
-        {ORDENACOES.map((o) => (
+        {ordenacoesDaAba(abaEmbarcacao).map((o) => (
           <option key={o.value} value={o.value}>
             {o.label}
           </option>

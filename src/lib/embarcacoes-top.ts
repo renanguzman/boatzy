@@ -6,7 +6,6 @@ import { supabaseAdmin } from '@/lib/supabase';
 export type EmbarcacaoTopCard = {
   id: string;
   nome: string;
-  preco_base: number | null;
   capacidade: number | null;
   tipo: string | null;
   localidade: string | null;
@@ -68,7 +67,7 @@ export async function getEmbarcacoesTopAvaliadas(opts: {
   const { data: detalhes, error } = await supabaseAdmin
     .from('embarcacao')
     .select(
-      `id, nome, preco_base, capacidade,
+      `id, nome, capacidade,
        embarcacao_tipo ( nome ),
        municipios ( nome, estados ( uf ) ),
        embarcacao_imagens ( url_imagem, principal )`,
@@ -82,7 +81,6 @@ export async function getEmbarcacoesTopAvaliadas(opts: {
   type Detalhe = {
     id: string;
     nome: string;
-    preco_base: number | null;
     capacidade: number | null;
     embarcacao_tipo: { nome: string } | null;
     municipios: { nome: string; estados: { uf: string } | null } | null;
@@ -105,7 +103,6 @@ export async function getEmbarcacoesTopAvaliadas(opts: {
       {
         id: d.id,
         nome: d.nome,
-        preco_base: d.preco_base,
         capacidade: d.capacidade,
         tipo: d.embarcacao_tipo?.nome ?? null,
         localidade,

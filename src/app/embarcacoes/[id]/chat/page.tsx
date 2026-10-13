@@ -34,7 +34,7 @@ export default async function ChatEmbarcacaoPage({ params }: { params: Promise<{
   if (!embarcacao) notFound();
 
   // Dono não conversa consigo mesmo (a CHECK de `conversa` também bloqueia).
-  if (embarcacao.owner_id === user.id) redirect(`/embarcacoes/${id}`);
+  if (embarcacao.owner_id === user.id) redirect(`/embarcacoes/${id}/roteiros`);
 
   const { data: dono } = await supabaseAdmin
     .from('users')
@@ -90,7 +90,7 @@ export default async function ChatEmbarcacaoPage({ params }: { params: Promise<{
           conversaId={conversaId}
           meId={user.id}
           interlocutor={{ name: dono.name, email: dono.email, avatar_url: dono.avatar_url }}
-          voltarHref={`/embarcacoes/${id}`}
+          voltarHref={`/embarcacoes/${id}/roteiros`}
           voltarLabel="Voltar para a embarcação"
           mensagensIniciais={(mensagens ?? []) as Mensagem[]}
           rascunhoInicial={rascunhoInicial}

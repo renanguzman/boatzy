@@ -590,7 +590,8 @@ gradiente. Cards/listagens continuam usando a **principal** como capa.
 ### Cadastro em etapas (wizard) — embarcação e roteiro
 
 Os quatro formulários (`NovaEmbarcacaoForm`, `EditarEmbarcacaoForm`, `NovoRoteiroForm`,
-`EditarRoteiroForm`; o admin reutiliza os de edição) são divididos em **7 etapas**. Continua sendo
+`EditarRoteiroForm`; o admin reutiliza os de edição) são divididos em etapas — **5 na embarcação**
+(Preço e Disponibilidade saíram em 12/10/2026, §39) e **7 no roteiro**. Continua sendo
 **um único `<form>`** com um único estado: cada grupo de seções fica num
 `<div hidden={etapas.atual !== N}>`, então nada é desmontado ao trocar de etapa (mapa, calendário,
 galeria e dados permanecem).
@@ -601,9 +602,9 @@ galeria e dados permanecem).
 | 2 | Detalhes (especificações + comodidades) | Localização de partida |
 | 3 | Localização | Fotos |
 | 4 | Fotos | Preço (modelos de cobrança) |
-| 5 | Preço (base + regras) | Disponibilidade |
-| 6 | Disponibilidade | Adicionais (catálogo) |
-| 7 | Revisão | Revisão |
+| 5 | Revisão | Disponibilidade |
+| 6 | — | Adicionais (catálogo) |
+| 7 | — | Revisão |
 
 Definições e montagem da revisão: `embarcacoes/_components/etapasEmbarcacao.ts`
 (`ETAPAS_EMBARCACAO`, `ETAPA_EMB`, `revisaoEmbarcacao`) e `roteiros/_components/etapasRoteiro.ts`
@@ -658,7 +659,9 @@ avaliações vazias, sem favorito e `ehDono = false`.
 
 **Protocolo** (`src/components/preview/mensagens.ts`, `postMessage` mesma origem): iframe envia
 `boatzy:preview-pronto`; o pai responde `boatzy:preview-dados` com
-`PreviewDados = { tipo: 'embarcacao', embarcacao, datasBloqueadas } | { tipo: 'roteiro', roteiro, datasBloqueadas }`.
+`PreviewDados = { tipo: 'embarcacao', embarcacao } | { tipo: 'roteiro', roteiro, datasBloqueadas }`.
+A prévia da embarcação renderiza `EmbarcacaoDetalheView` (galeria + informações + carrossel de
+roteiros, vazio na prévia) — o mesmo layout de `/embarcacoes/[id]/roteiros` (§39).
 
 **Modal** `PreviewPublicacaoModal` (`src/components/preview/`): tela cheia, alterna
 **Computador / Celular** (iframe com 392 px de largura em moldura de celular — breakpoints reais
@@ -674,7 +677,7 @@ A embarcação vinculada ao roteiro vem de `buscarEmbarcacaoParaPreview(embarcac
 em cache enquanto a seleção não muda.
 
 **Ações desativadas na prévia:** contexto `ModoPreview` (`src/components/preview/ModoPreview.tsx`,
-`useModoPreview()`); `EmbarcacaoBookingCard`/`BookingCard` validam normalmente mas não navegam
+`useModoPreview()`); `BookingCard` valida normalmente mas não navega
 para `/reservas/novo`; `RoteiroAcoes` não favorita nem abre o compartilhar; o receptor bloqueia
 cliques em qualquer `<a href>` (header, voltar, chat). Em todos os casos aparece o aviso
 "Pré-visualização — ações e links ficam desativados". Fora da prévia não há provider (sem efeito).
@@ -794,6 +797,10 @@ SELECT public.get_taxa_usuario('uuid-do-usuario') AS taxa;
 
 ## 15. Precificação Dinâmica de Embarcações
 
+> ⛔ **Sem uso desde 12/10/2026 (§39):** o cadastro de embarcação não tem mais o step Preço e nenhuma
+> tela/consulta lê `embarcacao.preco_base`, `embarcacao_preco_regra` ou `get_preco_embarcacao`.
+> Estrutura mantida no banco (sem DROP). Preço existe só no roteiro (§33/§36).
+
 Migration: `supabase/migrations/006_embarcacao_precificacao.sql`
 
 ### Coluna `preco_base` em `embarcacao`
@@ -900,6 +907,10 @@ Batch da função anterior. Use na tela de busca do hotsite para resolver preço
 
 Migrations: `supabase/migrations/015_roteiro_disponibilidade.sql` (roteiro) e `supabase/migrations/016_embarcacao_disponibilidade.sql` (embarcação).
 
+> ⛔ **Sem uso desde 12/10/2026 (§39):** a parte de **embarcação** (`embarcacao.disponibilidade_dias_semana` e
+> `embarcacao_disponibilidade_bloqueio`) não é mais editada nem lida. Continua valendo o
+> **bloqueio por reserva confirmada** pela embarcação (recurso compartilhado entre roteiros).
+
 O mesmo modelo se aplica a **roteiro** e **embarcação** — as descrições abaixo usam `roteiro` como exemplo; para embarcação, troque `roteiro` por `embarcacao` e `roteiro_disponibilidade_bloqueio` por `embarcacao_disponibilidade_bloqueio` (coluna `embarcacao_id` no lugar de `roteiro_id`).
 
 Modelo escolhido: **recorrência semanal + bloqueio de datas pontuais**, granularidade de **dia inteiro**, capacidade **exclusiva (1 reserva por dia)**.
@@ -977,20 +988,18 @@ não bloqueia nada (várias solicitações pendentes podem coexistir até o gest
 
 ### Painel (cadastro/edição)
 
-- Componente compartilhado `src/components/painel/DisponibilidadePicker.tsx`: chips de dias da semana + mini-calendário para marcar/desmarcar bloqueios + lista de datas bloqueadas. Reutilizado por roteiros **e** embarcações (props genéricas: `diasSemana`, `bloqueios` e callbacks).
-- Usado nos forms `NovoRoteiroForm`/`EditarRoteiroForm` e `NovaEmbarcacaoForm`/`EditarEmbarcacaoForm` (seção "Disponibilidade").
+- Componente `src/components/painel/DisponibilidadePicker.tsx`: chips de dias da semana + mini-calendário para marcar/desmarcar bloqueios + lista de datas bloqueadas (props genéricas: `diasSemana`, `bloqueios` e callbacks). Seleção em lote desde 12/10/2026 — ver §40.
+- Usado nos forms `NovoRoteiroForm`/`EditarRoteiroForm` (seção "Disponibilidade"). Os forms de embarcação deixaram de usá-lo (§39).
 - Server actions:
   - Roteiro: `criarRoteiro`/`atualizarRoteiro` gravam `disponibilidade_dias_semana`; `salvarBloqueiosRoteiro(roteiroId, datas[])`.
-  - Embarcação: `criarEmbarcacao`/`atualizarEmbarcacao` gravam `disponibilidade_dias_semana`; `salvarBloqueiosEmbarcacao(embarcacaoId, datas[])`.
-  - Ambas substituem o conjunto de bloqueios (delete-all + insert). Datas trafegam como `'yyyy-mm-dd'`.
+  - Embarcação: removido em §39 (`salvarBloqueiosEmbarcacao` não existe mais; `criarEmbarcacao`/`atualizarEmbarcacao` não gravam `disponibilidade_dias_semana`).
+  - Substitui o conjunto de bloqueios (delete-all + insert). Datas trafegam como `'yyyy-mm-dd'`.
 
 ### Hotsite (calendário público)
 
 - `DatePicker` (`src/components/home/search/DatePicker.tsx`) recebe prop opcional `isDateDisabled?: (date: Date) => boolean`; datas indisponíveis aparecem riscadas e não clicáveis (além das datas passadas).
 - **Roteiro:** `BookingCard` recebe `diasOperacao` e `datasBloqueadas`, monta `isDateDisabled` e repassa ao `DatePicker`. A página `/roteiros/[id]` inclui `disponibilidade_dias_semana` e `roteiro_disponibilidade_bloqueio ( data )` na query.
-- **Embarcação:** `EmbarcacaoBookingCard` (`/embarcacoes/[id]`) já tem o mesmo calendário do
-  roteiro — recebe `diasOperacao` e `datasBloqueadas` (`embarcacao_disponibilidade_bloqueio` +
-  datas com reserva confirmada, ver seção anterior) e repassa ao `DatePicker` (§20.7).
+- **Embarcação:** não tem mais calendário público — `EmbarcacaoBookingCard` foi removido (§39).
 
 ---
 
@@ -1005,7 +1014,7 @@ Migration: `supabase/migrations/019_roteiro_ativo.sql` (coluna `roteiro.ativo`).
 
 ### Toggle no painel + cascade
 
-- **Grid** `src/app/painel/(gestao)/embarcacoes/_components/EmbarcacoesGrid.tsx`: a coluna **Status** é um *switch* ativo/inativo. A listagem carrega os roteiros vinculados via embed `roteiro ( id, nome )`.
+- **Grid** `src/app/painel/(gestao)/embarcacoes/_components/EmbarcacoesGrid.tsx`: a coluna **Status** é um *switch* ativo/inativo. A listagem carrega os roteiros vinculados via embed `roteiro ( id, nome )`. Coluna **Roteiros** (ordenável) com a contagem desse embed — ver §42.
 - **Server action** `alternarStatusEmbarcacao(embarcacaoId, 'ativo' | 'inativo')` (`src/app/painel/(gestao)/embarcacoes/actions.ts`):
   - Valida auth + role (`gestor`/`admin`) + posse.
   - Atualiza `embarcacao.status`.
@@ -1545,23 +1554,23 @@ type RoteiroDetalhe = {
 **Arquivo consumidor:** `src/app/buscar/page.tsx`, modo `modoListaEmbarcacoes` (ver §18.3). A rota
 `src/app/embarcacoes/page.tsx` (sem id) segue existindo só como **redirect** para
 `/buscar?tipo=embarcacao`, preservando os params compatíveis (`municipio`, `local`, `lat`, `lng`,
-`data`, `flex`, `pessoas`, `pagina`). O detalhe `/embarcacoes/[id]` (§18.7) e a reserva direta de
-embarcação (§20.7) seguem ativos, acessíveis por link direto; a página de roteiros da embarcação
-(§18.7-B) é o destino do card na busca. O componente antigo
-`src/app/embarcacoes/_components/EmbarcacaoCard.tsx` continua sem uso (órfão); quem renderiza o card
-na busca é `src/components/ui/EmbarcacaoCard.tsx` (o mesmo da seção "Mais Bem Avaliadas" da home —
-ver §18.9), que ganhou uma prop `href?: string` opcional para apontar para
-`/embarcacoes/[id]/roteiros` em vez do padrão `/embarcacoes/[id]`.
+`data`, `flex`, `pessoas`, `pagina`). `/embarcacoes/[id]` (§18.7) é só um redirect para a página de
+roteiros da embarcação (§18.7-B), que é o destino do card na busca. Quem renderiza o card é
+`src/components/ui/EmbarcacaoCard.tsx` (o mesmo da seção "Mais Bem Avaliadas" da home e de
+Favoritos — ver §18.9), cujo `href` padrão é `/embarcacoes/[id]/roteiros` (a busca passa um `href`
+com `?voltar=`). O card **não tem preço** (`EmbarcacaoCardData` sem `preco_base`). O componente
+órfão `src/app/embarcacoes/_components/EmbarcacaoCard.tsx` foi apagado (§39).
 
-**Filtros da RPC `buscar_embarcacoes` (migration 017/020/`20260718_buscar_embarcacoes_tipo`/`20260810b`):**
+**Filtros da RPC `buscar_embarcacoes` (migration 017/020/`20260718_buscar_embarcacoes_tipo`/`20260810b`/`20261011c`/`20261012`):**
 
 A página delega os filtros à função SQL `public.buscar_embarcacoes(...)`, que resolve tudo em uma chamada e retorna os **ids ordenados + total** (para paginação). A página então busca os detalhes (joins) com `.in('id', ids)`, **preservando a ordem** retornada.
 
 ```ts
 const { data: rpcRows } = await supabaseAdmin.rpc('buscar_embarcacoes', {
   p_municipio_id, p_lat, p_lng, p_raio_km: 50,
-  p_data, p_flex, p_pessoas, p_limit, p_offset, p_tipo_id,
-  p_preco_min, p_preco_max, p_duracao_min, p_duracao_max, p_ordenar,
+  p_pessoas, p_limit, p_offset, p_tipo_id,
+  p_duracao_min, p_duracao_max, p_ordenar,
+  p_comodidade_ids, p_acessorio_ids, p_equipamento_seguranca_ids,
 });
 // rpcRows: { id, distancia_km, total }[]  (já ordenado conforme p_ordenar)
 ```
@@ -1571,15 +1580,20 @@ Regras da função:
 - **Tipo (migration `20260718`):** parâmetro `p_tipo_id uuid DEFAULT NULL` — quando informado, só embarcações com `embarcacao_tipo_id = p_tipo_id`. Mesmo padrão de `DROP FUNCTION IF EXISTS` + `CREATE` de `buscar_roteiros`/migration 024, para evitar overload ambíguo no PostgREST.
 - **Localização:** centro = `lat/lng` ("perto de mim") ou coordenadas do `municipio_id`. Aparece se `municipio_id` bater **exato** OU se a distância (haversine) ao centro for ≤ **50 km**. Sem centro = sem filtro de local.
 - **Pessoas:** `capacidade >= pessoas`.
-- **Data:** disponível se **algum** dia da janela `data ± flex` tiver o dia da semana em `disponibilidade_dias_semana` (ou ela for `NULL`) **e** não estiver em `embarcacao_disponibilidade_bloqueio`. Sem `data` = sem filtro de disponibilidade.
-- **Faixa de preço (migration `20260810b`):** `p_preco_min`/`p_preco_max` sobre `embarcacao.preco_base`; embarcação sem `preco_base` não aparece com a faixa ativa.
+- **Data e faixa de preço:** **removidas** na migration `20261012` (§39) — `p_data`, `p_flex`, `p_preco_min` e `p_preco_max` não existem mais; a embarcação não tem preço nem disponibilidade próprios.
 - **Faixa de duração (migration `20260810b`):** a embarcação não tem duração própria — `p_duracao_min`/`p_duracao_max` exigem `EXISTS` de um roteiro **ativo** vinculado com `duracao_horas` dentro da faixa.
-- **Ordenação (migration `20260810b`):** mesmo `p_ordenar` de `buscar_roteiros` (ver §18.3). `relevancia` (padrão) = por distância quando há centro, senão `created_at` desc — embarcações sem coordenadas só aparecem pelo match exato de município (ordenadas por último, `NULLS LAST`). `duracao_asc`/`duracao_desc` usam a **menor** `duracao_horas` entre os roteiros ativos da embarcação (o "a partir de" que o cliente vê em `/embarcacoes/[id]/roteiros`); `avaliacao` usa o score bayesiano sobre `avaliacao.embarcacao_id`.
+- **Ordenação (migration `20260810b`):** mesmo `p_ordenar` de `buscar_roteiros` (ver §18.3), **exceto `preco_asc`/`preco_desc`** (removidas em `20261012`; a UI nem oferece essas opções na aba Embarcações — `ordenacoesDaAba(true)` — e um `?ordenar=preco_*` na URL cai em `relevancia`). `relevancia` (padrão) = por distância quando há centro, senão `created_at` desc — embarcações sem coordenadas só aparecem pelo match exato de município (ordenadas por último, `NULLS LAST`). `duracao_asc`/`duracao_desc` usam a **menor** `duracao_horas` entre os roteiros ativos da embarcação (o "a partir de" que o cliente vê em `/embarcacoes/[id]/roteiros`); `avaliacao` usa o score bayesiano sobre `avaliacao.embarcacao_id`.
 - `GRANT EXECUTE` para `anon, authenticated, service_role` (busca anônima no hotsite).
 
-> Preço exibido a partir de `preco_base` (paridade com a listagem de roteiros). Refinamento futuro: usar `get_precos_embarcacoes` para preço dependente da data.
+> A aba Embarcações não exibe preço nem filtra/ordena por preço ou data (`FiltrosLaterais` oculta
+> "Data" e "Faixa de preço" quando `abaEmbarcacao`; chips de data/preço não aparecem; o ponto do
+> mapa vem com `preco: null`). Os params continuam na URL ao trocar de aba e voltam a valer na aba
+> Roteiros.
 
 ### 18.7 Detalhe da Embarcação `/embarcacoes/[id]`
+
+> ⛔ **Desde 12/10/2026 (§39)** a rota só faz `redirect` para `/embarcacoes/[id]/roteiros`
+> preservando a querystring. O conteúdo abaixo é histórico (reserva direta de embarcação).
 
 **Arquivo:** `src/app/embarcacoes/[id]/page.tsx` (Server Component).
 
@@ -1596,12 +1610,14 @@ Seções: `EmbarcacaoInfoSection` (badge de tipo, título + localidade, descriç
 **Arquivo:** `src/app/embarcacoes/[id]/roteiros/page.tsx` (Server Component). Destino do card na
 busca por embarcação (§18.3/§18.6) — v1, a ser refinada.
 
-- 404 nas mesmas condições de `/embarcacoes/[id]` (`status != 'ativo'`).
+- Renderiza `EmbarcacaoDetalheView` (`src/app/embarcacoes/[id]/_components/`): galeria +
+  `EmbarcacaoInfoSection` + botão **"Converse com o dono"** (oculto quando `ehDono`, calculado com
+  `owner_id`) + `RoteirosCarousel`. A mesma view é usada pela pré-visualização do painel (§39).
+- 404 quando `status != 'ativo'`.
 - Query da embarcação: `id, nome, descricao, capacidade, comprimento, quartos, suites, banheiros,
   tripulacao, embarcacao_tipo(nome), municipios(nome, estados(uf)),
   embarcacao_comodidades(comodidade(nome)), embarcacao_imagens(id, url_imagem, titulo, principal, ordem)`
-  — mais enxuta que a de `/embarcacoes/[id]` (sem `preco_base`/disponibilidade/endereço, que só
-  importam para a reserva direta).
+  + `owner_id` (para `ehDono`).
 - Query dos roteiros: `roteiro` filtrando `embarcacao_id = :id AND ativo = true`, ordenados por
   `created_at desc`, **sem paginação** (mostra todos no carrossel). Mesmo shape de `RoteiroCardData`
   (`src/app/buscar/_components/RoteiroCard.tsx`). Avaliação/favorito por roteiro via
@@ -2116,11 +2132,12 @@ motivação em §15-B → "Bloqueio por reserva confirmada".
   detalhe) e é lá que a linha "Taxa de serviço (`N`%)" e o "Total estimado" (já com taxa, cupom
   etc.) aparecem — comportamento inalterado, ver §20.3.
 
-### 20.3 Página `/reservas/novo` (confirmação + criação) — roteiro **ou** embarcação
+### 20.3 Página `/reservas/novo` (confirmação + criação) — roteiro
 
-**Arquivo:** `src/app/reservas/novo/page.tsx` (Server Component). Atende os dois tipos pelo
-query param: `?roteiro=<id>` ou `?embarcacao=<id>` (presença de `embarcacao` define
-`tipo = 'embarcacao'`).
+**Arquivo:** `src/app/reservas/novo/page.tsx` (Server Component). Só `?roteiro=<id>`: desde §39 não
+há reserva direta de embarcação — `?embarcacao=<id>` (links antigos) cai no redirect "sem alvo"
+para `/buscar`. `criarReserva`/`validarCupom` recebem `roteiroId` (sem `tipo`/`embarcacaoId`) e a
+reserva é sempre gravada com `tipo = 'roteiro'`. As menções a embarcação abaixo são históricas.
 
 - **Gate de auth:** `createClient()` SSR + `getUser()`; se não logado, redireciona para
   `/entrar?redirect_to=<url atual>`. Sem alvo → `/buscar` (roteiro) ou `/embarcacoes` (embarcação);
@@ -2365,6 +2382,11 @@ atalho da seção visível. Abaixo, os blocos:
 prefixo) + dígitos nacionais para pré-preencher o campo.
 
 ### 20.7 Reserva de embarcação (cliente)
+
+> ⛔ **Descontinuada em 12/10/2026 (§39):** `EmbarcacaoBookingCard` apagado, `/embarcacoes/[id]`
+> redireciona e `/reservas/novo` só aceita roteiro. Reservas antigas com `tipo = 'embarcacao'`
+> continuam exibidas/geridas (painel, "Minhas reservas", pedidos, `getDatasReservadasEmbarcacao`).
+> Texto abaixo mantido como histórico.
 
 Espelha o fluxo de roteiro (§20.2–20.3), **sem adicionais** (não existe `embarcacao_catalogo`).
 
@@ -5350,3 +5372,159 @@ a assinatura muda):
   `buscar_roteiros`) passam os 3 novos parâmetros; `catalogoAuxiliarAtivo` (true se qualquer um dos
   3 tiver seleção) substitui a checagem que antes só olhava `comodidadeIds.length` nos estados
   vazios e no botão "Limpar filtros" — agora válido nas duas abas.
+
+---
+
+## 38. Capitão obrigatório como única opção no cadastro de embarcação (12/10/2026)
+
+### 38.1 UI — step "Informações" (painel)
+
+O select "Capitão" do step "Informações" do cadastro/edição de embarcação, no painel
+(`NovaEmbarcacaoForm.tsx` e `EditarEmbarcacaoForm.tsx`, ambos em
+`src/app/painel/(gestao)/embarcacoes/`), teve as `<option>` **"Sem capitão (locatário pilota)"**
+(`sem_capitao`) e **"Capitão opcional"** (`opcional`) removidas — restou só
+**"Com capitão obrigatório"** (`com_capitao`). O estado inicial do cadastro novo
+(`modalidade_capitao`) também passou de `'sem_capitao'` para `'com_capitao'`.
+
+Mudança só de UI: o tipo `ModalidadeCapitao` (`src/types/supabase.ts`) e a coluna
+`modalidade_capitao` no banco continuam aceitando os 3 valores — nada foi alterado em migration,
+action (`actions.ts` dos dois formulários) ou nas telas públicas/admin que leem o campo
+(`EmbarcacaoDetalheView`, `RoteiroDetalheView`, admin `embarcacoes/[id]/editar`). Embarcação
+existente com `modalidade_capitao` igual a `sem_capitao`/`opcional` mantém o valor salvo até ser
+editada; ao abrir essa embarcação no formulário de edição, o select não casa com nenhuma `<option>`
+(fica em branco visualmente) até o gestor escolher "Com capitão obrigatório" e salvar.
+
+---
+
+## 39. Embarcação sem preço e disponibilidade próprios (12/10/2026)
+
+Preço e disponibilidade passam a existir **só no roteiro**. Nada foi apagado do banco: as
+estruturas da embarcação ficam sem uso pela aplicação (§15 e §15-B marcadas).
+
+### 39.1 Cadastro/edição (painel e admin)
+
+- `ETAPAS_EMBARCACAO`/`ETAPA_EMB` (`src/app/painel/(gestao)/embarcacoes/_components/etapasEmbarcacao.ts`):
+  `informacoes 0 → detalhes 1 → localizacao 2 → fotos 3 → revisao 4`. `revisaoEmbarcacao` perdeu os
+  args `diasOperacao`, `bloqueios`, `totalRegras` e `form.preco_base`, e os itens "Preço" e
+  "Disponibilidade"; `card` sem `preco_base`.
+- `NovaEmbarcacaoForm` / `EditarEmbarcacaoForm`: removidos preço base, regras (estado, UI,
+  `PRECO_NIVEIS`, `TIPO_CONFIG`…), `DisponibilidadePicker`, `diasOperacao`/`bloqueios`. Prop
+  `bloqueiosIniciais` e o campo `embarcacao_preco_regra` de `EmbarcacaoData` saíram do form de edição;
+  as páginas de edição (painel e admin) não consultam mais `embarcacao_preco_regra` nem
+  `embarcacao_disponibilidade_bloqueio` nem selecionam `preco_base`/`disponibilidade_dias_semana`.
+- Actions: `CriarEmbarcacaoPayload`/`AtualizarEmbarcacaoPayload` sem `preco_base` e
+  `disponibilidade_dias_semana` (o insert/update não toca nessas colunas — registros antigos mantêm
+  o valor). Apagadas `criarRegra`, `salvarBloqueiosEmbarcacao` (nas duas actions) e `excluirRegra`.
+- Pré-visualização: `montarPreviewEmbarcacao` sem `diasOperacao`/`bloqueios`/`preco_base`/
+  `modalidade_capitao`/endereço; `PreviewDados` de embarcação = `{ tipo: 'embarcacao', embarcacao }`.
+
+### 39.2 Site público
+
+- `/embarcacoes/[id]` (`page.tsx`): `redirect` para `/embarcacoes/[id]/roteiros` com a mesma
+  querystring.
+- `EmbarcacaoDetalheView` reescrita: `EmbarcacaoDetalheDados = EmbarcacaoInfo & { id, embarcacao_imagens }`;
+  props `{ embarcacao, roteiros: RoteiroCarouselItem[], voltarHref, ehDono }`. Usada por
+  `/embarcacoes/[id]/roteiros` e por `PreviewReceptor` (`roteiros=[]`, `ehDono=false`).
+- `EmbarcacaoBookingCard.tsx` e o órfão `src/app/embarcacoes/_components/EmbarcacaoCard.tsx` apagados.
+- Chat com o dono: o CTA "Converse com o dono" foi para `EmbarcacaoDetalheView`;
+  `/embarcacoes/[id]/chat` volta (e redireciona o próprio dono) para `/embarcacoes/[id]/roteiros`.
+- `EmbarcacaoCardData` sem `preco_base`; `href` padrão `/embarcacoes/[id]/roteiros`.
+  `getEmbarcacoesTopAvaliadas` (`EmbarcacaoTopCard`) e `/favoritos` não selecionam mais `preco_base`.
+
+### 39.3 Reserva
+
+- `/reservas/novo`: só `?roteiro=`. `CriarReservaInput`/`ValidarCupomInput`/`ResolverAlvoInput`
+  com `roteiroId: string` obrigatório, sem `tipo`/`embarcacaoId`; `resolverAlvo` perdeu o ramo de
+  embarcação; checagem de conflito sempre por `getDisponibilidadeRoteiro` (que já valida pela
+  embarcação vinculada); insert com `tipo: 'roteiro'`. `ConfirmarReserva` recebe `roteiroId`.
+- O enum/coluna `reserva.tipo` mantém `'embarcacao'` para o histórico; `getDatasReservadasEmbarcacao`
+  segue em uso pelo painel (conflito de reservas antigas).
+
+### 39.4 Busca
+
+- Migration `20261012_buscar_embarcacoes_sem_preco_disponibilidade.sql`: DROP + CREATE de
+  `buscar_embarcacoes` sem `p_data`, `p_flex`, `p_preco_min`, `p_preco_max` e sem as ordenações
+  `preco_asc`/`preco_desc`. Nova assinatura:
+  `(integer, numeric, numeric, numeric, integer, integer, integer, uuid, numeric, numeric, text, uuid[], uuid[], uuid[])`
+  + `GRANT EXECUTE` para `anon, authenticated, service_role` + `NOTIFY pgrst, 'reload schema'`.
+  Tipos atualizados em `src/types/supabase.ts`.
+- `src/app/buscar/_lib/filtros.ts`: `ordenacoesDaAba(abaEmbarcacao)`; `normalizarOrdenacao(valor, abaEmbarcacao)`
+  e `contarFiltrosAvancados(params, abaEmbarcacao)` ganharam o segundo argumento (preço não conta na
+  aba Embarcações). `OrdenarSelect` recebe `abaEmbarcacao`.
+- `FiltrosLaterais`: seções "Data" e "Faixa de preço" só na aba Roteiros (também fora da contagem
+  de filtros ativos). `/buscar/page.tsx`: chamada da RPC sem os 4 params, chips de data/preço só na
+  aba Roteiros, ponto do mapa da embarcação com `preco: null`, botão do estado vazio "Limpar duração".
+
+---
+
+## 40. Bloqueio de datas em lote no calendário de disponibilidade do roteiro (12/10/2026)
+
+`DisponibilidadePicker` (`src/components/painel/DisponibilidadePicker.tsx`) — mesma interface de
+props; nada muda nas actions (`salvarBloqueiosRoteiro` continua substituindo o conjunto) nem no
+banco (`roteiro_disponibilidade_bloqueio`, uma linha por data).
+
+- **Datas como string ISO** (`'yyyy-mm-dd'`) com aritmética em UTC (`somarDias`, `intervalo`,
+  `diaDaSemana`); "hoje" via `hojeISO()` (`src/lib/datas.ts`, fuso de Brasília). Datas passadas
+  nunca são bloqueadas/liberadas pelas ações em lote (`aplicar` filtra `d >= hoje`).
+- **Modo de seleção** (segmented control no topo do card): `dia` (padrão, comportamento anterior —
+  clique alterna um dia; dias fora de operação desabilitados) e `periodo`.
+- **Modo período:** 1º clique fixa `inicio`; o 2º aplica a ação a todo o intervalo
+  `[min, max]` (pode trocar de mês entre os cliques). A ação é **bloquear**, ou **liberar** se o dia
+  inicial já estava bloqueado. Prévia ao passar o mouse (vermelho = bloquear, verde = liberar),
+  faixa de dica com "Cancelar" e `Esc` cancela. Dias fora de operação podem ser início/fim e entram no
+  intervalo (ficam gravados — não têm efeito enquanto o dia da semana não opera, mas mantêm o
+  período contínuo se a operação mudar).
+- **Atalho do mês visível:** "Bloquear \<mês\> inteiro" grava todos os dias futuros do mês
+  (incluindo fora de operação); vira "Liberar \<mês\> inteiro" quando todos os dias **reserváveis**
+  (futuros e em operação) já estão bloqueados. Desabilitado se o mês não tem dia reservável.
+- **Lista de bloqueios agrupada** (`agruparConsecutivas`): datas consecutivas viram um chip
+  "20/10 – 10/11/2026 · 22 dias" (o X remove o intervalo inteiro); contador total e
+  "Limpar todas" quando há mais de um grupo.
+- **Resumo para conferência** (coluna à direita do calendário em `lg+`, abaixo dele no celular;
+  `aria-live="polite"`), derivado só das props — atualiza a cada clique:
+  - *Disponível para reservas:* dias de operação em texto (`descreverDiasSemana`: semana começando
+    na segunda, 3+ dias seguidos viram "sexta a domingo"), "a partir de hoje, sem data final" e as 4
+    próximas datas livres (varre até 400 dias; sem nenhuma, aviso em âmbar).
+  - *Indisponível na plataforma:* dias da semana sem operação + períodos bloqueados **futuros**
+    agrupados (até 6, depois "+ N outros períodos"); por período mostra quantos dias de operação são
+    de fato afetados, ou "Sem efeito" quando o período cai só em dias que não operam.
+
+---
+
+## 41. Antecedência máxima de reserva do roteiro — 3 meses (12/10/2026)
+
+- **Regra única** em `src/lib/datas.ts` (client-safe): `MESES_ANTECEDENCIA_RESERVA = 3` e
+  `dataMaximaReservaISO(meses?)` → `hojeISO()` (Brasília) + N meses, dia ajustado ao último dia do
+  mês quando não existe (30/11 + 3 → 28/02). Ex.: hoje 12/10/2026 → última data 12/01/2027.
+- **`DatePicker`** (`src/components/home/search/DatePicker.tsx`): nova prop opcional
+  `dataMaxima?: Date`. Dias depois dela ficam desabilitados (mesmo estilo de data passada, `title`
+  "Reservas abertas até dd/mm/aaaa"); a seta "próximo" desabilita quando o 2º mês exibido é o mês da
+  data máxima; o cabeçalho mostra "Reservas abertas até dd/mm/aaaa". Sem a prop, nada muda — a busca
+  (home/`/buscar`) continua sem limite.
+- **`BookingCard`** (`/roteiros/[id]`): passa `dataMaxima`; `initialData` vinda da busca além do
+  limite é descartada; `handleReserve` recusa data além do limite com mensagem.
+- **Servidor:** `/reservas/novo/page.tsx` redireciona para `/roteiros/[id]` quando `data >
+  dataMaximaReservaISO()` (o detalhe descarta a data); `criarReserva` recusa com erro. O check-in é
+  o que conta — no modelo Por Diária o check-out pode passar do limite.
+
+---
+
+## 42. Lista de embarcações do painel — título, coluna Roteiros e atalho "Criar roteiro" (12/10/2026)
+
+- `src/app/painel/(gestao)/embarcacoes/page.tsx`: título **"Gestão de Embarcações"** (era "Vessel
+  Directory"); subtítulo sem "disponibilidade" (não existe mais na embarcação, §39).
+- `EmbarcacoesGrid`:
+  - Nova coluna **Roteiros** entre Capacidade e Ações — `item.roteiro.length` (embed já existente,
+    conta roteiros ativos e inativos), pill ciano "N roteiro(s)" com os nomes no `title`, ou
+    "Nenhum". `SortKey` ganhou `'roteiros'`.
+  - Ação **"Visualizar" (olho, sem função) removida**; no lugar, **"Criar roteiro com esta
+    embarcação"** (ícone `MapPinPlus`) → `/painel/roteiros/novo?embarcacao=<id>`. Embarcação não
+    ativa mostra o ícone desabilitado (o cadastro de roteiro só lista embarcações `ativo`).
+- `/painel/roteiros/novo/page.tsx` lê `searchParams.embarcacao` e repassa `embarcacaoInicialId` ao
+  `NovoRoteiroForm`, que inicia com `embarcacao_id` preenchido e herda a capacidade da embarcação
+  (mesma regra de `setEmbarcacao`). Id fora da lista de embarcações ativas do gestor é ignorado.
+- **Admin** (`/administrator/embarcacoes`, `AdminEmbarcacoesGrid`): mesma coluna **Roteiros** (pill
+  "N roteiro(s)" com nomes no `title`, ou "Nenhum"), a partir do embed `roteiro ( id, nome )` que a
+  página já carregava. **Não ordenável** — a ordenação do admin é server-side (`SORT_COLUMNS`) e só
+  cobre colunas da própria tabela `embarcacao`.
+

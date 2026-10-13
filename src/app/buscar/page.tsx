@@ -50,7 +50,6 @@ function getPageNumbers(current: number, total: number): (number | '…')[] {
 type EmbarcacaoDetalheRow = {
   id: string;
   nome: string;
-  preco_base: number | null;
   capacidade: number | null;
   latitude: number | null;
   longitude: number | null;
@@ -82,7 +81,6 @@ function mapEmbarcacaoRow(d: EmbarcacaoDetalheRow): EmbarcacaoCardData {
   return {
     id: d.id,
     nome: d.nome,
-    preco_base: d.preco_base,
     capacidade: d.capacidade,
     tipo: d.embarcacao_tipo?.nome ?? null,
     localidade,
@@ -111,11 +109,13 @@ export default async function BuscarPage({ searchParams }: { searchParams: Promi
 
   // Filtros avançados (faixa de preço e de duração) + ordenação escolhida.
   // Tudo resolvido no banco pelas RPCs — a paginação continua server-side.
+  // Preço e data só filtram a aba Roteiros: a embarcação não tem preço nem
+  // disponibilidade próprios (são do roteiro).
   const precoMin = parseNumeroPositivo(params.preco_min);
   const precoMax = parseNumeroPositivo(params.preco_max);
   const duracaoMin = parseNumeroPositivo(params.duracao_min);
   const duracaoMax = parseNumeroPositivo(params.duracao_max);
-  const ordenar = normalizarOrdenacao(params.ordenar);
+  const ordenar = normalizarOrdenacao(params.ordenar, abaEmbarcacao);
   // Comodidades/Acessórios/Equipamentos de segurança são atributos da
   // embarcação — filtram tanto a busca de embarcações quanto a de roteiros
   // (nesta, via a embarcação vinculada ao roteiro).
@@ -156,14 +156,10 @@ export default async function BuscarPage({ searchParams }: { searchParams: Promi
       p_lat: lat,
       p_lng: lng,
       p_raio_km: RAIO_KM,
-      p_data: params.data ?? null,
-      p_flex: flex,
       p_pessoas: pessoas,
       p_limit: POR_PAGINA,
       p_offset: from,
       p_tipo_id: tipoEmbarcacaoId,
-      p_preco_min: precoMin,
-      p_preco_max: precoMax,
       p_duracao_min: duracaoMin,
       p_duracao_max: duracaoMax,
       p_ordenar: ordenar,
@@ -184,7 +180,7 @@ export default async function BuscarPage({ searchParams }: { searchParams: Promi
       const { data: detalhes } = await supabaseAdmin
         .from('embarcacao')
         .select(
-          `id, nome, preco_base, capacidade, latitude, longitude,
+          `id, nome, capacidade, latitude, longitude,
            embarcacao_tipo ( nome ),
            municipios ( nome, estados ( uf ) ),
            embarcacao_imagens ( url_imagem, principal )`,
@@ -301,7 +297,7 @@ export default async function BuscarPage({ searchParams }: { searchParams: Promi
                 href: `/embarcacoes/${d.id}/roteiros?voltar=${voltarParaBusca}`,
                 subtitulo: d.embarcacao_tipo?.nome ?? null,
                 localidade: localidadeDe(d.municipios),
-                preco: d.preco_base,
+                preco: null,
                 imagem:
                   (d.embarcacao_imagens.find((i) => i.principal) ?? d.embarcacao_imagens[0])
                     ?.url_imagem ?? null,
@@ -354,14 +350,14 @@ export default async function BuscarPage({ searchParams }: { searchParams: Promi
   if (params.local && params.municipio) {
     chips.push({ label: params.local, removeKey: 'local_municipio' });
   }
-  if (params.data) {
+  if (params.data && !modoListaEmbarcacoes) {
     const dateLabel = new Date(params.data + 'T12:00:00').toLocaleDateString('pt-BR', { timeZone: FUSO_HORARIO, day: '2-digit', month: '2-digit', year: 'numeric' });
     chips.push({ label: flex > 0 ? `${dateLabel} ± ${flex} dia${flex > 1 ? 's' : ''}` : dateLabel, removeKey: 'data' });
   }
   if (pessoas > 0) {
     chips.push({ label: `Grupo: ${pessoas} ${pessoas === 1 ? 'pessoa' : 'pessoas'}`, removeKey: 'pessoas' });
   }
-  const precoLabel = faixaPrecoLabel(precoMin, precoMax);
+  const precoLabel = modoListaEmbarcacoes ? null : faixaPrecoLabel(precoMin, precoMax);
   if (precoLabel) {
     chips.push({ label: `Preço: ${precoLabel}`, removeKey: 'preco' });
   }
@@ -395,7 +391,7 @@ export default async function BuscarPage({ searchParams }: { searchParams: Promi
     });
   }
 
-  const filtrosAvancadosAtivos = contarFiltrosAvancados(params);
+  const filtrosAvancadosAtivos = contarFiltrosAvancados(params, modoListaEmbarcacoes);
   const catalogoAuxiliarAtivo =
     comodidadeIds.length > 0 || acessorioIds.length > 0 || equipamentoSegurancaIds.length > 0;
 
@@ -460,7 +456,7 @@ export default async function BuscarPage({ searchParams }: { searchParams: Promi
                       'Nenhum resultado'
                     )}
                   </p>
-                  <OrdenarSelect params={params} valor={ordenar} />
+                  <OrdenarSelect params={params} valor={ordenar} abaEmbarcacao={abaEmbarcacao} />
                 </div>
 
                 {chips.length > 0 && (
@@ -524,7 +520,7 @@ export default async function BuscarPage({ searchParams }: { searchParams: Promi
                             href={semFiltrosAvancadosHref}
                             className="px-5 py-2.5 border border-slate-300 text-slate-700 hover:bg-white text-sm font-semibold rounded-xl transition-colors"
                           >
-                            {catalogoAuxiliarAtivo ? 'Limpar filtros' : 'Limpar preço e duração'}
+                            {catalogoAuxiliarAtivo ? 'Limpar filtros' : 'Limpar duração'}
                           </Link>
                         )}
                         {tipoNome && (
