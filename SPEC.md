@@ -5798,3 +5798,42 @@ edição sensível (gestor devolve, admin atualiza snapshot, consolidação de c
 `roteiro.ativo`, ciclo do anúncio e índice de vigente, RLS de leitura e permissões das funções.
 Observação: `embarcacao.banheiros`/`tripulacao` existem em produção mas não em nenhuma migration
 (drift pré-existente).
+
+---
+
+## 46. Calendário de preços do roteiro — painel do gestor (13/10/2026)
+
+Só painel (`/painel/roteiros/novo`, `/painel/roteiros/[id]/editar` e a edição do admin, que reaproveita o form). **Sem migration, sem endpoint novo e sem mudança no site do cliente.**
+
+### 46.1 Resolvedor em TypeScript — `src/lib/precos-calendario.ts` (puro, client-safe)
+
+- `resolverPrecoNaData(precoBase, regras, 'AAAA-MM-DD') → { valor, origem, regra, manual }` é **espelho** da função SQL `get_preco_roteiro` (§33/§36), que continua sendo a fonte da verdade do site e do checkout: `data_fixa` > `periodo_anual` (cruza o ano) > `dia_semana` > `preco_base`; no mesmo tipo vence a maior `prioridade`; regra `ativo=false` é ignorada. Existe só para mostrar o efeito das regras **antes de salvar**. Se a precedência mudar no SQL, mudar aqui.
+- Tipos/conversores: `RegraPreco`, `regraDeBanco` (linha de `roteiro_preco_regra`), `regraDeFormulario`/`previaDeFormulario` (regra digitada; `null` até ficar calculável).
+- `decomporPreco(preco, taxaPercent) → { voceRecebe, taxaPercent, taxaValor, clientePaga }` usa `calcularValoresPedido` (`lib/pagamentos/valores.ts`): comissão = `round(preço × taxa%)` somada ao preço; o gestor recebe o preço integral (decisão D7).
+- Datas em ISO com aritmética UTC (`somarDiasISO`, `diaDaSemanaISO`, `intervaloISO`); "hoje" via `hojeISO()` (fuso de Brasília).
+
+### 46.2 Ajuste manual de um dia
+
+Reutiliza `roteiro_preco_regra`: regra `tipo='data_fixa'`, `nome='Ajuste manual'` (`NOME_AJUSTE_MANUAL`), `data_inicio = data_fim` (ou intervalo de dias seguidos de mesmo valor) e `prioridade=100` (`PRIORIDADE_AJUSTE_MANUAL`; as demais regras usam 0), para vencer uma data específica que cubra o dia (ex.: Réveillon). Funções: `ehAjusteManual`/`isManualBanco`, `ajustesDeBanco` (regras → `Record<data, valor>`), `compactarAjustes` (mapa → intervalos), `ajustesComoRegras`.
+
+Nos forms, os ajustes ficam em estado `ajustes: Record<string, number>`, **fora** da lista "Regras salvas" (aparecem como chips no calendário). No salvar: `NovoRoteiroForm` cria uma regra por intervalo compactado; `EditarRoteiroForm` só mexe se mudaram — apaga as regras de ajuste salvas (`excluirRegraRoteiro`) e recria os intervalos (`criarRegraRoteiro`). Preço não é campo sensível do pipeline de aprovação (§45): ajustar não devolve o roteiro para análise.
+
+### 46.3 Componente — `src/components/painel/CalendarioPrecos.tsx` (`'use client'`)
+
+Props: `precoBase: number|null`, `regras: RegraPreco[]` (sem ajustes), `ajustes`, `onAjustesChange`, `diasOperacao: number[]`, `bloqueios: string[]`, `datasOcupadas: string[]`, `taxaPercent: number`, `previaRegra?: RegraPreco|null`.
+
+- Janela de 365 dias a partir de hoje (a mesma do `preco_minimo`, §36). Dia desabilitado: passado, fora da janela, reservado, bloqueado ou fora dos dias de operação.
+- Modos de seleção "Dia a dia" (toggle múltiplo) e "Período" (início/fim, como o `DisponibilidadePicker`); painel do dia com regra aplicada, campo de preço, "Aplicar preço" (se igual ao automático, remove o ajuste) e "Automático".
+- Quadro "Você recebe × Cliente paga" (valor digitado ou preço do dia; sem seleção, exemplo com o preço base).
+- Prévia da regra em edição: destaca as datas em que ela vence e conta as que ficam sobrepostas por regra mais específica.
+
+### 46.3b Indicador de rolagem — `src/components/painel/IndicadorRolagem.tsx`
+
+Props `{ alvoId, ativo, rotulo }`. Botão `fixed` (acima do `RodapeEtapas`, `bottom-28`) com seta animada (`motion-safe:animate-bounce`). Um `IntersectionObserver` (`rootMargin: '0px 0px -25% 0px'`) mostra o botão só enquanto o alvo está **abaixo** da tela (`!isIntersecting && boundingClientRect.top > 0`); some quando o alvo entra na vista ou ficou para trás. Clique: `scrollIntoView({ behavior: 'smooth', block: 'start' })` (`auto` com `prefers-reduced-motion`); a `SectionCard id="calendario-precos"` tem `scroll-mt-24`. Usado em `NovoRoteiroForm`/`EditarRoteiroForm` com `ativo={etapas.atual === ETAPA_ROT.preco}`.
+
+### 46.4 Dados vindos do servidor
+
+Os forms ganharam `taxaPercent` (obrigatório) e, na edição, `datasOcupadas`. As páginas buscam: `getTaxaEfetiva(ownerId)` (`lib/taxas.ts`, taxa do **gestor dono** — no admin, `roteiro.owner_id`) e `getDatasOcupadasRoteiro` (`lib/reservas.ts`, reservas `confirmada`/`aguardando_pagamento` do roteiro e da embarcação vinculada). No cadastro novo `datasOcupadas` é vazio. A taxa mostrada é a vigente hoje; a que vale é a gravada na reserva ao ser solicitada (§34).
+
+### 46.5 Fora do escopo
+Site do cliente (`BookingCard`/DatePicker públicos), o modelo Por Diária (valor fixo) e o calendário de agendamentos (`/painel/agendamentos`) não foram alterados.

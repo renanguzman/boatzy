@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useTransition, useRef } from 'react';
+import { useState, useEffect, useMemo, useTransition, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import {
   Info, ClipboardCheck, MapPin, ImageIcon, DollarSign,
@@ -27,6 +27,12 @@ import {
 import MapaPicker from '../../../../embarcacoes/novo/_components/MapaPicker';
 import CatalogoSelector, { type CatalogoItem, type ItemSelecionado } from '../../../_components/CatalogoSelector';
 import DisponibilidadePicker from '@/components/painel/DisponibilidadePicker';
+import CalendarioPrecos from '@/components/painel/CalendarioPrecos';
+import IndicadorRolagem from '@/components/painel/IndicadorRolagem';
+import {
+  regraDeBanco, regraDeFormulario, previaDeFormulario, ajustesDeBanco, isManualBanco, compactarAjustes,
+  NOME_AJUSTE_MANUAL, PRIORIDADE_AJUSTE_MANUAL,
+} from '@/lib/precos-calendario';
 import { horasParaPartes } from '@/lib/duracao';
 import type { PrecoRegraTipo } from '@/types/supabase';
 import ConfirmarNovaAnaliseModal from '@/components/publicacao/ConfirmarNovaAnaliseModal';
@@ -164,6 +170,10 @@ type Props = {
    * está Ativo — mudar campo sensível tira do site até nova aprovação.
    */
   avisarNovaAnalise?: boolean;
+  /** Comissão do Boatzy (%) do gestor dono do roteiro — mostrada no calendário de preços. */
+  taxaPercent: number;
+  /** Datas já seguradas por reservas do roteiro (confirmadas / aguardando pagamento). */
+  datasOcupadas: string[];
 };
 
 // ─── Helpers de UI ────────────────────────────────────────────────────────────
@@ -242,7 +252,7 @@ const emptyRegra = (): Omit<RegraLocal, 'localId'> => ({
 
 // ─── Componente principal ─────────────────────────────────────────────────────
 
-export default function EditarRoteiroForm({ roteiro, estados, municipiosIniciais, embarcacoes, catalogo: catalogoInicial, catalogoIniciais, bloqueiosIniciais, paradasIniciais, voltarHref = '/painel/roteiros', avisarNovaAnalise = false }: Props) {
+export default function EditarRoteiroForm({ roteiro, estados, municipiosIniciais, embarcacoes, catalogo: catalogoInicial, catalogoIniciais, bloqueiosIniciais, paradasIniciais, voltarHref = '/painel/roteiros', avisarNovaAnalise = false, taxaPercent, datasOcupadas }: Props) {
   const router = useRouter();
   const [, startTransition] = useTransition();
   const numeroInputRef = useRef<HTMLInputElement>(null);
@@ -289,14 +299,25 @@ export default function EditarRoteiroForm({ roteiro, estados, municipiosIniciais
   const [cepError, setCepError]                   = useState<string | null>(null);
 
   // Regras existentes
+  // Os ajustes manuais (preço de um dia, feito no calendário) ficam fora da lista
+  // de regras: aparecem como chips no próprio calendário.
   const [regrasExistentes, setRegrasExistentes] = useState<RegraExistente[]>(
-    roteiro.roteiro_preco_regra.map(r => ({ ...r, markedForDelete: false })),
+    roteiro.roteiro_preco_regra.filter(r => !isManualBanco(r)).map(r => ({ ...r, markedForDelete: false })),
   );
+  const [ajustesIniciais] = useState(() => ajustesDeBanco(roteiro.roteiro_preco_regra));
+  const [ajustes, setAjustes] = useState<Record<string, number>>(ajustesIniciais);
   // Novas regras (adicionadas localmente)
   const [novasRegras, setNovasRegras]       = useState<RegraLocal[]>([]);
   const [showRegraForm, setShowRegraForm]   = useState(false);
   const [showInstrucoes, setShowInstrucoes] = useState(false);
   const [rf, setRf]                         = useState(emptyRegra());
+
+  // Regras que o calendário de preços aplica: salvas (não excluídas) + novas.
+  const regrasCalendario = useMemo(() => [
+    ...regrasExistentes.filter(r => !r.markedForDelete).map(regraDeBanco),
+    ...novasRegras.map(r => regraDeFormulario(r, r.localId)),
+  ], [regrasExistentes, novasRegras]);
+  const previaRegra = useMemo(() => (showRegraForm ? previaDeFormulario(rf) : null), [showRegraForm, rf]);
 
   // Disponibilidade: dias da semana de operação (vazio = todos) + datas bloqueadas (ISO)
   const [diasOperacao, setDiasOperacao] = useState<number[]>(roteiro.disponibilidade_dias_semana ?? []);
@@ -598,6 +619,21 @@ export default function EditarRoteiroForm({ roteiro, estados, municipiosIniciais
     // 2. Excluir regras marcadas
     for (const regra of regrasExistentes.filter(r => r.markedForDelete)) {
       await excluirRegraRoteiro(roteiro.id, regra.id);
+    }
+
+    // 2b. Ajustes de preço por dia (calendário): só mexe se mudaram — apaga os
+    // salvos e grava de novo, com dias seguidos de mesmo valor num único intervalo.
+    const ajustesFinais = compactarAjustes(ajustes);
+    if (JSON.stringify(ajustesFinais) !== JSON.stringify(compactarAjustes(ajustesIniciais))) {
+      for (const regra of roteiro.roteiro_preco_regra.filter(isManualBanco)) {
+        await excluirRegraRoteiro(roteiro.id, regra.id);
+      }
+      for (const g of ajustesFinais) {
+        await criarRegraRoteiro({
+          roteiroId: roteiro.id, nome: NOME_AJUSTE_MANUAL, valor: g.valor, tipo: 'data_fixa',
+          prioridade: PRIORIDADE_AJUSTE_MANUAL, dataInicio: g.inicio, dataFim: g.fim,
+        });
+      }
     }
 
     // 3. Criar novas regras
@@ -1106,6 +1142,24 @@ export default function EditarRoteiroForm({ roteiro, estados, municipiosIniciais
         )}
       </SectionCard>
 
+      <SectionCard id="calendario-precos" icon={CalendarDays} title="Calendário de preços">
+        <p className="text-xs text-slate-400 mb-5">
+          Veja, dia a dia, quanto será cobrado com as regras acima. Clique em uma data para definir um preço só para ela.
+          Vale para o modelo <strong>Roteiro (diária única)</strong>.
+        </p>
+        <CalendarioPrecos
+          precoBase={form.preco_base && parseFloat(form.preco_base) >= 0 ? parseFloat(form.preco_base) : null}
+          regras={regrasCalendario}
+          ajustes={ajustes}
+          onAjustesChange={setAjustes}
+          diasOperacao={diasOperacao}
+          bloqueios={bloqueios}
+          datasOcupadas={datasOcupadas}
+          taxaPercent={taxaPercent}
+          previaRegra={previaRegra}
+        />
+      </SectionCard>
+
       </div>
 
       <div hidden={etapas.atual !== ETAPA_ROT.disponibilidade} className="space-y-6">
@@ -1261,6 +1315,12 @@ export default function EditarRoteiroForm({ roteiro, estados, municipiosIniciais
       )}
 
       {/* ── Rodapé fixo ─────────────────────────────────────────────────── */}
+      <IndicadorRolagem
+        alvoId="calendario-precos"
+        ativo={etapas.atual === ETAPA_ROT.preco}
+        rotulo={previaRegra ? 'Ver a prévia no calendário' : 'Ver o calendário de preços'}
+      />
+
       <RodapeEtapas
         atual={etapas.atual}
         total={ETAPAS_ROTEIRO.length}

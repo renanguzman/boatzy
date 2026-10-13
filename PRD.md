@@ -651,6 +651,18 @@ Todos os números são do **gestor logado** (`owner_id`):
 - ✅ Melhoria de UX no bloco "Como funciona": a explicação da ordem de prioridade foi unificada em **uma única lista numerada (1→4)**, ordenada de cima para baixo pela prioridade real, eliminando a inconsistência anterior (chips e caixas em ordens opostas). Inclui exemplo de desempate.
 - ✅ As abas de "Nova regra" seguem a mesma ordem de prioridade (Data Específica → Período Anual → Dias da Semana).
 
+#### ✅ Implementado — Calendário de preços do roteiro (painel do gestor, 13/10/2026)
+
+Referência: calendário de preços do Airbnb. **Só painel do gestor** — nada muda no site do cliente.
+
+- Na etapa **Preço** do cadastro (`/painel/roteiros/novo`) e da edição (`/painel/roteiros/[id]/editar`, também usada pelo admin), nova seção **"Calendário de preços"**: 12 meses com o **preço de cada dia já resolvido** pelas regras (preço base, dias da semana, período anual, data específica). Cada dia tem a cor da regra que o definiu (legenda) e atualiza ao vivo, antes de salvar.
+- O calendário cruza preço e disponibilidade: dias bloqueados, fora dos dias de operação ou já **reservados** aparecem desabilitados; dia sem preço aparece como "Sem preço".
+- **Taxa sempre clara:** faixa fixa com a taxa do Boatzy do gestor e quadro **"Cliente paga × Você recebe"** (preço do passeio + taxa de X% paga pelo cliente = total do cliente; o gestor recebe 100% do preço definido). Cupom sai da comissão do Boatzy, nunca do valor do gestor. Mesma conta do checkout.
+- **Clique no dia** abre o painel do dia: regra aplicada, preço atual e campo para definir um **preço específico** só para aquela data (ou para vários: modos "Dia a dia" e "Período"). "Automático" remove o ajuste e volta ao preço das regras. Ajustes aparecem como chips ("Ajuste manual") e só valem ao **salvar o roteiro**.
+- **Prévia da regra:** ao montar uma "Nova regra", as datas afetadas ficam destacadas no calendário, com o resumo "vai valer em N datas; M já têm regra mais específica e não mudam".
+- **Indicador de rolagem:** como o calendário fica abaixo do formulário de preço, um botão flutuante com seta ("Ver o calendário de preços" / "Ver a prévia no calendário" quando há uma regra em edição) aparece na etapa Preço e, ao clicar, rola suavemente até o calendário. Some quando o calendário já está na tela.
+- Escopo: modelo **Roteiro (diária única)**; Por Diária tem valor fixo e não usa o calendário. Detalhes técnicos: `SPEC.md` §46.
+
 #### ✅ Implementado — Menu lateral do painel: item "Roteiros / Preços"
 
 - O item do menu lateral que leva a `/painel/roteiros` passou a se chamar **"Roteiros / Preços"**

@@ -6,6 +6,8 @@ import { listarTimeline, ultimaDecisaoAdmin } from '@/lib/publicacao/server';
 import AvisoStatusPublicacao from '@/components/publicacao/AvisoStatusPublicacao';
 import TimelinePublicacao from '@/components/publicacao/TimelinePublicacao';
 import EditarRoteiroForm from './_components/EditarRoteiroForm';
+import { getTaxaEfetiva } from '@/lib/taxas';
+import { getDatasOcupadasRoteiro } from '@/lib/reservas';
 
 export default async function EditarRoteiroPage({
   params,
@@ -82,6 +84,12 @@ export default async function EditarRoteiroPage({
 
   if (!roteiro) notFound();
 
+  // Calendário de preços: taxa do gestor (dono) e datas já seguradas por reservas.
+  const [taxaPercent, datasOcupadas] = await Promise.all([
+    getTaxaEfetiva(user.id),
+    getDatasOcupadasRoteiro({ roteiroId: roteiro.id, embarcacaoId: roteiro.embarcacao_id }),
+  ]);
+
   const embarcacoesSelecionaveis = (embarcacoes ?? [])
     .filter(e => e.status !== 'inativo' || e.id === roteiro.embarcacao_id)
     .map(({ id: embId, nome, capacidade }) => ({ id: embId, nome, capacidade }));
@@ -149,6 +157,8 @@ export default async function EditarRoteiroPage({
         bloqueiosIniciais={(bloqueios ?? []).map(b => b.data)}
         paradasIniciais={(paradas ?? []).map(p => p.nome)}
         avisarNovaAnalise={roteiro.status === 'ativo' && !isAdmin}
+        taxaPercent={taxaPercent}
+        datasOcupadas={datasOcupadas}
       />
 
       <div className="mt-6 max-w-4xl">

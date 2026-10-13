@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useTransition, useRef } from 'react';
+import { useState, useEffect, useMemo, useTransition, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import {
   Info, ClipboardCheck, MapPin, ImageIcon, DollarSign,
@@ -21,6 +21,11 @@ import {
 import MapaPicker from '../../../embarcacoes/novo/_components/MapaPicker';
 import CatalogoSelector, { type CatalogoItem, type ItemSelecionado } from '../../_components/CatalogoSelector';
 import DisponibilidadePicker from '@/components/painel/DisponibilidadePicker';
+import CalendarioPrecos from '@/components/painel/CalendarioPrecos';
+import IndicadorRolagem from '@/components/painel/IndicadorRolagem';
+import {
+  regraDeFormulario, previaDeFormulario, compactarAjustes, NOME_AJUSTE_MANUAL, PRIORIDADE_AJUSTE_MANUAL,
+} from '@/lib/precos-calendario';
 import type { PrecoRegraTipo } from '@/types/supabase';
 import PreviewPublicacaoModal from '@/components/preview/PreviewPublicacaoModal';
 import BotaoPreview from '@/components/preview/BotaoPreview';
@@ -92,6 +97,8 @@ type Props = {
   catalogo: CatalogoItem[];
   /** Embarcação pré-selecionada (`?embarcacao=` vindo da lista de embarcações); ignorada se não estiver na lista. */
   embarcacaoInicialId?: string;
+  /** Comissão do Boatzy (%) do gestor — mostrada no calendário de preços. */
+  taxaPercent: number;
 };
 
 // ─── Helpers de UI ────────────────────────────────────────────────────────────
@@ -158,7 +165,7 @@ const emptyRegra = (): Omit<RegraLocal, 'localId'> => ({
 
 // ─── Componente principal ─────────────────────────────────────────────────────
 
-export default function NovoRoteiroForm({ estados, embarcacoes, catalogo: catalogoInicial, embarcacaoInicialId }: Props) {
+export default function NovoRoteiroForm({ estados, embarcacoes, catalogo: catalogoInicial, embarcacaoInicialId, taxaPercent }: Props) {
   const embarcacaoInicial = embarcacoes.find(e => e.id === embarcacaoInicialId);
   const router = useRouter();
   const [, startTransition] = useTransition();
@@ -191,10 +198,16 @@ export default function NovoRoteiroForm({ estados, embarcacoes, catalogo: catalo
   const [showRegraForm, setShowRegraForm] = useState(false);
   const [showInstrucoes, setShowInstrucoes] = useState(false);
   const [rf, setRf]                     = useState(emptyRegra());
+  // Preço de um dia específico, definido no calendário de preços ('yyyy-mm-dd' → R$).
+  const [ajustes, setAjustes]           = useState<Record<string, number>>({});
 
   // Disponibilidade: dias da semana de operação (vazio = todos) + datas bloqueadas (ISO)
   const [diasOperacao, setDiasOperacao] = useState<number[]>([]);
   const [bloqueios, setBloqueios]       = useState<string[]>([]);
+
+  // Regras que o calendário de preços aplica e a prévia da regra em edição.
+  const regrasCalendario = useMemo(() => regras.map(r => regraDeFormulario(r, r.localId)), [regras]);
+  const previaRegra = useMemo(() => (showRegraForm ? previaDeFormulario(rf) : null), [showRegraForm, rf]);
 
   // Paradas do itinerário: pontos intermediários entre origem e destino (0, 1 ou vários)
   const [paradas, setParadas]     = useState<ParadaLocal[]>([]);
@@ -481,6 +494,14 @@ export default function NovoRoteiroForm({ estados, embarcacoes, catalogo: catalo
         periodoDiaFim:     regra.tipo === 'periodo_anual' ? regra.periodoDiaFim    : undefined,
         dataInicio:        regra.tipo === 'data_fixa'     ? regra.dataInicio       : undefined,
         dataFim:           regra.tipo === 'data_fixa'     ? regra.dataFim          : undefined,
+      });
+    }
+
+    // Preço de dias específicos (calendário): dias seguidos de mesmo valor = uma regra
+    for (const g of compactarAjustes(ajustes)) {
+      await criarRegraRoteiro({
+        roteiroId, nome: NOME_AJUSTE_MANUAL, valor: g.valor, tipo: 'data_fixa',
+        prioridade: PRIORIDADE_AJUSTE_MANUAL, dataInicio: g.inicio, dataFim: g.fim,
       });
     }
 
@@ -901,6 +922,24 @@ export default function NovoRoteiroForm({ estados, embarcacoes, catalogo: catalo
         )}
       </SectionCard>
 
+      <SectionCard id="calendario-precos" icon={CalendarDays} title="Calendário de preços">
+        <p className="text-xs text-slate-400 mb-5">
+          Veja, dia a dia, quanto será cobrado com as regras acima. Clique em uma data para definir um preço só para ela.
+          Vale para o modelo <strong>Roteiro (diária única)</strong>.
+        </p>
+        <CalendarioPrecos
+          precoBase={form.preco_base && parseFloat(form.preco_base) >= 0 ? parseFloat(form.preco_base) : null}
+          regras={regrasCalendario}
+          ajustes={ajustes}
+          onAjustesChange={setAjustes}
+          diasOperacao={diasOperacao}
+          bloqueios={bloqueios}
+          datasOcupadas={[]}
+          taxaPercent={taxaPercent}
+          previaRegra={previaRegra}
+        />
+      </SectionCard>
+
       </div>
 
       <div hidden={etapas.atual !== ETAPA_ROT.disponibilidade} className="space-y-6">
@@ -1056,6 +1095,12 @@ export default function NovoRoteiroForm({ estados, embarcacoes, catalogo: catalo
       )}
 
       {/* ── Rodapé fixo ─────────────────────────────────────────────────── */}
+      <IndicadorRolagem
+        alvoId="calendario-precos"
+        ativo={etapas.atual === ETAPA_ROT.preco}
+        rotulo={previaRegra ? 'Ver a prévia no calendário' : 'Ver o calendário de preços'}
+      />
+
       <RodapeEtapas
         atual={etapas.atual}
         total={ETAPAS_ROTEIRO.length}

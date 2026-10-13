@@ -2,6 +2,7 @@ import { redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
 import { supabaseAdmin } from '@/lib/supabase';
 import NovoRoteiroForm from './_components/NovoRoteiroForm';
+import { getTaxaEfetiva } from '@/lib/taxas';
 
 export default async function NovoRoteiroPage({
   searchParams,
@@ -13,7 +14,7 @@ export default async function NovoRoteiroPage({
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect('/painel/login');
 
-  const [{ data: estados }, { data: embarcacoes }, { data: catalogo }] = await Promise.all([
+  const [{ data: estados }, { data: embarcacoes }, { data: catalogo }, taxaPercent] = await Promise.all([
     supabaseAdmin.from('estados').select('id, uf, nome').order('nome'),
     supabaseAdmin
       .from('embarcacao')
@@ -29,6 +30,7 @@ export default async function NovoRoteiroPage({
       .eq('owner_id', user.id)
       .order('tipo')
       .order('descricao'),
+    getTaxaEfetiva(user.id),
   ]);
 
   return (
@@ -44,6 +46,7 @@ export default async function NovoRoteiroPage({
         estados={estados ?? []}
         embarcacoes={embarcacoes ?? []}
         embarcacaoInicialId={embarcacaoInicialId}
+        taxaPercent={taxaPercent}
         catalogo={(catalogo ?? []) as { id: string; descricao: string; valor: number; tipo: 'produto' | 'servico' }[]}
       />
     </div>

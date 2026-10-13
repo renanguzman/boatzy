@@ -4,6 +4,8 @@ import { ClipboardCheck } from 'lucide-react';
 import { createClient } from '@/lib/supabase/server';
 import { supabaseAdmin } from '@/lib/supabase';
 import EditarRoteiroForm from '@/app/painel/(gestao)/roteiros/[id]/editar/_components/EditarRoteiroForm';
+import { getTaxaEfetiva } from '@/lib/taxas';
+import { getDatasOcupadasRoteiro } from '@/lib/reservas';
 
 export default async function AdminEditarRoteiroPage({
   params,
@@ -77,6 +79,12 @@ export default async function AdminEditarRoteiroPage({
       .order('ordem'),
   ]);
 
+  // Calendário de preços: taxa do gestor dono e datas já seguradas por reservas.
+  const [taxaPercent, datasOcupadas] = await Promise.all([
+    getTaxaEfetiva(roteiro.owner_id),
+    getDatasOcupadasRoteiro({ roteiroId: roteiro.id, embarcacaoId: roteiro.embarcacao_id }),
+  ]);
+
   let estadoId: number | null = null;
   let municipios: { id: number; nome: string }[] = [];
 
@@ -141,6 +149,8 @@ export default async function AdminEditarRoteiroPage({
         bloqueiosIniciais={(bloqueios ?? []).map(b => b.data)}
         paradasIniciais={(paradas ?? []).map(p => p.nome)}
         voltarHref="/administrator/roteiros"
+        taxaPercent={taxaPercent}
+        datasOcupadas={datasOcupadas}
       />
     </div>
   );
