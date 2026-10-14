@@ -172,7 +172,71 @@ export default function VendasGrid({ anuncios }: { anuncios: AnuncioListItem[] }
             )}
           </div>
         ) : (
-          <div className="overflow-x-auto">
+          <>
+          {/* Mobile: um card por anúncio no lugar da tabela. */}
+          <ul className="md:hidden divide-y divide-slate-100">
+            {paged.map((a) => {
+              const img = getImage(a);
+              const vigente = a.status !== 'vendido' && a.status !== 'cancelado';
+              return (
+                <li key={a.id} className="p-4">
+                  <div className="flex items-start gap-3">
+                    <div className="w-14 h-14 rounded-xl overflow-hidden bg-slate-100 flex-shrink-0 border border-slate-100">
+                      {img ? (
+                        <Image src={img} alt={a.embarcacao?.nome ?? 'Embarcação'} width={56} height={56} className="w-full h-full object-cover" />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center">
+                          <Ship className="w-5 h-5 text-slate-300" />
+                        </div>
+                      )}
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-start justify-between gap-2">
+                        <p className="text-sm font-semibold text-[#0B2447] leading-tight">{a.embarcacao?.nome ?? '—'}</p>
+                        <span className="text-sm font-semibold text-[#0B2447] whitespace-nowrap">{brl.format(Number(a.preco))}</span>
+                      </div>
+                      <p className="mt-0.5 text-xs text-slate-500">
+                        {a.fabricante} · {a.ano_modelo}
+                        {a.ano_fabricacao !== a.ano_modelo && <span className="text-slate-400"> / fab. {a.ano_fabricacao}</span>}
+                      </p>
+                      <p className="mt-1 flex items-center gap-3 text-xs text-slate-500">
+                        <span className="inline-flex items-center gap-1"><Eye className="w-3.5 h-3.5 text-slate-400" />{a.visualizacoes}</span>
+                        <span className={`inline-flex items-center gap-1 ${a.leads > 0 ? 'font-semibold text-[#0B3D91]' : ''}`}>
+                          <Users className="w-3.5 h-3.5 text-slate-400" />{a.leads} lead{a.leads !== 1 ? 's' : ''}
+                        </span>
+                      </p>
+                    </div>
+                  </div>
+                  <div className="mt-3 flex items-center justify-between gap-2">
+                    <AcoesStatusGestor
+                      entidade="anuncio_venda" id={a.id}
+                      nome={a.embarcacao?.nome ?? 'Anúncio'} status={a.status}
+                    />
+                    <div className="flex items-center gap-1 shrink-0">
+                      <Link
+                        href={`/painel/vendas/funil?anuncio=${a.id}`}
+                        aria-label="Ver funil de leads"
+                        className="w-10 h-10 flex items-center justify-center rounded-lg text-slate-400 hover:text-[#0B2447] hover:bg-slate-100 transition-colors"
+                      >
+                        <Filter className="w-4 h-4" />
+                      </Link>
+                      {vigente && (
+                        <Link
+                          href={`/painel/vendas/${a.id}/editar`}
+                          aria-label="Editar anúncio"
+                          className="w-10 h-10 flex items-center justify-center rounded-lg text-slate-400 hover:text-[#0B2447] hover:bg-slate-100 transition-colors"
+                        >
+                          <Pencil className="w-4 h-4" />
+                        </Link>
+                      )}
+                    </div>
+                  </div>
+                </li>
+              );
+            })}
+          </ul>
+
+          <div className="hidden md:block overflow-x-auto">
             <table className="w-full text-left">
               <thead>
                 <tr className="border-b border-slate-100">
@@ -312,11 +376,12 @@ export default function VendasGrid({ anuncios }: { anuncios: AnuncioListItem[] }
               </tbody>
             </table>
           </div>
+          </>
         )}
 
         {/* Footer: count + pagination */}
         {sorted.length > 0 && (
-          <div className="px-6 py-4 border-t border-slate-100 flex flex-col sm:flex-row items-center justify-between gap-3">
+          <div className="px-4 sm:px-6 py-4 border-t border-slate-100 flex flex-col sm:flex-row items-center justify-between gap-3">
             <p className="text-xs text-slate-400">
               Mostrando{' '}
               <span className="font-semibold text-slate-600">
@@ -333,7 +398,7 @@ export default function VendasGrid({ anuncios }: { anuncios: AnuncioListItem[] }
                   onClick={() => setPage(1)}
                   disabled={page === 1}
                   title="Primeira página"
-                  className="w-7 h-7 flex items-center justify-center rounded-lg text-slate-400 hover:bg-slate-100 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                  className="hidden sm:flex w-8 h-8 sm:w-7 sm:h-7 items-center justify-center rounded-lg text-slate-400 hover:bg-slate-100 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
                 >
                   <ChevronsLeft className="w-3.5 h-3.5" />
                 </button>
@@ -341,21 +406,21 @@ export default function VendasGrid({ anuncios }: { anuncios: AnuncioListItem[] }
                   onClick={() => setPage((p) => Math.max(1, p - 1))}
                   disabled={page === 1}
                   title="Página anterior"
-                  className="w-7 h-7 flex items-center justify-center rounded-lg text-slate-400 hover:bg-slate-100 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                  className="w-8 h-8 sm:w-7 sm:h-7 flex items-center justify-center rounded-lg text-slate-400 hover:bg-slate-100 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
                 >
                   <ChevronLeft className="w-3.5 h-3.5" />
                 </button>
 
                 {getPageNumbers(page, totalPages).map((n, i) =>
                   n === '…' ? (
-                    <span key={`ellipsis-${i}`} className="w-7 h-7 flex items-center justify-center text-xs text-slate-400">
+                    <span key={`ellipsis-${i}`} className="w-8 h-8 sm:w-7 sm:h-7 flex items-center justify-center text-xs text-slate-400">
                       …
                     </span>
                   ) : (
                     <button
                       key={n}
                       onClick={() => setPage(n)}
-                      className={`w-7 h-7 rounded-lg text-xs font-semibold transition-colors ${
+                      className={`w-8 h-8 sm:w-7 sm:h-7 rounded-lg text-xs font-semibold transition-colors ${
                         n === page
                           ? 'bg-[#0B2447] text-white shadow-sm'
                           : 'text-slate-500 hover:bg-slate-100'
@@ -370,7 +435,7 @@ export default function VendasGrid({ anuncios }: { anuncios: AnuncioListItem[] }
                   onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
                   disabled={page === totalPages}
                   title="Próxima página"
-                  className="w-7 h-7 flex items-center justify-center rounded-lg text-slate-400 hover:bg-slate-100 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                  className="w-8 h-8 sm:w-7 sm:h-7 flex items-center justify-center rounded-lg text-slate-400 hover:bg-slate-100 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
                 >
                   <ChevronRight className="w-3.5 h-3.5" />
                 </button>
@@ -378,7 +443,7 @@ export default function VendasGrid({ anuncios }: { anuncios: AnuncioListItem[] }
                   onClick={() => setPage(totalPages)}
                   disabled={page === totalPages}
                   title="Última página"
-                  className="w-7 h-7 flex items-center justify-center rounded-lg text-slate-400 hover:bg-slate-100 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                  className="hidden sm:flex w-8 h-8 sm:w-7 sm:h-7 items-center justify-center rounded-lg text-slate-400 hover:bg-slate-100 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
                 >
                   <ChevronsRight className="w-3.5 h-3.5" />
                 </button>

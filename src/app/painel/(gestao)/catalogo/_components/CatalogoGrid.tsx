@@ -170,7 +170,50 @@ export default function CatalogoGrid({ itens }: { itens: CatalogoListItem[] }) {
             )}
           </div>
         ) : (
-          <div className="overflow-x-auto">
+          <>
+          {/* Mobile: lista compacta no lugar da tabela. */}
+          <ul className="md:hidden divide-y divide-slate-100">
+            {paged.map((item) => {
+              const cfg = TIPO_CONFIG[item.tipo];
+              const TipoIcon = cfg.icon;
+              return (
+                <li key={item.id} className="flex items-center gap-3 p-4">
+                  <div className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 ${cfg.bg}`}>
+                    <TipoIcon className={`w-4 h-4 ${cfg.text}`} />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-semibold text-[#0B2447] leading-tight">{item.descricao}</p>
+                    <p className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1">
+                      <span className={`inline-flex items-center gap-1.5 text-[11px] font-semibold px-2 py-0.5 rounded-full ${cfg.bg} ${cfg.text}`}>
+                        <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${cfg.dot}`} />
+                        {cfg.label}
+                      </span>
+                      <span className="text-sm font-semibold text-emerald-700">{fmtBRL(item.valor)}</span>
+                    </p>
+                  </div>
+                  <div className="flex items-center shrink-0">
+                    <Link
+                      href={`/painel/catalogo/${item.id}/editar`}
+                      aria-label={`Editar ${item.descricao}`}
+                      className="w-10 h-10 flex items-center justify-center rounded-lg text-slate-400 hover:text-[#0B2447] hover:bg-slate-100 transition-colors"
+                    >
+                      <Pencil className="w-4 h-4" />
+                    </Link>
+                    <button
+                      aria-label={`Excluir ${item.descricao}`}
+                      disabled={deleting === item.id}
+                      onClick={() => handleDelete(item.id, item.descricao)}
+                      className="w-10 h-10 flex items-center justify-center rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50 transition-colors disabled:opacity-40"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
+                </li>
+              );
+            })}
+          </ul>
+
+          <div className="hidden md:block overflow-x-auto">
             <table className="w-full text-left">
               <thead>
                 <tr className="border-b border-slate-100">
@@ -246,11 +289,12 @@ export default function CatalogoGrid({ itens }: { itens: CatalogoListItem[] }) {
               </tbody>
             </table>
           </div>
+          </>
         )}
 
         {/* Footer: count + pagination */}
         {sorted.length > 0 && (
-          <div className="px-6 py-4 border-t border-slate-100 flex flex-col sm:flex-row items-center justify-between gap-3">
+          <div className="px-4 sm:px-6 py-4 border-t border-slate-100 flex flex-col sm:flex-row items-center justify-between gap-3">
             <p className="text-xs text-slate-400">
               Mostrando{' '}
               <span className="font-semibold text-slate-600">
@@ -267,7 +311,7 @@ export default function CatalogoGrid({ itens }: { itens: CatalogoListItem[] }) {
                   onClick={() => setPage(1)}
                   disabled={page === 1}
                   title="Primeira página"
-                  className="w-7 h-7 flex items-center justify-center rounded-lg text-slate-400 hover:bg-slate-100 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                  className="hidden sm:flex w-8 h-8 sm:w-7 sm:h-7 items-center justify-center rounded-lg text-slate-400 hover:bg-slate-100 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
                 >
                   <ChevronsLeft className="w-3.5 h-3.5" />
                 </button>
@@ -275,21 +319,21 @@ export default function CatalogoGrid({ itens }: { itens: CatalogoListItem[] }) {
                   onClick={() => setPage((p) => Math.max(1, p - 1))}
                   disabled={page === 1}
                   title="Página anterior"
-                  className="w-7 h-7 flex items-center justify-center rounded-lg text-slate-400 hover:bg-slate-100 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                  className="w-8 h-8 sm:w-7 sm:h-7 flex items-center justify-center rounded-lg text-slate-400 hover:bg-slate-100 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
                 >
                   <ChevronLeft className="w-3.5 h-3.5" />
                 </button>
 
                 {getPageNumbers(page, totalPages).map((n, i) =>
                   n === '…' ? (
-                    <span key={`ellipsis-${i}`} className="w-7 h-7 flex items-center justify-center text-xs text-slate-400">
+                    <span key={`ellipsis-${i}`} className="w-8 h-8 sm:w-7 sm:h-7 flex items-center justify-center text-xs text-slate-400">
                       …
                     </span>
                   ) : (
                     <button
                       key={n}
                       onClick={() => setPage(n)}
-                      className={`w-7 h-7 rounded-lg text-xs font-semibold transition-colors ${
+                      className={`w-8 h-8 sm:w-7 sm:h-7 rounded-lg text-xs font-semibold transition-colors ${
                         n === page
                           ? 'bg-[#0B2447] text-white shadow-sm'
                           : 'text-slate-500 hover:bg-slate-100'
@@ -304,7 +348,7 @@ export default function CatalogoGrid({ itens }: { itens: CatalogoListItem[] }) {
                   onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
                   disabled={page === totalPages}
                   title="Próxima página"
-                  className="w-7 h-7 flex items-center justify-center rounded-lg text-slate-400 hover:bg-slate-100 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                  className="w-8 h-8 sm:w-7 sm:h-7 flex items-center justify-center rounded-lg text-slate-400 hover:bg-slate-100 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
                 >
                   <ChevronRight className="w-3.5 h-3.5" />
                 </button>
@@ -312,7 +356,7 @@ export default function CatalogoGrid({ itens }: { itens: CatalogoListItem[] }) {
                   onClick={() => setPage(totalPages)}
                   disabled={page === totalPages}
                   title="Última página"
-                  className="w-7 h-7 flex items-center justify-center rounded-lg text-slate-400 hover:bg-slate-100 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                  className="hidden sm:flex w-8 h-8 sm:w-7 sm:h-7 items-center justify-center rounded-lg text-slate-400 hover:bg-slate-100 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
                 >
                   <ChevronsRight className="w-3.5 h-3.5" />
                 </button>

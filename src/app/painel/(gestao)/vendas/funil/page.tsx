@@ -52,9 +52,9 @@ export default async function FunilVendasPage({
   }));
 
   return (
-    <div className="p-8">
+    <div className="p-4 sm:p-6 lg:p-8">
       {/* Header */}
-      <div className="mb-6 flex items-start justify-between">
+      <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <Link
             href="/painel/vendas"
@@ -63,7 +63,7 @@ export default async function FunilVendasPage({
             <ArrowLeft className="w-3.5 h-3.5" />
             Anúncios de venda
           </Link>
-          <h1 className="text-2xl font-bold text-[#0B2447]">Funil de vendas</h1>
+          <h1 className="text-xl sm:text-2xl font-bold text-[#0B2447]">Funil de vendas</h1>
           <p className="text-sm text-slate-400 mt-1">
             Interessados nos seus anúncios, do primeiro clique à negociação — quanto mais à
             direita, mais quente o lead.

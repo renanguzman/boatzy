@@ -99,7 +99,7 @@ export default function NotificacoesBell() {
             ? `Notificações: ${totalGeral} mensagem(ns) não lida(s)`
             : 'Notificações'
         }
-        className="relative p-2 rounded-lg hover:bg-slate-50 transition-colors text-slate-500 hover:text-[#0B2447]"
+        className="relative p-2.5 sm:p-2 rounded-lg hover:bg-slate-50 transition-colors text-slate-500 hover:text-[#0B2447]"
       >
         <Bell className="w-5 h-5" />
         {totalGeral > 0 && (
@@ -112,7 +112,7 @@ export default function NotificacoesBell() {
       {open && (
         <div
           role="menu"
-          className="absolute right-0 mt-2 w-96 max-w-[90vw] rounded-2xl border border-slate-100 bg-white shadow-xl shadow-slate-900/10 overflow-hidden z-50"
+          className="fixed inset-x-3 top-[3.75rem] sm:absolute sm:inset-x-auto sm:top-auto sm:right-0 sm:mt-2 sm:w-96 rounded-2xl border border-slate-100 bg-white shadow-xl shadow-slate-900/10 overflow-hidden z-50"
         >
           <div className="px-4 py-3 border-b border-slate-100 flex items-center justify-between">
             <p className="text-sm font-bold text-[#0B2447]">Notificações</p>
@@ -132,7 +132,7 @@ export default function NotificacoesBell() {
               </p>
             </div>
           ) : (
-            <div className="max-h-96 overflow-y-auto py-1.5">
+            <div className="max-h-[60dvh] sm:max-h-96 overflow-y-auto overscroll-contain py-1.5">
               {conversas.map((c) => (
                 <Link
                   key={c.conversa_id}

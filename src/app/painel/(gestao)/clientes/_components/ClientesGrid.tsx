@@ -196,7 +196,47 @@ export default function ClientesGrid({ clientes }: { clientes: ClienteListItem[]
             </p>
           </div>
         ) : (
-          <div className="overflow-x-auto">
+          <>
+          {/* Mobile: lista de clientes com atalho para o chat. */}
+          <ul className="md:hidden divide-y divide-slate-100">
+            {paged.map((c) => {
+              const naoLidas = naoLidasMap.get(c.id) ?? 0;
+              return (
+                <li key={c.id} className="flex items-center gap-3 p-4">
+                  <div className="w-11 h-11 rounded-full overflow-hidden bg-slate-100 flex-shrink-0 border border-slate-100">
+                    {c.avatar_url ? (
+                      <Image src={c.avatar_url} alt={c.name} width={44} height={44} className="w-full h-full object-cover" />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center">
+                        <User className="w-5 h-5 text-slate-300" />
+                      </div>
+                    )}
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-semibold text-[#0B2447] leading-tight truncate">{c.name}</p>
+                    <p className="text-xs text-slate-500 truncate mt-0.5">{c.email}</p>
+                    <p className="text-[11px] text-slate-400 mt-0.5">
+                      {c.total_reservas} reserva{c.total_reservas !== 1 ? 's' : ''} · última em {formatDate(c.ultima_reserva)}
+                    </p>
+                  </div>
+                  <Link
+                    href={`/painel/clientes/${c.id}/chat`}
+                    aria-label={naoLidas > 0 ? `Chat com ${c.name}: ${naoLidas} mensagem(ns) não lida(s)` : `Abrir chat com ${c.name}`}
+                    className="relative w-11 h-11 shrink-0 flex items-center justify-center rounded-xl text-slate-400 hover:text-[#0B2447] hover:bg-slate-100 transition-colors"
+                  >
+                    <MessageCircle className="w-5 h-5" />
+                    {naoLidas > 0 && (
+                      <span className="absolute top-0.5 right-0.5 min-w-[18px] h-[18px] px-1 flex items-center justify-center rounded-full bg-red-500 text-white text-[10px] font-bold leading-none">
+                        {naoLidas > 99 ? '99+' : naoLidas}
+                      </span>
+                    )}
+                  </Link>
+                </li>
+              );
+            })}
+          </ul>
+
+          <div className="hidden md:block overflow-x-auto">
             <table className="w-full text-left">
               <thead>
                 <tr className="border-b border-slate-100">
@@ -298,11 +338,12 @@ export default function ClientesGrid({ clientes }: { clientes: ClienteListItem[]
               </tbody>
             </table>
           </div>
+          </>
         )}
 
         {/* Footer: count + pagination */}
         {sorted.length > 0 && (
-          <div className="px-6 py-4 border-t border-slate-100 flex flex-col sm:flex-row items-center justify-between gap-3">
+          <div className="px-4 sm:px-6 py-4 border-t border-slate-100 flex flex-col sm:flex-row items-center justify-between gap-3">
             <p className="text-xs text-slate-400">
               Mostrando{' '}
               <span className="font-semibold text-slate-600">
@@ -319,7 +360,7 @@ export default function ClientesGrid({ clientes }: { clientes: ClienteListItem[]
                   onClick={() => setPage(1)}
                   disabled={page === 1}
                   title="Primeira página"
-                  className="w-7 h-7 flex items-center justify-center rounded-lg text-slate-400 hover:bg-slate-100 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                  className="hidden sm:flex w-8 h-8 sm:w-7 sm:h-7 items-center justify-center rounded-lg text-slate-400 hover:bg-slate-100 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
                 >
                   <ChevronsLeft className="w-3.5 h-3.5" />
                 </button>
@@ -327,21 +368,21 @@ export default function ClientesGrid({ clientes }: { clientes: ClienteListItem[]
                   onClick={() => setPage((p) => Math.max(1, p - 1))}
                   disabled={page === 1}
                   title="Página anterior"
-                  className="w-7 h-7 flex items-center justify-center rounded-lg text-slate-400 hover:bg-slate-100 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                  className="w-8 h-8 sm:w-7 sm:h-7 flex items-center justify-center rounded-lg text-slate-400 hover:bg-slate-100 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
                 >
                   <ChevronLeft className="w-3.5 h-3.5" />
                 </button>
 
                 {getPageNumbers(page, totalPages).map((n, i) =>
                   n === '…' ? (
-                    <span key={`ellipsis-${i}`} className="w-7 h-7 flex items-center justify-center text-xs text-slate-400">
+                    <span key={`ellipsis-${i}`} className="w-8 h-8 sm:w-7 sm:h-7 flex items-center justify-center text-xs text-slate-400">
                       …
                     </span>
                   ) : (
                     <button
                       key={n}
                       onClick={() => setPage(n)}
-                      className={`w-7 h-7 rounded-lg text-xs font-semibold transition-colors ${
+                      className={`w-8 h-8 sm:w-7 sm:h-7 rounded-lg text-xs font-semibold transition-colors ${
                         n === page
                           ? 'bg-[#0B2447] text-white shadow-sm'
                           : 'text-slate-500 hover:bg-slate-100'
@@ -356,7 +397,7 @@ export default function ClientesGrid({ clientes }: { clientes: ClienteListItem[]
                   onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
                   disabled={page === totalPages}
                   title="Próxima página"
-                  className="w-7 h-7 flex items-center justify-center rounded-lg text-slate-400 hover:bg-slate-100 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                  className="w-8 h-8 sm:w-7 sm:h-7 flex items-center justify-center rounded-lg text-slate-400 hover:bg-slate-100 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
                 >
                   <ChevronRight className="w-3.5 h-3.5" />
                 </button>
@@ -364,7 +405,7 @@ export default function ClientesGrid({ clientes }: { clientes: ClienteListItem[]
                   onClick={() => setPage(totalPages)}
                   disabled={page === totalPages}
                   title="Última página"
-                  className="w-7 h-7 flex items-center justify-center rounded-lg text-slate-400 hover:bg-slate-100 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                  className="hidden sm:flex w-8 h-8 sm:w-7 sm:h-7 items-center justify-center rounded-lg text-slate-400 hover:bg-slate-100 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
                 >
                   <ChevronsRight className="w-3.5 h-3.5" />
                 </button>

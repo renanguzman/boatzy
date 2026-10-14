@@ -20,8 +20,10 @@ import {
   BookOpen,
   Tag,
   UsersRound,
+  X,
 } from 'lucide-react';
 import clsx from 'clsx';
+import { useMenuMobile } from './MenuMobile';
 
 const navItems = [
   { href: '/painel', label: 'DASHBOARD', icon: LayoutDashboard, exact: true, tour: 'nav-dashboard' },
@@ -39,6 +41,7 @@ export default function Sidebar({ naoLidas = 0 }: { naoLidas?: number }) {
   const pathname = usePathname();
   const router = useRouter();
   const supabaseRef = useRef(createClient());
+  const { aberto, fechar } = useMenuMobile();
 
   // Total de mensagens não lidas: começa com o valor do servidor e é mantido
   // ao vivo via Realtime (eventos em `mensagem`).
@@ -81,72 +84,102 @@ export default function Sidebar({ naoLidas = 0 }: { naoLidas?: number }) {
   }
 
   return (
-    <aside className="w-[260px] h-full bg-white border-r border-slate-200 flex flex-col">
-      <div className="px-6 py-6">
-        <Link href="/painel" className="block">
-          <Image src="/images/logo.png" alt="Boatzy" width={180} height={54} className="h-12 w-auto mb-1" priority />
-          <span className="text-[10px] text-slate-400 font-medium tracking-wider uppercase ml-1 block">
-            Admin Portal
-          </span>
-        </Link>
-      </div>
+    <>
+      {/* Fundo escurecido do drawer (só < lg). */}
+      <div
+        aria-hidden="true"
+        onClick={fechar}
+        className={clsx(
+          'fixed inset-0 z-40 bg-[#0B2447]/50 backdrop-blur-[2px] transition-opacity duration-300 lg:hidden',
+          aberto ? 'opacity-100' : 'pointer-events-none opacity-0',
+        )}
+      />
 
-      <nav className="flex-1 px-4 space-y-0.5">
-        {navItems.map(({ href, label, icon: Icon, exact, tour }) => {
-          const active = exact ? pathname === href : pathname.startsWith(href);
-          const showBadge = href === '/painel/clientes' && totalNaoLidas > 0;
-          return (
-            <Link
-              key={href}
-              href={href}
-              data-tour={tour}
-              className={clsx(
-                'flex items-center gap-3 px-3 py-2.5 rounded-lg text-xs font-semibold tracking-wide transition-all duration-150',
-                active
-                  ? 'bg-[#0B2447] text-white shadow-md shadow-[#0B2447]/20'
-                  : 'text-slate-500 hover:bg-slate-50 hover:text-[#0B2447]',
-              )}
-            >
-              <Icon className="w-4 h-4 flex-shrink-0" />
-              <span className="flex-1">{label}</span>
-              {showBadge && (
-                <span className="min-w-[18px] h-[18px] px-1 flex items-center justify-center rounded-full bg-red-500 text-white text-[10px] font-bold leading-none">
-                  {totalNaoLidas > 99 ? '99+' : totalNaoLidas}
-                </span>
-              )}
-            </Link>
-          );
-        })}
-
-        <div className="pt-4">
-          <Link
-            href="/painel/embarcacoes/novo"
-            data-tour="nova-embarcacao"
-            className="flex items-center justify-center gap-2 w-full bg-[#0B3D91] hover:bg-[#0B2447] text-white font-semibold text-xs py-3 rounded-xl transition-all duration-200 shadow-lg shadow-[#0B3D91]/20"
-          >
-            <Plus className="w-4 h-4" />
-            Nova Embarcação
+      {/* Desktop: coluna fixa. Mobile/tablet: drawer deslizante pela esquerda. */}
+      <aside
+        id="painel-menu"
+        aria-label="Menu do painel"
+        className={clsx(
+          'fixed inset-y-0 left-0 z-50 w-[280px] max-w-[85vw] h-dvh bg-white border-r border-slate-200 flex flex-col',
+          'transition-[transform,visibility] duration-300 ease-out',
+          'lg:static lg:z-auto lg:shrink-0 lg:w-[260px] lg:max-w-none lg:h-full lg:translate-x-0 lg:visible lg:shadow-none',
+          aberto ? 'translate-x-0 visible shadow-2xl' : '-translate-x-full invisible',
+        )}
+      >
+        <div className="px-6 py-5 lg:py-6 flex items-start justify-between gap-3">
+          <Link href="/painel" className="block">
+            <Image src="/images/logo.png" alt="Boatzy" width={180} height={54} className="h-10 lg:h-12 w-auto mb-1" priority />
+            <span className="text-[10px] text-slate-400 font-medium tracking-wider uppercase ml-1 block">
+              Admin Portal
+            </span>
           </Link>
+          <button
+            type="button"
+            onClick={fechar}
+            aria-label="Fechar menu"
+            className="lg:hidden -mr-2 p-2.5 rounded-xl text-slate-500 hover:bg-slate-50 hover:text-[#0B2447] transition-colors"
+          >
+            <X className="w-5 h-5" />
+          </button>
         </div>
-      </nav>
 
-      <div className="px-4 pb-6 space-y-0.5">
-        <Link
-          href="/painel/suporte"
-          className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-xs font-semibold tracking-wide text-slate-500 hover:bg-slate-50 hover:text-[#0B2447] transition-all duration-150"
-        >
-          <HelpCircle className="w-4 h-4" />
-          SUPPORT
-        </Link>
+        <nav className="flex-1 min-h-0 overflow-y-auto overscroll-contain px-4 pb-2 space-y-0.5">
+          {navItems.map(({ href, label, icon: Icon, exact, tour }) => {
+            const active = exact ? pathname === href : pathname.startsWith(href);
+            const showBadge = href === '/painel/clientes' && totalNaoLidas > 0;
+            return (
+              <Link
+                key={href}
+                href={href}
+                data-tour={tour}
+                className={clsx(
+                  'flex items-center gap-3 px-3 py-3 lg:py-2.5 rounded-lg text-xs font-semibold tracking-wide transition-all duration-150',
+                  active
+                    ? 'bg-[#0B2447] text-white shadow-md shadow-[#0B2447]/20'
+                    : 'text-slate-500 hover:bg-slate-50 hover:text-[#0B2447]',
+                )}
+              >
+                <Icon className="w-4 h-4 flex-shrink-0" />
+                <span className="flex-1">{label}</span>
+                {showBadge && (
+                  <span className="min-w-[18px] h-[18px] px-1 flex items-center justify-center rounded-full bg-red-500 text-white text-[10px] font-bold leading-none">
+                    {totalNaoLidas > 99 ? '99+' : totalNaoLidas}
+                  </span>
+                )}
+              </Link>
+            );
+          })}
 
-        <button
-          onClick={handleSignOut}
-          className="flex items-center gap-3 px-3 py-2.5 w-full rounded-lg text-xs font-semibold tracking-wide text-slate-500 hover:bg-red-50 hover:text-red-600 transition-all duration-150"
-        >
-          <LogOut className="w-4 h-4" />
-          SIGN OUT
-        </button>
-      </div>
-    </aside>
+          <div className="pt-4">
+            <Link
+              href="/painel/embarcacoes/novo"
+              data-tour="nova-embarcacao"
+              className="flex items-center justify-center gap-2 w-full bg-[#0B3D91] hover:bg-[#0B2447] text-white font-semibold text-xs py-3 rounded-xl transition-all duration-200 shadow-lg shadow-[#0B3D91]/20"
+            >
+              <Plus className="w-4 h-4" />
+              Nova Embarcação
+            </Link>
+          </div>
+        </nav>
+
+        <div className="px-4 pt-2 pb-[max(1.5rem,env(safe-area-inset-bottom))] space-y-0.5 border-t border-slate-100 lg:border-0">
+          <Link
+            href="/painel/suporte"
+            className="flex items-center gap-3 px-3 py-3 lg:py-2.5 rounded-lg text-xs font-semibold tracking-wide text-slate-500 hover:bg-slate-50 hover:text-[#0B2447] transition-all duration-150"
+          >
+            <HelpCircle className="w-4 h-4" />
+            SUPPORT
+          </Link>
+
+          <button
+            onClick={handleSignOut}
+            className="flex items-center gap-3 px-3 py-3 lg:py-2.5 w-full rounded-lg text-xs font-semibold tracking-wide text-slate-500 hover:bg-red-50 hover:text-red-600 transition-all duration-150"
+          >
+            <LogOut className="w-4 h-4" />
+            SIGN OUT
+          </button>
+        </div>
+      </aside>
+    </>
   );
 }

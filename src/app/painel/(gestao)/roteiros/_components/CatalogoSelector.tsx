@@ -105,24 +105,25 @@ function NovoItemModal({ onClose, onCriado }: {
       onClick={onClose}
     >
       <div
-        className="w-full max-w-md rounded-2xl bg-white shadow-xl overflow-hidden"
+        className="w-full max-w-md max-h-[90dvh] overflow-y-auto overscroll-contain rounded-2xl bg-white shadow-xl"
         onClick={e => e.stopPropagation()}
       >
-        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 bg-slate-50/50">
+        <div className="flex items-center justify-between gap-3 px-4 sm:px-6 py-4 border-b border-slate-100 bg-slate-50/50">
           <h3 className="text-sm font-bold text-[#0B2447] tracking-wide uppercase">
             Novo item de catálogo
           </h3>
           <button
             type="button"
             onClick={onClose}
-            className="text-slate-400 hover:text-slate-600 transition"
+            aria-label="Fechar"
+            className="-m-2 p-2 text-slate-400 hover:text-slate-600 transition"
           >
             <X className="w-4 h-4" />
           </button>
         </div>
 
         {/* Não usamos <form> aninhado: este modal é renderizado dentro do form do roteiro. */}
-        <div className="p-6 space-y-5">
+        <div className="p-4 sm:p-6 space-y-5">
           <div>
             <label className="block text-sm font-medium text-slate-700 mb-1.5">
               Descrição<span className="text-red-500 ml-0.5">*</span>
@@ -177,12 +178,12 @@ function NovoItemModal({ onClose, onCriado }: {
             </div>
           )}
 
-          <div className="flex items-center justify-end gap-3">
+          <div className="flex items-center sm:justify-end gap-3">
             <button
               type="button"
               onClick={onClose}
               disabled={submitting}
-              className="px-5 py-2.5 rounded-xl border border-slate-200 text-sm font-semibold text-slate-600 hover:bg-slate-50 transition disabled:opacity-50"
+              className="flex-1 sm:flex-none px-5 py-3 sm:py-2.5 rounded-xl border border-slate-200 text-sm font-semibold text-slate-600 hover:bg-slate-50 transition disabled:opacity-50"
             >
               Cancelar
             </button>
@@ -190,7 +191,7 @@ function NovoItemModal({ onClose, onCriado }: {
               type="button"
               onClick={handleSubmit}
               disabled={submitting || !descricao.trim() || !valor}
-              className="flex items-center gap-2 px-6 py-2.5 rounded-xl bg-[#0B2447] hover:bg-[#0B3D91] text-white text-sm font-semibold transition shadow-md shadow-[#0B2447]/10 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="flex-[2] sm:flex-none flex items-center justify-center gap-2 px-4 sm:px-6 py-3 sm:py-2.5 rounded-xl bg-[#0B2447] hover:bg-[#0B3D91] text-white text-sm font-semibold transition shadow-md shadow-[#0B2447]/10 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {submitting
                 ? <><Loader2 className="w-4 h-4 animate-spin" /> Salvando...</>

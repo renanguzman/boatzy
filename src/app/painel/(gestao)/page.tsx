@@ -194,7 +194,7 @@ export default async function PainelDashboardPage() {
   const recentes = reservas.slice(0, 6);
 
   return (
-    <div className="p-8">
+    <div className="p-4 sm:p-6 lg:p-8">
       {/* Pipeline de aprovação */}
       {devolvidos.length > 0 && (
         <div className="mb-6 rounded-2xl border border-orange-200 bg-orange-50/60 p-5">
@@ -223,36 +223,36 @@ export default async function PainelDashboardPage() {
       )}
 
       {/* Stats Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-5 gap-5 mb-8">
+      <div className="grid grid-cols-2 xl:grid-cols-5 gap-3 sm:gap-5 mb-6 sm:mb-8">
         {stats.map((stat) => (
           <Link
             key={stat.label}
             href={stat.href}
-            className="bg-white rounded-2xl border border-slate-100 p-5 shadow-sm hover:shadow-md transition-shadow duration-200"
+            className="bg-white rounded-2xl border border-slate-100 p-4 sm:p-5 shadow-sm hover:shadow-md transition-shadow duration-200 last:col-span-2 xl:last:col-span-1 min-w-0"
           >
-            <div className="flex items-start justify-between mb-3">
-              <p className="text-[10px] font-bold text-slate-400 tracking-wider uppercase">
+            <div className="flex items-start justify-between gap-2 mb-3">
+              <p className="text-[10px] font-bold text-slate-400 tracking-wider uppercase leading-snug">
                 {stat.label}
               </p>
-              <div className={`w-9 h-9 rounded-xl ${stat.iconBg} flex items-center justify-center`}>
+              <div className={`w-8 h-8 sm:w-9 sm:h-9 shrink-0 rounded-xl ${stat.iconBg} flex items-center justify-center`}>
                 <stat.icon className={`w-4 h-4 ${stat.iconColor}`} />
               </div>
             </div>
             <p className="text-2xl font-bold text-[#0B2447] mb-1">{stat.value}</p>
-            <p className="text-xs text-slate-400 flex items-center gap-1">
-              {stat.subDot && <span className="w-2 h-2 bg-green-400 rounded-full animate-pulse" />}
-              {stat.subAlert && <AlertTriangle className="w-3 h-3 text-amber-500" />}
-              <span className={stat.subAlert ? 'text-amber-600 font-medium' : ''}>{stat.sub}</span>
+            <p className="text-xs text-slate-400 flex items-center gap-1 min-w-0">
+              {stat.subDot && <span className="w-2 h-2 shrink-0 bg-green-400 rounded-full animate-pulse" />}
+              {stat.subAlert && <AlertTriangle className="w-3 h-3 shrink-0 text-amber-500" />}
+              <span className={`truncate ${stat.subAlert ? 'text-amber-600 font-medium' : ''}`}>{stat.sub}</span>
             </p>
           </Link>
         ))}
       </div>
 
       {/* Gráfico + Destaque */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6 mb-6 sm:mb-8">
         {/* Reservas solicitadas nos últimos 6 meses */}
-        <div className="lg:col-span-2 bg-white rounded-2xl border border-slate-100 p-6 shadow-sm">
-          <div className="flex items-center justify-between mb-1">
+        <div className="lg:col-span-2 bg-white rounded-2xl border border-slate-100 p-4 sm:p-6 shadow-sm min-w-0">
+          <div className="flex flex-wrap items-start justify-between gap-2 mb-1">
             <div>
               <h3 className="text-base font-bold text-[#0B2447]">Reservas solicitadas</h3>
               <p className="text-xs text-slate-400 mt-0.5">
@@ -265,7 +265,7 @@ export default async function PainelDashboardPage() {
           </div>
 
           {/* Bar Chart */}
-          <div className="mt-6 flex items-end justify-between gap-4 h-48 px-2">
+          <div className="mt-6 flex items-end justify-between gap-2 sm:gap-4 h-48 sm:px-2">
             {meses.map((m) => (
               <div key={`${m.ano}-${m.mes}`} className="flex-1 flex flex-col items-center gap-2">
                 <span className="text-[11px] font-bold text-slate-500 tabular-nums">
@@ -273,7 +273,7 @@ export default async function PainelDashboardPage() {
                 </span>
                 <div className="w-full flex justify-center">
                   <div
-                    className="w-10 rounded-t-lg transition-all duration-500 hover:opacity-80"
+                    className="w-full max-w-10 rounded-t-lg transition-all duration-500 hover:opacity-80"
                     style={{
                       height: `${Math.max(m.total > 0 ? 8 : 2, (m.total / maxMes) * 150)}px`,
                       backgroundColor:
@@ -290,7 +290,7 @@ export default async function PainelDashboardPage() {
         </div>
 
         {/* Destaque dos últimos 6 meses */}
-        <div className="bg-[#0B2447] rounded-2xl p-6 text-white shadow-lg relative overflow-hidden">
+        <div className="bg-[#0B2447] rounded-2xl p-5 sm:p-6 text-white shadow-lg relative overflow-hidden">
           <div className="absolute top-0 right-0 w-32 h-32 bg-white/5 rounded-full -translate-y-1/2 translate-x-1/2" />
           <div className="absolute bottom-0 left-0 w-24 h-24 bg-white/5 rounded-full translate-y-1/2 -translate-x-1/2" />
 
@@ -347,8 +347,8 @@ export default async function PainelDashboardPage() {
       </div>
 
       {/* Últimas solicitações de reserva */}
-      <div className="bg-white rounded-2xl border border-slate-100 p-6 shadow-sm">
-        <div className="flex items-center justify-between mb-5">
+      <div className="bg-white rounded-2xl border border-slate-100 p-4 sm:p-6 shadow-sm">
+        <div className="flex items-start justify-between gap-3 mb-5">
           <div>
             <h3 className="text-base font-bold text-[#0B2447]">Últimas solicitações de reserva</h3>
             <p className="text-xs text-slate-400 mt-0.5">
@@ -357,7 +357,7 @@ export default async function PainelDashboardPage() {
           </div>
           <Link
             href="/painel/agendamentos"
-            className="flex items-center gap-1 text-xs font-semibold text-[#0B3D91] hover:text-[#0B2447] transition-colors"
+            className="flex items-center gap-1 shrink-0 py-1 text-xs font-semibold text-[#0B3D91] hover:text-[#0B2447] transition-colors"
           >
             Ver todas
             <ChevronRight className="w-3.5 h-3.5" />
@@ -369,7 +369,48 @@ export default async function PainelDashboardPage() {
             <p className="text-sm text-slate-400 font-medium">Você ainda não recebeu solicitações de reserva.</p>
           </div>
         ) : (
-          <div className="overflow-x-auto">
+          <>
+          {/* Mobile: cards empilhados no lugar da tabela. */}
+          <ul className="md:hidden divide-y divide-slate-100 -mx-4 sm:-mx-6">
+            {recentes.map((r) => {
+              const s = STATUS_BADGE[r.status];
+              const TipoIcon = r.tipo === 'embarcacao' ? Ship : MapPin;
+              return (
+                <li key={r.id}>
+                  <Link
+                    href={`/painel/agendamentos/${r.id}`}
+                    className="flex items-start gap-3 px-4 sm:px-6 py-3.5 active:bg-slate-50 transition-colors"
+                  >
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-start justify-between gap-2">
+                        <p className="text-sm font-semibold text-[#0B2447] line-clamp-2">{r.item_nome}</p>
+                        <span className="text-sm font-semibold text-[#0B2447] shrink-0 tabular-nums">
+                          {r.total_estimado != null ? formatCurrency(r.total_estimado) : '—'}
+                        </span>
+                      </div>
+                      <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1">
+                        <span
+                          className={`inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full ${
+                            r.tipo === 'embarcacao' ? 'bg-blue-50 text-blue-700' : 'bg-cyan-50 text-cyan-700'
+                          }`}
+                        >
+                          <TipoIcon className="w-2.5 h-2.5" />
+                          {r.tipo === 'embarcacao' ? 'Embarcação' : 'Roteiro'}
+                        </span>
+                        <span className={`text-[10px] font-bold uppercase tracking-wider ${s.class}`}>{s.label}</span>
+                      </div>
+                      <p className="mt-1.5 text-xs text-slate-500">
+                        {r.cliente?.name ?? '—'} · {formatDataCurta(r.data_reserva)} · {r.quantidade_pessoas} pessoa{r.quantidade_pessoas !== 1 ? 's' : ''}
+                      </p>
+                    </div>
+                    <ChevronRight className="w-4 h-4 text-slate-300 shrink-0 mt-0.5" />
+                  </Link>
+                </li>
+              );
+            })}
+          </ul>
+
+          <div className="hidden md:block overflow-x-auto">
             <table className="w-full text-left">
               <thead>
                 <tr className="border-b border-slate-100">
@@ -425,6 +466,7 @@ export default async function PainelDashboardPage() {
               </tbody>
             </table>
           </div>
+          </>
         )}
       </div>
     </div>

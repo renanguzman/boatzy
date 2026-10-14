@@ -115,14 +115,14 @@ export default function ReceitasGrid({
 
   return (
     <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
-      <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between flex-wrap gap-3">
+      <div className="px-4 sm:px-6 py-4 border-b border-slate-100 flex items-center justify-between flex-wrap gap-3">
         <h3 className="text-sm font-bold text-[#0B2447]">Reservas no período</h3>
         <div className="flex items-center gap-2">
           <button
             type="button"
             onClick={handleExportExcel}
             disabled={sorted.length === 0}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+            className="inline-flex items-center gap-1.5 px-3 py-2 sm:py-1.5 rounded-lg text-xs font-semibold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
           >
             <FileSpreadsheet className="w-3.5 h-3.5" />
             Excel
@@ -131,7 +131,7 @@ export default function ReceitasGrid({
             type="button"
             onClick={handleExportPdf}
             disabled={sorted.length === 0}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-red-700 bg-red-50 hover:bg-red-100 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+            className="inline-flex items-center gap-1.5 px-3 py-2 sm:py-1.5 rounded-lg text-xs font-semibold text-red-700 bg-red-50 hover:bg-red-100 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
           >
             <FileText className="w-3.5 h-3.5" />
             PDF
@@ -146,7 +146,33 @@ export default function ReceitasGrid({
           <p className="text-xs text-slate-400 mt-1">Ajuste os filtros para ver outros resultados.</p>
         </div>
       ) : (
-        <div className="overflow-x-auto">
+        <>
+        {/* Mobile: uma linha por reserva no lugar da tabela. */}
+        <ul className="md:hidden divide-y divide-slate-100">
+          {paged.map((r) => (
+            <li key={r.id} className="px-4 py-3.5">
+              <div className="flex items-start justify-between gap-3">
+                <p className="min-w-0 text-sm font-semibold text-[#0B2447]">
+                  {r.roteiro?.nome ?? r.embarcacao?.nome ?? r.item_nome}
+                </p>
+                <span className="shrink-0 text-sm font-semibold text-[#0B2447] whitespace-nowrap">
+                  {formatCurrencyPrecise(r.total_estimado ?? 0)}
+                </span>
+              </div>
+              <p className="mt-0.5 text-xs text-slate-500">
+                {formatDataCurta(r.data_reserva)} · {r.cliente?.name ?? '—'} · {r.quantidade_pessoas} pessoa{r.quantidade_pessoas !== 1 ? 's' : ''}
+              </p>
+              <div className="mt-1.5 flex items-center gap-2">
+                <span className={`inline-block text-[11px] font-semibold px-2 py-0.5 rounded-full ${STATUS_BADGE[r.status]}`}>
+                  {STATUS_LABEL[r.status]}
+                </span>
+                <span className="text-[11px] text-slate-400">{TIPO_LABEL[r.tipo]}</span>
+              </div>
+            </li>
+          ))}
+        </ul>
+
+        <div className="hidden md:block overflow-x-auto">
           <table className="w-full text-left">
             <thead>
               <tr className="border-b border-slate-100">
@@ -184,10 +210,11 @@ export default function ReceitasGrid({
             </tbody>
           </table>
         </div>
+        </>
       )}
 
       {sorted.length > 0 && (
-        <div className="px-6 py-4 border-t border-slate-100 flex flex-col sm:flex-row items-center justify-between gap-3">
+        <div className="px-4 sm:px-6 py-4 border-t border-slate-100 flex flex-col sm:flex-row items-center justify-between gap-3">
           <p className="text-xs text-slate-400">
             Mostrando{' '}
             <span className="font-semibold text-slate-600">
@@ -199,22 +226,22 @@ export default function ReceitasGrid({
           {totalPages > 1 && (
             <div className="flex items-center gap-1">
               <button onClick={() => setPage(1)} disabled={page === 1} title="Primeira página"
-                className="w-7 h-7 flex items-center justify-center rounded-lg text-slate-400 hover:bg-slate-100 disabled:opacity-30 disabled:cursor-not-allowed transition-colors">
+                className="hidden sm:flex w-8 h-8 sm:w-7 sm:h-7 items-center justify-center rounded-lg text-slate-400 hover:bg-slate-100 disabled:opacity-30 disabled:cursor-not-allowed transition-colors">
                 <ChevronsLeft className="w-3.5 h-3.5" />
               </button>
               <button onClick={() => setPage((p) => Math.max(1, p - 1))} disabled={page === 1} title="Página anterior"
-                className="w-7 h-7 flex items-center justify-center rounded-lg text-slate-400 hover:bg-slate-100 disabled:opacity-30 disabled:cursor-not-allowed transition-colors">
+                className="w-8 h-8 sm:w-7 sm:h-7 flex items-center justify-center rounded-lg text-slate-400 hover:bg-slate-100 disabled:opacity-30 disabled:cursor-not-allowed transition-colors">
                 <ChevronLeft className="w-3.5 h-3.5" />
               </button>
 
               {getPageNumbers(page, totalPages).map((n, i) =>
                 n === '…' ? (
-                  <span key={`ellipsis-${i}`} className="w-7 h-7 flex items-center justify-center text-xs text-slate-400">…</span>
+                  <span key={`ellipsis-${i}`} className="w-8 h-8 sm:w-7 sm:h-7 flex items-center justify-center text-xs text-slate-400">…</span>
                 ) : (
                   <button
                     key={n}
                     onClick={() => setPage(n)}
-                    className={`w-7 h-7 rounded-lg text-xs font-semibold transition-colors ${
+                    className={`w-8 h-8 sm:w-7 sm:h-7 rounded-lg text-xs font-semibold transition-colors ${
                       n === page ? 'bg-[#0B2447] text-white shadow-sm' : 'text-slate-500 hover:bg-slate-100'
                     }`}
                   >
@@ -224,11 +251,11 @@ export default function ReceitasGrid({
               )}
 
               <button onClick={() => setPage((p) => Math.min(totalPages, p + 1))} disabled={page === totalPages} title="Próxima página"
-                className="w-7 h-7 flex items-center justify-center rounded-lg text-slate-400 hover:bg-slate-100 disabled:opacity-30 disabled:cursor-not-allowed transition-colors">
+                className="w-8 h-8 sm:w-7 sm:h-7 flex items-center justify-center rounded-lg text-slate-400 hover:bg-slate-100 disabled:opacity-30 disabled:cursor-not-allowed transition-colors">
                 <ChevronRight className="w-3.5 h-3.5" />
               </button>
               <button onClick={() => setPage(totalPages)} disabled={page === totalPages} title="Última página"
-                className="w-7 h-7 flex items-center justify-center rounded-lg text-slate-400 hover:bg-slate-100 disabled:opacity-30 disabled:cursor-not-allowed transition-colors">
+                className="hidden sm:flex w-8 h-8 sm:w-7 sm:h-7 items-center justify-center rounded-lg text-slate-400 hover:bg-slate-100 disabled:opacity-30 disabled:cursor-not-allowed transition-colors">
                 <ChevronsRight className="w-3.5 h-3.5" />
               </button>
             </div>

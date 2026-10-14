@@ -2,6 +2,7 @@ import Sidebar from '@/components/painel/Sidebar';
 import Header from '@/components/painel/Header';
 import SignOutLink from '@/components/painel/SignOutLink';
 import { TutorialProvider } from '@/components/painel/TutorialPainel';
+import { MenuMobileProvider } from '@/components/painel/MenuMobile';
 import { createClient } from '@/lib/supabase/server';
 import { supabaseAdmin } from '@/lib/supabase';
 import { Ship } from 'lucide-react';
@@ -64,16 +65,19 @@ export default async function GestaoLayout({ children }: { children: React.React
   }
 
   return (
-    <TutorialProvider>
-      <div className="flex h-screen overflow-hidden bg-[#F8F9FB]">
-        <Sidebar naoLidas={naoLidas} />
-        <div className="flex-1 flex flex-col overflow-auto">
-          <Header />
-          <main className="flex-1 overflow-auto" data-tour="dashboard-content">
-            {children}
-          </main>
+    <MenuMobileProvider>
+      <TutorialProvider>
+        {/* h-dvh: no Safari/Chrome mobile acompanha a barra de endereço (h-screen corta o rodapé). */}
+        <div className="painel-shell flex h-dvh overflow-hidden bg-[#F8F9FB]">
+          <Sidebar naoLidas={naoLidas} />
+          <div className="flex-1 min-w-0 flex flex-col overflow-hidden">
+            <Header />
+            <main className="flex-1 min-w-0 overflow-y-auto overflow-x-hidden overscroll-contain pb-[env(safe-area-inset-bottom)]" data-tour="dashboard-content">
+              {children}
+            </main>
+          </div>
         </div>
-      </div>
-    </TutorialProvider>
+      </TutorialProvider>
+    </MenuMobileProvider>
   );
 }

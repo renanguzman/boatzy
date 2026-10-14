@@ -36,6 +36,12 @@ function brl(v: number): string {
     style: 'currency', currency: 'BRL', minimumFractionDigits: Number.isInteger(v) ? 0 : 2, maximumFractionDigits: 2,
   });
 }
+/** Celular: preço compacto para caber na célula (sem "R$"; milhares em "k"). */
+function brlCurto(v: number): string {
+  if (v < 1000) return String(Math.round(v));
+  const k = v / 1000;
+  return `${k.toLocaleString('pt-BR', { maximumFractionDigits: k < 10 ? 1 : 0 })}k`;
+}
 function brlCompleto(v: number): string {
   return v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 }
@@ -277,7 +283,7 @@ export default function CalendarioPrecos({
       <div className="flex flex-col xl:flex-row gap-6 xl:items-start">
         {/* ── Calendário ─────────────────────────────────────────────────── */}
         <div className="flex-1 min-w-0">
-          <div className="rounded-xl border border-slate-200 bg-white p-4">
+          <div className="rounded-xl border border-slate-200 bg-white p-2.5 sm:p-4">
             <div className="flex items-center justify-between gap-3 flex-wrap mb-4">
               <div className="flex gap-1 bg-slate-100 rounded-xl p-1" role="tablist" aria-label="Modo de seleção">
                 {([
@@ -297,14 +303,14 @@ export default function CalendarioPrecos({
 
               <div className="flex items-center gap-1">
                 <button type="button" onClick={mesAnterior} disabled={!podeVoltar} aria-label="Mês anterior"
-                  className={`p-1.5 rounded-full transition-colors ${
+                  className={`p-2.5 sm:p-1.5 rounded-full transition-colors ${
                     podeVoltar ? 'hover:bg-slate-100 text-slate-700' : 'text-slate-200 cursor-default'
                   }`}>
                   <ChevronLeft className="w-4 h-4" />
                 </button>
-                <p className="w-36 text-center text-sm font-semibold text-slate-800">{MESES[view.mes]} {view.ano}</p>
+                <p className="w-32 sm:w-36 text-center text-sm font-semibold text-slate-800">{MESES[view.mes]} {view.ano}</p>
                 <button type="button" onClick={mesSeguinte} disabled={!podeAvancar} aria-label="Próximo mês"
-                  className={`p-1.5 rounded-full transition-colors ${
+                  className={`p-2.5 sm:p-1.5 rounded-full transition-colors ${
                     podeAvancar ? 'hover:bg-slate-100 text-slate-700' : 'text-slate-200 cursor-default'
                   }`}>
                   <ChevronRight className="w-4 h-4" />
@@ -312,7 +318,7 @@ export default function CalendarioPrecos({
               </div>
             </div>
 
-            <div className="grid grid-cols-7 gap-1" onMouseLeave={() => setHover(null)}>
+            <div className="grid grid-cols-7 gap-0.5 sm:gap-1" onMouseLeave={() => setHover(null)}>
               {DOW_CURTOS.map(d => (
                 <div key={d} className="text-center text-[10px] font-medium text-slate-400 pb-1">{d}</div>
               ))}
@@ -330,12 +336,15 @@ export default function CalendarioPrecos({
                   const ocupado = motivo === 'Já reservado';
                   return (
                     <div key={iso} title={motivo}
-                      className={`h-14 rounded-lg border px-1.5 py-1 flex flex-col justify-between cursor-default ${
+                      className={`h-12 sm:h-14 rounded-md sm:rounded-lg border px-0.5 sm:px-1.5 py-1 flex flex-col items-center sm:items-stretch justify-between cursor-default ${
                         ocupado ? 'border-slate-200 bg-slate-100' : 'border-transparent'
                       }`}>
                       <span className="text-[11px] text-slate-300">{Number(iso.slice(8))}</span>
-                      <span className={`text-[10px] font-medium leading-tight ${ocupado ? 'text-slate-500' : 'text-slate-300 line-through'}`}>
+                      <span className={`hidden sm:block text-[10px] font-medium leading-tight ${ocupado ? 'text-slate-500' : 'text-slate-300 line-through'}`}>
                         {ocupado ? 'Reservado' : preco.valor != null && iso >= hoje ? brl(preco.valor) : ''}
+                      </span>
+                      <span className={`sm:hidden text-[9px] font-medium leading-tight ${ocupado ? 'text-slate-500' : 'text-slate-300 line-through'}`}>
+                        {ocupado ? 'Res.' : preco.valor != null && iso >= hoje ? brlCurto(preco.valor) : ''}
                       </span>
                     </div>
                   );
@@ -345,20 +354,25 @@ export default function CalendarioPrecos({
                   <button key={iso} type="button" onClick={() => clicarDia(iso)}
                     onMouseEnter={() => { if (inicio) setHover(iso); }}
                     title={`${DOW_LONGOS[diaDaSemanaISO(iso)]}, ${fmtBR(iso)} — ${ORIGEM[chave].label}`}
-                    className={`relative h-14 rounded-lg border px-1.5 py-1 flex flex-col justify-between text-left transition-all hover:shadow-sm ${
+                    className={`relative h-12 sm:h-14 rounded-md sm:rounded-lg border px-0.5 sm:px-1.5 py-1 flex flex-col items-center sm:items-stretch justify-between text-center sm:text-left transition-all hover:shadow-sm ${
                       ORIGEM[chave].cell
                     } ${selecionado || noRascunho ? 'ring-2 ring-[#0B2447] ring-offset-1' : ''}
                     ${afetadaPrevia ? 'ring-2 ring-[#0B3D91] ring-offset-1 shadow-md shadow-[#0B3D91]/20' : ''}`}>
                     <span className={`text-[11px] ${ehHoje ? 'font-bold text-[#0B2447]' : 'text-slate-500'}`}>
                       {Number(iso.slice(8))}
                     </span>
-                    <span className={`text-xs font-semibold leading-tight ${
+                    <span className={`hidden sm:block text-xs font-semibold leading-tight ${
                       preco.valor == null ? 'text-red-500' : 'text-slate-800'
                     }`}>
                       {preco.valor != null ? brl(preco.valor) : 'Sem preço'}
                     </span>
+                    <span className={`sm:hidden text-[10px] font-semibold leading-tight tabular-nums ${
+                      preco.valor == null ? 'text-red-500' : 'text-slate-800'
+                    }`}>
+                      {preco.valor != null ? brlCurto(preco.valor) : '—'}
+                    </span>
                     {preco.manual && (
-                      <PencilLine className="absolute top-1 right-1 w-3 h-3 text-emerald-600" aria-label="Ajuste manual" />
+                      <PencilLine className="absolute top-0.5 right-0.5 sm:top-1 sm:right-1 w-2.5 h-2.5 sm:w-3 sm:h-3 text-emerald-600" aria-label="Ajuste manual" />
                     )}
                   </button>
                 );
@@ -393,6 +407,16 @@ export default function CalendarioPrecos({
               <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-sm bg-slate-100 border border-slate-200" /> Reservado</span>
               <span className="line-through">Indisponível</span>
             </div>
+
+            {/* Celular/tablet: o painel do dia fica abaixo — atalho até ele. */}
+            {selecionados.length > 0 && (
+              <button type="button"
+                onClick={() => document.getElementById('calendario-precos-dia')?.scrollIntoView({ behavior: 'smooth', block: 'center' })}
+                className="xl:hidden mt-3 w-full flex items-center justify-center gap-1.5 rounded-xl bg-[#0B2447] text-white text-sm font-semibold py-3">
+                Definir preço {selecionados.length === 1 ? 'deste dia' : `dos ${selecionados.length} dias`}
+                <ChevronRight className="w-4 h-4 rotate-90" />
+              </button>
+            )}
           </div>
 
           {/* Ajustes manuais */}
@@ -421,7 +445,7 @@ export default function CalendarioPrecos({
                       {dias.length > 1 && <span className="text-[10px] text-emerald-600">· {dias.length} dias</span>}
                       <span className="font-bold">{brl(g.valor)}</span>
                       <button type="button" onClick={() => voltarAoAutomatico(dias)}
-                        className="w-4 h-4 flex items-center justify-center rounded-full hover:bg-emerald-200 transition-colors"
+                        className="w-6 h-6 sm:w-4 sm:h-4 -my-1 sm:my-0 flex items-center justify-center rounded-full hover:bg-emerald-200 transition-colors"
                         aria-label={`Voltar ao automático ${rotulo}`}>
                         <X className="w-3 h-3" />
                       </button>
@@ -435,7 +459,7 @@ export default function CalendarioPrecos({
 
         {/* ── Painel do dia ──────────────────────────────────────────────── */}
         <div className="w-full xl:w-80 shrink-0 space-y-4">
-          <div className="rounded-xl border border-slate-200 bg-white p-4 space-y-4">
+          <div id="calendario-precos-dia" className="rounded-xl border border-slate-200 bg-white p-4 space-y-4 scroll-mt-4">
             {selecionados.length === 0 ? (
               <div>
                 <p className="text-sm font-bold text-[#0B2447]">Clique em um dia</p>
@@ -460,7 +484,7 @@ export default function CalendarioPrecos({
                     )}
                   </div>
                   <button type="button" onClick={limparSelecao} aria-label="Limpar seleção"
-                    className="shrink-0 w-6 h-6 flex items-center justify-center rounded-full text-slate-400 hover:bg-slate-100 hover:text-slate-600 transition-colors">
+                    className="shrink-0 w-9 h-9 sm:w-6 sm:h-6 -m-1.5 sm:m-0 flex items-center justify-center rounded-full text-slate-400 hover:bg-slate-100 hover:text-slate-600 transition-colors">
                     <X className="w-3.5 h-3.5" />
                   </button>
                 </div>

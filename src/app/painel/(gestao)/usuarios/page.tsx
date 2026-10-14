@@ -29,17 +29,17 @@ export default async function UsuariosPage() {
     .order('created_at', { ascending: false });
 
   return (
-    <div className="p-8">
+    <div className="p-4 sm:p-6 lg:p-8">
       <div className="mb-8 flex items-center gap-3">
         <Users className="w-6 h-6 text-cyan-500" />
         <div>
-          <h1 className="text-2xl font-bold text-slate-900">Usuários</h1>
+          <h1 className="text-xl sm:text-2xl font-bold text-slate-900">Usuários</h1>
           <p className="text-slate-500 mt-0.5 text-sm">Cadastre e gerencie usuários da plataforma.</p>
         </div>
       </div>
 
       {/* Formulário de criação */}
-      <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-6 mb-8">
+      <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-4 sm:p-6 mb-6 sm:mb-8">
         <div className="flex items-center gap-2 mb-6">
           <UserPlus className="w-4 h-4 text-slate-500" />
           <h2 className="text-sm font-semibold text-slate-700">Novo usuário</h2>
@@ -49,7 +49,7 @@ export default async function UsuariosPage() {
 
       {/* Tabela de usuários */}
       <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
-        <div className="px-6 py-4 border-b border-slate-100">
+        <div className="px-4 sm:px-6 py-4 border-b border-slate-100">
           <h2 className="text-sm font-semibold text-slate-700">
             Usuários cadastrados
             <span className="ml-2 text-slate-400 font-normal">({users?.length ?? 0})</span>
@@ -66,11 +66,11 @@ export default async function UsuariosPage() {
             <table className="w-full text-sm">
               <thead>
                 <tr className="bg-slate-50 text-left">
-                  <th className="px-6 py-3 font-medium text-slate-500">Nome</th>
-                  <th className="px-6 py-3 font-medium text-slate-500">E-mail</th>
-                  <th className="px-6 py-3 font-medium text-slate-500">CPF / CNPJ</th>
-                  <th className="px-6 py-3 font-medium text-slate-500">Perfis</th>
-                  <th className="px-6 py-3 font-medium text-slate-500">Cadastro</th>
+                  <th className="px-4 sm:px-6 py-3 whitespace-nowrap font-medium text-slate-500">Nome</th>
+                  <th className="px-4 sm:px-6 py-3 whitespace-nowrap font-medium text-slate-500">E-mail</th>
+                  <th className="px-4 sm:px-6 py-3 whitespace-nowrap font-medium text-slate-500">CPF / CNPJ</th>
+                  <th className="px-4 sm:px-6 py-3 whitespace-nowrap font-medium text-slate-500">Perfis</th>
+                  <th className="px-4 sm:px-6 py-3 whitespace-nowrap font-medium text-slate-500">Cadastro</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
@@ -78,10 +78,10 @@ export default async function UsuariosPage() {
                   const roles = (user.user_roles as Array<{ role: string }>) ?? [];
                   return (
                     <tr key={user.id} className="hover:bg-slate-50 transition-colors">
-                      <td className="px-6 py-3 font-medium text-slate-900">{user.name}</td>
-                      <td className="px-6 py-3 text-slate-600">{user.email}</td>
-                      <td className="px-6 py-3 text-slate-500">{user.cpf_cnpj ?? '—'}</td>
-                      <td className="px-6 py-3">
+                      <td className="px-4 sm:px-6 py-3 font-medium text-slate-900">{user.name}</td>
+                      <td className="px-4 sm:px-6 py-3 text-slate-600">{user.email}</td>
+                      <td className="px-4 sm:px-6 py-3 text-slate-500">{user.cpf_cnpj ?? '—'}</td>
+                      <td className="px-4 sm:px-6 py-3">
                         <div className="flex gap-1 flex-wrap">
                           {roles.length > 0 ? roles.map((r) => (
                             <span
@@ -95,7 +95,7 @@ export default async function UsuariosPage() {
                           )}
                         </div>
                       </td>
-                      <td className="px-6 py-3 text-slate-500">
+                      <td className="px-4 sm:px-6 py-3 text-slate-500">
                         {new Intl.DateTimeFormat('pt-BR', { timeZone: FUSO_HORARIO }).format(new Date(user.created_at))}
                       </td>
                     </tr>

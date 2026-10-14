@@ -34,9 +34,9 @@ export default async function NovoRoteiroPage({
   ]);
 
   return (
-    <div className="p-8">
+    <div className="p-4 sm:p-6 lg:p-8">
       <div className="mb-6">
-        <h1 className="text-2xl font-bold text-[#0B2447]">Novo Roteiro</h1>
+        <h1 className="text-xl sm:text-2xl font-bold text-[#0B2447]">Novo Roteiro</h1>
         <p className="text-sm text-slate-400 mt-1">
           Preencha em etapas — você pode ir e voltar entre elas quando quiser.
         </p>

@@ -253,6 +253,57 @@ Módulo independente do hotsite, acessível apenas por usuários cuja lista de r
 | `/painel/embarcacoes` | CRUD de embarcações | gestor/admin |
 | `/painel/usuarios` | Cadastro e listagem de usuários | gestor/admin |
 
+### Layout responsivo (mobile — Chrome/Safari, Android/iOS)
+
+Breakpoints Tailwind padrão; o painel é "desktop a partir de `lg` (1024px)".
+
+**Shell** (`src/app/painel/(gestao)/layout.tsx`):
+- `<MenuMobileProvider>` → `<TutorialProvider>` → `div.painel-shell.flex.h-dvh` (usa `dvh` em vez de
+  `100vh`: no Safari/Chrome mobile acompanha a barra de endereço). A coluna de conteúdo é
+  `min-w-0 overflow-hidden`; o único scroller é o `<main>` (`overflow-y-auto overflow-x-hidden
+  overscroll-contain`, `padding-bottom: env(safe-area-inset-bottom)`).
+- `src/components/painel/MenuMobile.tsx` — contexto do menu em telas `< lg`:
+  ```ts
+  export function MenuMobileProvider(props: { children: React.ReactNode }): JSX.Element;
+  export function useMenuMobile(): { aberto: boolean; abrir(): void; fechar(): void; alternar(): void };
+  ```
+  Fecha sozinho ao trocar de rota (ajuste de estado no render ao mudar `usePathname()`), com `Esc` e
+  ao cruzar para `≥ 1024px`; enquanto aberto trava a rolagem do `body`.
+- `Sidebar` (`#painel-menu`): `≥ lg` coluna fixa de 260px (como antes); `< lg` **drawer** `fixed`
+  (280px, máx. 85vw) que desliza da esquerda (`translate-x` + `visibility` — fechado fica
+  `invisible`, fora da ordem de foco), com backdrop navy/50 clicável e botão **X**. Itens com
+  `py-3` no mobile (alvo de toque ≥ 44px); nav rolável; rodapé respeita `safe-area-inset-bottom`.
+- `Header`: `h-14` no mobile / `h-16` no desktop. `< lg` mostra o botão hambúrguer (`aria-controls=
+  "painel-menu"`, `aria-expanded`) + logo (link para `/painel`); o título só aparece `≥ lg`.
+- `NotificacoesBell`: dropdown vira `fixed inset-x-3 top-[3.75rem]` no `< sm` (não vaza da tela) e
+  lista com `max-h-[60dvh]`.
+- `globals.css`: em `(pointer: coarse) and (max-width: 1023px)`, `input/select/textarea` dentro de
+  `.painel-shell` ficam com `font-size: 16px` — evita o zoom automático do Safari iOS ao focar.
+
+**Padrões aplicados às telas**
+- Raiz das páginas: `p-4 sm:p-6 lg:p-8`; títulos `text-xl sm:text-2xl`; cabeçalho título+ações
+  empilha no mobile (`flex-col gap-4 sm:flex-row`), botões de ação centralizados/largura total.
+- **Tabelas → cards** abaixo de `md` (768px): Dashboard (últimas solicitações), Embarcações,
+  Roteiros, Catálogo, Vendas, Clientes e Receitas renderizam uma `<ul className="md:hidden">` com um
+  card por registro (mesmos dados-chave e ações; `AcoesStatusGestor` incluso) e a tabela original
+  fica `hidden md:block`. Ordenação por coluna continua só no desktop; busca e paginação valem nos dois.
+- Paginação: botões 32px no mobile (`w-8 h-8 sm:w-7 sm:h-7`); "primeira/última página" só `≥ sm`.
+- Agendamentos: pendentes aparecem **antes** do calendário (`order-first xl:order-none`, lista com
+  `max-h-[22rem]`). Calendário `< md`: visão **Mês** = grade compacta com pontos coloridos por status;
+  tocar num dia mostra a lista daquele dia abaixo (`DiaLista`). Visão **Semana** = lista vertical de
+  dias. Desktop inalterado.
+- Funil de vendas: colunas do kanban em carrossel horizontal com `scroll-snap` (85% da largura no
+  celular, 45% no tablet); `≥ lg` volta às 5 colunas.
+- Receitas: filtros em 2 colunas (De/Até lado a lado), KPIs 2×N, top clientes sem a coluna de
+  contagem no mobile.
+- `CalendarioPrecos`: células `h-12` com preço compacto (`brlCurto`: "350", "1,2k") no `< sm`;
+  botão "Definir preço deste dia / dos N dias" (`xl:hidden`) rola até o painel do dia
+  (`#calendario-precos-dia`). `DisponibilidadePicker`: dias da semana em `grid-cols-7`.
+- Formulários: `SectionCard` com `p-4 sm:p-6`; botões Cancelar/Salvar dividem a largura no mobile;
+  recuos `ml-8` viram `ml-0 sm:ml-8`. Modais (`CatalogoSelector`, `AcoesStatusGestor`,
+  `ConfirmarNovaAnaliseModal`) com `max-h-[90dvh] overflow-y-auto`.
+- Alvos de toque de ícones de ação: 40px (`w-10 h-10`) nos cards mobile.
+
 ### Dashboard (`/painel`)
 
 `src/app/painel/(gestao)/page.tsx` — Server Component (era template mock `'use client'`; reescrito
@@ -3860,6 +3911,7 @@ embarcação e depois criar um roteiro.
 | `src/app/painel/(gestao)/layout.tsx` | Envolve o painel com `<TutorialProvider>`; `<main data-tour="dashboard-content">` |
 | `src/components/painel/Sidebar.tsx` | `data-tour` em cada item do menu + no botão "Nova Embarcação". Rótulo do item `/painel/roteiros` (`nav-roteiros`) é **`ROTEIROS / PREÇOS`** (título do passo do tutorial: "Roteiros / Preços") |
 | `src/components/painel/Header.tsx` | Renderiza `<TutorialButton />` ao lado do `NotificacoesBell` |
+| `src/components/painel/MenuMobile.tsx` | No `< lg` o menu é um drawer: o `TutorialOverlay` chama `abrir()` nos passos cujo alvo está no menu (`data-tour="nav-*"` / `nova-embarcacao`), `fechar()` nos demais e ao sair; remede o alvo 350ms depois (fim da animação do drawer) |
 
 ### 28.2 Contrato dos componentes
 

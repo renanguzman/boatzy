@@ -153,7 +153,73 @@ export default function RoteirosGrid({ roteiros }: { roteiros: RoteiroListItem[]
             )}
           </div>
         ) : (
-          <div className="overflow-x-auto">
+          <>
+          {/* Mobile: um card por roteiro no lugar da tabela. */}
+          <ul className="md:hidden divide-y divide-slate-100">
+            {paged.map((r) => {
+              const img = getImage(r.roteiro_imagens);
+              const detalhes = [
+                getLocalidade(r.municipios),
+                r.duracao,
+                r.quantidade_pessoas != null ? `${r.quantidade_pessoas} pax` : null,
+              ].filter(Boolean).join(' · ');
+              return (
+                <li key={r.id} className="p-4">
+                  <div className="flex items-start gap-3">
+                    <div className="w-14 h-14 rounded-xl overflow-hidden bg-slate-100 flex-shrink-0 border border-slate-100">
+                      {img ? (
+                        <Image src={img} alt={r.nome} width={56} height={56} className="w-full h-full object-cover" />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center">
+                          <MapPin className="w-5 h-5 text-slate-300" />
+                        </div>
+                      )}
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="text-sm font-semibold text-[#0B2447] leading-tight">{r.nome}</p>
+                      {(r.origem || r.destino) && (
+                        <p className="text-[11px] text-slate-400 mt-0.5">
+                          {[r.origem, r.destino].filter(Boolean).join(' → ')}
+                        </p>
+                      )}
+                      {r.embarcacao && (
+                        <span className="mt-1 inline-block text-[11px] font-semibold px-2 py-0.5 rounded-full bg-blue-50 text-blue-700">
+                          {r.embarcacao.nome}
+                        </span>
+                      )}
+                      {detalhes && <p className="mt-1 text-xs text-slate-500">{detalhes}</p>}
+                    </div>
+                  </div>
+                  {r.status === 'ativo' && !r.ativo && (
+                    <p className="mt-2 flex items-center gap-1 text-[11px] text-amber-700">
+                      <EyeOff className="w-3 h-3 shrink-0" /> Fora do site: embarcação não ativa
+                    </p>
+                  )}
+                  <div className="mt-3 flex items-center justify-between gap-2">
+                    <AcoesStatusGestor entidade="roteiro" id={r.id} nome={r.nome} status={r.status} />
+                    <div className="flex items-center gap-1 shrink-0">
+                      <Link
+                        href={`/painel/roteiros/${r.id}/editar#preco`}
+                        aria-label={`Preço de ${r.nome}`}
+                        className="w-10 h-10 flex items-center justify-center rounded-lg text-slate-400 hover:text-[#0B2447] hover:bg-slate-100 transition-colors"
+                      >
+                        <DollarSign className="w-4 h-4" />
+                      </Link>
+                      <Link
+                        href={`/painel/roteiros/${r.id}/editar`}
+                        aria-label={`Editar ${r.nome}`}
+                        className="w-10 h-10 flex items-center justify-center rounded-lg text-slate-400 hover:text-[#0B2447] hover:bg-slate-100 transition-colors"
+                      >
+                        <Pencil className="w-4 h-4" />
+                      </Link>
+                    </div>
+                  </div>
+                </li>
+              );
+            })}
+          </ul>
+
+          <div className="hidden md:block overflow-x-auto">
             <table className="w-full text-left">
               <thead>
                 <tr className="border-b border-slate-100">
@@ -268,10 +334,11 @@ export default function RoteirosGrid({ roteiros }: { roteiros: RoteiroListItem[]
               </tbody>
             </table>
           </div>
+          </>
         )}
 
         {sorted.length > 0 && (
-          <div className="px-6 py-4 border-t border-slate-100 flex flex-col sm:flex-row items-center justify-between gap-3">
+          <div className="px-4 sm:px-6 py-4 border-t border-slate-100 flex flex-col sm:flex-row items-center justify-between gap-3">
             <p className="text-xs text-slate-400">
               Mostrando{' '}
               <span className="font-semibold text-slate-600">
@@ -285,20 +352,20 @@ export default function RoteirosGrid({ roteiros }: { roteiros: RoteiroListItem[]
             {totalPages > 1 && (
               <div className="flex items-center gap-1">
                 <button onClick={() => setPage(1)} disabled={page === 1} title="Primeira página"
-                  className="w-7 h-7 flex items-center justify-center rounded-lg text-slate-400 hover:bg-slate-100 disabled:opacity-30 disabled:cursor-not-allowed transition-colors">
+                  className="hidden sm:flex w-8 h-8 sm:w-7 sm:h-7 items-center justify-center rounded-lg text-slate-400 hover:bg-slate-100 disabled:opacity-30 disabled:cursor-not-allowed transition-colors">
                   <ChevronsLeft className="w-3.5 h-3.5" />
                 </button>
                 <button onClick={() => setPage((p) => Math.max(1, p - 1))} disabled={page === 1} title="Página anterior"
-                  className="w-7 h-7 flex items-center justify-center rounded-lg text-slate-400 hover:bg-slate-100 disabled:opacity-30 disabled:cursor-not-allowed transition-colors">
+                  className="w-8 h-8 sm:w-7 sm:h-7 flex items-center justify-center rounded-lg text-slate-400 hover:bg-slate-100 disabled:opacity-30 disabled:cursor-not-allowed transition-colors">
                   <ChevronLeft className="w-3.5 h-3.5" />
                 </button>
 
                 {getPageNumbers(page, totalPages).map((n, i) =>
                   n === '…' ? (
-                    <span key={`ellipsis-${i}`} className="w-7 h-7 flex items-center justify-center text-xs text-slate-400">…</span>
+                    <span key={`ellipsis-${i}`} className="w-8 h-8 sm:w-7 sm:h-7 flex items-center justify-center text-xs text-slate-400">…</span>
                   ) : (
                     <button key={n} onClick={() => setPage(n)}
-                      className={`w-7 h-7 rounded-lg text-xs font-semibold transition-colors ${
+                      className={`w-8 h-8 sm:w-7 sm:h-7 rounded-lg text-xs font-semibold transition-colors ${
                         n === page ? 'bg-[#0B2447] text-white shadow-sm' : 'text-slate-500 hover:bg-slate-100'
                       }`}>
                       {n}
@@ -307,11 +374,11 @@ export default function RoteirosGrid({ roteiros }: { roteiros: RoteiroListItem[]
                 )}
 
                 <button onClick={() => setPage((p) => Math.min(totalPages, p + 1))} disabled={page === totalPages} title="Próxima página"
-                  className="w-7 h-7 flex items-center justify-center rounded-lg text-slate-400 hover:bg-slate-100 disabled:opacity-30 disabled:cursor-not-allowed transition-colors">
+                  className="w-8 h-8 sm:w-7 sm:h-7 flex items-center justify-center rounded-lg text-slate-400 hover:bg-slate-100 disabled:opacity-30 disabled:cursor-not-allowed transition-colors">
                   <ChevronRight className="w-3.5 h-3.5" />
                 </button>
                 <button onClick={() => setPage(totalPages)} disabled={page === totalPages} title="Última página"
-                  className="w-7 h-7 flex items-center justify-center rounded-lg text-slate-400 hover:bg-slate-100 disabled:opacity-30 disabled:cursor-not-allowed transition-colors">
+                  className="hidden sm:flex w-8 h-8 sm:w-7 sm:h-7 items-center justify-center rounded-lg text-slate-400 hover:bg-slate-100 disabled:opacity-30 disabled:cursor-not-allowed transition-colors">
                   <ChevronsRight className="w-3.5 h-3.5" />
                 </button>
               </div>

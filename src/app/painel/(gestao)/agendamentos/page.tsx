@@ -33,13 +33,13 @@ export default async function AgendamentosPage() {
   const temPendentes = pendentes.length > 0;
 
   return (
-    <div className="p-8">
-      <div className="mb-6 flex items-center gap-3">
-        <div className="h-11 w-11 rounded-xl bg-indigo-50 flex items-center justify-center">
+    <div className="p-4 sm:p-6 lg:p-8">
+      <div className="mb-6 flex items-start sm:items-center gap-3">
+        <div className="h-10 w-10 sm:h-11 sm:w-11 shrink-0 rounded-xl bg-indigo-50 flex items-center justify-center">
           <CalendarDays className="w-5 h-5 text-indigo-500" />
         </div>
         <div>
-          <h1 className="text-2xl font-bold text-[#0B2447]">Agendamentos</h1>
+          <h1 className="text-xl sm:text-2xl font-bold text-[#0B2447]">Agendamentos</h1>
           <p className="text-slate-500 mt-0.5 text-sm">
             Calendário de reservas das suas embarcações e roteiros.
             {temPendentes && (
@@ -56,7 +56,8 @@ export default async function AgendamentosPage() {
           <div className="xl:col-span-7">
             <AgendamentosCalendar eventos={eventos} />
           </div>
-          <div className="xl:col-span-3">
+          {/* No mobile os pendentes vêm antes do calendário: são o que pede ação. */}
+          <div className="xl:col-span-3 order-first xl:order-none">
             <PendentesList pendentes={pendentes} />
           </div>
         </div>

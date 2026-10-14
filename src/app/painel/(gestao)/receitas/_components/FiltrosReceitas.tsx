@@ -51,8 +51,8 @@ export default function FiltrosReceitas({
   const temFiltroExtra = filtros.embarcacaoId || filtros.roteiroId || filtros.clienteId;
 
   return (
-    <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5 mb-6">
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+    <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-4 sm:p-5 mb-6">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
         <div>
           <Label>De</Label>
           <input type="date" value={filtros.de} onChange={(e) => set('de', e.target.value)} className={inputClass} />
@@ -61,7 +61,7 @@ export default function FiltrosReceitas({
           <Label>Até</Label>
           <input type="date" value={filtros.ate} onChange={(e) => set('ate', e.target.value)} className={inputClass} />
         </div>
-        <div>
+        <div className="col-span-2 md:col-span-1">
           <Label>Embarcação</Label>
           <select value={filtros.embarcacaoId} onChange={(e) => set('embarcacaoId', e.target.value)} className={inputClass}>
             <option value="">Todas</option>
@@ -70,7 +70,7 @@ export default function FiltrosReceitas({
             ))}
           </select>
         </div>
-        <div>
+        <div className="col-span-2 md:col-span-1">
           <Label>Roteiro</Label>
           <select value={filtros.roteiroId} onChange={(e) => set('roteiroId', e.target.value)} className={inputClass}>
             <option value="">Todos</option>
@@ -79,7 +79,7 @@ export default function FiltrosReceitas({
             ))}
           </select>
         </div>
-        <div className="lg:col-span-2">
+        <div className="col-span-2">
           <Label>Cliente</Label>
           <select value={filtros.clienteId} onChange={(e) => set('clienteId', e.target.value)} className={inputClass}>
             <option value="">Todos</option>
@@ -88,7 +88,7 @@ export default function FiltrosReceitas({
             ))}
           </select>
         </div>
-        <div className="lg:col-span-2">
+        <div className="col-span-2">
           <Label>Status</Label>
           <div className="flex flex-wrap gap-1.5 pt-1">
             {TODOS_STATUS.map((s) => {
@@ -98,7 +98,7 @@ export default function FiltrosReceitas({
                   key={s}
                   type="button"
                   onClick={() => toggleStatus(s)}
-                  className={`px-2.5 py-1 rounded-full text-[11px] font-semibold transition-colors ${
+                  className={`px-3 py-1.5 sm:px-2.5 sm:py-1 rounded-full text-[11px] font-semibold transition-colors ${
                     ativo ? STATUS_BADGE[s] : 'bg-slate-100 text-slate-400 hover:bg-slate-200'
                   }`}
                 >
@@ -123,7 +123,7 @@ export default function FiltrosReceitas({
               key={label}
               type="button"
               onClick={() => aplicarPreset(preset)}
-              className="px-2.5 py-1 rounded-full text-[11px] font-semibold text-slate-500 bg-slate-50 hover:bg-slate-100 hover:text-[#0B2447] transition-colors"
+              className="px-3 py-1.5 sm:px-2.5 sm:py-1 rounded-full text-[11px] font-semibold text-slate-500 bg-slate-50 hover:bg-slate-100 hover:text-[#0B2447] transition-colors"
             >
               {label}
             </button>

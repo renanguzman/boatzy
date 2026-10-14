@@ -37,13 +37,13 @@ function KpiTile({
   const DeltaIcon = delta == null || delta.pct === 0 ? Minus : delta.pct > 0 ? TrendingUp : TrendingDown;
 
   return (
-    <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5">
+    <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-4 sm:p-5 min-w-0 last:col-span-2 lg:last:col-span-1">
       <div className="flex items-center gap-2 text-slate-400 mb-3">
-        <Icon className="w-4 h-4" />
-        <span className="text-[11px] font-bold tracking-wider uppercase">{label}</span>
+        <Icon className="w-4 h-4 shrink-0" />
+        <span className="text-[10px] sm:text-[11px] font-bold tracking-wider uppercase leading-snug">{label}</span>
       </div>
-      <p className="text-2xl font-bold text-[#0B2447] leading-tight">{value}</p>
-      <div className="mt-1.5 h-4 flex items-center gap-1">
+      <p className="text-lg sm:text-2xl font-bold text-[#0B2447] leading-tight break-words">{value}</p>
+      <div className="mt-1.5 min-h-4 flex flex-wrap items-center gap-x-1">
         {delta !== undefined && delta !== null && (
           <>
             <DeltaIcon className="w-3.5 h-3.5" style={{ color: deltaColor }} />
@@ -92,7 +92,7 @@ function TooltipValor({ active, payload, label }: {
 
 function ChartCard({ title, children, empty }: { title: string; children: React.ReactNode; empty: boolean }) {
   return (
-    <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5">
+    <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-4 sm:p-5 min-w-0">
       <h3 className="text-sm font-bold text-[#0B2447] mb-4">{title}</h3>
       {empty ? (
         <div className="h-52 flex items-center justify-center text-sm text-slate-400">
@@ -121,9 +121,9 @@ export default function ReceitasInsights({
   const alturaRanking = (n: number) => Math.max(160, n * 36);
 
   return (
-    <div className="space-y-6 mb-6">
+    <div className="space-y-4 sm:space-y-6 mb-6">
       {/* KPI tiles */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-5 gap-3 sm:gap-4">
         <KpiTile
           icon={DollarSign}
           label="Receita no período"
@@ -173,7 +173,7 @@ export default function ReceitasInsights({
         </ResponsiveContainer>
       </ChartCard>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
         {/* Por embarcação */}
         <ChartCard title="Receita por embarcação" empty={porEmbarcacao.length === 0}>
           <ResponsiveContainer width="100%" height={alturaRanking(porEmbarcacao.length)}>
@@ -224,7 +224,7 @@ export default function ReceitasInsights({
       </div>
 
       {/* Top clientes */}
-      <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5">
+      <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-4 sm:p-5">
         <h3 className="text-sm font-bold text-[#0B2447] mb-4">Top clientes por receita</h3>
         {topClientes.length === 0 ? (
           <div className="h-24 flex items-center justify-center text-sm text-slate-400">
@@ -236,8 +236,8 @@ export default function ReceitasInsights({
               <div key={c.nome} className="flex items-center gap-3">
                 <span className="w-5 text-xs font-bold text-slate-300 text-right shrink-0">{i + 1}</span>
                 <span className="flex-1 text-sm text-slate-700 truncate">{c.nome}</span>
-                <span className="text-xs text-slate-400 shrink-0">{c.reservas} reserva{c.reservas !== 1 ? 's' : ''}</span>
-                <span className="text-sm font-semibold text-[#0B2447] shrink-0 w-28 text-right">
+                <span className="hidden sm:inline text-xs text-slate-400 shrink-0">{c.reservas} reserva{c.reservas !== 1 ? 's' : ''}</span>
+                <span className="text-sm font-semibold text-[#0B2447] shrink-0 sm:w-28 text-right">
                   {formatCurrencyPrecise(c.valor)}
                 </span>
               </div>

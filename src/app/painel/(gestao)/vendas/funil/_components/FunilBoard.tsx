@@ -104,7 +104,7 @@ export default function FunilBoard({
         <select
           value={anuncioId}
           onChange={(e) => setAnuncioId(e.target.value)}
-          className="rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-[#0B2447]/20 focus:border-[#0B2447]/40 transition appearance-none cursor-pointer min-w-[220px]"
+          className="rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-[#0B2447]/20 focus:border-[#0B2447]/40 transition appearance-none cursor-pointer w-full min-w-0 sm:w-auto sm:min-w-[220px]"
         >
           <option value="todos">Todos os anúncios</option>
           {anuncios.map((a) => (
@@ -117,16 +117,16 @@ export default function FunilBoard({
       </div>
 
       {/* Métricas */}
-      <div className="grid grid-cols-2 xl:grid-cols-4 gap-5 mb-8">
+      <div className="grid grid-cols-2 xl:grid-cols-4 gap-3 sm:gap-5 mb-6 sm:mb-8">
         {metricas.map((m) => (
-          <div key={m.label} className="bg-white rounded-2xl border border-slate-100 p-5 shadow-sm">
-            <div className="flex items-start justify-between mb-3">
-              <p className="text-[10px] font-bold text-slate-400 tracking-wider uppercase">{m.label}</p>
-              <div className={`w-9 h-9 rounded-xl ${m.iconBg} flex items-center justify-center`}>
+          <div key={m.label} className="bg-white rounded-2xl border border-slate-100 p-4 sm:p-5 shadow-sm min-w-0">
+            <div className="flex items-start justify-between gap-2 mb-3">
+              <p className="text-[10px] font-bold text-slate-400 tracking-wider uppercase leading-snug">{m.label}</p>
+              <div className={`w-8 h-8 sm:w-9 sm:h-9 shrink-0 rounded-xl ${m.iconBg} flex items-center justify-center`}>
                 <m.icon className={`w-4 h-4 ${m.iconColor}`} />
               </div>
             </div>
-            <p className="text-2xl font-bold text-[#0B2447]">{m.value}</p>
+            <p className="text-xl sm:text-2xl font-bold text-[#0B2447]">{m.value}</p>
           </div>
         ))}
       </div>
@@ -142,14 +142,15 @@ export default function FunilBoard({
           </p>
         </div>
       ) : (
-        <div className="overflow-x-auto pb-2">
-          <div className="grid grid-cols-5 gap-4 min-w-[1100px]">
+        // Mobile/tablet: colunas deslizam lado a lado com snap; desktop: as 5 colunas.
+        <div className="-mx-4 px-4 sm:-mx-6 sm:px-6 lg:mx-0 lg:px-0 overflow-x-auto pb-2 snap-x snap-mandatory scroll-px-4 sm:scroll-px-6 lg:snap-none">
+          <div className="grid grid-flow-col auto-cols-[85%] sm:auto-cols-[45%] gap-3 sm:gap-4 lg:grid-flow-row lg:grid-cols-5 lg:auto-cols-auto lg:min-w-[1100px]">
             {ESTAGIOS.map((estagio) => {
               const daColuna = leadsFiltrados.filter((l) => l.estagio === estagio.n);
               return (
                 <div
                   key={estagio.n}
-                  className={`bg-slate-50/80 rounded-2xl border border-slate-100 border-t-4 ${estagio.accent} flex flex-col`}
+                  className={`snap-start bg-slate-50/80 rounded-2xl border border-slate-100 border-t-4 ${estagio.accent} flex flex-col`}
                 >
                   {/* Cabeçalho da coluna */}
                   <div className="px-4 pt-4 pb-3">
@@ -224,7 +225,7 @@ export default function FunilBoard({
                             <Link
                               href={`/painel/clientes/${lead.userId}/chat`}
                               title={`Conversar com ${lead.nome}`}
-                              className="h-7 w-7 rounded-lg bg-[#0B2447] hover:bg-[#0B3D91] flex items-center justify-center transition-colors shrink-0"
+                              className="h-9 w-9 lg:h-7 lg:w-7 rounded-lg bg-[#0B2447] hover:bg-[#0B3D91] flex items-center justify-center transition-colors shrink-0"
                             >
                               <MessageCircle className="h-3.5 w-3.5 text-white" />
                             </Link>

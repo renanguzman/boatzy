@@ -59,14 +59,14 @@ function SectionCard({ icon: Icon, title, subtitle, children }: {
 }) {
   return (
     <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
-      <div className="flex items-start gap-2.5 px-6 py-4 border-b border-slate-100 bg-slate-50/50">
+      <div className="flex items-start gap-2.5 px-4 sm:px-6 py-4 border-b border-slate-100 bg-slate-50/50">
         <Icon className="w-4 h-4 mt-0.5 shrink-0 text-[#0B2447]" />
         <h2 className="text-sm leading-5">
           <span className="font-bold text-[#0B2447] tracking-wide uppercase">{title}</span>
           {subtitle && <span className="ml-1.5 font-normal text-slate-500">({subtitle})</span>}
         </h2>
       </div>
-      <div className="p-6">{children}</div>
+      <div className="p-4 sm:p-6">{children}</div>
     </div>
   );
 }
@@ -397,7 +397,7 @@ export default function NovaEmbarcacaoForm({ tipos, estados, comodidades, equipa
       <div hidden={etapas.atual !== ETAPA_EMB.detalhes} className="space-y-6">
       {/* ── 2. Especificações técnicas ───────────────────────────────────── */}
       <SectionCard icon={Ruler} title="Especificações técnicas">
-        <div className="grid grid-cols-2 md:grid-cols-3 gap-5">
+        <div className="grid grid-cols-2 md:grid-cols-3 gap-3 sm:gap-5">
           <Field label="Capacidade (pessoas)">
             <input className={inputCls} type="number" min="1" placeholder="ex: 12"
               value={form.capacidade} onChange={e => setField('capacidade', e.target.value)} />
@@ -642,7 +642,7 @@ export default function NovaEmbarcacaoForm({ tipos, estados, comodidades, equipa
       {/* ── 7. Revisão ───────────────────────────────────────────────────── */}
       <div hidden={etapas.atual !== ETAPA_EMB.revisao} className="space-y-6">
         <SectionCard icon={ClipboardCheck} title="Revisão">
-          <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
+          <div className="grid grid-cols-1 lg:grid-cols-5 gap-4 sm:gap-6">
             <div className="lg:col-span-3">
               <RevisaoChecklist itens={revisao.itens} />
             </div>

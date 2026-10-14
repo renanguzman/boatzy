@@ -60,7 +60,7 @@ export default async function EditarMembroPage({ params }: { params: Promise<{ i
   };
 
   return (
-    <div className="p-8 max-w-3xl">
+    <div className="p-4 sm:p-6 lg:p-8 max-w-3xl">
       <Link
         href="/painel/equipe"
         className="inline-flex items-center gap-1.5 text-sm text-slate-500 hover:text-[#0B2447] transition-colors"
@@ -69,10 +69,10 @@ export default async function EditarMembroPage({ params }: { params: Promise<{ i
         Voltar à equipe
       </Link>
 
-      <h1 className="mt-4 text-2xl font-bold text-[#0B2447]">Editar membro</h1>
+      <h1 className="mt-4 text-xl sm:text-2xl font-bold text-[#0B2447]">Editar membro</h1>
       <p className="text-slate-500 mt-0.5 text-sm mb-6">{m.nome_completo}</p>
 
-      <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
+      <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-4 sm:p-6">
         <MembroForm embarcacoes={(embarcacoesData ?? []) as { id: string; nome: string }[]} membro={membro} />
       </div>
     </div>

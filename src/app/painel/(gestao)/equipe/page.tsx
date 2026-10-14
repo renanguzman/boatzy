@@ -79,13 +79,13 @@ export default async function EquipePage() {
   }));
 
   return (
-    <div className="p-8">
-      <div className="mb-6 flex items-center gap-3">
-        <div className="h-11 w-11 rounded-xl bg-teal-50 flex items-center justify-center">
+    <div className="p-4 sm:p-6 lg:p-8">
+      <div className="mb-6 flex items-start sm:items-center gap-3">
+        <div className="h-10 w-10 sm:h-11 sm:w-11 shrink-0 rounded-xl bg-teal-50 flex items-center justify-center">
           <UsersRound className="w-5 h-5 text-teal-500" />
         </div>
         <div>
-          <h1 className="text-2xl font-bold text-[#0B2447]">Equipe</h1>
+          <h1 className="text-xl sm:text-2xl font-bold text-[#0B2447]">Equipe</h1>
           <p className="text-slate-500 mt-0.5 text-sm">
             Cadastre as pessoas que ajudam a cuidar das suas embarcações. Ao confirmar uma reserva,
             você indica quem vai atender o cliente.
@@ -93,8 +93,8 @@ export default async function EquipePage() {
         </div>
       </div>
 
-      <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 mb-8">
-        <div className="flex items-center gap-2 mb-6">
+      <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-4 sm:p-6 mb-6 sm:mb-8">
+        <div className="flex items-center gap-2 mb-4 sm:mb-6">
           <UserPlus className="w-4 h-4 text-slate-500" />
           <h2 className="text-sm font-semibold text-slate-700">Novo membro</h2>
         </div>

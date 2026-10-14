@@ -118,7 +118,7 @@ function ModalAcao({ entidade, id, nome, status, acoes, acaoInicial, roteirosVin
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm" onClick={() => pendente || onFechar()} />
-      <div className="relative w-full max-w-md rounded-2xl border border-slate-100 bg-white p-6 shadow-xl">
+      <div className="relative w-full max-w-md max-h-[90dvh] overflow-y-auto overscroll-contain rounded-2xl border border-slate-100 bg-white p-5 sm:p-6 shadow-xl">
         <button type="button" onClick={onFechar} disabled={pendente} aria-label="Fechar"
           className="absolute right-4 top-4 text-slate-400 hover:text-slate-600 disabled:opacity-50">
           <X className="h-4 w-4" />

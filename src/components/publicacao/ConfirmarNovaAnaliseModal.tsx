@@ -16,7 +16,7 @@ export default function ConfirmarNovaAnaliseModal({ campos, onConfirmar, onCance
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm" onClick={onCancelar} />
-      <div className="relative w-full max-w-md rounded-2xl border border-slate-100 bg-white p-6 shadow-xl">
+      <div className="relative w-full max-w-md max-h-[90dvh] overflow-y-auto overscroll-contain rounded-2xl border border-slate-100 bg-white p-5 sm:p-6 shadow-xl">
         <div className="mb-4 flex items-start gap-3">
           <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl bg-amber-50">
             <AlertTriangle className="h-5 w-5 text-amber-500" />

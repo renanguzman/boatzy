@@ -75,14 +75,14 @@ export default async function ClientesPage() {
   const clientes = Array.from(porCliente.values());
 
   return (
-    <div className="p-8">
+    <div className="p-4 sm:p-6 lg:p-8">
       {/* Header */}
-      <div className="mb-6 flex items-center gap-3">
-        <div className="h-11 w-11 rounded-xl bg-blue-50 flex items-center justify-center">
+      <div className="mb-6 flex items-start sm:items-center gap-3">
+        <div className="h-10 w-10 sm:h-11 sm:w-11 shrink-0 rounded-xl bg-blue-50 flex items-center justify-center">
           <Users className="w-5 h-5 text-blue-500" />
         </div>
         <div>
-          <h1 className="text-2xl font-bold text-[#0B2447]">Clientes</h1>
+          <h1 className="text-xl sm:text-2xl font-bold text-[#0B2447]">Clientes</h1>
           <p className="text-slate-500 mt-0.5 text-sm">
             Todos os clientes que já efetuaram uma reserva de embarcação ou roteiro com você.
           </p>

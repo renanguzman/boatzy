@@ -608,6 +608,19 @@ Boatzy + repasse por Pix), regras de negócio, decisões pendentes e fases:
 - Ver reservas
 - Acompanhar ganhos
 
+#### ✅ Implementado — Painel responsivo para celular (Android e iOS, Chrome e Safari)
+
+Todo o painel do gestor (`/painel/*`) foi adaptado para uso no celular, mantendo o design system:
+
+- **Menu lateral** vira um menu deslizante no celular/tablet (abaixo de 1024px): abre pelo botão ☰ no topo, fecha pelo **X**, tocando fora, com Esc ou ao navegar para outra tela. No computador continua fixo como antes.
+- **Topo** mais compacto no celular, com o logo; o sino de notificações abre um painel que ocupa a largura da tela.
+- **Listagens** (Embarcações, Roteiros, Catálogo, Vendas, Clientes, Receitas e "Últimas solicitações" do Dashboard) mostram **cards** no celular em vez de tabelas com rolagem lateral — com as mesmas ações (editar, preço, funil, chat, status/pipeline de aprovação). A ordenação por coluna segue disponível no computador.
+- **Agendamentos:** as solicitações pendentes aparecem primeiro; o calendário do mês mostra pontos coloridos por status e, ao tocar num dia, lista as reservas daquele dia; a visão semanal vira uma lista de dias.
+- **Funil de vendas:** colunas deslizam lateralmente (uma por vez, com encaixe).
+- **Calendário de preços:** células compactas com preço abreviado (ex.: "1,2k") e atalho "Definir preço" que leva ao painel do dia.
+- **Formulários e modais:** espaçamentos menores, botões de ação ocupando a largura, modais com rolagem interna; campos com fonte de 16px no celular para o Safari do iOS não dar zoom ao digitar. Respeita a área segura (notch/barra inferior) do iPhone.
+- Escopo: só o painel do gestor; o site público e o painel admin não mudaram. Detalhes técnicos em `SPEC.md` §12 ("Layout responsivo").
+
 #### ✅ Implementado — Dashboard com dados reais (`/painel`)
 
 Todos os números são do **gestor logado** (`owner_id`):

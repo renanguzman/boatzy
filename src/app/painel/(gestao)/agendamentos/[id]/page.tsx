@@ -205,7 +205,7 @@ export default async function ReservaDetalhePage({ params }: { params: Promise<{
     .join('\n');
 
   return (
-    <div className="p-8 max-w-4xl">
+    <div className="p-4 sm:p-6 lg:p-8 max-w-4xl">
       <Link
         href="/painel/agendamentos"
         className="inline-flex items-center gap-1.5 text-sm text-slate-500 hover:text-[#0B2447] transition-colors"
@@ -226,21 +226,21 @@ export default async function ReservaDetalhePage({ params }: { params: Promise<{
               </span>
             )}
           </div>
-          <h1 className="mt-1 text-2xl font-bold text-[#0B2447]">{r.roteiro?.nome ?? r.item_nome}</h1>
+          <h1 className="mt-1 text-xl sm:text-2xl font-bold text-[#0B2447]">{r.roteiro?.nome ?? r.item_nome}</h1>
           {localidade && (
             <div className="mt-1 flex items-center gap-1.5 text-sm text-slate-500">
               <MapPin className="h-4 w-4" /> {localidade}
             </div>
           )}
         </div>
-        <span className={`shrink-0 rounded-full px-3.5 py-1.5 text-xs font-semibold ${s.badge}`}>{s.label}</span>
+        <span className={`shrink-0 rounded-full px-3 sm:px-3.5 py-1.5 text-xs font-semibold ${s.badge}`}>{s.label}</span>
       </div>
 
       <div className="mt-6 grid grid-cols-1 lg:grid-cols-3 gap-5">
         {/* Coluna principal */}
         <div className="lg:col-span-2 space-y-5">
           {/* Cliente */}
-          <section className="rounded-2xl border border-slate-200 bg-white shadow-sm p-5">
+          <section className="rounded-2xl border border-slate-200 bg-white shadow-sm p-4 sm:p-5">
             <h2 className="text-sm font-bold text-[#0B2447] mb-4">Cliente</h2>
             <div className="space-y-3 text-sm">
               <div className="flex items-center gap-2.5 text-slate-700">
@@ -249,7 +249,7 @@ export default async function ReservaDetalhePage({ params }: { params: Promise<{
               </div>
               <div className="flex items-center gap-2.5 text-slate-700">
                 <Mail className="h-4 w-4 text-slate-400 shrink-0" />
-                {r.cliente?.email ?? '—'}
+                <span className="min-w-0 break-all">{r.cliente?.email ?? '—'}</span>
               </div>
               {r.cliente?.cpf_cnpj && (
                 <div className="flex items-center gap-2.5 text-slate-700">
@@ -261,7 +261,7 @@ export default async function ReservaDetalhePage({ params }: { params: Promise<{
           </section>
 
           {/* Pedido */}
-          <section className="rounded-2xl border border-slate-200 bg-white shadow-sm p-5">
+          <section className="rounded-2xl border border-slate-200 bg-white shadow-sm p-4 sm:p-5">
             <h2 className="text-sm font-bold text-[#0B2447] mb-4">Detalhes do pedido</h2>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
               <div className="flex items-start gap-2.5">
@@ -346,7 +346,7 @@ export default async function ReservaDetalhePage({ params }: { params: Promise<{
 
         {/* Sidebar: valores + ações */}
         <div className="space-y-5">
-          <section className="rounded-2xl border border-slate-200 bg-white shadow-sm p-5">
+          <section className="rounded-2xl border border-slate-200 bg-white shadow-sm p-4 sm:p-5">
             <h2 className="text-sm font-bold text-[#0B2447] mb-4">Valores</h2>
             {r.preco_base != null ? (
               <div className="space-y-2 text-sm">
@@ -415,7 +415,7 @@ export default async function ReservaDetalhePage({ params }: { params: Promise<{
           )}
 
           {pedido && (
-            <section className="rounded-2xl border border-slate-200 bg-white shadow-sm p-5">
+            <section className="rounded-2xl border border-slate-200 bg-white shadow-sm p-4 sm:p-5">
               <div className="flex items-center justify-between gap-2 mb-4">
                 <h2 className="flex items-center gap-1.5 text-sm font-bold text-[#0B2447]">
                   <Wallet className="h-4 w-4" /> Pagamento

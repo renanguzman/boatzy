@@ -38,26 +38,26 @@ export default async function VendasPage() {
     .map((a) => ({ ...a, leads: leadsPorAnuncio.get(a.id) ?? 0 }));
 
   return (
-    <div className="p-8">
+    <div className="p-4 sm:p-6 lg:p-8">
       {/* Header */}
-      <div className="mb-6 flex items-start justify-between">
+      <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-[#0B2447]">Vendas</h1>
+          <h1 className="text-xl sm:text-2xl font-bold text-[#0B2447]">Vendas</h1>
           <p className="text-sm text-slate-400 mt-1">
             Anuncie embarcações para venda e acompanhe visualizações e interessados.
           </p>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="grid grid-cols-2 gap-3 sm:flex sm:items-center">
           <Link
             href="/painel/vendas/funil"
-            className="flex items-center gap-2 border border-slate-200 bg-white hover:bg-slate-50 text-[#0B2447] text-sm font-semibold px-5 py-2.5 rounded-xl transition-colors whitespace-nowrap"
+            className="flex items-center justify-center gap-2 border border-slate-200 bg-white hover:bg-slate-50 text-[#0B2447] text-sm font-semibold px-4 sm:px-5 py-2.5 rounded-xl transition-colors whitespace-nowrap"
           >
             <Filter className="w-4 h-4" />
             Funil de vendas
           </Link>
           <Link
             href="/painel/vendas/novo"
-            className="flex items-center gap-2 bg-[#0B2447] hover:bg-[#0B3D91] text-white text-sm font-semibold px-5 py-2.5 rounded-xl transition-colors shadow-md shadow-[#0B2447]/10 whitespace-nowrap"
+            className="flex items-center justify-center gap-2 bg-[#0B2447] hover:bg-[#0B3D91] text-white text-sm font-semibold px-5 py-2.5 rounded-xl transition-colors shadow-md shadow-[#0B2447]/10 whitespace-nowrap"
           >
             <Plus className="w-4 h-4" />
             Novo anúncio

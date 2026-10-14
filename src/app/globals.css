@@ -121,3 +121,19 @@ html {
 .gm-style .gm-style-iw-c button.gm-ui-hover-effect:hover {
   opacity: 0.85;
 }
+
+/* ── Painel do gestor no mobile ─────────────────────────────────────────────
+   O Safari do iOS dá zoom na página ao focar um campo com fonte < 16px (e não
+   desfaz ao sair). Em telas de toque, os campos do painel ficam com 16px —
+   no desktop seguem o tamanho do design system. */
+@media (pointer: coarse) and (max-width: 1023px) {
+  .painel-shell input:not([type='checkbox']):not([type='radio']):not([type='range']):not([type='color']),
+  .painel-shell select,
+  .painel-shell textarea {
+    font-size: 16px;
+  }
+}
+
+.painel-shell {
+  -webkit-tap-highlight-color: transparent;
+}

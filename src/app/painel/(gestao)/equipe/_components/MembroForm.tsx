@@ -197,15 +197,15 @@ export default function MembroForm({ embarcacoes, membro }: Props) {
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
         {/* Foto */}
-        <div className="md:col-span-2 flex items-center gap-4">
-          <div className="w-20 h-20 rounded-full overflow-hidden bg-slate-100 border border-slate-200 shrink-0 flex items-center justify-center">
+        <div className="md:col-span-2 flex items-center gap-3 sm:gap-4">
+          <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-full overflow-hidden bg-slate-100 border border-slate-200 shrink-0 flex items-center justify-center">
             {previewSrc ? (
               <Image src={previewSrc} alt="Foto do membro" width={80} height={80} className="w-full h-full object-cover" />
             ) : (
               <User className="w-8 h-8 text-slate-300" />
             )}
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <button
               type="button"
               onClick={() => fileRef.current?.click()}
@@ -389,7 +389,7 @@ export default function MembroForm({ embarcacoes, membro }: Props) {
         )}
       </div>
 
-      <div className="pt-2 flex justify-end gap-3">
+      <div className="pt-2 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end sm:gap-3">
         {editMode && (
           <button
             type="button"
@@ -402,7 +402,7 @@ export default function MembroForm({ embarcacoes, membro }: Props) {
         <button
           type="submit"
           disabled={submitting}
-          className="inline-flex items-center gap-2 bg-teal-600 hover:bg-teal-700 disabled:opacity-60 text-white text-sm font-medium px-6 py-2.5 rounded-lg transition-colors"
+          className="inline-flex items-center justify-center gap-2 bg-teal-600 hover:bg-teal-700 disabled:opacity-60 text-white text-sm font-medium px-6 py-3 sm:py-2.5 rounded-lg transition-colors"
         >
           {submitting && <Loader2 className="w-4 h-4 animate-spin" />}
           {editMode ? 'Salvar alterações' : 'Cadastrar membro'}

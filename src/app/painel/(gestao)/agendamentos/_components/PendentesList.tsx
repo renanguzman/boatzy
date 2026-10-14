@@ -15,7 +15,7 @@ function formatData(iso: string): string {
 
 export default function PendentesList({ pendentes }: { pendentes: ReservaEvento[] }) {
   return (
-    <div className="rounded-2xl border border-slate-200 bg-white shadow-sm overflow-hidden flex flex-col xl:sticky xl:top-4 xl:max-h-[calc(100vh-2rem)]">
+    <div className="rounded-2xl border border-slate-200 bg-white shadow-sm overflow-hidden flex flex-col max-xl:max-h-[22rem] xl:sticky xl:top-4 xl:max-h-[calc(100vh-2rem)]">
       {/* Header */}
       <div className="flex items-center justify-between gap-2 border-b border-slate-100 px-4 py-3.5">
         <div className="flex items-center gap-2">

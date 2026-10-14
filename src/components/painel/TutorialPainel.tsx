@@ -11,6 +11,7 @@ import {
 } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import { GraduationCap, X } from 'lucide-react';
+import { useMenuMobile } from './MenuMobile';
 
 const STORAGE_KEY = 'boatzy:tutorial-painel:v1';
 
@@ -105,6 +106,9 @@ const PASSOS: Passo[] = [
   },
 ];
 
+/** Passos cujo alvo fica no menu lateral (drawer no mobile). */
+const ALVOS_DO_MENU = /data-tour="(nav-|nova-embarcacao)/;
+
 type Rect = { top: number; left: number; width: number; height: number };
 
 const TutorialContext = createContext<{ abrir: () => void }>({ abrir: () => {} });
@@ -167,13 +171,13 @@ export function TutorialButton() {
         onClick={abrir}
         data-tour="btn-tutorial"
         aria-label="Ver tutorial"
-        className="p-2 rounded-lg hover:bg-slate-50 transition-colors text-slate-500 hover:text-[#0B2447]"
+        className="p-2.5 sm:p-2 rounded-lg hover:bg-slate-50 transition-colors text-slate-500 hover:text-[#0B2447]"
       >
         <GraduationCap className="w-5 h-5" />
       </button>
       <span
         role="tooltip"
-        className="pointer-events-none absolute top-full left-1/2 -translate-x-1/2 mt-2 whitespace-nowrap rounded-md bg-[#0B2447] px-2.5 py-1.5 text-[11px] font-medium text-white opacity-0 group-hover:opacity-100 transition-opacity z-50 shadow-lg"
+        className="hidden sm:block pointer-events-none absolute top-full left-1/2 -translate-x-1/2 mt-2 whitespace-nowrap rounded-md bg-[#0B2447] px-2.5 py-1.5 text-[11px] font-medium text-white opacity-0 group-hover:opacity-100 transition-opacity z-50 shadow-lg"
       >
         Ver tutorial
       </span>
@@ -199,6 +203,17 @@ function TutorialOverlay({
   // Só vale a medida do passo atual — evita reusar o retângulo do passo anterior.
   const rect = passo.alvo && medida?.alvo === passo.alvo ? medida.rect : null;
 
+  // No mobile o menu lateral é um drawer: abre nos passos que apontam para ele
+  // e fecha nos demais (e ao sair do tutorial).
+  const { abrir: abrirMenu, fechar: fecharMenu } = useMenuMobile();
+  const alvoNoMenu = !!passo.alvo && ALVOS_DO_MENU.test(passo.alvo);
+  useEffect(() => {
+    if (!window.matchMedia('(max-width: 1023px)').matches) return;
+    if (alvoNoMenu) abrirMenu();
+    else fecharMenu();
+  }, [alvoNoMenu, abrirMenu, fecharMenu]);
+  useEffect(() => fecharMenu, [fecharMenu]);
+
   // Mede o alvo do passo atual e acompanha scroll/resize.
   useLayoutEffect(() => {
     const alvo = passo.alvo;
@@ -212,10 +227,13 @@ function TutorialOverlay({
       setMedida({ alvo, rect: { top: r.top, left: r.left, width: r.width, height: r.height } });
     };
     const raf = requestAnimationFrame(medir);
+    // Remede ao fim da animação do drawer (300ms) e da rolagem suave.
+    const t = setTimeout(medir, 350);
     window.addEventListener('resize', medir);
     window.addEventListener('scroll', medir, true);
     return () => {
       cancelAnimationFrame(raf);
+      clearTimeout(t);
       window.removeEventListener('resize', medir);
       window.removeEventListener('scroll', medir, true);
     };

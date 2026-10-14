@@ -188,11 +188,11 @@ function SectionCard({ id, icon: Icon, title, children }: {
 }) {
   return (
     <div id={id} className="scroll-mt-24 bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
-      <div className="flex items-center gap-2.5 px-6 py-4 border-b border-slate-100 bg-slate-50/50">
+      <div className="flex items-center gap-2.5 px-4 sm:px-6 py-4 border-b border-slate-100 bg-slate-50/50">
         <Icon className="w-4 h-4 text-[#0B2447]" />
         <h2 className="text-sm font-bold text-[#0B2447] tracking-wide uppercase">{title}</h2>
       </div>
-      <div className="p-6">{children}</div>
+      <div className="p-4 sm:p-6">{children}</div>
     </div>
   );
 }
@@ -809,7 +809,7 @@ export default function EditarRoteiroForm({ roteiro, estados, municipiosIniciais
                         <ChevronDown className="w-3.5 h-3.5" />
                       </button>
                       <button type="button" onClick={() => handleRemoveParada(p.localId)} title="Remover"
-                        className="w-7 h-7 flex items-center justify-center rounded-lg text-slate-300 hover:text-red-500 hover:bg-red-50 transition-colors">
+                        className="w-9 h-9 sm:w-7 sm:h-7 flex items-center justify-center rounded-lg text-slate-300 hover:text-red-500 hover:bg-red-50 transition-colors">
                         <Trash2 className="w-3.5 h-3.5" />
                       </button>
                     </div>
@@ -825,9 +825,9 @@ export default function EditarRoteiroForm({ roteiro, estados, municipiosIniciais
                   <input className={inputCls} placeholder="ex: Praia do Pontal (parada para banho)"
                     value={novaParada} onChange={e => setNovaParada(e.target.value)}
                     onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); handleAddParada(); } }} />
-                  <button type="button" onClick={handleAddParada} disabled={!novaParada.trim()}
-                    className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-[#0B2447] hover:bg-[#0B3D91] text-white text-sm font-semibold transition-colors disabled:opacity-40 disabled:cursor-not-allowed shrink-0">
-                    <Plus className="w-3.5 h-3.5" /> Adicionar
+                  <button type="button" onClick={handleAddParada} disabled={!novaParada.trim()} aria-label="Adicionar parada"
+                    className="flex items-center gap-1.5 px-3.5 sm:px-4 py-2.5 rounded-xl bg-[#0B2447] hover:bg-[#0B3D91] text-white text-sm font-semibold transition-colors disabled:opacity-40 disabled:cursor-not-allowed shrink-0">
+                    <Plus className="w-3.5 h-3.5" /> <span className="hidden sm:inline">Adicionar</span>
                   </button>
                 </div>
               </div>
@@ -889,7 +889,7 @@ export default function EditarRoteiroForm({ roteiro, estados, municipiosIniciais
             </button>
 
             {form.preco_diaria_ativo && (
-              <div className="ml-8 grid grid-cols-1 sm:grid-cols-2 gap-4 rounded-xl border border-slate-100 bg-slate-50/50 p-4">
+              <div className="ml-0 sm:ml-8 grid grid-cols-1 sm:grid-cols-2 gap-4 rounded-xl border border-slate-100 bg-slate-50/50 p-4">
                 <Field label="Valor da diária (R$)" required>
                   <div className="relative">
                     <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-sm text-slate-400 font-medium">R$</span>
@@ -1016,7 +1016,7 @@ export default function EditarRoteiroForm({ roteiro, estados, municipiosIniciais
                   </div>
                   <span className="text-sm font-bold text-emerald-700 whitespace-nowrap">{fmtBRL(regra.valor)}</span>
                   <button type="button" onClick={() => removeNovaRegra(regra.localId)}
-                    className="w-7 h-7 flex items-center justify-center rounded-lg text-slate-300 hover:text-red-500 hover:bg-red-50 transition-colors flex-shrink-0">
+                    className="w-9 h-9 sm:w-7 sm:h-7 flex items-center justify-center rounded-lg text-slate-300 hover:text-red-500 hover:bg-red-50 transition-colors flex-shrink-0">
                     <Trash2 className="w-3.5 h-3.5" />
                   </button>
                 </div>
@@ -1033,13 +1033,13 @@ export default function EditarRoteiroForm({ roteiro, estados, municipiosIniciais
             Adicionar regra de preço
           </button>
         ) : (
-          <div className="rounded-xl border border-slate-200 bg-slate-50/40 p-5 space-y-4">
+          <div className="rounded-xl border border-slate-200 bg-slate-50/40 p-4 sm:p-5 space-y-4">
             <p className="text-sm font-bold text-[#0B2447]">Nova regra</p>
 
             <div className="flex gap-1 bg-slate-100 rounded-xl p-1">
               {(['data_fixa','periodo_anual','dia_semana'] as PrecoRegraTipo[]).map(t => (
                 <button key={t} type="button" onClick={() => setRfField('tipo', t)}
-                  className={`flex-1 text-xs font-semibold py-2 rounded-lg transition-all ${
+                  className={`flex-1 px-1 text-xs leading-tight font-semibold py-2 rounded-lg transition-all ${
                     rf.tipo === t ? 'bg-white text-[#0B2447] shadow-sm' : 'text-slate-500 hover:text-slate-700'
                   }`}>
                   {TIPO_CONFIG[t].label}
@@ -1287,7 +1287,7 @@ export default function EditarRoteiroForm({ roteiro, estados, municipiosIniciais
       {/* ── 7. Revisão ───────────────────────────────────────────────────── */}
       <div hidden={etapas.atual !== ETAPA_ROT.revisao} className="space-y-6">
         <SectionCard icon={ClipboardCheck} title="Revisão">
-          <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
+          <div className="grid grid-cols-1 lg:grid-cols-5 gap-4 sm:gap-6">
             <div className="lg:col-span-3">
               <RevisaoChecklist itens={revisao.itens} />
             </div>

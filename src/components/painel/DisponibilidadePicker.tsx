@@ -211,12 +211,12 @@ export default function DisponibilidadePicker({
       {/* Dias da semana de operação */}
       <div>
         <p className="text-xs font-medium text-slate-600 mb-2">Dias da semana em que o roteiro opera</p>
-        <div className="flex gap-2 flex-wrap">
+        <div className="grid grid-cols-7 gap-1.5 sm:flex sm:gap-2 sm:flex-wrap">
           {DIAS_SEMANA.map(d => {
             const active = diasSemana.includes(d.value);
             return (
               <button key={d.value} type="button" onClick={() => toggleDia(d.value)}
-                className={`w-12 h-10 rounded-xl text-xs font-bold transition-all ${
+                className={`w-full sm:w-12 h-11 sm:h-10 rounded-xl text-xs font-bold transition-all ${
                   active
                     ? 'bg-[#0B2447] text-white shadow-md shadow-[#0B2447]/20'
                     : 'bg-white border border-slate-200 text-slate-500 hover:border-[#0B2447]/30'
@@ -260,14 +260,14 @@ export default function DisponibilidadePicker({
 
           <div className="flex items-center justify-between mb-3">
             <button type="button" onClick={prevMonth} disabled={!canGoPrev} aria-label="Mês anterior"
-              className={`p-1.5 rounded-full transition-colors ${
+              className={`p-2.5 sm:p-1.5 rounded-full transition-colors ${
                 canGoPrev ? 'hover:bg-slate-100 text-slate-700' : 'text-slate-200 cursor-default'
               }`}>
               <ChevronLeft className="w-4 h-4" />
             </button>
             <p className="text-sm font-semibold text-slate-800">{MESES[viewMonth]} {viewYear}</p>
             <button type="button" onClick={nextMonth} aria-label="Próximo mês"
-              className="p-1.5 rounded-full hover:bg-slate-100 text-slate-700 transition-colors">
+              className="p-2.5 sm:p-1.5 rounded-full hover:bg-slate-100 text-slate-700 transition-colors">
               <ChevronRight className="w-4 h-4" />
             </button>
           </div>
@@ -353,7 +353,7 @@ export default function DisponibilidadePicker({
               : <><CalendarX2 className="w-3.5 h-3.5" /> Bloquear {MESES[viewMonth].toLowerCase()} inteiro</>}
           </button>
 
-          <div className="mt-3 pt-3 border-t border-slate-100 flex items-center gap-3 text-[10px] text-slate-400">
+          <div className="mt-3 pt-3 border-t border-slate-100 flex flex-wrap items-center gap-x-3 gap-y-1 text-[10px] text-slate-400">
             <span className="flex items-center gap-1"><span className="w-3 h-3 rounded bg-red-500 inline-block" /> Bloqueado</span>
             <span className="flex items-center gap-1"><span className="w-3 h-3 rounded border border-slate-200 inline-block" /> Disponível</span>
             <span className="line-through">Fora de operação</span>
@@ -385,7 +385,7 @@ export default function DisponibilidadePicker({
                       <span className="text-[10px] font-semibold text-red-500/80">· {g.dias.length} dias</span>
                     )}
                     <button type="button" onClick={() => remover(g.dias)}
-                      className="w-4 h-4 flex items-center justify-center rounded-full hover:bg-red-200 transition-colors"
+                      className="w-6 h-6 sm:w-4 sm:h-4 -my-1 sm:my-0 flex items-center justify-center rounded-full hover:bg-red-200 transition-colors"
                       aria-label={`Remover bloqueio de ${rotulo}`}>
                       <X className="w-3 h-3" />
                     </button>
@@ -401,13 +401,13 @@ export default function DisponibilidadePicker({
       <div className="flex-1 min-w-0 lg:max-w-lg">
         <p className="text-xs font-medium text-slate-600 mb-2">Resumo para conferência</p>
         <div className="rounded-xl border border-slate-200 bg-slate-50/60 divide-y divide-slate-200/80" aria-live="polite">
-          <div className="flex items-center gap-2 px-5 py-3 text-[11px] font-semibold uppercase tracking-wider text-slate-500">
+          <div className="flex items-center gap-2 px-4 sm:px-5 py-3 text-[11px] font-semibold uppercase tracking-wider text-slate-500">
             <ListChecks className="w-3.5 h-3.5" />
             Como os clientes verão este roteiro
           </div>
 
           {/* Disponível */}
-          <div className="flex gap-3 px-5 py-4">
+          <div className="flex gap-3 px-4 sm:px-5 py-4">
             <span className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-emerald-50 text-emerald-600">
               <CalendarCheck2 className="w-4 h-4" />
             </span>
@@ -431,7 +431,7 @@ export default function DisponibilidadePicker({
           </div>
 
           {/* Indisponível */}
-          <div className="flex gap-3 px-5 py-4">
+          <div className="flex gap-3 px-4 sm:px-5 py-4">
             <span className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-red-50 text-red-600">
               <CalendarX2 className="w-4 h-4" />
             </span>

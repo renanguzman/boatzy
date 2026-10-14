@@ -50,9 +50,9 @@ export default async function EditarAnuncioPage({ params }: { params: Promise<{ 
   const option = toOption(embarcacao as unknown as EmbarcacaoRow);
 
   return (
-    <div className="p-8">
+    <div className="p-4 sm:p-6 lg:p-8">
       <div className="mb-6">
-        <h1 className="text-2xl font-bold text-[#0B2447]">Editar anúncio de venda</h1>
+        <h1 className="text-xl sm:text-2xl font-bold text-[#0B2447]">Editar anúncio de venda</h1>
         <p className="text-sm text-slate-400 mt-1">
           {option.nome} — reduções de preço ganham destaque no site.
         </p>

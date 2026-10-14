@@ -26,7 +26,7 @@ export default async function EditarCatalogoPage({
 
   if (item.is_boatzy) {
     return (
-      <div className="p-8">
+      <div className="p-4 sm:p-6 lg:p-8">
         <div className="bg-amber-50 border border-amber-200 rounded-2xl px-6 py-5 max-w-lg">
           <p className="text-sm font-semibold text-amber-800">
             Este item é gerenciado pela Boatzy e não pode ser editado.
@@ -37,9 +37,9 @@ export default async function EditarCatalogoPage({
   }
 
   return (
-    <div className="p-8">
+    <div className="p-4 sm:p-6 lg:p-8">
       <div className="mb-6">
-        <h1 className="text-2xl font-bold text-[#0B2447]">Editar item do Catálogo</h1>
+        <h1 className="text-xl sm:text-2xl font-bold text-[#0B2447]">Editar item do Catálogo</h1>
         <p className="text-sm text-slate-400 mt-1">
           Atualize as informações do produto ou serviço.
         </p>

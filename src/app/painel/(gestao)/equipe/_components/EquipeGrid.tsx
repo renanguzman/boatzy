@@ -69,13 +69,13 @@ export default function EquipeGrid({ membros }: { membros: MembroListItem[] }) {
         <h2 className="text-sm font-semibold text-slate-700">
           Membros cadastrados <span className="text-slate-400 font-normal">({membros.length})</span>
         </h2>
-        <div className="relative">
+        <div className="relative w-full sm:w-auto">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
           <input
             value={busca}
             onChange={(e) => setBusca(e.target.value)}
             placeholder="Buscar por nome, CPF, e-mail ou embarcação…"
-            className="w-72 max-w-full pl-9 pr-3 py-2 rounded-xl border border-slate-200 bg-white text-sm text-slate-700 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500/40"
+            className="w-full sm:w-72 max-w-full pl-9 pr-3 py-2 rounded-xl border border-slate-200 bg-white text-sm text-slate-700 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500/40"
           />
         </div>
       </div>
@@ -161,7 +161,7 @@ export default function EquipeGrid({ membros }: { membros: MembroListItem[] }) {
                 <div className="flex items-center gap-1">
                   <Link
                     href={`/painel/equipe/${m.id}/editar`}
-                    className="p-1.5 rounded-lg text-slate-400 hover:text-[#0B2447] hover:bg-slate-100 transition-colors"
+                    className="p-2.5 sm:p-1.5 rounded-lg text-slate-400 hover:text-[#0B2447] hover:bg-slate-100 transition-colors"
                     title="Editar"
                   >
                     <Pencil className="w-4 h-4" />
@@ -169,7 +169,7 @@ export default function EquipeGrid({ membros }: { membros: MembroListItem[] }) {
                   <button
                     onClick={() => toggleAtivo(m)}
                     disabled={pending}
-                    className="p-1.5 rounded-lg text-slate-400 hover:text-amber-600 hover:bg-amber-50 transition-colors disabled:opacity-50"
+                    className="p-2.5 sm:p-1.5 rounded-lg text-slate-400 hover:text-amber-600 hover:bg-amber-50 transition-colors disabled:opacity-50"
                     title={m.ativo ? 'Desativar' : 'Reativar'}
                   >
                     {pending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Power className="w-4 h-4" />}
@@ -177,7 +177,7 @@ export default function EquipeGrid({ membros }: { membros: MembroListItem[] }) {
                   <button
                     onClick={() => remover(m)}
                     disabled={pending}
-                    className="p-1.5 rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50 transition-colors disabled:opacity-50"
+                    className="p-2.5 sm:p-1.5 rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50 transition-colors disabled:opacity-50"
                     title="Excluir"
                   >
                     <Trash2 className="w-4 h-4" />
