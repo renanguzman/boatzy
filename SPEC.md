@@ -5872,7 +5872,7 @@ Nos forms, os ajustes ficam em estado `ajustes: Record<string, number>`, **fora*
 
 ### 46.3 Componente — `src/components/painel/CalendarioPrecos.tsx` (`'use client'`)
 
-Props: `precoBase: number|null`, `regras: RegraPreco[]` (sem ajustes), `ajustes`, `onAjustesChange`, `diasOperacao: number[]`, `bloqueios: string[]`, `datasOcupadas: string[]`, `taxaPercent: number`, `previaRegra?: RegraPreco|null`.
+Props: `precoBase: number|null`, `regras: RegraPreco[]` (sem ajustes), `ajustes`, `onAjustesChange`, `diasOperacao: number[]`, `bloqueios: string[]`, `datasOcupadas: string[]`, `taxaPercent: number`, `previaRegra?: RegraPreco|null`, `previaTitulo?: string` (ver §46.6).
 
 - Janela de 365 dias a partir de hoje (a mesma do `preco_minimo`, §36). Dia desabilitado: passado, fora da janela, reservado, bloqueado ou fora dos dias de operação.
 - Modos de seleção "Dia a dia" (toggle múltiplo) e "Período" (início/fim, como o `DisponibilidadePicker`); painel do dia com regra aplicada, campo de preço, "Aplicar preço" (se igual ao automático, remove o ajuste) e "Automático".
@@ -5881,7 +5881,51 @@ Props: `precoBase: number|null`, `regras: RegraPreco[]` (sem ajustes), `ajustes`
 
 ### 46.3b Indicador de rolagem — `src/components/painel/IndicadorRolagem.tsx`
 
-Props `{ alvoId, ativo, rotulo }`. Botão `fixed` (acima do `RodapeEtapas`, `bottom-28`) com seta animada (`motion-safe:animate-bounce`). Um `IntersectionObserver` (`rootMargin: '0px 0px -25% 0px'`) mostra o botão só enquanto o alvo está **abaixo** da tela (`!isIntersecting && boundingClientRect.top > 0`); some quando o alvo entra na vista ou ficou para trás. Clique: `scrollIntoView({ behavior: 'smooth', block: 'start' })` (`auto` com `prefers-reduced-motion`); a `SectionCard id="calendario-precos"` tem `scroll-mt-24`. Usado em `NovoRoteiroForm`/`EditarRoteiroForm` com `ativo={etapas.atual === ETAPA_ROT.preco}`.
+Props `{ alvoId, ativo, rotulo }`. Botão `fixed` (acima do `RodapeEtapas`, `bottom-28`) com seta animada (`motion-safe:animate-bounce`). Um `IntersectionObserver` (`rootMargin: '0px 0px -25% 0px'`) mostra o botão só enquanto o alvo está **abaixo** da tela (`!isIntersecting && boundingClientRect.top > 0`); some quando o alvo entra na vista ou ficou para trás. Clique: `scrollIntoView({ behavior: 'smooth', block: 'start' })` (`auto` com `prefers-reduced-motion`); a `SectionCard id="calendario-precos"` tem `scroll-mt-24`. Usado dentro da `EtapaPreco` (§46.6) com `ativo={etapas.atual === ETAPA_ROT.preco}`; o alvo `#calendario-precos` é a coluna do calendário.
+
+### 46.6 Etapa Preço guiada — `src/app/painel/(gestao)/roteiros/_components/EtapaPreco.tsx` (14/10/2026)
+
+Componente `'use client'` compartilhado por `NovoRoteiroForm` e `EditarRoteiroForm` (que renderizam
+`<SectionCard id="preco"><EtapaPreco …/></SectionCard>`; o card separado `calendario-precos` e o
+`IndicadorRolagem` dos forms saíram — vivem dentro do componente).
+
+```ts
+export type RegraListada = {
+  id: string;            // mesmo id da `regra` (id do banco ou localId)
+  regra: RegraPreco;
+  estado: 'salva' | 'nova' | 'excluir';
+};
+type Props = {
+  precoBase: string; onPrecoBaseChange(v: string): void;
+  diariaAtivo: boolean; onDiariaAtivoChange(v: boolean): void;
+  diariaValor: string; onDiariaValorChange(v: string): void;
+  diariaMinimo: string; onDiariaMinimoChange(v: string): void;
+  regras: RegraListada[];
+  onAdicionarRegra(r: RegraFormulario): void;
+  onRemoverRegra(id: string): void;      // salva: alterna exclusão; nova: remove
+  ajustes: Record<string, number>; onAjustesChange(a: Record<string, number>): void;
+  diasOperacao: number[]; bloqueios: string[]; datasOcupadas: string[]; taxaPercent: number;
+  ativa: boolean;                        // etapa visível (liga o IndicadorRolagem)
+};
+```
+
+- Estado interno: formulário da nova regra (`RegraFormulario | null`), regra em destaque, "Entenda a
+  taxa" e "Saiba mais". O estado das regras continua nos forms (`regras` no novo;
+  `regrasExistentes` + `novasRegras` na edição), mapeado para `RegraListada[]` — o salvar não mudou.
+- Layout: `grid xl:grid-cols-12` — passos ①–③ em `xl:col-span-5` (`@container`; grades internas por
+  container query) e ④ calendário em `xl:col-span-7 xl:sticky xl:top-4` (`id="calendario-precos"`,
+  alvo do `IndicadorRolagem`). Os forms usam `max-w-4xl` e `xl:max-w-6xl` só na etapa Preço.
+- Atalhos de regra (`TIPOS`, em ordem de prioridade, cores = `ORIGEM` do calendário): `data_fixa` (1,
+  violeta), `periodo_anual` (2, âmbar, nome sugerido "Alta temporada", Dez/01→Fev/28), `dia_semana`
+  (3, azul, nome sugerido "Fim de semana", Dom+Sáb). `faltaNaRegra()` diz o que falta; trocar o tipo
+  mantém nome/preço digitados (troca só nome sugerido).
+- `previaRegra` passada ao calendário = prévia do formulário aberto **ou** a regra tocada na lista
+  (`previaTitulo`: "Onde vale a regra “…”").
+- `CalendarioPrecos` (§46.3) ganhou: prop `previaTitulo?`; não duplica a prévia se ela já está em
+  `regras` (mesmo id); ao mudar a primeira data afetada da prévia, navega até aquele mês (ajuste de
+  estado no render); layout calendário × painel do dia por container query (`@container` +
+  `@4xl:flex-row`, botão "Definir preço" `@4xl:hidden`). A faixa da taxa saiu do calendário (texto
+  igual no passo ② da `EtapaPreco`).
 
 ### 46.4 Dados vindos do servidor
 

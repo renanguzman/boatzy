@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from 'react';
 import {
-  ChevronLeft, ChevronRight, MousePointerClick, CalendarRange, Info, Wallet, Receipt, PencilLine,
+  ChevronLeft, ChevronRight, MousePointerClick, CalendarRange, Info, Wallet, PencilLine,
   RotateCcw, X, Eye, CircleAlert,
 } from 'lucide-react';
 import { hojeISO } from '@/lib/datas';
@@ -74,14 +74,20 @@ type Props = {
   datasOcupadas: string[];
   /** Comissão do Boatzy (%) do gestor dono do roteiro. */
   taxaPercent: number;
-  /** Regra que o gestor está montando: destacada no calendário antes de adicionar. */
+  /**
+   * Regra destacada no calendário: a que o gestor está montando (prévia antes
+   * de adicionar) ou uma já criada que ele tocou na lista para ver onde vale.
+   */
   previaRegra?: RegraPreco | null;
+  /** Título do quadro de prévia (padrão: regra em criação). */
+  previaTitulo?: string;
 };
 
 type Modo = 'dia' | 'periodo';
 
 export default function CalendarioPrecos({
   precoBase, regras, ajustes, onAjustesChange, diasOperacao, bloqueios, datasOcupadas, taxaPercent, previaRegra = null,
+  previaTitulo = 'Prévia da regra que você está criando',
 }: Props) {
   const hoje = hojeISO();
   const limite = somarDiasISO(hoje, JANELA_DIAS);
@@ -99,10 +105,11 @@ export default function CalendarioPrecos({
   const ocupadoSet = useMemo(() => new Set(datasOcupadas), [datasOcupadas]);
   const operaTodos = diasOperacao.length === 0;
 
-  // Regras "oficiais" (com ajustes) e, por cima, a prévia da regra em edição.
+  // Regras "oficiais" (com ajustes) e, por cima, a prévia da regra em edição
+  // (uma regra já existente em destaque não entra de novo).
   const regrasAtuais = useMemo(() => [...regras, ...ajustesComoRegras(ajustes)], [regras, ajustes]);
   const regrasComPrevia = useMemo(
-    () => (previaRegra ? [...regrasAtuais, previaRegra] : regrasAtuais),
+    () => (previaRegra && !regrasAtuais.some(r => r.id === previaRegra.id) ? [...regrasAtuais, previaRegra] : regrasAtuais),
     [regrasAtuais, previaRegra],
   );
 
@@ -138,6 +145,18 @@ export default function CalendarioPrecos({
     // motivoIndisponivel depende só dos props abaixo.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [previaRegra, precoBase, regrasComPrevia, hoje, ocupadoSet, bloqueioSet, diasOperacao]);
+
+  // A regra em prévia/destaque passou a valer em outro mês: o calendário vai
+  // até a primeira data afetada (ajuste de estado no render, sem efeito).
+  const [primeiraVista, setPrimeiraVista] = useState<string | null>(null);
+  const primeiraAfetada = previa?.primeira ?? null;
+  if (primeiraAfetada !== primeiraVista) {
+    setPrimeiraVista(primeiraAfetada);
+    if (primeiraAfetada) {
+      const [a, m] = primeiraAfetada.split('-').map(Number);
+      if (a !== view.ano || m - 1 !== view.mes) setView({ ano: a, mes: m - 1 });
+    }
+  }
 
   // ── Seleção ────────────────────────────────────────────────────────────────
   const selSet = new Set(selecionados);
@@ -231,23 +250,6 @@ export default function CalendarioPrecos({
 
   return (
     <div className="space-y-5">
-      {/* Taxa — sempre visível */}
-      <div className="flex gap-3 rounded-xl border border-sky-200 bg-sky-50/70 p-4">
-        <span className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-sky-100 text-sky-700">
-          <Receipt className="w-4 h-4" />
-        </span>
-        <div className="text-sm leading-relaxed text-sky-900">
-          <p className="font-semibold">
-            Taxa do Boatzy: {fmtPct(taxaPercent)}% — paga pelo cliente, por cima do seu preço
-          </p>
-          <p className="text-xs text-sky-800/90 mt-0.5">
-            O cliente paga o <strong>preço que você define + a taxa</strong>. Você recebe{' '}
-            <strong>100% do preço definido</strong>, sem desconto. Cupons saem da taxa do Boatzy, nunca do seu valor.
-            A taxa vale a do momento em que o cliente solicita a reserva.
-          </p>
-        </div>
-      </div>
-
       {/* Prévia da regra em edição */}
       {previaRegra && previa && (
         <div className={`flex gap-3 rounded-xl border p-4 ${
@@ -259,12 +261,12 @@ export default function CalendarioPrecos({
             {previa.afetadas > 0 ? <Eye className="w-4 h-4" /> : <CircleAlert className="w-4 h-4" />}
           </span>
           <div className="text-sm leading-relaxed">
-            <p className="font-semibold text-[#0B2447]">Prévia da regra que você está criando</p>
+            <p className="font-semibold text-[#0B2447]">{previaTitulo}</p>
             {previa.afetadas > 0 ? (
               <p className="text-xs text-slate-600 mt-0.5">
                 Vai valer em <strong>{previa.afetadas} {previa.afetadas === 1 ? 'data' : 'datas'}</strong>
                 {previa.primeira && previa.ultima && <> (de {fmtBR(previa.primeira)} a {fmtBR(previa.ultima)})</>},
-                destacadas no calendário abaixo.
+                destacadas no calendário.
                 {previa.sobrepostas > 0 && (
                   <> Outras <strong>{previa.sobrepostas}</strong> já têm uma regra mais específica e continuam com o preço atual.</>
                 )}
@@ -280,7 +282,9 @@ export default function CalendarioPrecos({
         </div>
       )}
 
-      <div className="flex flex-col xl:flex-row gap-6 xl:items-start">
+      {/* Lado a lado só quando o próprio componente tem espaço (container query). */}
+      <div className="@container">
+      <div className="flex flex-col @4xl:flex-row gap-6 @4xl:items-start">
         {/* ── Calendário ─────────────────────────────────────────────────── */}
         <div className="flex-1 min-w-0">
           <div className="rounded-xl border border-slate-200 bg-white p-2.5 sm:p-4">
@@ -412,7 +416,7 @@ export default function CalendarioPrecos({
             {selecionados.length > 0 && (
               <button type="button"
                 onClick={() => document.getElementById('calendario-precos-dia')?.scrollIntoView({ behavior: 'smooth', block: 'center' })}
-                className="xl:hidden mt-3 w-full flex items-center justify-center gap-1.5 rounded-xl bg-[#0B2447] text-white text-sm font-semibold py-3">
+                className="@4xl:hidden mt-3 w-full flex items-center justify-center gap-1.5 rounded-xl bg-[#0B2447] text-white text-sm font-semibold py-3">
                 Definir preço {selecionados.length === 1 ? 'deste dia' : `dos ${selecionados.length} dias`}
                 <ChevronRight className="w-4 h-4 rotate-90" />
               </button>
@@ -458,7 +462,7 @@ export default function CalendarioPrecos({
         </div>
 
         {/* ── Painel do dia ──────────────────────────────────────────────── */}
-        <div className="w-full xl:w-80 shrink-0 space-y-4">
+        <div className="w-full @4xl:w-80 shrink-0 space-y-4">
           <div id="calendario-precos-dia" className="rounded-xl border border-slate-200 bg-white p-4 space-y-4 scroll-mt-4">
             {selecionados.length === 0 ? (
               <div>
@@ -590,6 +594,7 @@ export default function CalendarioPrecos({
             )}
           </div>
         </div>
+      </div>
       </div>
     </div>
   );

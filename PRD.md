@@ -670,11 +670,22 @@ Referência: calendário de preços do Airbnb. **Só painel do gestor** — nada
 
 - Na etapa **Preço** do cadastro (`/painel/roteiros/novo`) e da edição (`/painel/roteiros/[id]/editar`, também usada pelo admin), nova seção **"Calendário de preços"**: 12 meses com o **preço de cada dia já resolvido** pelas regras (preço base, dias da semana, período anual, data específica). Cada dia tem a cor da regra que o definiu (legenda) e atualiza ao vivo, antes de salvar.
 - O calendário cruza preço e disponibilidade: dias bloqueados, fora dos dias de operação ou já **reservados** aparecem desabilitados; dia sem preço aparece como "Sem preço".
-- **Taxa sempre clara:** faixa fixa com a taxa do Boatzy do gestor e quadro **"Cliente paga × Você recebe"** (preço do passeio + taxa de X% paga pelo cliente = total do cliente; o gestor recebe 100% do preço definido). Cupom sai da comissão do Boatzy, nunca do valor do gestor. Mesma conta do checkout.
+- **Taxa sempre clara:** taxa do Boatzy do gestor (desde 14/10/2026 no passo ② da etapa Preço, em "Entenda a taxa") e quadro **"Cliente paga × Você recebe"** (preço do passeio + taxa de X% paga pelo cliente = total do cliente; o gestor recebe 100% do preço definido). Cupom sai da comissão do Boatzy, nunca do valor do gestor. Mesma conta do checkout.
 - **Clique no dia** abre o painel do dia: regra aplicada, preço atual e campo para definir um **preço específico** só para aquela data (ou para vários: modos "Dia a dia" e "Período"). "Automático" remove o ajuste e volta ao preço das regras. Ajustes aparecem como chips ("Ajuste manual") e só valem ao **salvar o roteiro**.
 - **Prévia da regra:** ao montar uma "Nova regra", as datas afetadas ficam destacadas no calendário, com o resumo "vai valer em N datas; M já têm regra mais específica e não mudam".
-- **Indicador de rolagem:** como o calendário fica abaixo do formulário de preço, um botão flutuante com seta ("Ver o calendário de preços" / "Ver a prévia no calendário" quando há uma regra em edição) aparece na etapa Preço e, ao clicar, rola suavemente até o calendário. Some quando o calendário já está na tela.
+- **Indicador de rolagem:** quando o calendário fica abaixo do formulário de preço (telas < 1280px desde 14/10/2026), um botão flutuante com seta ("Ver o calendário de preços" / "Ver a prévia no calendário" quando há uma regra em edição) aparece na etapa Preço e, ao clicar, rola suavemente até o calendário. Some quando o calendário já está na tela.
 - Escopo: modelo **Roteiro (diária única)**; Por Diária tem valor fixo e não usa o calendário. Detalhes técnicos: `SPEC.md` §46.
+
+#### ✅ Implementado — Etapa Preço guiada, com o calendário ao lado (14/10/2026)
+
+A etapa **Preço** do cadastro e da edição de roteiro (inclusive a edição pelo admin, que usa o mesmo formulário) foi reorganizada como um passo a passo, mais compacta e sem perder nenhuma informação:
+
+- **① Como o cliente paga:** "Roteiro (diária única)" (sempre ativo) e "Por diária" viraram dois cartões compactos lado a lado; ao ligar "Por diária", os campos valor da diária e diárias mínimas aparecem numa linha.
+- **② Preço padrão por dia:** o preço base, com "Cliente paga R$ X · Você recebe R$ Y" logo abaixo. A explicação da taxa do Boatzy (que antes era uma faixa grande sempre aberta) fica em "Entenda a taxa do Boatzy (X%)", com o mesmo texto.
+- **③ Preços especiais (opcional):** três atalhos numerados pela prioridade — **1 Data específica** (Réveillon, feriados), **2 Período anual** (verão, férias), **3 Dias da semana** (sábado e domingo). O atalho abre a "Nova regra" já preparada (ex.: Sáb e Dom marcados, nome sugerido) com o foco no preço; o formulário avisa o que falta preencher. A regra de prioridade virou uma linha ("vence a de menor número") e a explicação completa com o exemplo do Réveillon fica em "Saiba mais".
+- **Suas regras:** lista compacta, uma linha por regra (número/cor do tipo, nome, quando vale, valor, excluir), em ordem de prioridade; salvas e novas juntas (selo "nova"; "será excluída" com desfazer). **Tocar numa regra destaca no calendário os dias em que ela vale**, com o resumo "vale em N datas; M já têm regra mais específica".
+- **④ Confira no calendário:** o calendário de preços saiu do card separado. Em telas largas (≥ 1280px) fica **ao lado** dos passos (a etapa Preço usa uma largura maior) e acompanha a rolagem; nas demais vem logo após as regras. Ao montar ou destacar uma regra, o calendário **vai sozinho até o mês da primeira data afetada**. As cores das regras são as mesmas das células do calendário.
+- Cada passo mostra ✓ quando está completo. Nenhuma regra de negócio, campo salvo ou cálculo mudou. Detalhes técnicos: `SPEC.md` §46.6.
 
 #### ✅ Implementado — Menu lateral do painel: item "Roteiros / Preços"
 
