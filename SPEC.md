@@ -6037,3 +6037,31 @@ datas mudaram, todas as `data_fixa` são apagadas e regravadas como `NOME_DATA_E
 - Teste (navegador headless, 1440px e 390px, rota temporária removida): fluxo novo (fechados → ① →
   bloqueio sem valor da diária → ✓ + resumo → ② com foco no preço → ✓ ao digitar → ③ → Concluir) e
   edição (todos ✓ com resumo); aviso acima do calendário; sem erros de console; `tsc`/`eslint` limpos.
+
+### 47.7 Barra de preço do dia (sticky) — `CalendarioPrecos` (16/10/2026)
+
+- O card `#calendario-precos-dia` (painel lateral) e o botão `@4xl:hidden` "Definir preço deste dia" saíram.
+  No lugar, uma barra `role="region"` (`aria-label="Definir preço dos dias selecionados"`) renderizada na
+  coluna do calendário, **logo após o card do calendário** e antes dos chips de datas específicas, com
+  `sticky bottom-[6.75rem] z-10` — fica acima do `RodapeEtapas` (`sticky bottom-0`, ~6,25rem de altura).
+  Por estar no mesmo contêiner do calendário, gruda no rodapé enquanto o fim do calendário está fora da tela
+  e volta ao fluxo normal quando há espaço.
+- Visível quando `selecionados.length > 0 && !inicio` (no modo Período, só após o 2º clique). Conteúdo: título
+  (dia por extenso ou "N dias selecionados" + intervalo), "Atual" + origem (`ORIGEM[origem]`, nome da regra,
+  `concorrentes`), input `#preco-dia` (Enter → `aplicarAjuste`, Esc → `limparSelecao`), "Aplicar preço",
+  "Automático" (se algum selecionado tem ajuste) e ✕; linha final com `decomporPreco(valorDigitado)`
+  ("Cliente paga · Você recebe · vira data específica") ou o aviso de data específica.
+- Foco: `focarPrecoDia()` (no `requestAnimationFrame`, `preventScroll`) só com `matchMedia('(pointer: fine)')`
+  — na 1ª seleção do "Dia a dia" e ao fechar o intervalo do "Período". Em toque não foca (o teclado virtual
+  cobriria o calendário).
+- O quadro "Você recebe × Cliente paga" continua na coluna/área lateral; título "Dias selecionados" e texto
+  próprio com vários dias sem valor digitado.
+- **`SectionCard` (Novo/EditarRoteiroForm): `overflow-hidden` → `overflow-clip`.** `overflow: hidden` cria
+  um contêiner de rolagem e anulava todo `position: sticky` interno — inclusive o `xl:sticky xl:top-4` da
+  coluna do calendário (§46.6), que não acompanhava a rolagem. `overflow: clip` recorta os cantos igual,
+  sem criar contêiner de rolagem.
+- Teste (headless, layout do painel reproduzido: `main` com `overflow-y-auto`, `SectionCard` e o
+  `RodapeEtapas` real; rota temporária removida): 1440×730 e 390×844 — barra inteira visível acima do
+  rodapé, foco no campo, Enter aplica (célula vira "Data específica"), vários dias, Esc, Período (barra só
+  após o 2º clique), no fim da página a barra fica 12px abaixo do calendário; sem rolagem horizontal nem
+  erros de console.

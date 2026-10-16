@@ -68,7 +68,9 @@ function SectionCard({ id, icon: Icon, title, children }: {
   id?: string; icon: React.ElementType; title: string; children: React.ReactNode;
 }) {
   return (
-    <div id={id} className="scroll-mt-24 bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
+    // overflow-clip (não hidden): recorta os cantos igual, sem virar contêiner de
+    // rolagem — senão o `sticky` do calendário de preços e da barra do dia não funciona.
+    <div id={id} className="scroll-mt-24 bg-white rounded-2xl border border-slate-100 shadow-sm overflow-clip">
       <div className="flex items-center gap-2.5 px-4 sm:px-6 py-4 border-b border-slate-100 bg-slate-50/50">
         <Icon className="w-4 h-4 text-[#0B2447]" />
         <h2 className="text-sm font-bold text-[#0B2447] tracking-wide uppercase">{title}</h2>

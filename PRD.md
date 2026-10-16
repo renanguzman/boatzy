@@ -710,6 +710,17 @@ Ajuste na etapa **Preço** do roteiro (cadastro, edição e edição pelo admin)
 - **Calendário (④) continua sempre visível**, fora do accordion; o número 4 fica em destaque quando ①–③ estão concluídos. O aviso **"Clique em um dia…"** passou para **acima do calendário** (fixo); o painel para definir o preço do dia só aparece depois de selecionar um dia.
 - Nenhuma regra de negócio, campo salvo ou cálculo mudou. Detalhes técnicos: `SPEC.md` §47.6.
 
+#### ✅ Implementado — Barra de preço do dia fixa no calendário (16/10/2026)
+
+Problema: ao clicar numa data do calendário de preços, o painel para definir o preço aparecia **abaixo** do calendário e, na maioria das telas, exigia rolar a página — perdendo o calendário de vista.
+
+- Ao selecionar um ou mais dias, aparece uma **barra de preço** logo abaixo do calendário que **gruda no rodapé da tela** (acima de Voltar / Pré-visualizar / Próximo) enquanto o fim do calendário estiver fora da tela. O preço se define **sem rolar** e com o calendário à vista.
+- A barra mostra: a data (ou "N dias selecionados" + intervalo), o **preço atual e de onde ele vem** (preço base, regra, data específica; "maior entre N regras" / "sobrepõe N regras"), o campo do novo preço, **Aplicar preço**, **Automático** (quando já há data específica) e ✕. Ao digitar, mostra na hora **"Cliente paga R$ X · Você recebe R$ Y · vira data específica"**; antes disso, lembra que o preço vira data específica e vale acima de qualquer regra.
+- Atalhos: com mouse, o cursor já vai para o campo ao selecionar — é só digitar e apertar **Enter**; **Esc** limpa a seleção. Em tela de toque o teclado não abre sozinho (não cobre o calendário enquanto se escolhem os dias).
+- A seleção continua livre: vários dias no "Dia a dia" (a barra atualiza a cada clique) e intervalo no "Período" (a barra aparece depois do segundo clique).
+- O quadro detalhado "Cliente paga × Você recebe" continua abaixo do calendário. O antigo painel do dia e o botão "Definir preço deste dia" saíram (a barra substitui os dois).
+- Correção junto: o calendário de preços "acompanhar a rolagem" em telas largas não funcionava dentro do card da etapa; agora funciona. Detalhes técnicos: `SPEC.md` §47.7.
+
 #### ✅ Implementado — Menu lateral do painel: item "Roteiros / Preços"
 
 - O item do menu lateral que leva a `/painel/roteiros` passou a se chamar **"Roteiros / Preços"**

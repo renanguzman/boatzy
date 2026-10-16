@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import {
   ChevronLeft, ChevronRight, MousePointerClick, CalendarRange, Info, Wallet, PencilLine,
   RotateCcw, X, Eye, CircleAlert,
@@ -100,6 +100,7 @@ export default function CalendarioPrecos({
   const [inicio, setInicio] = useState<string | null>(null);
   const [hover, setHover] = useState<string | null>(null);
   const [valorInput, setValorInput] = useState('');
+  const precoDiaRef = useRef<HTMLInputElement>(null);
 
   const bloqueioSet = useMemo(() => new Set(bloqueios), [bloqueios]);
   const ocupadoSet = useMemo(() => new Set(datasOcupadas), [datasOcupadas]);
@@ -167,9 +168,20 @@ export default function CalendarioPrecos({
   const selSet = new Set(selecionados);
   const rascunhoPeriodo = new Set(inicio && hover ? intervaloISO(inicio, hover) : inicio ? [inicio] : []);
 
+  /**
+   * Com mouse, a barra de preço já abre com o cursor no campo (digita e Enter).
+   * Em tela de toque não: o teclado cobriria o calendário no meio da seleção.
+   */
+  function focarPrecoDia() {
+    requestAnimationFrame(() => {
+      if (window.matchMedia('(pointer: fine)').matches) precoDiaRef.current?.focus({ preventScroll: true });
+    });
+  }
+
   function clicarDia(iso: string) {
     if (motivoIndisponivel(iso)) return;
     if (modo === 'dia') {
+      if (selecionados.length === 0) focarPrecoDia();
       setSelecionados(prev => prev.includes(iso) ? prev.filter(d => d !== iso) : [...prev, iso].sort());
       return;
     }
@@ -181,6 +193,7 @@ export default function CalendarioPrecos({
     setSelecionados(intervaloISO(inicio, iso).filter(d => !motivoIndisponivel(d)));
     setInicio(null);
     setHover(null);
+    focarPrecoDia();
   }
 
   function trocarModo(m: Modo) {
@@ -244,6 +257,9 @@ export default function CalendarioPrecos({
   const minSel = valoresSel.length ? Math.min(...valoresSel) : null;
   const maxSel = valoresSel.length ? Math.max(...valoresSel) : null;
   const selecionadosComAjuste = selecionados.filter(d => ajustes[d] != null);
+  // No modo Período, a barra só aparece depois do 2º clique (o 1º só marca o início).
+  const barraVisivel = selecionados.length > 0 && !inicio;
+  const decomposicaoNova = valorArredondado != null ? decomporPreco(valorArredondado, taxaPercent) : null;
 
   const precoDoQuadro = valorArredondado ?? (unico?.valor ?? null);
   const quadroEhExemplo = selecionados.length === 0;
@@ -437,16 +453,99 @@ export default function CalendarioPrecos({
               <span className="line-through">Indisponível</span>
             </div>
 
-            {/* Celular/tablet: o painel do dia fica abaixo — atalho até ele. */}
-            {selecionados.length > 0 && (
-              <button type="button"
-                onClick={() => document.getElementById('calendario-precos-dia')?.scrollIntoView({ behavior: 'smooth', block: 'center' })}
-                className="@4xl:hidden mt-3 w-full flex items-center justify-center gap-1.5 rounded-xl bg-[#0B2447] text-white text-sm font-semibold py-3">
-                Definir preço {selecionados.length === 1 ? 'deste dia' : `dos ${selecionados.length} dias`}
-                <ChevronRight className="w-4 h-4 rotate-90" />
-              </button>
-            )}
           </div>
+
+          {/* Barra de preço do dia: logo abaixo do calendário e `sticky` acima do
+              rodapé das etapas (RodapeEtapas, ~6,5rem) — com o fim do calendário fora
+              da tela, ela gruda no rodapé e o preço se define sem rolar a página. */}
+          {barraVisivel && (
+            <div role="region" aria-label="Definir preço dos dias selecionados"
+              className="sticky bottom-[6.75rem] z-10 mt-3 rounded-xl border border-[#0B2447]/20 bg-white/95 p-3 shadow-lg shadow-slate-900/10 backdrop-blur-sm">
+              <div className="flex items-start justify-between gap-2">
+                <div className="min-w-0 text-xs leading-snug">
+                  <p className="text-sm font-bold text-[#0B2447]">
+                    {unico
+                      ? `${DOW_LONGOS[diaDaSemanaISO(selecionados[0])]}, ${fmtBR(selecionados[0])}`
+                      : <>{selecionados.length} dias selecionados <span className="ml-1 text-xs font-medium text-slate-500">
+                          {fmtCurto(selecionados[0])} a {fmtCurto(selecionados[selecionados.length - 1])}
+                        </span></>}
+                  </p>
+                  {unico ? (
+                    <p className="mt-0.5 flex flex-wrap items-center gap-x-1.5 text-slate-500">
+                      <span>Atual: <strong className="text-slate-800">{unico.valor != null ? brlCompleto(unico.valor) : 'sem preço'}</strong></span>
+                      <span className="text-slate-300">·</span>
+                      <span className="inline-flex items-center gap-1">
+                        <span className={`w-2 h-2 rounded-full shrink-0 ${ORIGEM[unico.origem].dot}`} />
+                        {unico.origem === 'data_fixa' ? (
+                          <span>
+                            <strong className="text-violet-700">Data específica</strong>
+                            {unico.concorrentes > 0 && ` · sobrepõe ${unico.concorrentes === 1 ? '1 regra' : `${unico.concorrentes} regras`}`}
+                          </span>
+                        ) : (
+                          <span>
+                            {ORIGEM[unico.origem].label}
+                            {unico.regra && <>: <strong className="text-slate-700">{unico.regra.nome}</strong></>}
+                            {unico.concorrentes > 1 && ` · maior entre ${unico.concorrentes} regras`}
+                          </span>
+                        )}
+                      </span>
+                    </p>
+                  ) : (
+                    <p className="mt-0.5 text-slate-500">
+                      Atuais: <strong className="text-slate-800">
+                        {minSel == null ? 'sem preço' : minSel === maxSel ? brlCompleto(minSel) : `${brl(minSel)} a ${brl(maxSel!)}`}
+                      </strong>
+                    </p>
+                  )}
+                </div>
+                <button type="button" onClick={limparSelecao} aria-label="Limpar seleção" title="Limpar seleção (Esc)"
+                  className="shrink-0 w-9 h-9 sm:w-7 sm:h-7 -m-1.5 sm:m-0 flex items-center justify-center rounded-full text-slate-400 hover:bg-slate-100 hover:text-slate-600 transition-colors">
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+
+              <div className="mt-2.5 flex flex-wrap items-center gap-2">
+                <div className="relative w-36 sm:w-40">
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-slate-400 font-medium">R$</span>
+                  <input ref={precoDiaRef} id="preco-dia" type="number" inputMode="decimal" min="0" step="0.01" placeholder="Novo preço"
+                    aria-label={unico ? 'Novo preço para este dia' : 'Novo preço para os dias selecionados'}
+                    value={valorInput}
+                    onChange={e => setValorInput(e.target.value)}
+                    onKeyDown={e => {
+                      if (e.key === 'Enter') { e.preventDefault(); aplicarAjuste(); }
+                      if (e.key === 'Escape') { e.preventDefault(); limparSelecao(); }
+                    }}
+                    className="w-full rounded-xl border border-slate-200 pl-9 pr-2.5 py-2 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-[#0B2447]/20 focus:border-[#0B2447]/40 transition bg-white" />
+                </div>
+                <button type="button" onClick={aplicarAjuste} disabled={!valorValido}
+                  className="rounded-xl bg-[#0B2447] hover:bg-[#0B3D91] text-white text-sm font-semibold px-4 py-2 transition-colors disabled:opacity-40 disabled:cursor-not-allowed">
+                  Aplicar preço
+                </button>
+                {selecionadosComAjuste.length > 0 && (
+                  <button type="button" onClick={() => voltarAoAutomatico(selecionadosComAjuste)}
+                    title="Remove a data específica e volta ao preço das regras"
+                    className="flex items-center gap-1.5 rounded-xl border border-slate-200 hover:bg-slate-50 text-slate-600 text-xs font-semibold px-3 py-2 transition-colors">
+                    <RotateCcw className="w-3.5 h-3.5" />
+                    Automático
+                  </button>
+                )}
+              </div>
+
+              <p className="mt-2 text-[11px] leading-snug text-slate-500">
+                {decomposicaoNova ? (
+                  <>
+                    Cliente paga <strong className="text-[#0B2447]">{brlCompleto(decomposicaoNova.clientePaga)}</strong>
+                    <span className="text-slate-300 mx-1">·</span>
+                    Você recebe <strong className="text-emerald-700">{brlCompleto(decomposicaoNova.voceRecebe)}</strong>
+                    <span className="text-slate-300 mx-1">·</span>
+                    vira <strong className="text-violet-700">data específica</strong> (vale acima de qualquer regra)
+                  </>
+                ) : (
+                  <>Vira <strong className="text-violet-700">data específica</strong>: vale acima de qualquer regra, mesmo que seja menor.</>
+                )}
+              </p>
+            </div>
+          )}
 
           {/* Datas específicas */}
           {gruposAjuste.length > 0 && (
@@ -486,97 +585,8 @@ export default function CalendarioPrecos({
           )}
         </div>
 
-        {/* ── Painel do dia ──────────────────────────────────────────────── */}
+        {/* ── Quadro do valor (detalhe; o preço do dia se define na barra) ── */}
         <div className="w-full @4xl:w-80 shrink-0 space-y-4">
-          {selecionados.length > 0 && (
-            <div id="calendario-precos-dia" className="rounded-xl border border-slate-200 bg-white p-4 space-y-4 scroll-mt-4">
-              <div className="flex items-start justify-between gap-2">
-                <div className="min-w-0">
-                  <p className="text-sm font-bold text-[#0B2447]">
-                    {unico
-                      ? `${DOW_LONGOS[diaDaSemanaISO(selecionados[0])]}, ${fmtBR(selecionados[0])}`
-                      : `${selecionados.length} dias selecionados`}
-                  </p>
-                  {!unico && (
-                    <p className="text-xs text-slate-500 mt-0.5">
-                      {fmtCurto(selecionados[0])} a {fmtCurto(selecionados[selecionados.length - 1])}
-                    </p>
-                  )}
-                </div>
-                <button type="button" onClick={limparSelecao} aria-label="Limpar seleção"
-                  className="shrink-0 w-9 h-9 sm:w-6 sm:h-6 -m-1.5 sm:m-0 flex items-center justify-center rounded-full text-slate-400 hover:bg-slate-100 hover:text-slate-600 transition-colors">
-                  <X className="w-3.5 h-3.5" />
-                </button>
-              </div>
-
-              <div className="rounded-lg bg-slate-50 px-3 py-2.5 text-xs text-slate-600">
-                {unico ? (
-                  <>
-                    <span className="text-slate-400">Preço atual:</span>{' '}
-                    <strong className="text-slate-800">{unico.valor != null ? brlCompleto(unico.valor) : 'sem preço'}</strong>
-                    <p className="mt-0.5 flex items-center gap-1.5">
-                      <span className={`w-2 h-2 rounded-full shrink-0 ${ORIGEM[unico.origem].dot}`} />
-                      {unico.origem === 'data_fixa'
-                        ? <span><strong className="text-violet-700">Data específica</strong> — vale acima de qualquer regra</span>
-                        : unico.regra
-                          ? <span>{ORIGEM[unico.origem].label}: <strong>{unico.regra.nome}</strong></span>
-                          : ORIGEM[unico.origem].label}
-                    </p>
-                    {unico.origem === 'data_fixa' && unico.concorrentes > 0 && (
-                      <p className="mt-0.5 text-[11px] text-slate-400">
-                        Sobrepõe {unico.concorrentes === 1 ? '1 regra' : `${unico.concorrentes} regras`} deste dia.
-                      </p>
-                    )}
-                    {unico.origem !== 'data_fixa' && unico.concorrentes > 1 && (
-                      <p className="mt-0.5 text-[11px] text-slate-400">
-                        {unico.concorrentes} regras valem neste dia — vale a de maior preço.
-                      </p>
-                    )}
-                  </>
-                ) : (
-                  <>
-                    <span className="text-slate-400">Preços atuais:</span>{' '}
-                    <strong className="text-slate-800">
-                      {minSel == null ? 'sem preço' : minSel === maxSel ? brlCompleto(minSel) : `${brl(minSel)} a ${brl(maxSel!)}`}
-                    </strong>
-                  </>
-                )}
-              </div>
-
-              <div>
-                <label htmlFor="preco-dia" className="block text-xs font-medium text-slate-600 mb-1.5">
-                  Novo preço {unico ? 'para este dia' : 'para os dias selecionados'}
-                </label>
-                <p className="-mt-1 mb-1.5 text-[11px] text-slate-400 leading-snug">
-                  Vira <strong className="text-violet-700">data específica</strong>: vale acima de qualquer regra, mesmo que seja menor.
-                </p>
-                <div className="relative">
-                  <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-sm text-slate-400 font-medium">R$</span>
-                  <input id="preco-dia" type="number" inputMode="decimal" min="0" step="0.01" placeholder="0,00"
-                    value={valorInput}
-                    onChange={e => setValorInput(e.target.value)}
-                    onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); aplicarAjuste(); } }}
-                    className="w-full rounded-xl border border-slate-200 pl-10 pr-3.5 py-2.5 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-[#0B2447]/20 focus:border-[#0B2447]/40 transition bg-white" />
-                </div>
-              </div>
-
-              <div className="flex gap-2">
-                <button type="button" onClick={aplicarAjuste} disabled={!valorValido}
-                  className="flex-1 rounded-xl bg-[#0B2447] hover:bg-[#0B3D91] text-white text-sm font-semibold px-4 py-2.5 transition-colors disabled:opacity-40 disabled:cursor-not-allowed">
-                  Aplicar preço
-                </button>
-                {selecionadosComAjuste.length > 0 && (
-                  <button type="button" onClick={() => voltarAoAutomatico(selecionadosComAjuste)}
-                    title="Remove a data específica e volta ao preço das regras"
-                    className="flex items-center gap-1.5 rounded-xl border border-slate-200 hover:bg-slate-50 text-slate-600 text-xs font-semibold px-3 py-2.5 transition-colors">
-                    <RotateCcw className="w-3.5 h-3.5" />
-                    Automático
-                  </button>
-                )}
-              </div>
-            </div>
-          )}
-
           {/* Você recebe × Cliente paga */}
           <div className="rounded-xl border border-slate-200 bg-white overflow-hidden">
             <div className="flex items-center gap-2 px-4 py-3 border-b border-slate-100 bg-slate-50/60">
@@ -584,7 +594,7 @@ export default function CalendarioPrecos({
               <p className="text-xs font-bold text-[#0B2447] uppercase tracking-wide">
                 {quadroEhExemplo
                   ? 'Exemplo com o preço base'
-                  : valorArredondado != null ? 'Com o novo preço' : 'Neste dia'}
+                  : valorArredondado != null ? 'Com o novo preço' : unico ? 'Neste dia' : 'Dias selecionados'}
               </p>
             </div>
             {decomposicao ? (
@@ -617,7 +627,9 @@ export default function CalendarioPrecos({
               <p className="p-4 text-xs text-slate-500 leading-relaxed">
                 {quadroEhExemplo
                   ? 'Defina o preço base (ou um preço por data) para ver aqui quanto o cliente paga e quanto você recebe.'
-                  : 'Este dia ainda não tem preço. Digite um valor acima para ver quanto o cliente paga e quanto você recebe.'}
+                  : unico
+                    ? 'Este dia ainda não tem preço. Digite o novo preço para ver quanto o cliente paga e quanto você recebe.'
+                    : 'Digite o novo preço para ver quanto o cliente paga e quanto você recebe.'}
               </p>
             )}
           </div>
