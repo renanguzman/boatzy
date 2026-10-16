@@ -23,9 +23,8 @@ import CatalogoSelector, { type CatalogoItem, type ItemSelecionado } from '../..
 import DisponibilidadePicker from '@/components/painel/DisponibilidadePicker';
 import EtapaPreco, { type RegraListada } from '../../_components/EtapaPreco';
 import {
-  regraDeFormulario, compactarAjustes, type RegraFormulario, NOME_AJUSTE_MANUAL, PRIORIDADE_AJUSTE_MANUAL,
+  regraDeFormulario, compactarAjustes, type RegraFormulario, NOME_DATA_ESPECIFICA, PRIORIDADE_DATA_ESPECIFICA,
 } from '@/lib/precos-calendario';
-import type { PrecoRegraTipo } from '@/types/supabase';
 import PreviewPublicacaoModal from '@/components/preview/PreviewPublicacaoModal';
 import BotaoPreview from '@/components/preview/BotaoPreview';
 import { montarPreviewRoteiro } from '@/components/preview/montar';
@@ -46,19 +45,7 @@ type Embarcacao = { id: string; nome: string; capacidade: number | null };
 
 type ParadaLocal = { localId: string; nome: string };
 
-type RegraLocal = {
-  localId: string;
-  tipo: PrecoRegraTipo;
-  nome: string;
-  valor: string;
-  diasSemana: number[];
-  periodoMesInicio: number;
-  periodoDiaInicio: number;
-  periodoMesFim: number;
-  periodoDiaFim: number;
-  dataInicio: string;
-  dataFim: string;
-};
+type RegraLocal = RegraFormulario & { localId: string };
 
 type Props = {
   estados: Estado[];
@@ -409,16 +396,14 @@ export default function NovoRoteiroForm({ estados, embarcacoes, catalogo: catalo
         periodoDiaInicio:  regra.tipo === 'periodo_anual' ? regra.periodoDiaInicio : undefined,
         periodoMesFim:     regra.tipo === 'periodo_anual' ? regra.periodoMesFim    : undefined,
         periodoDiaFim:     regra.tipo === 'periodo_anual' ? regra.periodoDiaFim    : undefined,
-        dataInicio:        regra.tipo === 'data_fixa'     ? regra.dataInicio       : undefined,
-        dataFim:           regra.tipo === 'data_fixa'     ? regra.dataFim          : undefined,
       });
     }
 
-    // Preço de dias específicos (calendário): dias seguidos de mesmo valor = uma regra
+    // Datas específicas (preço definido no calendário): dias seguidos de mesmo valor = uma regra
     for (const g of compactarAjustes(ajustes)) {
       await criarRegraRoteiro({
-        roteiroId, nome: NOME_AJUSTE_MANUAL, valor: g.valor, tipo: 'data_fixa',
-        prioridade: PRIORIDADE_AJUSTE_MANUAL, dataInicio: g.inicio, dataFim: g.fim,
+        roteiroId, nome: NOME_DATA_ESPECIFICA, valor: g.valor, tipo: 'data_fixa',
+        prioridade: PRIORIDADE_DATA_ESPECIFICA, dataInicio: g.inicio, dataFim: g.fim,
       });
     }
 

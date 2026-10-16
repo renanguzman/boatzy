@@ -29,11 +29,10 @@ import CatalogoSelector, { type CatalogoItem, type ItemSelecionado } from '../..
 import DisponibilidadePicker from '@/components/painel/DisponibilidadePicker';
 import EtapaPreco, { type RegraListada } from '../../../_components/EtapaPreco';
 import {
-  regraDeBanco, regraDeFormulario, ajustesDeBanco, isManualBanco, compactarAjustes, type RegraFormulario,
-  NOME_AJUSTE_MANUAL, PRIORIDADE_AJUSTE_MANUAL,
+  regraDeBanco, regraDeFormulario, ajustesDeBanco, ehDataEspecificaBanco, compactarAjustes, type RegraFormulario,
+  NOME_DATA_ESPECIFICA, PRIORIDADE_DATA_ESPECIFICA,
 } from '@/lib/precos-calendario';
 import { horasParaPartes } from '@/lib/duracao';
-import type { PrecoRegraTipo } from '@/types/supabase';
 import ConfirmarNovaAnaliseModal from '@/components/publicacao/ConfirmarNovaAnaliseModal';
 import PreviewPublicacaoModal from '@/components/preview/PreviewPublicacaoModal';
 import BotaoPreview from '@/components/preview/BotaoPreview';
@@ -109,19 +108,7 @@ type ParadaLocal = { localId: string; nome: string };
 
 type RegraExistente = RoteiroPrecoRegra & { markedForDelete: boolean };
 
-type RegraLocal = {
-  localId: string;
-  tipo: PrecoRegraTipo;
-  nome: string;
-  valor: string;
-  diasSemana: number[];
-  periodoMesInicio: number;
-  periodoDiaInicio: number;
-  periodoMesFim: number;
-  periodoDiaFim: number;
-  dataInicio: string;
-  dataFim: string;
-};
+type RegraLocal = RegraFormulario & { localId: string };
 
 type Props = {
   roteiro: RoteiroData;
@@ -229,10 +216,10 @@ export default function EditarRoteiroForm({ roteiro, estados, municipiosIniciais
   const [cepError, setCepError]                   = useState<string | null>(null);
 
   // Regras existentes
-  // Os ajustes manuais (preço de um dia, feito no calendário) ficam fora da lista
-  // de regras: aparecem como chips no próprio calendário.
+  // As datas específicas (preço de um dia, definido no calendário) ficam fora da
+  // lista de regras: aparecem como chips no próprio calendário.
   const [regrasExistentes, setRegrasExistentes] = useState<RegraExistente[]>(
-    roteiro.roteiro_preco_regra.filter(r => !isManualBanco(r)).map(r => ({ ...r, markedForDelete: false })),
+    roteiro.roteiro_preco_regra.filter(r => !ehDataEspecificaBanco(r)).map(r => ({ ...r, markedForDelete: false })),
   );
   const [ajustesIniciais] = useState(() => ajustesDeBanco(roteiro.roteiro_preco_regra));
   const [ajustes, setAjustes] = useState<Record<string, number>>(ajustesIniciais);
@@ -526,17 +513,17 @@ export default function EditarRoteiroForm({ roteiro, estados, municipiosIniciais
       await excluirRegraRoteiro(roteiro.id, regra.id);
     }
 
-    // 2b. Ajustes de preço por dia (calendário): só mexe se mudaram — apaga os
-    // salvos e grava de novo, com dias seguidos de mesmo valor num único intervalo.
+    // 2b. Datas específicas (preço por dia, no calendário): só mexe se mudaram —
+    // apaga as salvas e grava de novo, com dias seguidos de mesmo valor num único intervalo.
     const ajustesFinais = compactarAjustes(ajustes);
     if (JSON.stringify(ajustesFinais) !== JSON.stringify(compactarAjustes(ajustesIniciais))) {
-      for (const regra of roteiro.roteiro_preco_regra.filter(isManualBanco)) {
+      for (const regra of roteiro.roteiro_preco_regra.filter(ehDataEspecificaBanco)) {
         await excluirRegraRoteiro(roteiro.id, regra.id);
       }
       for (const g of ajustesFinais) {
         await criarRegraRoteiro({
-          roteiroId: roteiro.id, nome: NOME_AJUSTE_MANUAL, valor: g.valor, tipo: 'data_fixa',
-          prioridade: PRIORIDADE_AJUSTE_MANUAL, dataInicio: g.inicio, dataFim: g.fim,
+          roteiroId: roteiro.id, nome: NOME_DATA_ESPECIFICA, valor: g.valor, tipo: 'data_fixa',
+          prioridade: PRIORIDADE_DATA_ESPECIFICA, dataInicio: g.inicio, dataFim: g.fim,
         });
       }
     }
@@ -554,8 +541,6 @@ export default function EditarRoteiroForm({ roteiro, estados, municipiosIniciais
         periodoDiaInicio:  regra.tipo === 'periodo_anual' ? regra.periodoDiaInicio : undefined,
         periodoMesFim:     regra.tipo === 'periodo_anual' ? regra.periodoMesFim    : undefined,
         periodoDiaFim:     regra.tipo === 'periodo_anual' ? regra.periodoDiaFim    : undefined,
-        dataInicio:        regra.tipo === 'data_fixa'     ? regra.dataInicio       : undefined,
-        dataFim:           regra.tipo === 'data_fixa'     ? regra.dataFim          : undefined,
       });
     }
 

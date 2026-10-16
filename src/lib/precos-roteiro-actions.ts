@@ -4,7 +4,8 @@ import { supabaseAdmin } from '@/lib/supabase';
 
 /**
  * Preço do modelo "Roteiro" na data escolhida, com as regras do gestor
- * aplicadas (data_fixa > periodo_anual > dia_semana > preco_base).
+ * aplicadas (data específica > maior valor entre período anual/dia da semana >
+ * preco_base).
  *
  * Fonte única da resolução por data: a função SQL `get_preco_roteiro`. O card
  * de reserva chama isto ao escolher a data, para o valor exibido ser o mesmo

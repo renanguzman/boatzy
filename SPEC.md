@@ -5278,7 +5278,7 @@ valor digitado para a pré-visualização.
 ### 36.2 Preço mínimo — `roteiro.preco_minimo`
 
 **Problema.** O preço do modelo Roteiro varia por data (`roteiro_preco_regra`: `data_fixa` >
-`periodo_anual` > `dia_semana` > `preco_base`), e os modelos Por Diária/Por Pessoa podem estar
+`periodo_anual` > `dia_semana` > `preco_base` — **precedência alterada em 16/10/2026, ver §47**), e os modelos Por Diária/Por Pessoa podem estar
 ativos em paralelo. Card, detalhe, checkout e busca liam `preco_base` puro, então um roteiro de base
 R$ 1.500 com regra de baixa temporada a R$ 800 anunciava e cobrava R$ 1.500 sempre (achado de §33).
 
@@ -5859,14 +5859,14 @@ Só painel (`/painel/roteiros/novo`, `/painel/roteiros/[id]/editar` e a edição
 
 ### 46.1 Resolvedor em TypeScript — `src/lib/precos-calendario.ts` (puro, client-safe)
 
-- `resolverPrecoNaData(precoBase, regras, 'AAAA-MM-DD') → { valor, origem, regra, manual }` é **espelho** da função SQL `get_preco_roteiro` (§33/§36), que continua sendo a fonte da verdade do site e do checkout: `data_fixa` > `periodo_anual` (cruza o ano) > `dia_semana` > `preco_base`; no mesmo tipo vence a maior `prioridade`; regra `ativo=false` é ignorada. Existe só para mostrar o efeito das regras **antes de salvar**. Se a precedência mudar no SQL, mudar aqui.
+- `resolverPrecoNaData(precoBase, regras, 'AAAA-MM-DD') → { valor, origem, regra, concorrentes }` é **espelho** da função SQL `get_preco_roteiro` (§33/§36/§47), que continua sendo a fonte da verdade do site e do checkout. Precedência desde 16/10/2026 (§47): `data_fixa` (data específica) vence sempre > **maior `valor`** entre `periodo_anual` (cruza o ano) e `dia_semana` > `preco_base`; regra `ativo=false` é ignorada. Existe só para mostrar o efeito das regras **antes de salvar**. Se a precedência mudar no SQL, mudar aqui.
 - Tipos/conversores: `RegraPreco`, `regraDeBanco` (linha de `roteiro_preco_regra`), `regraDeFormulario`/`previaDeFormulario` (regra digitada; `null` até ficar calculável).
 - `decomporPreco(preco, taxaPercent) → { voceRecebe, taxaPercent, taxaValor, clientePaga }` usa `calcularValoresPedido` (`lib/pagamentos/valores.ts`): comissão = `round(preço × taxa%)` somada ao preço; o gestor recebe o preço integral (decisão D7).
 - Datas em ISO com aritmética UTC (`somarDiasISO`, `diaDaSemanaISO`, `intervaloISO`); "hoje" via `hojeISO()` (fuso de Brasília).
 
-### 46.2 Ajuste manual de um dia
+### 46.2 Data específica (preço de um dia) — antes "Ajuste manual"
 
-Reutiliza `roteiro_preco_regra`: regra `tipo='data_fixa'`, `nome='Ajuste manual'` (`NOME_AJUSTE_MANUAL`), `data_inicio = data_fim` (ou intervalo de dias seguidos de mesmo valor) e `prioridade=100` (`PRIORIDADE_AJUSTE_MANUAL`; as demais regras usam 0), para vencer uma data específica que cubra o dia (ex.: Réveillon). Funções: `ehAjusteManual`/`isManualBanco`, `ajustesDeBanco` (regras → `Record<data, valor>`), `compactarAjustes` (mapa → intervalos), `ajustesComoRegras`.
+Reutiliza `roteiro_preco_regra`: regra `tipo='data_fixa'`, `nome='Data específica'` (`NOME_DATA_ESPECIFICA`; até 16/10/2026 `'Ajuste manual'`), `data_inicio..data_fim` (um dia ou intervalo de dias seguidos de mesmo valor) e `prioridade=100` (`PRIORIDADE_DATA_ESPECIFICA`; as demais regras usam 0). Desde §47 **toda** regra `data_fixa` é data específica (só o calendário cria esse tipo), sem depender de nome/prioridade. Funções: `ehDataEspecificaBanco` (`tipo === 'data_fixa'`), `ajustesDeBanco` (regras → `Record<data, valor>`; sobrepostas resolvem como no SQL), `compactarAjustes` (mapa → intervalos), `ajustesComoRegras`.
 
 Nos forms, os ajustes ficam em estado `ajustes: Record<string, number>`, **fora** da lista "Regras salvas" (aparecem como chips no calendário). No salvar: `NovoRoteiroForm` cria uma regra por intervalo compactado; `EditarRoteiroForm` só mexe se mudaram — apaga as regras de ajuste salvas (`excluirRegraRoteiro`) e recria os intervalos (`criarRegraRoteiro`). Preço não é campo sensível do pipeline de aprovação (§45): ajustar não devolve o roteiro para análise.
 
@@ -5877,7 +5877,7 @@ Props: `precoBase: number|null`, `regras: RegraPreco[]` (sem ajustes), `ajustes`
 - Janela de 365 dias a partir de hoje (a mesma do `preco_minimo`, §36). Dia desabilitado: passado, fora da janela, reservado, bloqueado ou fora dos dias de operação.
 - Modos de seleção "Dia a dia" (toggle múltiplo) e "Período" (início/fim, como o `DisponibilidadePicker`); painel do dia com regra aplicada, campo de preço, "Aplicar preço" (se igual ao automático, remove o ajuste) e "Automático".
 - Quadro "Você recebe × Cliente paga" (valor digitado ou preço do dia; sem seleção, exemplo com o preço base).
-- Prévia da regra em edição: destaca as datas em que ela vence e conta as que ficam sobrepostas por regra mais específica.
+- Prévia da regra em edição: destaca as datas em que ela vence e conta as que continuam com o preço atual, separando o motivo (`comDataEspecifica` / `comPrecoMaior`, §47).
 
 ### 46.3b Indicador de rolagem — `src/components/painel/IndicadorRolagem.tsx`
 
@@ -5915,10 +5915,10 @@ type Props = {
 - Layout: `grid xl:grid-cols-12` — passos ①–③ em `xl:col-span-5` (`@container`; grades internas por
   container query) e ④ calendário em `xl:col-span-7 xl:sticky xl:top-4` (`id="calendario-precos"`,
   alvo do `IndicadorRolagem`). Os forms usam `max-w-4xl` e `xl:max-w-6xl` só na etapa Preço.
-- Atalhos de regra (`TIPOS`, em ordem de prioridade, cores = `ORIGEM` do calendário): `data_fixa` (1,
-  violeta), `periodo_anual` (2, âmbar, nome sugerido "Alta temporada", Dez/01→Fev/28), `dia_semana`
-  (3, azul, nome sugerido "Fim de semana", Dom+Sáb). `faltaNaRegra()` diz o que falta; trocar o tipo
-  mantém nome/preço digitados (troca só nome sugerido).
+- Atalhos de regra (`TIPOS`, cores = `ORIGEM` do calendário): `periodo_anual` (âmbar, nome sugerido
+  "Alta temporada", Dez/01→Fev/28) e `dia_semana` (azul, nome sugerido "Fim de semana", Dom+Sáb).
+  Até 16/10/2026 havia também `data_fixa` e os tipos eram numerados pela prioridade (§47).
+  `faltaNaRegra()` diz o que falta; trocar o tipo mantém nome/preço digitados (troca só nome sugerido).
 - `previaRegra` passada ao calendário = prévia do formulário aberto **ou** a regra tocada na lista
   (`previaTitulo`: "Onde vale a regra “…”").
 - `CalendarioPrecos` (§46.3) ganhou: prop `previaTitulo?`; não duplica a prévia se ela já está em
@@ -5933,3 +5933,107 @@ Os forms ganharam `taxaPercent` (obrigatório) e, na edição, `datasOcupadas`. 
 
 ### 46.5 Fora do escopo
 Site do cliente (`BookingCard`/DatePicker públicos), o modelo Por Diária (valor fixo) e o calendário de agendamentos (`/painel/agendamentos`) não foram alterados.
+
+---
+
+## 47. Preços especiais: data específica pelo calendário e maior preço vence (16/10/2026)
+
+Etapa Preço do roteiro (`/painel/roteiros/novo`, `/painel/roteiros/[id]/editar` e a edição do admin) +
+resolução do preço no banco (site e checkout).
+
+### 47.1 Regra de negócio
+
+Preço do modelo Roteiro numa data:
+
+1. **Data específica** (`data_fixa`) — o preço definido clicando no dia do `CalendarioPrecos`. Vence qualquer
+   regra, **mesmo mais barata**. Entre `data_fixa` sobrepostas: maior `prioridade`, depois maior `valor`.
+2. **Maior preço** entre as regras recorrentes que valem na data (`periodo_anual` e `dia_semana`, de
+   qualquer tipo). Empate de valor (só afeta o rótulo da origem no painel): `periodo_anual`, depois maior
+   `prioridade`, depois a primeira da lista.
+3. `preco_base`.
+
+Antes: ordem fixa por tipo (`data_fixa` > `periodo_anual` > `dia_semana`), e no mesmo tipo a maior
+`prioridade`. Regras com valor menor que `preco_base` continuam valendo (o conflito é só entre regras).
+Embarcação (`get_preco_embarcacao`, sem uso pela aplicação desde §39) não foi alterada.
+
+### 47.2 Migration — `supabase/migrations/20261016_preco_roteiro_maior_valor.sql`
+
+- `CREATE OR REPLACE public.get_preco_roteiro(uuid, date) → numeric(10,2)` (mesma assinatura): passo 1
+  `ORDER BY prioridade DESC, valor DESC LIMIT 1` em `data_fixa`; passo 2 `MAX(valor)` das regras
+  `periodo_anual`/`dia_semana` ativas que cobrem a data. Ganhou `SET search_path = public` e `COMMENT`.
+- `CREATE OR REPLACE public.calcular_preco_minimo_roteiro(...)` (mesma assinatura e `RETURNS TABLE`; mantém
+  `SET timezone = 'America/Sao_Paulo'`): só o CTE `precos_dia` muda, para a mesma precedência.
+- Re-`GRANT EXECUTE` das duas para `anon, authenticated, service_role`;
+  `SELECT recalcular_precos_minimos_roteiros()` (backfill do "A partir de"; só grava `preco_minimo*`, não
+  dispara a proteção de status do §45); `NOTIFY pgrst, 'reload schema'`. Idempotente.
+
+### 47.3 Front — `src/lib/precos-calendario.ts`
+
+| Antes | Agora |
+|---|---|
+| `PrecoDoDia.manual: boolean` | `PrecoDoDia.concorrentes: number` — regras `periodo_anual`/`dia_semana` que valem na data (com 2+, venceu a de maior preço; com `data_fixa`, são as sobrepostas). Data específica = `origem === 'data_fixa'`. |
+| `ehAjusteManual`, `isManualBanco` (nome + prioridade + 1 dia) | `ehDataEspecificaBanco(r)` = `r.tipo === 'data_fixa'` |
+| `NOME_AJUSTE_MANUAL`, `PRIORIDADE_AJUSTE_MANUAL` | `NOME_DATA_ESPECIFICA = 'Data específica'`, `PRIORIDADE_DATA_ESPECIFICA = 100` |
+| `RegraFormulario.tipo: PrecoRegraTipo` + `dataInicio`/`dataFim` | `RegraFormulario.tipo: TipoRegraRecorrente` (`Exclude<PrecoRegraTipo, 'data_fixa'>`), sem campos de data |
+
+`ajustesDeBanco` passou a ler **todas** as `data_fixa` ativas (inclusive intervalos de vários dias e as
+criadas pelo card antigo), aplicando as sobrepostas em ordem crescente de `prioridade`/`valor` (a vencedora
+do SQL fica por último). Corrige um bug: o `isManualBanco` antigo exigia `data_inicio = data_fim`, então um
+intervalo gravado por `compactarAjustes` reabria na edição como regra comum na lista.
+
+Forms: `RegraLocal = RegraFormulario & { localId }` em `NovoRoteiroForm`/`EditarRoteiroForm` (saíram
+`dataInicio`/`dataFim` do salvar). Na edição, a lista de regras exclui `ehDataEspecificaBanco` e, se as
+datas mudaram, todas as `data_fixa` são apagadas e regravadas como `NOME_DATA_ESPECIFICA`.
+
+### 47.4 Front — componentes
+
+- `EtapaPreco`: `TIPOS` só com `periodo_anual`/`dia_semana` (grid de 2 cards e abas de 2 no `FormRegra`;
+  sem badges numéricos — ícone do tipo na lista). Aviso tracejado violeta "Data específica … clique no dia no
+  calendário … vale acima de qualquer regra" com botão `xl:hidden` "Ir para o calendário" (`scrollIntoView`
+  em `#calendario-precos`, `auto` com `prefers-reduced-motion`). Instrução: "Se duas regras valerem no mesmo
+  dia, vale a de maior preço. A data específica vence sempre"; `PRECO_NIVEIS` com 3 níveis (data específica →
+  maior preço → preço padrão). Passo ③ fica ✓ com regra **ou** data específica.
+- `CalendarioPrecos`: `ORIGEM` sem `manual`; `data_fixa` = "Data específica" (violeta + ícone de lápis), na
+  legenda "(vence sempre)"; chips violeta "N datas específicas — valem acima de qualquer regra". Painel do
+  dia: "Data específica — vale acima de qualquer regra" + "Sobrepõe N regras deste dia", ou "N regras valem
+  neste dia — vale a de maior preço"; dica sob o campo de preço. Prévia: `comDataEspecifica` /
+  `comPrecoMaior` com o texto do motivo (`MotivosSobreposicao`).
+
+### 47.5 Testes
+
+- Postgres em memória (PGlite): estado anterior (get_preco_roteiro de 20260907 + 20261010d) → migration
+  nova. Cenário fixo antes × depois (sábado de verão 1.200 → 1.800; sábado de baixa 800 → 1.800; data
+  específica mais barata continua valendo; dia sem regra = base), paridade SQL × `resolverPrecoNaData` em
+  16.440 datas de 40 roteiros aleatórios (com empates, inativas, períodos que cruzam o ano, `data_fixa`
+  sobrepostas), `preco_minimo`/`preco_minimo_roteiro` × mínimo em TS, GRANTs e reaplicação da migration.
+- Ida e volta `compactarAjustes` → banco → `ajustesDeBanco` (intervalos e `data_fixa` legadas).
+- Navegador (headless, 1440px e 390px): cards, instrução, "Saiba mais", painel do dia, aplicar data
+  específica, prévia com e sem efeito, atalho para o calendário; sem erros de console. `tsc` e `eslint` limpos.
+
+### 47.6 Passos ①–③ em accordion (16/10/2026)
+
+`EtapaPreco` (só UI; props e salvar inalterados):
+
+- Estado novo: `aberto: 1 | 2 | 3 | null` (um por vez; ao montar, `proximo` — o primeiro passo pendente
+  —, ou `null` se todos concluídos; inicializador preguiçoso do `useState`, sem foco automático) e
+  `confirmados: (1 | 2 | 3)[]`. Como o componente fica montado ao trocar de etapa (`hidden` nos forms),
+  o estado sobrevive à navegação entre etapas.
+- Conclusão (`feito`): ① `passo1Ok && (confirmado || passo2Ok)` — o padrão (só Roteiro) já é válido, então
+  exige confirmação ou preço padrão existente (edição); ② `precoBase > 0`; ③ `regras ativas || datas
+  específicas || confirmado`. `proximo` = primeiro passo não feito (ou 4). `EstadoPasso`: `feito` (✓ verde),
+  `atual` (aberto ou próximo — número azul-marinho), `pendente` (número cinza). O ④ do calendário usa
+  `atual` quando `proximo === 4`.
+- `Passo` (item do accordion): `<section id>` + `<h3><button aria-expanded aria-controls>` com número/✓,
+  título, linha (subtítulo; fechado e feito → `resumo`; fechado com `pendencia` → texto âmbar) e chevron.
+  Conteúdo `role="region"` com `inert` quando fechado e animação de altura `grid-rows-[0fr]→[1fr]`
+  (`motion-reduce:transition-none`). Ids via `useId()`.
+- `RodapePasso`: "Próximo passo" (①/②, `disabled` + "Falta: …" enquanto inválido) e "Concluir" (③, oculto
+  com o formulário de nova regra aberto). `concluirPasso(n)` confirma, abre `n+1` e, no próximo frame,
+  foca o primeiro `input` do passo (`preventScroll`) e faz `scrollIntoView({ block: 'nearest' })`.
+- Fechar o ③ limpa a regra em destaque (`destaqueId`); o rascunho de nova regra (`rf`) é mantido.
+- `CalendarioPrecos`: o texto "Clique em um dia…" virou um aviso fixo no topo do componente (acima da
+  prévia e do calendário); o card `#calendario-precos-dia` só é renderizado com dia selecionado. O
+  subtítulo do ④ na `EtapaPreco` deixou de repetir a instrução de clique.
+- Teste (navegador headless, 1440px e 390px, rota temporária removida): fluxo novo (fechados → ① →
+  bloqueio sem valor da diária → ✓ + resumo → ② com foco no preço → ✓ ao digitar → ③ → Concluir) e
+  edição (todos ✓ com resumo); aviso acima do calendário; sem erros de console; `tsc`/`eslint` limpos.

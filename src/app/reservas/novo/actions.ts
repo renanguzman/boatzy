@@ -133,9 +133,10 @@ async function resolverAlvo(input: ResolverAlvoInput): Promise<ResolverAlvoResul
   }
 
   // No modelo Roteiro o preço do dia vem de `get_preco_roteiro`, que aplica as
-  // regras do gestor (data_fixa > periodo_anual > dia_semana) com fallback em
-  // `preco_base` — a mesma função que o card de reserva consulta ao escolher a
-  // data, para o cliente nunca ser cobrado um valor diferente do que viu.
+  // regras do gestor (data específica > maior valor entre período anual/dia da
+  // semana) com fallback em `preco_base` — a mesma função que o card de reserva
+  // consulta ao escolher a data, para o cliente nunca ser cobrado um valor
+  // diferente do que viu.
   const precoUnitario =
     input.modalidade === 'diaria'
       ? roteiro.preco_diaria_valor != null ? Number(roteiro.preco_diaria_valor) : null

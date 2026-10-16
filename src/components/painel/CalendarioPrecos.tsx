@@ -22,12 +22,12 @@ const DOW_LONGOS = ['Domingo', 'Segunda-feira', 'Terça-feira', 'Quarta-feira', 
 /** Janela que o calendário cobre, a mesma do "a partir de" do card (365 dias). */
 const JANELA_DIAS = 365;
 
-const ORIGEM: Record<OrigemPreco | 'manual', { label: string; cell: string; dot: string }> = {
+// `data_fixa` = data específica: o preço definido clicando no dia, que vence qualquer regra.
+const ORIGEM: Record<OrigemPreco, { label: string; cell: string; dot: string }> = {
   preco_base:    { label: 'Preço base',      cell: 'bg-white border-slate-200',                       dot: 'bg-slate-400' },
   dia_semana:    { label: 'Dia da semana',   cell: 'bg-blue-50 border-blue-200',                      dot: 'bg-blue-500' },
   periodo_anual: { label: 'Período anual',   cell: 'bg-amber-50 border-amber-200',                    dot: 'bg-amber-500' },
-  data_fixa:     { label: 'Data específica', cell: 'bg-violet-50 border-violet-200',                  dot: 'bg-violet-500' },
-  manual:        { label: 'Ajuste manual',   cell: 'bg-emerald-50 border-emerald-300',                dot: 'bg-emerald-500' },
+  data_fixa:     { label: 'Data específica', cell: 'bg-violet-50 border-violet-300',                  dot: 'bg-violet-500' },
   sem_preco:     { label: 'Sem preço',       cell: 'bg-red-50 border-red-200 border-dashed',          dot: 'bg-red-400' },
 };
 
@@ -62,9 +62,9 @@ function fmtPct(p: number): string {
 
 type Props = {
   precoBase: number | null;
-  /** Regras do gestor (sem os ajustes manuais, que vêm em `ajustes`). */
+  /** Regras do gestor (sem as datas específicas, que vêm em `ajustes`). */
   regras: RegraPreco[];
-  /** Ajustes de um dia: 'yyyy-mm-dd' → preço. */
+  /** Datas específicas (preço de um dia, definido aqui; vence qualquer regra): 'yyyy-mm-dd' → preço. */
   ajustes: Record<string, number>;
   onAjustesChange: (ajustes: Record<string, number>) => void;
   /** Dias da semana de operação (0=Dom..6=Sáb). Vazio = todos. */
@@ -105,7 +105,7 @@ export default function CalendarioPrecos({
   const ocupadoSet = useMemo(() => new Set(datasOcupadas), [datasOcupadas]);
   const operaTodos = diasOperacao.length === 0;
 
-  // Regras "oficiais" (com ajustes) e, por cima, a prévia da regra em edição
+  // Regras "oficiais" (com as datas específicas) e, por cima, a prévia da regra em edição
   // (uma regra já existente em destaque não entra de novo).
   const regrasAtuais = useMemo(() => [...regras, ...ajustesComoRegras(ajustes)], [regras, ajustes]);
   const regrasComPrevia = useMemo(
@@ -126,7 +126,10 @@ export default function CalendarioPrecos({
   const previa = useMemo(() => {
     if (!previaRegra) return null;
     let afetadas = 0;
-    let sobrepostas = 0;
+    // Datas que a regra cobre mas onde vale outro preço: uma data específica
+    // (vence sempre) ou outra regra de preço igual ou maior.
+    let comDataEspecifica = 0;
+    let comPrecoMaior = 0;
     let primeira: string | null = null;
     let ultima: string | null = null;
     for (let i = 0; i <= JANELA_DIAS; i++) {
@@ -137,11 +140,13 @@ export default function CalendarioPrecos({
         afetadas++;
         primeira ??= iso;
         ultima = iso;
+      } else if (vencedora?.tipo === 'data_fixa') {
+        comDataEspecifica++;
       } else {
-        sobrepostas++;
+        comPrecoMaior++;
       }
     }
-    return { afetadas, sobrepostas, primeira, ultima };
+    return { afetadas, comDataEspecifica, comPrecoMaior, sobrepostas: comDataEspecifica + comPrecoMaior, primeira, ultima };
     // motivoIndisponivel depende só dos props abaixo.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [previaRegra, precoBase, regrasComPrevia, hoje, ocupadoSet, bloqueioSet, diasOperacao]);
@@ -250,6 +255,17 @@ export default function CalendarioPrecos({
 
   return (
     <div className="space-y-5">
+      {/* Como usar: fixo acima do calendário (o painel do dia só aparece com um dia selecionado) */}
+      <div className="flex items-start gap-2.5 rounded-xl border border-slate-200 bg-slate-50/70 px-3.5 py-3">
+        <MousePointerClick className="w-4 h-4 shrink-0 mt-0.5 text-[#0B2447]" aria-hidden />
+        <p className="text-xs text-slate-600 leading-relaxed">
+          <strong className="text-[#0B2447]">Clique em um dia</strong> para ver quanto será cobrado naquela data e, se quiser,
+          definir um preço só para ela — a <strong className="text-violet-700">data específica</strong>, que{' '}
+          <strong className="text-slate-700">vale acima de qualquer regra</strong>. Use <strong className="text-slate-700">Período</strong> para
+          definir vários dias de uma vez.
+        </p>
+      </div>
+
       {/* Prévia da regra em edição */}
       {previaRegra && previa && (
         <div className={`flex gap-3 rounded-xl border p-4 ${
@@ -268,13 +284,16 @@ export default function CalendarioPrecos({
                 {previa.primeira && previa.ultima && <> (de {fmtBR(previa.primeira)} a {fmtBR(previa.ultima)})</>},
                 destacadas no calendário.
                 {previa.sobrepostas > 0 && (
-                  <> Outras <strong>{previa.sobrepostas}</strong> já têm uma regra mais específica e continuam com o preço atual.</>
+                  <> {previa.sobrepostas === 1 ? 'Outra data continua' : <>Outras <strong>{previa.sobrepostas}</strong> continuam</>} com o preço atual
+                  {' '}(<MotivosSobreposicao comDataEspecifica={previa.comDataEspecifica} comPrecoMaior={previa.comPrecoMaior} />).</>
                 )}
               </p>
             ) : (
               <p className="text-xs text-amber-800 mt-0.5">
                 {previa.sobrepostas > 0
-                  ? <>Esta regra não muda nenhum preço: as {previa.sobrepostas} datas que ela cobre já têm uma regra mais específica.</>
+                  ? <>Esta regra não muda nenhum preço: {previa.sobrepostas === 1 ? 'a data que ela cobre' : `as ${previa.sobrepostas} datas que ela cobre`}{' '}
+                    {previa.sobrepostas === 1 ? 'continua' : 'continuam'} com o preço atual
+                    {' '}(<MotivosSobreposicao comDataEspecifica={previa.comDataEspecifica} comPrecoMaior={previa.comPrecoMaior} />).</>
                   : <>Nenhuma data dos próximos 12 meses é afetada (considerando dias de operação, bloqueios e reservas).</>}
               </p>
             )}
@@ -330,7 +349,8 @@ export default function CalendarioPrecos({
                 if (!iso) return <div key={`e-${i}`} />;
                 const motivo = motivoIndisponivel(iso);
                 const preco = resolverPrecoNaData(precoBase, regrasComPrevia, iso);
-                const chave: OrigemPreco | 'manual' = preco.manual ? 'manual' : preco.origem;
+                const chave = preco.origem;
+                const dataEspecifica = chave === 'data_fixa';
                 const afetadaPrevia = !!previaRegra && !motivo && preco.regra?.id === previaRegra.id;
                 const selecionado = selSet.has(iso);
                 const noRascunho = !!inicio && rascunhoPeriodo.has(iso) && !motivo;
@@ -375,8 +395,8 @@ export default function CalendarioPrecos({
                     }`}>
                       {preco.valor != null ? brlCurto(preco.valor) : '—'}
                     </span>
-                    {preco.manual && (
-                      <PencilLine className="absolute top-0.5 right-0.5 sm:top-1 sm:right-1 w-2.5 h-2.5 sm:w-3 sm:h-3 text-emerald-600" aria-label="Ajuste manual" />
+                    {dataEspecifica && (
+                      <PencilLine className="absolute top-0.5 right-0.5 sm:top-1 sm:right-1 w-2.5 h-2.5 sm:w-3 sm:h-3 text-violet-600" aria-label="Data específica" />
                     )}
                   </button>
                 );
@@ -402,12 +422,17 @@ export default function CalendarioPrecos({
 
             {/* Legenda */}
             <div className="mt-4 pt-3 border-t border-slate-100 flex flex-wrap items-center gap-x-4 gap-y-1.5 text-[10px] text-slate-500">
-              {(['preco_base', 'dia_semana', 'periodo_anual', 'data_fixa', 'manual'] as const).map(k => (
+              {(['preco_base', 'dia_semana', 'periodo_anual'] as const).map(k => (
                 <span key={k} className="flex items-center gap-1.5">
                   <span className={`w-2.5 h-2.5 rounded-sm border ${ORIGEM[k].cell}`} />
                   {ORIGEM[k].label}
                 </span>
               ))}
+              <span className="flex items-center gap-1.5">
+                <span className={`w-2.5 h-2.5 rounded-sm border ${ORIGEM.data_fixa.cell}`} />
+                <PencilLine className="w-2.5 h-2.5 -ml-1 text-violet-600" aria-hidden />
+                <span><span className="font-semibold text-violet-700">Data específica</span> (vence sempre)</span>
+              </span>
               <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-sm bg-slate-100 border border-slate-200" /> Reservado</span>
               <span className="line-through">Indisponível</span>
             </div>
@@ -423,13 +448,13 @@ export default function CalendarioPrecos({
             )}
           </div>
 
-          {/* Ajustes manuais */}
+          {/* Datas específicas */}
           {gruposAjuste.length > 0 && (
             <div className="mt-3">
               <div className="flex items-center justify-between mb-2 gap-2">
                 <p className="text-[11px] font-medium text-slate-500">
-                  {totalDiasAjustados} {totalDiasAjustados === 1 ? 'dia com preço ajustado' : 'dias com preço ajustado'} manualmente
-                  <span className="text-slate-400"> — vale ao salvar o roteiro</span>
+                  {totalDiasAjustados} {totalDiasAjustados === 1 ? 'data específica' : 'datas específicas'}
+                  <span className="text-slate-400"> — {totalDiasAjustados === 1 ? 'vale' : 'valem'} acima de qualquer regra; entra{totalDiasAjustados === 1 ? '' : 'm'} ao salvar o roteiro</span>
                 </p>
                 {gruposAjuste.length > 1 && (
                   <button type="button" onClick={() => onAjustesChange({})}
@@ -444,13 +469,13 @@ export default function CalendarioPrecos({
                   const rotulo = g.inicio === g.fim ? fmtCurto(g.inicio) : `${fmtCurto(g.inicio)} – ${fmtCurto(g.fim)}`;
                   return (
                     <span key={g.inicio}
-                      className="inline-flex items-center gap-1.5 text-xs font-medium text-emerald-800 bg-emerald-50 border border-emerald-200 rounded-full pl-3 pr-2 py-1">
+                      className="inline-flex items-center gap-1.5 text-xs font-medium text-violet-800 bg-violet-50 border border-violet-200 rounded-full pl-3 pr-2 py-1">
                       {rotulo}
-                      {dias.length > 1 && <span className="text-[10px] text-emerald-600">· {dias.length} dias</span>}
+                      {dias.length > 1 && <span className="text-[10px] text-violet-600">· {dias.length} dias</span>}
                       <span className="font-bold">{brl(g.valor)}</span>
                       <button type="button" onClick={() => voltarAoAutomatico(dias)}
-                        className="w-6 h-6 sm:w-4 sm:h-4 -my-1 sm:my-0 flex items-center justify-center rounded-full hover:bg-emerald-200 transition-colors"
-                        aria-label={`Voltar ao automático ${rotulo}`}>
+                        className="w-6 h-6 sm:w-4 sm:h-4 -my-1 sm:my-0 flex items-center justify-center rounded-full hover:bg-violet-200 transition-colors"
+                        aria-label={`Remover a data específica ${rotulo} (volta ao preço das regras)`}>
                         <X className="w-3 h-3" />
                       </button>
                     </span>
@@ -463,91 +488,94 @@ export default function CalendarioPrecos({
 
         {/* ── Painel do dia ──────────────────────────────────────────────── */}
         <div className="w-full @4xl:w-80 shrink-0 space-y-4">
-          <div id="calendario-precos-dia" className="rounded-xl border border-slate-200 bg-white p-4 space-y-4 scroll-mt-4">
-            {selecionados.length === 0 ? (
-              <div>
-                <p className="text-sm font-bold text-[#0B2447]">Clique em um dia</p>
-                <p className="text-xs text-slate-500 mt-1 leading-relaxed">
-                  Veja quanto será cobrado naquela data e, se quiser, defina um preço específico só para ela.
-                  Use <strong>Período</strong> para ajustar vários dias de uma vez.
-                </p>
-              </div>
-            ) : (
-              <>
-                <div className="flex items-start justify-between gap-2">
-                  <div className="min-w-0">
-                    <p className="text-sm font-bold text-[#0B2447]">
-                      {unico
-                        ? `${DOW_LONGOS[diaDaSemanaISO(selecionados[0])]}, ${fmtBR(selecionados[0])}`
-                        : `${selecionados.length} dias selecionados`}
+          {selecionados.length > 0 && (
+            <div id="calendario-precos-dia" className="rounded-xl border border-slate-200 bg-white p-4 space-y-4 scroll-mt-4">
+              <div className="flex items-start justify-between gap-2">
+                <div className="min-w-0">
+                  <p className="text-sm font-bold text-[#0B2447]">
+                    {unico
+                      ? `${DOW_LONGOS[diaDaSemanaISO(selecionados[0])]}, ${fmtBR(selecionados[0])}`
+                      : `${selecionados.length} dias selecionados`}
+                  </p>
+                  {!unico && (
+                    <p className="text-xs text-slate-500 mt-0.5">
+                      {fmtCurto(selecionados[0])} a {fmtCurto(selecionados[selecionados.length - 1])}
                     </p>
-                    {!unico && (
-                      <p className="text-xs text-slate-500 mt-0.5">
-                        {fmtCurto(selecionados[0])} a {fmtCurto(selecionados[selecionados.length - 1])}
+                  )}
+                </div>
+                <button type="button" onClick={limparSelecao} aria-label="Limpar seleção"
+                  className="shrink-0 w-9 h-9 sm:w-6 sm:h-6 -m-1.5 sm:m-0 flex items-center justify-center rounded-full text-slate-400 hover:bg-slate-100 hover:text-slate-600 transition-colors">
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              </div>
+
+              <div className="rounded-lg bg-slate-50 px-3 py-2.5 text-xs text-slate-600">
+                {unico ? (
+                  <>
+                    <span className="text-slate-400">Preço atual:</span>{' '}
+                    <strong className="text-slate-800">{unico.valor != null ? brlCompleto(unico.valor) : 'sem preço'}</strong>
+                    <p className="mt-0.5 flex items-center gap-1.5">
+                      <span className={`w-2 h-2 rounded-full shrink-0 ${ORIGEM[unico.origem].dot}`} />
+                      {unico.origem === 'data_fixa'
+                        ? <span><strong className="text-violet-700">Data específica</strong> — vale acima de qualquer regra</span>
+                        : unico.regra
+                          ? <span>{ORIGEM[unico.origem].label}: <strong>{unico.regra.nome}</strong></span>
+                          : ORIGEM[unico.origem].label}
+                    </p>
+                    {unico.origem === 'data_fixa' && unico.concorrentes > 0 && (
+                      <p className="mt-0.5 text-[11px] text-slate-400">
+                        Sobrepõe {unico.concorrentes === 1 ? '1 regra' : `${unico.concorrentes} regras`} deste dia.
                       </p>
                     )}
-                  </div>
-                  <button type="button" onClick={limparSelecao} aria-label="Limpar seleção"
-                    className="shrink-0 w-9 h-9 sm:w-6 sm:h-6 -m-1.5 sm:m-0 flex items-center justify-center rounded-full text-slate-400 hover:bg-slate-100 hover:text-slate-600 transition-colors">
-                    <X className="w-3.5 h-3.5" />
-                  </button>
-                </div>
-
-                <div className="rounded-lg bg-slate-50 px-3 py-2.5 text-xs text-slate-600">
-                  {unico ? (
-                    <>
-                      <span className="text-slate-400">Preço atual:</span>{' '}
-                      <strong className="text-slate-800">{unico.valor != null ? brlCompleto(unico.valor) : 'sem preço'}</strong>
-                      <p className="mt-0.5 flex items-center gap-1.5">
-                        <span className={`w-2 h-2 rounded-full ${ORIGEM[unico.manual ? 'manual' : unico.origem].dot}`} />
-                        {unico.manual
-                          ? 'Ajuste manual'
-                          : unico.regra
-                            ? <>{ORIGEM[unico.origem].label}: <strong>{unico.regra.nome}</strong></>
-                            : ORIGEM[unico.origem].label}
+                    {unico.origem !== 'data_fixa' && unico.concorrentes > 1 && (
+                      <p className="mt-0.5 text-[11px] text-slate-400">
+                        {unico.concorrentes} regras valem neste dia — vale a de maior preço.
                       </p>
-                    </>
-                  ) : (
-                    <>
-                      <span className="text-slate-400">Preços atuais:</span>{' '}
-                      <strong className="text-slate-800">
-                        {minSel == null ? 'sem preço' : minSel === maxSel ? brlCompleto(minSel) : `${brl(minSel)} a ${brl(maxSel!)}`}
-                      </strong>
-                    </>
-                  )}
-                </div>
+                    )}
+                  </>
+                ) : (
+                  <>
+                    <span className="text-slate-400">Preços atuais:</span>{' '}
+                    <strong className="text-slate-800">
+                      {minSel == null ? 'sem preço' : minSel === maxSel ? brlCompleto(minSel) : `${brl(minSel)} a ${brl(maxSel!)}`}
+                    </strong>
+                  </>
+                )}
+              </div>
 
-                <div>
-                  <label htmlFor="preco-dia" className="block text-xs font-medium text-slate-600 mb-1.5">
-                    Novo preço {unico ? 'para este dia' : 'para os dias selecionados'}
-                  </label>
-                  <div className="relative">
-                    <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-sm text-slate-400 font-medium">R$</span>
-                    <input id="preco-dia" type="number" inputMode="decimal" min="0" step="0.01" placeholder="0,00"
-                      value={valorInput}
-                      onChange={e => setValorInput(e.target.value)}
-                      onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); aplicarAjuste(); } }}
-                      className="w-full rounded-xl border border-slate-200 pl-10 pr-3.5 py-2.5 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-[#0B2447]/20 focus:border-[#0B2447]/40 transition bg-white" />
-                  </div>
+              <div>
+                <label htmlFor="preco-dia" className="block text-xs font-medium text-slate-600 mb-1.5">
+                  Novo preço {unico ? 'para este dia' : 'para os dias selecionados'}
+                </label>
+                <p className="-mt-1 mb-1.5 text-[11px] text-slate-400 leading-snug">
+                  Vira <strong className="text-violet-700">data específica</strong>: vale acima de qualquer regra, mesmo que seja menor.
+                </p>
+                <div className="relative">
+                  <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-sm text-slate-400 font-medium">R$</span>
+                  <input id="preco-dia" type="number" inputMode="decimal" min="0" step="0.01" placeholder="0,00"
+                    value={valorInput}
+                    onChange={e => setValorInput(e.target.value)}
+                    onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); aplicarAjuste(); } }}
+                    className="w-full rounded-xl border border-slate-200 pl-10 pr-3.5 py-2.5 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-[#0B2447]/20 focus:border-[#0B2447]/40 transition bg-white" />
                 </div>
+              </div>
 
-                <div className="flex gap-2">
-                  <button type="button" onClick={aplicarAjuste} disabled={!valorValido}
-                    className="flex-1 rounded-xl bg-[#0B2447] hover:bg-[#0B3D91] text-white text-sm font-semibold px-4 py-2.5 transition-colors disabled:opacity-40 disabled:cursor-not-allowed">
-                    Aplicar preço
+              <div className="flex gap-2">
+                <button type="button" onClick={aplicarAjuste} disabled={!valorValido}
+                  className="flex-1 rounded-xl bg-[#0B2447] hover:bg-[#0B3D91] text-white text-sm font-semibold px-4 py-2.5 transition-colors disabled:opacity-40 disabled:cursor-not-allowed">
+                  Aplicar preço
+                </button>
+                {selecionadosComAjuste.length > 0 && (
+                  <button type="button" onClick={() => voltarAoAutomatico(selecionadosComAjuste)}
+                    title="Remove a data específica e volta ao preço das regras"
+                    className="flex items-center gap-1.5 rounded-xl border border-slate-200 hover:bg-slate-50 text-slate-600 text-xs font-semibold px-3 py-2.5 transition-colors">
+                    <RotateCcw className="w-3.5 h-3.5" />
+                    Automático
                   </button>
-                  {selecionadosComAjuste.length > 0 && (
-                    <button type="button" onClick={() => voltarAoAutomatico(selecionadosComAjuste)}
-                      title="Remove o ajuste manual e volta ao preço das regras"
-                      className="flex items-center gap-1.5 rounded-xl border border-slate-200 hover:bg-slate-50 text-slate-600 text-xs font-semibold px-3 py-2.5 transition-colors">
-                      <RotateCcw className="w-3.5 h-3.5" />
-                      Automático
-                    </button>
-                  )}
-                </div>
-              </>
-            )}
-          </div>
+                )}
+              </div>
+            </div>
+          )}
 
           {/* Você recebe × Cliente paga */}
           <div className="rounded-xl border border-slate-200 bg-white overflow-hidden">
@@ -598,4 +626,22 @@ export default function CalendarioPrecos({
       </div>
     </div>
   );
+}
+
+/** "uma tem data específica e 2 têm regra de preço igual ou maior" — por que a regra não vale ali. */
+function MotivosSobreposicao({ comDataEspecifica, comPrecoMaior }: { comDataEspecifica: number; comPrecoMaior: number }) {
+  const partes: string[] = [];
+  const total = comDataEspecifica + comPrecoMaior;
+  const so = comDataEspecifica === 0 || comPrecoMaior === 0;
+  if (comDataEspecifica > 0) {
+    partes.push(so
+      ? (total === 1 ? 'tem data específica, que vence sempre' : 'têm data específica, que vence sempre')
+      : `${comDataEspecifica} ${comDataEspecifica === 1 ? 'tem' : 'têm'} data específica`);
+  }
+  if (comPrecoMaior > 0) {
+    partes.push(so
+      ? (total === 1 ? 'outra regra de preço igual ou maior vale nela' : 'outra regra de preço igual ou maior vale nelas')
+      : `${comPrecoMaior} ${comPrecoMaior === 1 ? 'tem' : 'têm'} outra regra de preço igual ou maior`);
+  }
+  return <>{partes.join(' e ')}</>;
 }

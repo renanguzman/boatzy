@@ -6,7 +6,7 @@ import type { PrecoRegraTipo } from '@/types/supabase';
  * calendário de preços do painel (`CalendarioPrecos`).
  *
  * `resolverPrecoNaData` é um ESPELHO da função SQL `get_preco_roteiro`
- * (migration 20260907) — a fonte da verdade que o site e o checkout usam. Existe
+ * (migration 20261016) — a fonte da verdade que o site e o checkout usam. Existe
  * em TypeScript só para o gestor ver o efeito das regras ANTES de salvar. Se a
  * precedência mudar no SQL, mude aqui também. Datas trafegam como 'yyyy-mm-dd'
  * e a aritmética é em UTC (sem deslocamento de fuso).
@@ -29,20 +29,16 @@ export type RegraPreco = {
   dataFim?: string | null;
 };
 
-/** Ajuste de preço de um dia feito direto no calendário (regra "data específica" de 1 dia). */
-export const NOME_AJUSTE_MANUAL = 'Ajuste manual';
-/** Maior que o 0 das regras comuns, para o ajuste de um dia vencer uma data específica que o cubra. */
-export const PRIORIDADE_AJUSTE_MANUAL = 100;
+/**
+ * Tipos de regra criados no passo "Preços especiais". A data específica
+ * (`data_fixa`) não está aqui: é criada clicando no dia do calendário.
+ */
+export type TipoRegraRecorrente = Exclude<PrecoRegraTipo, 'data_fixa'>;
 
-export function ehAjusteManual(r: {
-  tipo: string; nome: string; prioridade: number;
-  dataInicio?: string | null; dataFim?: string | null;
-}): boolean {
-  return r.tipo === 'data_fixa'
-    && r.nome === NOME_AJUSTE_MANUAL
-    && r.prioridade >= PRIORIDADE_AJUSTE_MANUAL
-    && !!r.dataInicio && r.dataInicio === r.dataFim;
-}
+/** Nome gravado nas regras de data específica (preço definido no calendário). */
+export const NOME_DATA_ESPECIFICA = 'Data específica';
+/** Desempate entre datas específicas sobrepostas: a gravada pelo calendário vence. */
+export const PRIORIDADE_DATA_ESPECIFICA = 100;
 
 /** Regra como vem do banco (`roteiro_preco_regra`). */
 export type RegraBanco = {
@@ -64,11 +60,10 @@ export function regraDeBanco(r: RegraBanco): RegraPreco {
   };
 }
 
-/** Regra ainda não salva, no formato dos formulários de roteiro (valor e datas como texto). */
+/** Regra ainda não salva, no formato do passo "Preços especiais" (valor como texto). */
 export type RegraFormulario = {
-  tipo: PrecoRegraTipo; nome: string; valor: string; diasSemana: number[];
+  tipo: TipoRegraRecorrente; nome: string; valor: string; diasSemana: number[];
   periodoMesInicio: number; periodoDiaInicio: number; periodoMesFim: number; periodoDiaFim: number;
-  dataInicio: string; dataFim: string;
 };
 
 export function regraDeFormulario(r: RegraFormulario, id: string): RegraPreco {
@@ -77,7 +72,6 @@ export function regraDeFormulario(r: RegraFormulario, id: string): RegraPreco {
     diasSemana: r.diasSemana,
     periodoMesInicio: r.periodoMesInicio, periodoDiaInicio: r.periodoDiaInicio,
     periodoMesFim: r.periodoMesFim, periodoDiaFim: r.periodoDiaFim,
-    dataInicio: r.dataInicio || null, dataFim: r.dataFim || null,
   };
 }
 
@@ -89,7 +83,6 @@ export function regraDeFormulario(r: RegraFormulario, id: string): RegraPreco {
 export function previaDeFormulario(r: RegraFormulario): RegraPreco | null {
   if (!(parseFloat(r.valor) > 0)) return null;
   if (r.tipo === 'dia_semana' && r.diasSemana.length === 0) return null;
-  if (r.tipo === 'data_fixa' && (!r.dataInicio || !r.dataFim || r.dataInicio > r.dataFim)) return null;
   return regraDeFormulario(r, 'previa');
 }
 
@@ -99,7 +92,12 @@ export type PrecoDoDia = {
   valor: number | null;
   origem: OrigemPreco;
   regra: RegraPreco | null;
-  manual: boolean;
+  /**
+   * Quantas regras de período anual / dia da semana valem na data — a
+   * vencedora inclusa, quando é uma delas. Com 2+ venceu a de maior preço;
+   * com data específica, são as regras que ela sobrepõe.
+   */
+  concorrentes: number;
 };
 
 // ── Datas ───────────────────────────────────────────────────────────────────
@@ -148,32 +146,48 @@ export function regraCobreData(r: RegraPreco, iso: string): boolean {
   return !!r.diasSemana?.includes(diaDaSemanaISO(iso));
 }
 
-const PRECEDENCIA: PrecoRegraTipo[] = ['data_fixa', 'periodo_anual', 'dia_semana'];
+// Empate de valor entre regras recorrentes: a mais específica dá nome à origem.
+const ORDEM_EMPATE: Record<PrecoRegraTipo, number> = { data_fixa: 0, periodo_anual: 1, dia_semana: 2 };
 
 /**
- * Preço de uma data: data específica > período anual > dia da semana > preço
- * base. Dentro do mesmo tipo vence a maior `prioridade` (empate: a primeira da lista).
+ * Preço de uma data:
+ *  1. data específica (definida no calendário) vence sempre, mesmo mais barata
+ *     — entre sobrepostas, maior `prioridade` e depois maior valor;
+ *  2. senão, entre as regras de período anual e dia da semana que valem na
+ *     data, vence a de MAIOR preço (empate: período anual, depois maior
+ *     `prioridade`, depois a primeira da lista);
+ *  3. senão, o preço base.
  */
 export function resolverPrecoNaData(
   precoBase: number | null,
   regras: RegraPreco[],
   iso: string,
 ): PrecoDoDia {
-  for (const tipo of PRECEDENCIA) {
-    let vencedora: RegraPreco | null = null;
-    for (const r of regras) {
-      if (r.tipo !== tipo || !regraCobreData(r, iso)) continue;
-      if (!vencedora || r.prioridade > vencedora.prioridade) vencedora = r;
+  let dataEspecifica: RegraPreco | null = null;
+  let maior: RegraPreco | null = null;
+  let concorrentes = 0;
+
+  for (const r of regras) {
+    if (!regraCobreData(r, iso)) continue;
+    if (r.tipo === 'data_fixa') {
+      if (!dataEspecifica || r.prioridade > dataEspecifica.prioridade
+        || (r.prioridade === dataEspecifica.prioridade && r.valor > dataEspecifica.valor)) dataEspecifica = r;
+      continue;
     }
-    if (vencedora) {
-      return { valor: vencedora.valor, origem: tipo, regra: vencedora, manual: ehAjusteManual(vencedora) };
-    }
+    concorrentes++;
+    if (!maior || r.valor > maior.valor || (r.valor === maior.valor && (
+      ORDEM_EMPATE[r.tipo] < ORDEM_EMPATE[maior.tipo]
+      || (r.tipo === maior.tipo && r.prioridade > maior.prioridade)
+    ))) maior = r;
   }
-  if (precoBase != null) return { valor: precoBase, origem: 'preco_base', regra: null, manual: false };
-  return { valor: null, origem: 'sem_preco', regra: null, manual: false };
+
+  const vencedora = dataEspecifica ?? maior;
+  if (vencedora) return { valor: vencedora.valor, origem: vencedora.tipo, regra: vencedora, concorrentes };
+  if (precoBase != null) return { valor: precoBase, origem: 'preco_base', regra: null, concorrentes };
+  return { valor: null, origem: 'sem_preco', regra: null, concorrentes };
 }
 
-// ── Ajustes manuais (um por dia) ────────────────────────────────────────────
+// ── Datas específicas (preço de um dia, definido no calendário) ────────────
 
 export type AjusteManualIntervalo = { inicio: string; fim: string; valor: number };
 
@@ -189,30 +203,34 @@ export function compactarAjustes(ajustes: Record<string, number>): AjusteManualI
   return grupos;
 }
 
-/** Ajustes manuais salvos no banco (regras de data específica) → um preço por dia. */
+/** Toda regra `data_fixa` é uma data específica: só o calendário cria esse tipo. */
+export function ehDataEspecificaBanco(r: { tipo: string }): boolean {
+  return r.tipo === 'data_fixa';
+}
+
+/**
+ * Datas específicas salvas no banco → um preço por dia. Sobrepostas resolvem
+ * como no SQL (maior `prioridade`, depois maior valor): a vencedora é gravada por último.
+ */
 export function ajustesDeBanco(regras: RegraBanco[]): Record<string, number> {
   const mapa: Record<string, number> = {};
-  for (const r of regras) {
-    if (!r.ativo || !r.data_inicio || !r.data_fim || !isManualBanco(r)) continue;
-    for (const d of intervaloISO(r.data_inicio, r.data_fim)) mapa[d] = Number(r.valor);
+  const datas = regras
+    .filter(r => r.ativo && ehDataEspecificaBanco(r) && r.data_inicio && r.data_fim)
+    .sort((a, b) => a.prioridade - b.prioridade || Number(a.valor) - Number(b.valor));
+  for (const r of datas) {
+    for (const d of intervaloISO(r.data_inicio!, r.data_fim!)) mapa[d] = Number(r.valor);
   }
   return mapa;
 }
 
-export function isManualBanco(r: RegraBanco): boolean {
-  return ehAjusteManual({
-    tipo: r.tipo, nome: r.nome, prioridade: r.prioridade, dataInicio: r.data_inicio, dataFim: r.data_fim,
-  });
-}
-
-/** Ajustes manuais viram regras de 1 dia para o resolvedor. */
+/** Datas específicas viram regras de 1 dia para o resolvedor. */
 export function ajustesComoRegras(ajustes: Record<string, number>): RegraPreco[] {
   return Object.entries(ajustes).map(([dia, valor]) => ({
     id: `ajuste:${dia}`,
     tipo: 'data_fixa' as const,
-    nome: NOME_AJUSTE_MANUAL,
+    nome: NOME_DATA_ESPECIFICA,
     valor,
-    prioridade: PRIORIDADE_AJUSTE_MANUAL,
+    prioridade: PRIORIDADE_DATA_ESPECIFICA,
     dataInicio: dia,
     dataFim: dia,
   }));

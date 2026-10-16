@@ -1,15 +1,14 @@
 'use client';
 
-import { useState } from 'react';
+import { useId, useState } from 'react';
 import {
-  Check, ChevronDown, ChevronUp, Eye, HelpCircle, Plus, Repeat, Star, Sun, Trash2, Undo2,
+  Check, ChevronDown, ChevronRight, ChevronUp, Eye, HelpCircle, Plus, Repeat, Star, Sun, Trash2, Undo2,
 } from 'lucide-react';
 import CalendarioPrecos from '@/components/painel/CalendarioPrecos';
 import IndicadorRolagem from '@/components/painel/IndicadorRolagem';
 import {
-  decomporPreco, previaDeFormulario, type RegraFormulario, type RegraPreco,
+  decomporPreco, previaDeFormulario, type RegraFormulario, type RegraPreco, type TipoRegraRecorrente,
 } from '@/lib/precos-calendario';
-import type { PrecoRegraTipo } from '@/types/supabase';
 
 // ─── Constantes ───────────────────────────────────────────────────────────────
 
@@ -24,41 +23,39 @@ const DIAS_MES: Record<number, number> = {
 };
 
 /**
- * Tipos de regra em ORDEM DE PRIORIDADE (nº 1 vence). Cores iguais às das
- * células do `CalendarioPrecos`, para ligar "a regra" a "onde ela vale".
+ * Tipos de regra do passo ③. Cores iguais às das células do `CalendarioPrecos`,
+ * para ligar "a regra" a "onde ela vale". A data específica não está aqui: é
+ * criada clicando no dia do calendário (passo ④).
  */
 const TIPOS: {
-  tipo: PrecoRegraTipo; n: number; label: string; exemplo: string; icon: React.ElementType;
+  tipo: TipoRegraRecorrente; label: string; exemplo: string; icon: React.ElementType;
   sugestaoNome: string; placeholderNome: string;
-  num: string; card: string; texto: string; dot: string;
+  card: string; texto: string; selo: string;
 }[] = [
   {
-    tipo: 'data_fixa', n: 1, label: 'Data específica', exemplo: 'Réveillon, feriados', icon: Star,
-    sugestaoNome: '', placeholderNome: 'ex: Réveillon 2026',
-    num: 'bg-violet-600', card: 'border-violet-200 bg-violet-50/70 hover:border-violet-300', texto: 'text-violet-700', dot: 'bg-violet-500',
-  },
-  {
-    tipo: 'periodo_anual', n: 2, label: 'Período anual', exemplo: 'Verão, férias', icon: Sun,
+    tipo: 'periodo_anual', label: 'Período anual', exemplo: 'Verão, férias', icon: Sun,
     sugestaoNome: 'Alta temporada', placeholderNome: 'ex: Alta temporada',
-    num: 'bg-amber-500', card: 'border-amber-200 bg-amber-50/70 hover:border-amber-300', texto: 'text-amber-700', dot: 'bg-amber-500',
+    card: 'border-amber-200 bg-amber-50/70 hover:border-amber-300', texto: 'text-amber-700', selo: 'bg-amber-100 text-amber-700',
   },
   {
-    tipo: 'dia_semana', n: 3, label: 'Dias da semana', exemplo: 'Sábado e domingo', icon: Repeat,
+    tipo: 'dia_semana', label: 'Dias da semana', exemplo: 'Sábado e domingo', icon: Repeat,
     sugestaoNome: 'Fim de semana', placeholderNome: 'ex: Fim de semana',
-    num: 'bg-blue-500', card: 'border-blue-200 bg-blue-50/70 hover:border-blue-300', texto: 'text-blue-700', dot: 'bg-blue-500',
+    card: 'border-blue-200 bg-blue-50/70 hover:border-blue-300', texto: 'text-blue-700', selo: 'bg-blue-100 text-blue-700',
   },
 ];
-const TIPO = Object.fromEntries(TIPOS.map(t => [t.tipo, t])) as Record<PrecoRegraTipo, (typeof TIPOS)[number]>;
+const TIPO = Object.fromEntries(TIPOS.map(t => [t.tipo, t])) as Record<TipoRegraRecorrente, (typeof TIPOS)[number]>;
 
-// Explicação completa da prioridade (aberta em "Saiba mais").
+// Como o preço de cada data é decidido (aberto em "Saiba mais"). Espelha
+// `resolverPrecoNaData` / `get_preco_roteiro`.
 const PRECO_NIVEIS = [
-  { nivel: 1, emoji: '📌', titulo: 'Data Específica', desc: 'Intervalo único, sem repetição. Ex: Réveillon 29/12 → 02/01 = ', exemplo: 'R$ 3.000',
+  { nivel: 1, emoji: '📌', titulo: 'Data específica — vence sempre',
+    desc: 'Preço que você define clicando no dia do calendário. Vale acima de qualquer regra, mesmo sendo menor. Ex: Réveillon 31/12 = ', exemplo: 'R$ 3.000',
     cardCls: 'border-violet-200 bg-violet-50/70', tituloCls: 'text-violet-700', descCls: 'text-violet-600', numCls: 'bg-violet-600' },
-  { nivel: 2, emoji: '☀️', titulo: 'Período Anual', desc: 'Intervalo que repete todo ano. Ex: Verão 01/Dez → 28/Fev = ', exemplo: 'R$ 2.000',
-    cardCls: 'border-amber-200 bg-amber-50/70', tituloCls: 'text-amber-700', descCls: 'text-amber-600', numCls: 'bg-amber-500' },
-  { nivel: 3, emoji: '🗓', titulo: 'Dias da Semana', desc: 'Recorrente toda semana. Ex: todo Sábado e Domingo = ', exemplo: 'R$ 1.500',
-    cardCls: 'border-blue-200 bg-blue-50/70', tituloCls: 'text-blue-700', descCls: 'text-blue-600', numCls: 'bg-blue-500' },
-  { nivel: 4, emoji: '🏷️', titulo: 'Preço Base', desc: 'Padrão aplicado quando nenhuma regra acima vale para a data.', exemplo: '',
+  { nivel: 2, emoji: '⚖️', titulo: 'Período anual e Dias da semana — vale o maior preço',
+    desc: 'Se mais de uma regra valer na mesma data, o sistema cobra a de maior preço, seja qual for o tipo.', exemplo: '',
+    cardCls: 'border-amber-200 bg-gradient-to-r from-amber-50/70 to-blue-50/70', tituloCls: 'text-slate-700', descCls: 'text-slate-600', numCls: 'bg-slate-600' },
+  { nivel: 3, emoji: '🏷️', titulo: 'Preço padrão',
+    desc: 'Aplicado quando nenhuma regra vale para a data.', exemplo: '',
     cardCls: 'border-slate-200 bg-white', tituloCls: 'text-slate-600', descCls: 'text-slate-400', numCls: 'bg-slate-400' },
 ] as const;
 
@@ -81,20 +78,15 @@ function resumoRegra(r: RegraPreco): string {
     const d = (dia?: number | null, mes?: number | null) => `${String(dia ?? 1).padStart(2, '0')}/${MESES[(mes ?? 1) - 1]}`;
     return `${d(r.periodoDiaInicio, r.periodoMesInicio)} → ${d(r.periodoDiaFim, r.periodoMesFim)} (todo ano)`;
   }
-  if (r.dataInicio && r.dataFim) {
-    const fmt = (iso: string) => iso.split('-').reverse().join('/');
-    return r.dataInicio === r.dataFim ? fmt(r.dataInicio) : `${fmt(r.dataInicio)} → ${fmt(r.dataFim)}`;
-  }
   return '';
 }
 
-function regraNova(tipo: PrecoRegraTipo): RegraFormulario {
+function regraNova(tipo: TipoRegraRecorrente): RegraFormulario {
   return {
     tipo, nome: TIPO[tipo].sugestaoNome, valor: '',
     diasSemana: tipo === 'dia_semana' ? [0, 6] : [],
     periodoMesInicio: 12, periodoDiaInicio: 1,
     periodoMesFim: 2, periodoDiaFim: 28,
-    dataInicio: '', dataFim: '',
   };
 }
 
@@ -103,10 +95,19 @@ function faltaNaRegra(r: RegraFormulario): string | null {
   if (!r.nome.trim()) return 'dê um nome à regra';
   if (!(parseFloat(r.valor) > 0)) return 'informe o preço';
   if (r.tipo === 'dia_semana' && r.diasSemana.length === 0) return 'escolha ao menos um dia da semana';
-  if (r.tipo === 'data_fixa' && (!r.dataInicio || !r.dataFim)) return 'informe as datas inicial e final';
-  if (r.tipo === 'data_fixa' && r.dataInicio > r.dataFim) return 'a data final deve ser depois da inicial';
   return null;
 }
+
+function semAnimacao(): boolean {
+  return window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+}
+
+function irParaCalendario() {
+  document.getElementById('calendario-precos')?.scrollIntoView({ behavior: semAnimacao() ? 'auto' : 'smooth', block: 'start' });
+}
+
+type NumPasso = 1 | 2 | 3;
+type EstadoPasso = 'feito' | 'atual' | 'pendente';
 
 // ─── Tipos públicos ───────────────────────────────────────────────────────────
 
@@ -146,9 +147,11 @@ type Props = {
 
 /**
  * Etapa "Preço" do cadastro/edição de roteiro, em passos guiados:
- * ① como o cliente paga → ② preço padrão → ③ preços especiais (regras),
- * com o calendário de preços sempre à vista (ao lado em telas ≥ xl, logo
- * abaixo nas demais) mostrando na hora onde cada regra vale.
+ * ① como o cliente paga → ② preço padrão → ③ preços especiais (regras).
+ * Os passos ①–③ são um accordion (um aberto por vez; ao entrar, só o passo
+ * da vez aberto): número enquanto pendente, ✓ quando concluído, "Próximo
+ * passo" abre o seguinte. O calendário de preços (④) fica sempre à vista (ao lado
+ * em telas ≥ xl, logo abaixo nas demais) mostrando na hora onde cada regra vale.
  */
 export default function EtapaPreco({
   precoBase, onPrecoBaseChange, diariaAtivo, onDiariaAtivoChange,
@@ -160,6 +163,9 @@ export default function EtapaPreco({
   const [destaqueId, setDestaqueId] = useState<string | null>(null);
   const [verTaxa, setVerTaxa] = useState(false);
   const [saibaMais, setSaibaMais] = useState(false);
+  const [confirmados, setConfirmados] = useState<NumPasso[]>([]);
+  const uid = useId();
+  const idPasso = (n: NumPasso) => `${uid}-passo-${n}`;
 
   const precoBaseNum = precoBase !== '' && parseFloat(precoBase) >= 0 ? parseFloat(precoBase) : null;
   const decomposicao = precoBaseNum != null && precoBaseNum > 0 ? decomporPreco(precoBaseNum, taxaPercent) : null;
@@ -172,19 +178,72 @@ export default function EtapaPreco({
   const falta = rf ? faltaNaRegra(rf) : null;
   const mostrarSeloNova = regras.some(r => r.estado !== 'nova');
 
-  // Lista na ordem de prioridade (nº 1 primeiro), estável dentro do tipo.
-  const ordem = (t: PrecoRegraTipo) => TIPO[t].n;
-  const lista = [...regras].sort((a, b) => ordem(a.regra.tipo) - ordem(b.regra.tipo));
+  // Lista agrupada por tipo (período anual, depois dias da semana), estável dentro do tipo.
+  // Datas específicas não entram: os forms as passam em `ajustes`.
+  const ordem = (t: TipoRegraRecorrente) => TIPOS.findIndex(x => x.tipo === t);
+  const lista = regras
+    .filter(r => r.regra.tipo !== 'data_fixa')
+    .sort((a, b) => ordem(a.regra.tipo as TipoRegraRecorrente) - ordem(b.regra.tipo as TipoRegraRecorrente));
+  const totalDatasEspecificas = Object.keys(ajustes).length;
 
   const passo1Ok = !diariaAtivo || parseFloat(diariaValor) > 0;
   const passo2Ok = precoBaseNum != null && precoBaseNum > 0;
+  const temEspeciais = ativas.length > 0 || totalDatasEspecificas > 0;
 
-  function abrirRegra(tipo: PrecoRegraTipo) {
+  // ① já nasce válido (só Roteiro): conta como feito quando o gestor confirma o
+  // passo ou quando o preço padrão já existe (edição). ③ é opcional: feito com
+  // algum preço especial ou ao concluir sem nenhum.
+  const feito: Record<NumPasso, boolean> = {
+    1: passo1Ok && (confirmados.includes(1) || passo2Ok),
+    2: passo2Ok,
+    3: temEspeciais || confirmados.includes(3),
+  };
+  const proximo = ([1, 2, 3] as const).find(n => !feito[n]) ?? 4;
+  // Ao montar, o passo da vez (primeiro pendente) já vem aberto e os demais
+  // fechados — no cadastro novo, o ①. Com tudo concluído (edição), todos fechados.
+  const [aberto, setAberto] = useState<NumPasso | null>(() => (proximo === 4 ? null : proximo));
+  const estado = (n: NumPasso): EstadoPasso =>
+    feito[n] ? 'feito' : aberto === n || proximo === n ? 'atual' : 'pendente';
+
+  const resumo1 = diariaAtivo && passo1Ok
+    ? `Roteiro (diária única) + Por diária: ${brl(parseFloat(diariaValor))}${parseInt(diariaMinimo) > 1 ? ` · mín. ${parseInt(diariaMinimo)} diárias` : ''}`
+    : 'Roteiro (diária única)';
+  const resumo2 = decomposicao && precoBaseNum != null
+    ? `${brl(precoBaseNum)} / dia · cliente paga ${brl(decomposicao.clientePaga)}`
+    : undefined;
+  const resumo3 = temEspeciais
+    ? [
+        ativas.length > 0 && `${ativas.length} ${ativas.length === 1 ? 'regra' : 'regras'}`,
+        totalDatasEspecificas > 0 && `${totalDatasEspecificas} ${totalDatasEspecificas === 1 ? 'data específica' : 'datas específicas'}`,
+      ].filter(Boolean).join(' · ')
+    : 'Nenhum preço especial';
+
+  function alternarPasso(n: NumPasso) {
+    // A regra em destaque só faz sentido com a lista à vista.
+    if (aberto === 3) setDestaqueId(null);
+    setAberto(a => (a === n ? null : n));
+  }
+
+  /** "Próximo passo" / "Concluir": marca o passo e abre o seguinte (o ③ só fecha). */
+  function concluirPasso(n: NumPasso) {
+    setConfirmados(c => (c.includes(n) ? c : [...c, n]));
+    if (n === 3) setDestaqueId(null);
+    const seguinte = n < 3 ? ((n + 1) as NumPasso) : null;
+    setAberto(seguinte);
+    if (!seguinte) return;
+    requestAnimationFrame(() => {
+      const secao = document.getElementById(idPasso(seguinte));
+      secao?.querySelector<HTMLInputElement>('input')?.focus({ preventScroll: true });
+      secao?.scrollIntoView({ block: 'nearest', behavior: semAnimacao() ? 'auto' : 'smooth' });
+    });
+  }
+
+  function abrirRegra(tipo: TipoRegraRecorrente) {
     setDestaqueId(null);
     setRf(regraNova(tipo));
   }
 
-  function trocarTipo(tipo: PrecoRegraTipo) {
+  function trocarTipo(tipo: TipoRegraRecorrente) {
     setRf(r => {
       if (!r) return r;
       const nomeEhSugestao = !r.nome.trim() || TIPOS.some(t => t.sugestaoNome === r.nome);
@@ -216,10 +275,13 @@ export default function EtapaPreco({
   return (
     <div className="grid grid-cols-1 xl:grid-cols-12 gap-6 xl:gap-8 xl:items-start">
       {/* ── Passos 1–3 ─────────────────────────────────────────────────────── */}
-      <div className="xl:col-span-5 @container min-w-0 space-y-6 [&>section+section]:border-t [&>section+section]:border-slate-100 [&>section+section]:pt-6">
+      <div className="xl:col-span-5 @container min-w-0 space-y-3">
 
         {/* ① Como o cliente paga */}
-        <Passo n={1} titulo="Como o cliente paga" feito={passo1Ok}
+        <Passo n={1} id={idPasso(1)} titulo="Como o cliente paga" estado={estado(1)}
+          aberto={aberto === 1} onAlternar={() => alternarPasso(1)}
+          resumo={feito[1] ? resumo1 : undefined}
+          pendencia={diariaAtivo && !passo1Ok ? 'Falta o valor da diária' : undefined}
           subtitulo="Ative quantos modelos quiser — o cliente vê e escolhe entre os disponíveis ao reservar.">
           <div className="grid grid-cols-1 @xs:grid-cols-2 gap-2">
             <div className="flex items-start gap-2.5 rounded-xl border border-[#0B2447]/20 bg-[#0B2447]/[0.03] p-3">
@@ -269,10 +331,14 @@ export default function EtapaPreco({
               </p>
             </div>
           )}
+
+          <RodapePasso rotulo="Próximo passo" falta={passo1Ok ? null : 'valor da diária'} onClick={() => concluirPasso(1)} />
         </Passo>
 
         {/* ② Preço padrão */}
-        <Passo n={2} titulo="Preço padrão por dia" feito={passo2Ok}
+        <Passo n={2} id={idPasso(2)} titulo="Preço padrão por dia" estado={estado(2)}
+          aberto={aberto === 2} onAlternar={() => alternarPasso(2)}
+          resumo={feito[2] ? resumo2 : undefined}
           subtitulo="Aplicado quando nenhuma regra específica estiver vigente na data da reserva.">
           <div className="max-w-[14rem]">
             <CampoReais value={precoBase} onChange={onPrecoBaseChange} sufixo="/ dia" />
@@ -306,22 +372,23 @@ export default function EtapaPreco({
               </div>
             )}
           </div>
+
+          <RodapePasso rotulo="Próximo passo" falta={passo2Ok ? null : 'o preço padrão'} onClick={() => concluirPasso(2)} />
         </Passo>
 
         {/* ③ Preços especiais */}
-        <Passo n={3} titulo="Preços especiais" feito={ativas.length > 0} opcional
-          subtitulo="Cobre diferente em datas especiais, temporadas ou dias da semana — e veja no calendário onde cada preço vale.">
+        <Passo n={3} id={idPasso(3)} titulo="Preços especiais" estado={estado(3)} opcional
+          aberto={aberto === 3} onAlternar={() => alternarPasso(3)}
+          resumo={feito[3] ? resumo3 : undefined}
+          subtitulo="Cobre diferente em temporadas ou dias da semana — e veja no calendário onde cada preço vale.">
 
           {!rf ? (
             <>
               <p className="text-xs font-medium text-slate-600 mb-2">Escolha o tipo de preço especial:</p>
-              <div className="grid grid-cols-3 gap-2">
+              <div className="grid grid-cols-2 gap-2">
                 {TIPOS.map(t => (
                   <button key={t.tipo} type="button" onClick={() => abrirRegra(t.tipo)}
-                    className={`group relative flex flex-col items-center gap-1 rounded-xl border px-1.5 pt-3 pb-2.5 text-center transition-all hover:shadow-sm ${t.card}`}>
-                    <span className={`absolute top-1.5 left-1.5 flex h-4 w-4 items-center justify-center rounded-full text-[9px] font-bold text-white ${t.num}`}>
-                      {t.n}
-                    </span>
+                    className={`group flex flex-col items-center gap-1 rounded-xl border px-1.5 pt-3 pb-2.5 text-center transition-all hover:shadow-sm ${t.card}`}>
                     <t.icon className={`w-5 h-5 ${t.texto}`} />
                     <span className={`text-xs font-bold leading-tight ${t.texto}`}>{t.label}</span>
                     <span className="text-[10px] text-slate-500 leading-tight">{t.exemplo}</span>
@@ -340,12 +407,26 @@ export default function EtapaPreco({
             />
           )}
 
-          {/* Prioridade: uma linha + explicação completa sob demanda */}
+          {/* Data específica: definida direto no calendário */}
+          <div className="mt-2 flex items-start gap-2.5 rounded-xl border border-dashed border-violet-200 bg-violet-50/50 px-3 py-2.5">
+            <Star className="w-4 h-4 shrink-0 mt-px text-violet-600" />
+            <div className="min-w-0 text-[11px] leading-snug text-slate-600">
+              <p>
+                <strong className="text-violet-700">Data específica</strong> (Réveillon, feriados)? Clique no dia no calendário{' '}
+                <span className="xl:hidden">abaixo</span><span className="hidden xl:inline">ao lado</span> e defina o preço.
+                Ele <strong className="text-slate-700">vale acima de qualquer regra</strong>.
+              </p>
+              <button type="button" onClick={irParaCalendario}
+                className="xl:hidden mt-1 font-semibold text-violet-700 hover:text-violet-900">
+                Ir para o calendário ↓
+              </button>
+            </div>
+          </div>
+
+          {/* Conflito entre regras: uma linha + explicação completa sob demanda */}
           <div className="mt-3 rounded-lg bg-slate-50 px-3 py-2 text-[11px] text-slate-500 leading-relaxed">
-            Se duas regras valerem no mesmo dia, vence a de <strong>menor número</strong>
-            {' '}(<span className="font-semibold text-violet-700">1</span> ›{' '}
-            <span className="font-semibold text-amber-700">2</span> ›{' '}
-            <span className="font-semibold text-blue-700">3</span> › preço padrão).{' '}
+            Se duas regras valerem no mesmo dia, vale a de <strong className="text-slate-700">maior preço</strong>.
+            {' '}A <span className="font-semibold text-violet-700">data específica</span> vence sempre.{' '}
             <button type="button" onClick={() => setSaibaMais(v => !v)} aria-expanded={saibaMais}
               className="inline-flex items-center gap-0.5 font-semibold text-[#0B3D91] hover:text-[#0B2447]">
               <HelpCircle className="w-3 h-3" /> {saibaMais ? 'Fechar' : 'Saiba mais'}
@@ -355,7 +436,7 @@ export default function EtapaPreco({
           {saibaMais && (
             <div className="mt-2 rounded-xl border border-slate-100 bg-white p-3">
               <p className="text-xs text-slate-600 leading-relaxed">
-                Para cada data, o sistema aplica <strong>a primeira regra que se encaixa</strong>, seguindo esta ordem — do mais específico (nº&nbsp;1) ao mais geral (nº&nbsp;4):
+                Para cada data, o sistema decide o preço nesta ordem:
               </p>
               <ol className="mt-2 space-y-1.5">
                 {PRECO_NIVEIS.map(n => (
@@ -373,7 +454,9 @@ export default function EtapaPreco({
                 ))}
               </ol>
               <p className="mt-2 text-[11px] text-slate-500 leading-relaxed bg-slate-100/70 rounded-lg p-2.5">
-                💡 Quando mais de uma regra cai na mesma data, vence a de <strong>menor número</strong>. Ex: 31/12 é domingo, está no verão <em>e</em> é Réveillon — o sistema cobra os <strong>R$ 3.000</strong> da Data Específica (nº&nbsp;1).
+                💡 Um sábado de janeiro está no Verão (<strong>R$ 2.000</strong>) e no Fim de semana (R$ 1.500): o sistema cobra{' '}
+                <strong>R$ 2.000</strong>, o maior. Se você definir no calendário <strong>R$ 1.800</strong> para esse sábado,
+                vale R$ 1.800 — a data específica vence sempre, mesmo sendo menor.
               </p>
             </div>
           )}
@@ -387,7 +470,7 @@ export default function EtapaPreco({
               </p>
               <ul className="rounded-xl border border-slate-100 divide-y divide-slate-100 overflow-hidden">
                 {lista.map(item => {
-                  const t = TIPO[item.regra.tipo];
+                  const t = TIPO[item.regra.tipo as TipoRegraRecorrente];
                   const excluir = item.estado === 'excluir';
                   const emDestaque = !rf && destaque?.id === item.id;
                   return (
@@ -399,8 +482,8 @@ export default function EtapaPreco({
                         aria-pressed={emDestaque}
                         title={excluir ? undefined : 'Ver no calendário onde esta regra vale'}
                         className="flex-1 min-w-0 flex items-center gap-2.5 pl-3 py-2.5 text-left disabled:cursor-default">
-                        <span className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[10px] font-bold text-white ${t.num} ${excluir ? 'opacity-40' : ''}`}>
-                          {t.n}
+                        <span className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full ${t.selo} ${excluir ? 'opacity-40' : ''}`}>
+                          <t.icon className="w-3.5 h-3.5" />
                         </span>
                         <span className={`min-w-0 flex-1 ${excluir ? 'opacity-50' : ''}`}>
                           <span className="flex items-center gap-1.5">
@@ -437,6 +520,8 @@ export default function EtapaPreco({
               </ul>
             </div>
           )}
+
+          {!rf && <RodapePasso rotulo="Concluir" icone="check" onClick={() => concluirPasso(3)} />}
         </Passo>
       </div>
 
@@ -444,12 +529,11 @@ export default function EtapaPreco({
       <div id="calendario-precos" className="xl:col-span-7 min-w-0 scroll-mt-24 xl:sticky xl:top-4
         border-t border-slate-100 pt-6 xl:border-t-0 xl:pt-0">
         <div className="flex items-center gap-2.5 mb-1">
-          <NumeroPasso n={4} feito={false} />
+          <NumeroPasso n={4} estado={proximo === 4 ? 'atual' : 'pendente'} />
           <p className="text-sm font-bold text-[#0B2447]">Confira no calendário</p>
         </div>
         <p className="text-xs text-slate-400 mb-4 sm:pl-8">
-          Veja, dia a dia, quanto será cobrado com as suas regras. Clique em uma data para definir um preço só para ela.
-          Vale para o modelo <strong>Roteiro (diária única)</strong>.
+          Veja, dia a dia, quanto será cobrado com as suas regras. Vale para o modelo <strong>Roteiro (diária única)</strong>.
         </p>
         <CalendarioPrecos
           precoBase={precoBaseNum}
@@ -480,35 +564,92 @@ function fmtPct(p: number): string {
   return p.toLocaleString('pt-BR', { maximumFractionDigits: 2 });
 }
 
-function NumeroPasso({ n, feito }: { n: number; feito: boolean }) {
+const NUMERO_CLS: Record<EstadoPasso, string> = {
+  feito: 'bg-emerald-500 text-white',
+  atual: 'bg-[#0B2447] text-white',
+  pendente: 'bg-slate-100 text-slate-500 ring-1 ring-inset ring-slate-200',
+};
+
+function NumeroPasso({ n, estado }: { n: number; estado: EstadoPasso }) {
   return (
-    <span className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-xs font-bold transition-colors ${
-      feito ? 'bg-emerald-500 text-white' : 'bg-[#0B2447] text-white'
-    }`}>
-      {feito ? <Check className="w-3.5 h-3.5" strokeWidth={3} /> : n}
+    <span className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-xs font-bold transition-colors ${NUMERO_CLS[estado]}`}>
+      {estado === 'feito'
+        ? <Check className="w-3.5 h-3.5" strokeWidth={3} aria-label="Passo concluído" />
+        : n}
     </span>
   );
 }
 
-function Passo({ n, titulo, subtitulo, feito, opcional, children }: {
-  n: number; titulo: string; subtitulo: string; feito: boolean; opcional?: boolean; children: React.ReactNode;
+/**
+ * Item do accordion: o cabeçalho é um botão (abre/fecha) e o conteúdo anima a
+ * altura (grid 0fr → 1fr). Fechado, o conteúdo fica `inert` (fora do Tab) e o
+ * cabeçalho mostra o resumo do passo concluído ou o que falta.
+ */
+function Passo({ n, id, titulo, subtitulo, estado, aberto, onAlternar, resumo, pendencia, opcional, children }: {
+  n: NumPasso; id: string; titulo: string; subtitulo: string; estado: EstadoPasso;
+  aberto: boolean; onAlternar: () => void;
+  /** Mostrado no lugar do subtítulo quando o passo está concluído e fechado. */
+  resumo?: string;
+  /** Aviso (âmbar) no lugar do subtítulo quando o passo está fechado com algo faltando. */
+  pendencia?: string;
+  opcional?: boolean; children: React.ReactNode;
 }) {
+  const linha = !aberto && pendencia ? pendencia : !aberto && resumo ? resumo : subtitulo;
   return (
-    <section>
-      <div className="flex items-start gap-2.5 mb-3">
-        <NumeroPasso n={n} feito={feito} />
-        <div className="min-w-0">
-          <p className="text-sm font-bold text-[#0B2447] leading-6">
-            {titulo}
-            {opcional && (
-              <span className="ml-2 align-middle rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-semibold text-slate-500">opcional</span>
-            )}
-          </p>
-          <p className="text-xs text-slate-400 leading-snug">{subtitulo}</p>
+    <section id={id} className={`scroll-mt-24 rounded-2xl border bg-white transition-[border-color,box-shadow] ${
+      aberto
+        ? 'border-[#0B2447]/20 shadow-sm'
+        : estado === 'atual' ? 'border-[#0B2447]/15 hover:border-[#0B2447]/30' : 'border-slate-200 hover:border-slate-300'
+    }`}>
+      <h3>
+        <button type="button" id={`${id}-cab`} onClick={onAlternar} aria-expanded={aberto} aria-controls={`${id}-conteudo`}
+          className="w-full flex items-start gap-2.5 rounded-2xl p-4 text-left">
+          <NumeroPasso n={n} estado={estado} />
+          <span className="min-w-0 flex-1">
+            <span className="block text-sm font-bold text-[#0B2447] leading-6">
+              {titulo}
+              {opcional && (
+                <span className="ml-2 align-middle rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-semibold text-slate-500">opcional</span>
+              )}
+            </span>
+            <span className={`block text-xs leading-snug ${
+              !aberto && pendencia ? 'font-medium text-amber-700'
+                : !aberto && resumo ? 'font-medium text-slate-600'
+                  : 'text-slate-400'
+            }`}>
+              {linha}
+            </span>
+          </span>
+          <ChevronDown className={`mt-1 w-4 h-4 shrink-0 text-slate-400 transition-transform duration-200 motion-reduce:transition-none ${
+            aberto ? 'rotate-180' : ''
+          }`} aria-hidden />
+        </button>
+      </h3>
+      <div id={`${id}-conteudo`} role="region" aria-labelledby={`${id}-cab`} inert={!aberto}
+        className={`grid transition-[grid-template-rows] duration-200 ease-out motion-reduce:transition-none ${
+          aberto ? 'grid-rows-[1fr]' : 'grid-rows-[0fr]'
+        }`}>
+        <div className="overflow-hidden">
+          <div className="px-4 pb-4 sm:pl-[3.125rem]">{children}</div>
         </div>
       </div>
-      <div className="sm:pl-8">{children}</div>
     </section>
+  );
+}
+
+/** Rodapé do passo aberto: avança (ou conclui) quando o passo está válido. */
+function RodapePasso({ rotulo, onClick, falta = null, icone = 'seta' }: {
+  rotulo: string; onClick: () => void; falta?: string | null; icone?: 'seta' | 'check';
+}) {
+  return (
+    <div className="mt-4 flex items-center justify-end gap-3 border-t border-slate-100 pt-3">
+      {falta && <span className="text-[11px] text-slate-400 text-right">Falta: {falta}</span>}
+      <button type="button" onClick={onClick} disabled={!!falta}
+        className="inline-flex items-center gap-1.5 rounded-xl bg-[#0B2447] hover:bg-[#0B3D91] text-white text-xs font-semibold px-4 py-2.5 transition-colors disabled:opacity-40 disabled:cursor-not-allowed">
+        {rotulo}
+        {icone === 'check' ? <Check className="w-3.5 h-3.5" strokeWidth={3} /> : <ChevronRight className="w-3.5 h-3.5" />}
+      </button>
+    </div>
   );
 }
 
@@ -532,7 +673,7 @@ function FormRegra({ rf, falta, temPrevia, onTipo, onCampo, onToggleDia, onCance
   rf: RegraFormulario;
   falta: string | null;
   temPrevia: boolean;
-  onTipo: (t: PrecoRegraTipo) => void;
+  onTipo: (t: TipoRegraRecorrente) => void;
   onCampo: <K extends keyof RegraFormulario>(k: K, v: RegraFormulario[K]) => void;
   onToggleDia: (d: number) => void;
   onCancelar: () => void;
@@ -543,13 +684,13 @@ function FormRegra({ rf, falta, temPrevia, onTipo, onCampo, onToggleDia, onCance
     <div className="rounded-xl border-2 border-[#0B2447]/15 bg-slate-50/60 p-3.5 space-y-3.5">
       <div>
         <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Nova regra</p>
-        <div className="grid grid-cols-3 gap-1 bg-slate-100 rounded-xl p-1" role="tablist" aria-label="Tipo de regra">
+        <div className="grid grid-cols-2 gap-1 bg-slate-100 rounded-xl p-1" role="tablist" aria-label="Tipo de regra">
           {TIPOS.map(x => (
             <button key={x.tipo} type="button" role="tab" aria-selected={rf.tipo === x.tipo} onClick={() => onTipo(x.tipo)}
-              className={`flex items-center justify-center gap-1 px-1 py-2 rounded-lg text-[11px] leading-tight font-semibold transition-all ${
+              className={`flex items-center justify-center gap-1.5 px-1 py-2 rounded-lg text-[11px] leading-tight font-semibold transition-all ${
                 rf.tipo === x.tipo ? `bg-white shadow-sm ${x.texto}` : 'text-slate-500 hover:text-slate-700'
               }`}>
-              <span className={`hidden @xs:flex h-4 w-4 shrink-0 items-center justify-center rounded-full text-[9px] font-bold text-white ${x.num}`}>{x.n}</span>
+              <x.icon className="w-3.5 h-3.5 shrink-0" />
               {x.label}
             </button>
           ))}
@@ -616,19 +757,6 @@ function FormRegra({ rf, falta, temPrevia, onTipo, onCampo, onToggleDia, onCance
         </div>
       )}
 
-      {rf.tipo === 'data_fixa' && (
-        <div className="grid grid-cols-2 gap-3">
-          <div>
-            <label className="block text-xs font-medium text-slate-600 mb-1">Data inicial<span className="text-red-500 ml-0.5">*</span></label>
-            <input className={inputCls} type="date" value={rf.dataInicio} onChange={e => onCampo('dataInicio', e.target.value)} />
-          </div>
-          <div>
-            <label className="block text-xs font-medium text-slate-600 mb-1">Data final<span className="text-red-500 ml-0.5">*</span></label>
-            <input className={inputCls} type="date" min={rf.dataInicio} value={rf.dataFim} onChange={e => onCampo('dataFim', e.target.value)} />
-          </div>
-        </div>
-      )}
-
       <p className={`flex items-start gap-1.5 rounded-lg px-2.5 py-2 text-[11px] leading-snug ${
         temPrevia ? 'bg-[#0B3D91]/[0.06] text-[#0B2447]' : 'bg-white text-slate-500 border border-slate-100'
       }`}>
@@ -640,7 +768,7 @@ function FormRegra({ rf, falta, temPrevia, onTipo, onCampo, onToggleDia, onCance
             mostram onde esta regra vai valer.
           </span>
         ) : (
-          <span>Preencha o preço{rf.tipo === 'data_fixa' ? ' e as datas' : rf.tipo === 'dia_semana' ? ' e os dias' : ''} para ver a prévia no calendário.</span>
+          <span>Preencha o preço{rf.tipo === 'dia_semana' ? ' e os dias' : ''} para ver a prévia no calendário.</span>
         )}
       </p>
 
