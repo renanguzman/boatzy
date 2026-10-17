@@ -1,6 +1,7 @@
 'use server';
 
 import { revalidatePath } from 'next/cache';
+import { after } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { supabaseAdmin } from '@/lib/supabase';
 import { checkRoleInDb } from '@/lib/roles';
@@ -10,6 +11,7 @@ import { getTaxaEfetiva } from '@/lib/taxas';
 import { getFinanceiroConfig } from '@/lib/financeiro/config';
 import { calcularExpiracao } from '@/lib/pagamentos/pedidos';
 import { emailPagamentoPendente } from '@/lib/pagamentos/emails';
+import { emailReservaRecusada } from '@/lib/emails/reserva-recusada';
 import { calcularValoresPedido, multiplicadorDaReserva, VALOR_MINIMO_COBRANCA } from '@/lib/pagamentos/valores';
 import type { ReservaModalidadePreco } from '@/types/supabase';
 
@@ -17,6 +19,15 @@ type ActionResult = { ok: boolean; error?: string };
 
 const CONFLITO_MSG =
   'Não é possível confirmar: já existe outra reserva confirmada (ou aguardando pagamento) para esta data.';
+
+/**
+ * Corrida com outra confirmação simultânea: as restrições EXCLUDE
+ * `reserva_*_periodo_ocupado_excl` (migration 20261017, intervalo inteiro —
+ * 23P01) substituíram os índices únicos por data (23505).
+ */
+function ehConflitoDeData(code: string | undefined): boolean {
+  return code === '23P01' || code === '23505';
+}
 
 /** Converte o valor digitado ("1.234,56" ou "1234.56") em número; null se inválido. */
 function paraNumero(v: string | undefined): number | null {
@@ -161,7 +172,7 @@ async function aceitarComPagamento(params: {
     .select('id')
     .maybeSingle();
   if (erroReserva) {
-    if (erroReserva.code === '23505') return { ok: false, error: CONFLITO_MSG };
+    if (ehConflitoDeData(erroReserva.code)) return { ok: false, error: CONFLITO_MSG };
     return { ok: false, error: erroReserva.message };
   }
   if (!aceita) return { ok: false, error: 'Esta reserva não está mais pendente.' };
@@ -325,12 +336,16 @@ async function responderReserva(
   if (!error && !respondida) return { ok: false, error: 'Esta reserva não está mais pendente.' };
 
   if (error) {
-    // 23505 = corrida com outra confirmação simultânea (índices únicos
-    // parciais reserva_embarcacao_data_confirmada_uniq /
-    // reserva_roteiro_data_confirmada_uniq — rede de segurança contra race
-    // condition; a checagem acima já cobre o caso não concorrente).
-    if (error.code === '23505') return { ok: false, error: CONFLITO_MSG };
+    // Corrida com outra confirmação simultânea — a checagem acima cobre o
+    // caso não concorrente; a restrição do banco é a rede de segurança.
+    if (ehConflitoDeData(error.code)) return { ok: false, error: CONFLITO_MSG };
     return { ok: false, error: error.message };
+  }
+
+  // Recusa: aviso gentil ao cliente por e-mail (depois da resposta ao gestor).
+  if (status === 'recusada') {
+    const observacaoCliente = observacao?.trim() ? observacao.trim() : null;
+    after(() => avisarClienteRecusa(reservaId, observacaoCliente));
   }
 
   revalidatePath('/painel/agendamentos');
@@ -394,4 +409,27 @@ export async function definirAtendentes(
   revalidatePath('/painel/agendamentos');
   revalidatePath(`/painel/agendamentos/${reservaId}`);
   return { ok: true };
+}
+
+/** E-mail ao cliente da reserva recusada (falha só é logada). */
+async function avisarClienteRecusa(reservaId: string, observacao: string | null): Promise<void> {
+  const { data } = await supabaseAdmin
+    .from('reserva')
+    .select('item_nome, roteiro_id, data_reserva, data_fim_reserva, roteiro ( nome ), cliente:users!reserva_cliente_id_fkey ( name, email )')
+    .eq('id', reservaId)
+    .maybeSingle();
+  if (!data) return;
+  const r = data as unknown as {
+    item_nome: string; roteiro_id: string | null; data_reserva: string; data_fim_reserva: string | null;
+    roteiro: { nome: string } | null; cliente: { name: string | null; email: string | null } | null;
+  };
+  await emailReservaRecusada({
+    para: r.cliente?.email,
+    nome: r.cliente?.name ?? '',
+    itemNome: r.roteiro?.nome ?? r.item_nome,
+    roteiroId: r.roteiro_id,
+    dataReserva: r.data_reserva,
+    dataFimReserva: r.data_fim_reserva,
+    observacao,
+  });
 }

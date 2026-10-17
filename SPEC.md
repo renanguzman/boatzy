@@ -1006,6 +1006,10 @@ existe uma **reserva confirmada** que a ocupa — a embarcação é o recurso f�
 direta da embarcação, bloqueia a data nos demais. Só `status = 'confirmada'` bloqueia; `pendente`
 não bloqueia nada (várias solicitações pendentes podem coexistir até o gestor decidir).
 
+> **Desde 17/10/2026 (§48)** os índices únicos viraram restrições **EXCLUDE por intervalo de datas**
+> (`reserva_embarcacao_periodo_ocupado_excl` / `reserva_roteiro_periodo_ocupado_excl`, btree_gist,
+> erro 23P01): o intervalo inteiro de uma reserva Por Diária passa a contar, não só `data_reserva`.
+
 > **Desde a Fase 1.2 de pagamentos (migration `20260930d_reserva_pagamento.sql`)** a reserva
 > **aguardando pagamento** também segura a data: os índices viraram
 > `reserva_embarcacao_data_ocupada_uniq` / `reserva_roteiro_data_ocupada_uniq`
@@ -1039,6 +1043,7 @@ não bloqueia nada (várias solicitações pendentes podem coexistir até o gest
 
 ### Painel (cadastro/edição)
 
+- **Removido em 17/10/2026 (§48):** a disponibilidade do roteiro passou para o calendário da etapa "Preço e disponibilidade" (`CalendarioPrecos`); `salvarBloqueiosRoteiro` virou `salvarDisponibilidadeRoteiro` e `roteiro_disponibilidade_bloqueio` virou `roteiro_disponibilidade_dia`.
 - Componente `src/components/painel/DisponibilidadePicker.tsx`: chips de dias da semana + mini-calendário para marcar/desmarcar bloqueios + lista de datas bloqueadas (props genéricas: `diasSemana`, `bloqueios` e callbacks). Seleção em lote desde 12/10/2026 — ver §40.
 - Usado nos forms `NovoRoteiroForm`/`EditarRoteiroForm` (seção "Disponibilidade"). Os forms de embarcação deixaram de usá-lo (§39).
 - Server actions:
@@ -5516,6 +5521,9 @@ estruturas da embarcação ficam sem uso pela aplicação (§15 e §15-B marcada
 
 ## 40. Bloqueio de datas em lote no calendário de disponibilidade do roteiro (12/10/2026)
 
+> **Substituído em 17/10/2026 (§48):** `DisponibilidadePicker` foi removido; fechar/abrir dias (um, vários,
+> período, mês) é feito no `CalendarioPrecos` da etapa "Preço e disponibilidade".
+
 `DisponibilidadePicker` (`src/components/painel/DisponibilidadePicker.tsx`) — mesma interface de
 props; nada muda nas actions (`salvarBloqueiosRoteiro` continua substituindo o conjunto) nem no
 banco (`roteiro_disponibilidade_bloqueio`, uma linha por data).
@@ -5549,6 +5557,11 @@ banco (`roteiro_disponibilidade_bloqueio`, uma linha por data).
 ---
 
 ## 41. Antecedência máxima de reserva do roteiro — 3 meses (12/10/2026)
+
+> **Atualizado em 17/10/2026 (§48):** a janela é por roteiro (`roteiro.janela_reserva_meses`: 3/6/9/12,
+> padrão 3). `MESES_ANTECEDENCIA_RESERVA` virou só o padrão; `dataMaximaReservaISO(meses, hoje?)`. O site
+> e o checkout validam pela função SQL `roteiro_periodo_indisponivel`; o `DatePicker` deixou de ser usado
+> no card de reserva (substituído por `CalendarioReserva`).
 
 - **Regra única** em `src/lib/datas.ts` (client-safe): `MESES_ANTECEDENCIA_RESERVA = 3` e
   `dataMaximaReservaISO(meses?)` → `hojeISO()` (Brasília) + N meses, dia ajustado ao último dia do
@@ -6065,3 +6078,108 @@ datas mudaram, todas as `data_fixa` são apagadas e regravadas como `NOME_DATA_E
   rodapé, foco no campo, Enter aplica (célula vira "Data específica"), vários dias, Esc, Período (barra só
   após o 2º clique), no fim da página a barra fica 12px abaixo do calendário; sem rolagem horizontal nem
   erros de console.
+
+---
+
+## 48. Preço e disponibilidade num calendário só — gestor e cliente (17/10/2026)
+
+As etapas "Preço" e "Disponibilidade" do roteiro viraram **"Preço e disponibilidade"** (`ETAPAS_ROTEIRO`
+7 → 6; `ETAPA_ROT = { informacoes: 0, localizacao: 1, fotos: 2, preco: 3, adicionais: 4, revisao: 5 }`), e
+o calendário que o gestor configura é o mesmo que o cliente vê. Regra: **um barco faz um passeio por dia**.
+
+### 48.1 Migration `supabase/migrations/20261017_disponibilidade_roteiro.sql` (idempotente)
+
+| Objeto | O quê |
+|---|---|
+| `roteiro.janela_reserva_meses smallint NOT NULL DEFAULT 3` | `CHECK IN (3, 6, 9, 12)` (`chk_roteiro_janela_reserva`). Data máxima = hoje (Brasília) + N meses (dia ajustado ao fim do mês). |
+| `roteiro_disponibilidade_dia (roteiro_id, data, disponivel, created_at)` | PK `(roteiro_id, data)`. `false` = dia fechado; `true` = dia aberto fora de `disponibilidade_dias_semana`. RLS `service_role_all` + `owner_all` (dono via `roteiro.owner_id`); GRANTs. Os bloqueios de `roteiro_disponibilidade_bloqueio` foram copiados como `false`; a tabela antiga fica **sem uso** (remover numa migration futura). |
+| `embarcacao_disponibilidade_bloqueio` | Volta a valer: **barco fechado** na data → fecha todos os roteiros do barco. |
+| `reserva_embarcacao_periodo_ocupado_excl` / `reserva_roteiro_periodo_ocupado_excl` | `EXCLUDE USING gist (embarcacao_id \| roteiro_id WITH =, daterange(data_reserva, COALESCE(data_fim_reserva, data_reserva), '[]') WITH &&) WHERE status IN ('confirmada','aguardando_pagamento')` — substituem `reserva_*_data_ocupada_uniq` (que só comparavam `data_reserva`). Extensão `btree_gist` (schema `extensions`). Violação = **23P01**. |
+| `roteiro_situacao_dia(roteiro, data) → text` | **Fonte única.** Ordem: `passado` → `ocupado` (reserva do roteiro OU do barco vinculado cobrindo a data) → `barco_fechado` → `fechado` → `nao_opera` (sem abertura) → `fora_janela` → `disponivel`; NULL = roteiro inexistente. `SECURITY DEFINER`, `SET timezone = 'America/Sao_Paulo'`. |
+| `roteiro_calendario(roteiro, de, ate) → (data, situacao, preco)` | Situação + `get_preco_roteiro` por dia (máx. 400 dias). Calendário do site. |
+| `roteiro_periodo_indisponivel(roteiro, inicio, fim) → text` | NULL = pode reservar; senão a situação do 1º dia que impede. Saída precisa ser `disponivel`; nos dias seguintes (Por Diária) `nao_opera`/`fora_janela` não impedem. Checkout. |
+| `roteiro_dia_reservavel(roteiro, data) → boolean` | Só sim/não — usado pela busca. |
+| Permissões | `roteiro_situacao_dia`, `roteiro_calendario`, `roteiro_periodo_indisponivel`: **só `service_role`** (não expõem "ocupado × fechado" pela Data API). `roteiro_dia_reservavel`: anon/authenticated/service_role. |
+| `buscar_roteiros` | Mesma assinatura; filtro de data = `EXISTS (dia de data±flex WHERE roteiro_dia_reservavel(r.id, dia))` (antes: só dias da semana + bloqueios; ignorava reservas, barco e janela). |
+| `calcular_preco_minimo_roteiro` | **Nova assinatura** `(roteiro, embarcacao, preco_base, dias_semana smallint[], janela_meses smallint, diaria_ativo, diaria_valor, pessoa_ativo, pessoa_valor)`: varre só a janela do roteiro e só dias reserváveis (opera ou aberto; não fechado; barco não fechado). Reservas não entram (o "a partir de" não oscila). `recalcular_preco_minimo_roteiro` e `trg_roteiro_preco_minimo` atualizados; o trigger de `roteiro` dispara também em `disponibilidade_dias_semana`, `janela_reserva_meses`, `embarcacao_id`. Triggers **por comando** (tabelas de transição) em `roteiro_disponibilidade_dia` e `embarcacao_disponibilidade_bloqueio` recalculam uma vez por roteiro afetado. Backfill no fim. |
+
+### 48.2 Espelho TS — `src/lib/disponibilidade.ts` (puro, client-safe)
+
+- `SituacaoDia`, `AgendaRoteiro { hoje, dataMaxima, diasOperacao, diasRoteiro, barcoFechado, ocupadas }`,
+  `situacaoDoDia(agenda, iso)` e `periodoIndisponivel(situacaoDe, inicio, fim)` — espelhos de
+  `roteiro_situacao_dia`/`roteiro_periodo_indisponivel` (painel pré-visualiza o que não foi salvo; o site
+  valida o período Por Diária na hora).
+- `JANELAS_RESERVA_MESES = [3, 6, 9, 12]`, `JANELA_RESERVA_PADRAO`, `janelaValida(n)`.
+- Cliente: `StatusPublico = 'disponivel' | 'nao_opera' | 'fora_janela' | 'indisponivel'` (ocupado/fechado/barco
+  fechado/passado viram `indisponivel`), `DiaReserva { data, status, preco, total }` (`total` = preço + taxa via
+  `decomporPreco`), `CalendarioCliente { dias, dataMaxima, taxaPercent }`, `diasParaCliente(linhasSQL, taxa)`,
+  `calendarioClienteLocal({ agenda, precoDoDia, taxaPercent, ate })`, `DIAS_APOS_JANELA = 31`,
+  `mensagemIndisponivel(situacao, dataMaxima)`.
+- Painel: `OcupacaoDia { data, status, reservaId, roteiroId, roteiroNome, mesmoRoteiro }`, `agruparDatas(datas)`.
+
+### 48.3 Servidor
+
+- `src/lib/reservas.ts`: `getOcupacaoRoteiro({ roteiroId|null, embarcacaoId })` (reservas que ocupam, com origem),
+  `getPedidosPendentesRoteiro(roteiroId) → Record<data, n>`, `getFechamentosEmbarcacao(embarcacaoId)`,
+  `getDisponibilidadeDiasRoteiro(roteiroId)`, `getCalendarioRoteiro(roteiro, de, ate)` (RPC),
+  `getMotivoPeriodoIndisponivel(roteiro, inicio, fim)` (RPC; erro → `'ocupado'`, recusa por segurança).
+- `src/lib/disponibilidade-actions.ts` (`'use server'`, dono ou admin): `salvarDisponibilidadeRoteiro(roteiroId,
+  dias)` (substitui o conjunto), `salvarFechamentosEmbarcacao(embarcacaoId, adicionar, remover)` (só a diferença —
+  o barco é compartilhado), `carregarAgendaEmbarcacao(embarcacaoId, roteiroId|null)` (ao escolher/trocar o barco no
+  form). `salvarBloqueiosRoteiro` (novo e edição) foi removido.
+- `criarRoteiro`/`atualizarRoteiro`: payload `janela_reserva_meses` (validado por `janelaValida`).
+- Checkout: `criarReserva` e `/reservas/novo/page.tsx` validam o período com `getMotivoPeriodoIndisponivel` (janela do
+  roteiro, dias de operação, dias/barco fechados, reservas do barco) — antes não checavam operação nem bloqueios.
+  `AlvoResolvido.janelaMeses`.
+- Agendamentos: conflito = `23P01` ou `23505` (`ehConflitoDeData`). **Toda recusa** dispara (via `after()`)
+  `emailReservaRecusada` (`src/lib/emails/reserva-recusada.ts`): tom gentil, mensagem do gestor, "nenhum valor foi
+  cobrado", botão "Ver outras datas" → `/roteiros/[id]`. Sem recusa automática: o detalhe do pedido em conflito mostra
+  o aviso (agora citando outro roteiro do mesmo barco) e `ReservaAcoes` recebe `sugestaoRecusa`, que preenche a
+  mensagem ao abrir "Recusar".
+
+### 48.4 Painel
+
+- `EtapaPreco`: props novas `onDiasOperacaoChange`, `janelaMeses`/`onJanelaMesesChange`, `diasRoteiro`/
+  `onDiasRoteiroChange`, `fechamentosBarco` (null = sem barco)/`onFechamentosBarcoChange`, `ocupacao`,
+  `pedidosPendentes`; saíram `bloqueios`/`datasOcupadas`. Passos ①–④ (`NumPasso = 1..4`); ③ "Quando o roteiro opera"
+  (chips de dias — vazio = todos, mínimo 1 — e radiogroup 3/6/9/12) conta como feito ao confirmar ou se o roteiro já
+  chegou com preço (`jaConfigurado`); calendário = ⑤.
+- `CalendarioPrecos`: props novas `janelaMeses`, `diasRoteiro`, `onDiasRoteiroChange`, `fechamentosBarco`,
+  `onFechamentosBarcoChange`, `ocupacao`, `pedidosPendentes`. Situação por `situacaoDoDia`; células por situação
+  (`CELULA_FECHADA`, `HACHURA` para fora da janela, ícones lock/ship/calendar-check, ponto âmbar de pendente). Dia
+  ocupado → barra de informação (`aria-label="Reserva do dia selecionado"`) com link para o agendamento; demais →
+  barra com preço + linha "Disponibilidade" (`fecharDias`, `abrirDias` — remove o fechamento ou grava abertura
+  excepcional —, `fecharBarco`, `reabrirBarco`). "Selecionar o mês" seleciona os dias editáveis do mês. Chips
+  "Disponibilidade alterada" (`ChipDatas`). Calendário cobre 12 meses mesmo com janela menor.
+- Forms: estado `janelaMeses`, `diasRoteiro`, `agendaBarco { embarcacaoId, base, fechamentos, ocupacao }` (recarregado
+  ao trocar a embarcação). Salvar: `salvarDisponibilidadeRoteiro` + diferença de `fechamentos` × `base`. Páginas de
+  edição (painel e admin) carregam disponibilidade, fechamentos, ocupação e pendentes.
+- `revisaoRoteiro`: args `janelaMeses`/`diasRoteiro` (saiu `bloqueios`); item Disponibilidade aponta para `ETAPA_ROT.preco`.
+- Pré-visualização: `PreviewDados` de roteiro = `{ roteiro, calendario: CalendarioCliente }`; `montarPreviewRoteiro`
+  recebe `agenda { diasOperacao, janelaMeses, diasRoteiro, fechamentosBarco, ocupacao, regras, ajustes, taxaPercent }`
+  e monta o calendário com `calendarioClienteLocal`. `RoteiroDetalheDados` perdeu `preco_minimo_roteiro`.
+
+### 48.5 Site — `/roteiros/[id]`
+
+- `page.tsx`: `getCalendarioRoteiro(id, hoje, dataMaxima + 31)` + `getTaxaEfetiva(owner)` → `CalendarioCliente`.
+- `RoteiroDetalheView` (prop `calendario`, saiu `datasBloqueadas`): `DataReservaProvider` (data — da busca só se
+  `disponivel` —, flex, modalidade, diárias) e a seção `DisponibilidadeSecao` (`#disponibilidade`; no celular,
+  atalho "Continuar a reserva" → `#reservar`).
+- `CalendarioReserva` (client): meses lado a lado (1 no celular), total compacto por dia, menor preço do mês em verde,
+  indisponível riscado, fora da janela apagado, período Por Diária destacado com conflito em vermelho + mensagem.
+- `BookingCard`: props `calendario` (saíram `precoMinimoRoteiro`, `diasOperacao`, `datasBloqueadas`, `initialData`,
+  `initialFlex`); data/flex/modalidade/diárias do contexto; campo de data abre `CalendarioReserva` + flexibilidade;
+  preço do dia vem do calendário (sem RPC por data); cabeçalho e detalhamento com taxa (`calcularValoresPedido`:
+  passeio + adicionais + taxa = total). `getPrecoRoteiroNaData` segue usado só em `/reservas/novo`.
+
+### 48.6 Testes
+
+- PGlite (migrations reais 012/20260907/20261010d/20261016 → 20261017, duas vezes): bloqueio legado migrado; janela
+  só 3/6/9/12; EXCLUDE (diária 10–12 × dia 11 de outro roteiro do barco → 23P01; pendente coexiste; aceitar pendente
+  em conflito → 23P01; cancelada não ocupa); **paridade SQL × TS** em 11.970 dias e 750 períodos de 30 roteiros
+  aleatórios em 6 barcos compartilhados (todas as 7 situações); preço mínimo (janela 3 × 12, dia fechado, barco
+  fechado, dia fora da operação aberto, reserva não altera); busca (barco ocupado some nos dois roteiros, flex, janela
+  3 × 6); permissões. 12.750 verificações + as 16.553 do §47.
+- Navegador (headless, rotas temporárias removidas): painel 1440px (passos, janela, situações das células, barras,
+  abrir/fechar/fechar o barco, chips, selecionar o mês) e site 1440/390px (total com taxa, indisponíveis sem motivo,
+  sincronia seção × card, popover com flexibilidade, Por Diária com conflito). `tsc` e `eslint` limpos.

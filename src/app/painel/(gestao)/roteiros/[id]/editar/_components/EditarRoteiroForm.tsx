@@ -4,7 +4,7 @@ import { useState, useEffect, useMemo, useTransition, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import {
   Info, ClipboardCheck, MapPin, ImageIcon, DollarSign,
-  Loader2, AlertCircle, CheckCircle, CalendarDays,
+  Loader2, AlertCircle, CheckCircle,
   Plus, ChevronDown, ChevronUp, Trash2, BookOpen,
 } from 'lucide-react';
 import GaleriaImagensEditor, { itensDeImagensSalvas, type GaleriaItem } from '@/components/painel/GaleriaImagensEditor';
@@ -15,7 +15,6 @@ import {
   excluirImagemRoteiro,
   atualizarImagensRoteiro,
   excluirRegraRoteiro,
-  salvarBloqueiosRoteiro,
   salvarParadasRoteiro,
   type AtualizarRoteiroPayload,
 } from '../actions';
@@ -26,7 +25,10 @@ import {
 } from '../../../novo/actions';
 import MapaPicker from '../../../../embarcacoes/novo/_components/MapaPicker';
 import CatalogoSelector, { type CatalogoItem, type ItemSelecionado } from '../../../_components/CatalogoSelector';
-import DisponibilidadePicker from '@/components/painel/DisponibilidadePicker';
+import {
+  salvarDisponibilidadeRoteiro, salvarFechamentosEmbarcacao, carregarAgendaEmbarcacao,
+} from '@/lib/disponibilidade-actions';
+import { janelaValida, type JanelaReservaMeses, type OcupacaoDia } from '@/lib/disponibilidade';
 import EtapaPreco, { type RegraListada } from '../../../_components/EtapaPreco';
 import {
   regraDeBanco, regraDeFormulario, ajustesDeBanco, ehDataEspecificaBanco, compactarAjustes, type RegraFormulario,
@@ -94,6 +96,7 @@ type RoteiroData = {
   preco_diaria_valor: number | null;
   preco_diaria_minimo: number;
   disponibilidade_dias_semana: number[] | null;
+  janela_reserva_meses: number;
   horario_saida: string | null;
   estado_id: number | null;
   roteiro_imagens: RoteiroImagem[];
@@ -117,7 +120,10 @@ type Props = {
   embarcacoes: Embarcacao[];
   catalogo: CatalogoItem[];
   catalogoIniciais: ItemSelecionado[];
-  bloqueiosIniciais: string[];
+  /** Exceções de disponibilidade salvas: data → false (fechado) / true (aberto fora da operação). */
+  disponibilidadeInicial: Record<string, boolean>;
+  /** Dias (de hoje em diante) com o barco vinculado inteiro fechado. */
+  fechamentosBarcoIniciais: string[];
   paradasIniciais: string[];
   /** Rota de retorno após salvar/cancelar (o admin reutiliza o form com outra rota). */
   voltarHref?: string;
@@ -128,8 +134,10 @@ type Props = {
   avisarNovaAnalise?: boolean;
   /** Comissão do Boatzy (%) do gestor dono do roteiro — mostrada no calendário de preços. */
   taxaPercent: number;
-  /** Datas já seguradas por reservas do roteiro (confirmadas / aguardando pagamento). */
-  datasOcupadas: string[];
+  /** Reservas que ocupam dias — deste roteiro ou de outro roteiro do mesmo barco. */
+  ocupacaoInicial: OcupacaoDia[];
+  /** Pedidos pendentes do roteiro por dia. */
+  pedidosPendentes: Record<string, number>;
 };
 
 // ─── Helpers de UI ────────────────────────────────────────────────────────────
@@ -171,7 +179,7 @@ function Field({ label, required, hint, children }: {
 
 // ─── Componente principal ─────────────────────────────────────────────────────
 
-export default function EditarRoteiroForm({ roteiro, estados, municipiosIniciais, embarcacoes, catalogo: catalogoInicial, catalogoIniciais, bloqueiosIniciais, paradasIniciais, voltarHref = '/painel/roteiros', avisarNovaAnalise = false, taxaPercent, datasOcupadas }: Props) {
+export default function EditarRoteiroForm({ roteiro, estados, municipiosIniciais, embarcacoes, catalogo: catalogoInicial, catalogoIniciais, disponibilidadeInicial, fechamentosBarcoIniciais, paradasIniciais, voltarHref = '/painel/roteiros', avisarNovaAnalise = false, taxaPercent, ocupacaoInicial, pedidosPendentes }: Props) {
   const router = useRouter();
   const [, startTransition] = useTransition();
   const numeroInputRef = useRef<HTMLInputElement>(null);
@@ -185,7 +193,7 @@ export default function EditarRoteiroForm({ roteiro, estados, municipiosIniciais
   // duracao_horas → (número, unidade) para os dois campos do formulário.
   const duracaoInicial = horasParaPartes(roteiro.duracao_horas);
 
-  const [form, setForm] = useState<Omit<AtualizarRoteiroPayload, 'municipio_id' | 'disponibilidade_dias_semana'> & {
+  const [form, setForm] = useState<Omit<AtualizarRoteiroPayload, 'municipio_id' | 'disponibilidade_dias_semana' | 'janela_reserva_meses'> & {
     municipio_id: string; estado_id: string;
   }>({
     embarcacao_id:      roteiro.embarcacao_id ?? '',
@@ -236,9 +244,33 @@ export default function EditarRoteiroForm({ roteiro, estados, municipiosIniciais
     ...novasRegras.map(r => ({ id: r.localId, regra: regraDeFormulario(r, r.localId), estado: 'nova' as const })),
   ], [regrasExistentes, novasRegras]);
 
-  // Disponibilidade: dias da semana de operação (vazio = todos) + datas bloqueadas (ISO)
+  // Disponibilidade: dias da semana de operação (vazio = todos), janela de
+  // reservas, dias fechados/abertos do roteiro e dias com o barco fechado.
   const [diasOperacao, setDiasOperacao] = useState<number[]>(roteiro.disponibilidade_dias_semana ?? []);
-  const [bloqueios, setBloqueios]       = useState<string[]>(bloqueiosIniciais);
+  const [janelaMeses, setJanelaMeses]   = useState<JanelaReservaMeses>(janelaValida(roteiro.janela_reserva_meses));
+  const [diasRoteiro, setDiasRoteiro]   = useState<Record<string, boolean>>(disponibilidadeInicial);
+  // Agenda do barco vinculado: `base` = como está no banco (para gravar só a diferença).
+  const [agendaBarco, setAgendaBarco] = useState<{
+    embarcacaoId: string; base: string[]; fechamentos: string[]; ocupacao: OcupacaoDia[];
+  }>({
+    embarcacaoId: roteiro.embarcacao_id ?? '',
+    base: fechamentosBarcoIniciais, fechamentos: fechamentosBarcoIniciais, ocupacao: ocupacaoInicial,
+  });
+  // Trocou a embarcação: carrega a agenda do barco novo (reservas e fechamentos).
+  useEffect(() => {
+    const id = form.embarcacao_id;
+    if (id === agendaBarco.embarcacaoId) return;
+    let cancelado = false;
+    const vazia = { embarcacaoId: id, base: [], fechamentos: [], ocupacao: [] };
+    if (!id) { setAgendaBarco(vazia); return; }
+    carregarAgendaEmbarcacao(id, roteiro.id).then(agenda => {
+      if (cancelado) return;
+      setAgendaBarco(agenda
+        ? { embarcacaoId: id, base: agenda.fechamentosBarco, fechamentos: agenda.fechamentosBarco, ocupacao: agenda.ocupacao }
+        : vazia);
+    });
+    return () => { cancelado = true; };
+  }, [form.embarcacao_id, agendaBarco.embarcacaoId, roteiro.id]);
 
   // Paradas do itinerário: pontos intermediários entre origem e destino (0, 1 ou vários)
   const [paradas, setParadas] = useState<ParadaLocal[]>(
@@ -262,7 +294,7 @@ export default function EditarRoteiroForm({ roteiro, estados, municipiosIniciais
   // ── Etapas (wizard) ─────────────────────────────────────────────────────────
   const etapas = useEtapas(ETAPAS_ROTEIRO.length, { todasVisitadas: true, ids: ETAPAS_ROTEIRO.map(e => e.id) });
   const revisao = revisaoRoteiro({
-    form, embarcacoes, estados, municipios, paradas, imagens, diasOperacao, bloqueios,
+    form, embarcacoes, estados, municipios, paradas, imagens, diasOperacao, janelaMeses, diasRoteiro,
     totalAdicionais: itensCatalogo.length,
     ir: etapas.ir,
   });
@@ -285,8 +317,15 @@ export default function EditarRoteiroForm({ roteiro, estados, municipiosIniciais
   const embarcacaoPronta = !form.embarcacao_id || previewEmb?.id === form.embarcacao_id;
   const previewDados = previewAberto && embarcacaoPronta
     ? montarPreviewRoteiro({
-        form, estados, municipios, imagens, diasOperacao, bloqueios,
+        form, estados, municipios, imagens,
         paradas, itensCatalogo, catalogo,
+        agenda: {
+          diasOperacao, janelaMeses, diasRoteiro,
+          fechamentosBarco: form.embarcacao_id ? agendaBarco.fechamentos : null,
+          ocupacao: agendaBarco.ocupacao,
+          regras: regrasListadas.filter(r => r.estado !== 'excluir').map(r => r.regra),
+          ajustes, taxaPercent,
+        },
         embarcacao: form.embarcacao_id ? previewEmb?.dados ?? null : null,
       })
     : null;
@@ -495,6 +534,7 @@ export default function EditarRoteiroForm({ roteiro, estados, municipiosIniciais
       logradouro_numero:  form.logradouro_numero,
       complemento:        form.complemento,
       disponibilidade_dias_semana: diasOperacao,
+      janela_reserva_meses: janelaMeses,
       horario_saida:       form.horario_saida,
     });
 
@@ -504,8 +544,16 @@ export default function EditarRoteiroForm({ roteiro, estados, municipiosIniciais
       return;
     }
 
-    // Substituir o conjunto de datas bloqueadas
-    await salvarBloqueiosRoteiro(roteiro.id, bloqueios);
+    // Disponibilidade: dias fechados/abertos do roteiro (substitui o conjunto) e
+    // barco fechado (só a diferença — o barco é compartilhado com outros roteiros).
+    await salvarDisponibilidadeRoteiro(roteiro.id, diasRoteiro);
+    if (form.embarcacao_id && form.embarcacao_id === agendaBarco.embarcacaoId) {
+      const adicionar = agendaBarco.fechamentos.filter(d => !agendaBarco.base.includes(d));
+      const remover = agendaBarco.base.filter(d => !agendaBarco.fechamentos.includes(d));
+      if (adicionar.length > 0 || remover.length > 0) {
+        await salvarFechamentosEmbarcacao(form.embarcacao_id, adicionar, remover);
+      }
+    }
 
     // Substituir o conjunto de paradas do itinerário
     await salvarParadasRoteiro(roteiro.id, paradas.map(p => p.nome));
@@ -756,26 +804,17 @@ export default function EditarRoteiroForm({ roteiro, estados, municipiosIniciais
           ajustes={ajustes}
           onAjustesChange={setAjustes}
           diasOperacao={diasOperacao}
-          bloqueios={bloqueios}
-          datasOcupadas={datasOcupadas}
+          onDiasOperacaoChange={setDiasOperacao}
+          janelaMeses={janelaMeses}
+          onJanelaMesesChange={setJanelaMeses}
+          diasRoteiro={diasRoteiro}
+          onDiasRoteiroChange={setDiasRoteiro}
+          fechamentosBarco={form.embarcacao_id ? agendaBarco.fechamentos : null}
+          onFechamentosBarcoChange={datas => setAgendaBarco(a => ({ ...a, fechamentos: datas }))}
+          ocupacao={agendaBarco.ocupacao}
+          pedidosPendentes={pedidosPendentes}
           taxaPercent={taxaPercent}
           ativa={etapas.atual === ETAPA_ROT.preco}
-        />
-      </SectionCard>
-
-      </div>
-
-      <div hidden={etapas.atual !== ETAPA_ROT.disponibilidade} className="space-y-6">
-      {/* ── 3. Disponibilidade ───────────────────────────────────────────── */}
-      <SectionCard id="disponibilidade" icon={CalendarDays} title="Disponibilidade">
-        <p className="text-xs text-slate-400 mb-5">
-          Defina os dias da semana em que o roteiro opera e bloqueie datas específicas em que ele não estará disponível para reserva.
-        </p>
-        <DisponibilidadePicker
-          diasSemana={diasOperacao}
-          onDiasSemanaChange={setDiasOperacao}
-          bloqueios={bloqueios}
-          onBloqueiosChange={setBloqueios}
         />
       </SectionCard>
 

@@ -30,6 +30,11 @@ type Props = {
   atendenteOptions: AtendenteOption[];
   atendentesAtuais: string[];
   aceite: DadosAceite;
+  /**
+   * Mensagem sugerida ao abrir "Recusar" — quando a data já foi ocupada por
+   * outra reserva do barco. O cliente a recebe no e-mail de recusa.
+   */
+  sugestaoRecusa?: string;
 };
 
 const RESOLVIDA_LABEL: Record<Exclude<Status, 'pendente' | 'confirmada' | 'concluida' | 'aguardando_pagamento'>, string> = {
@@ -132,7 +137,7 @@ function ListaAtendentes({
   );
 }
 
-export default function ReservaAcoes({ reservaId, status, atendenteOptions, atendentesAtuais, aceite }: Props) {
+export default function ReservaAcoes({ reservaId, status, atendenteOptions, atendentesAtuais, aceite, sugestaoRecusa }: Props) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [acao, setAcao] = useState<'confirmar' | 'recusar' | null>(null);
@@ -331,7 +336,7 @@ export default function ReservaAcoes({ reservaId, status, atendenteOptions, aten
             value={observacao}
             onChange={(e) => setObservacao(e.target.value)}
             rows={3}
-            placeholder="Motivo do cancelamento (opcional) — será retornado ao cliente."
+            placeholder="Mensagem ao cliente (opcional) — vai no e-mail de recusa."
             className="w-full rounded-lg border border-slate-200 p-2.5 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-[#0B3D91]/30"
           />
           <div className="flex items-center gap-2">
@@ -368,7 +373,10 @@ export default function ReservaAcoes({ reservaId, status, atendenteOptions, aten
             {aceite.exigirPagamento ? 'Aceitar reserva' : 'Confirmar reserva'}
           </button>
           <button
-            onClick={() => setAcao('recusar')}
+            onClick={() => {
+              setAcao('recusar');
+              if (sugestaoRecusa && !observacao.trim()) setObservacao(sugestaoRecusa);
+            }}
             className="inline-flex w-full items-center justify-center gap-1.5 rounded-lg border border-red-200 text-red-600 hover:bg-red-50 px-4 py-2.5 text-sm font-semibold"
           >
             <X className="h-4 w-4" />

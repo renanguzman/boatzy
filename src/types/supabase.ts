@@ -818,6 +818,7 @@ export type Database = {
           preco_pessoa_capacidade_maxima: number | null;
           preco_pessoa_modo_capacidade: PrecoPessoaModoCapacidade;
           disponibilidade_dias_semana: number[] | null;
+          janela_reserva_meses: number;
           horario_saida: string | null;
           /** Materializados por trigger — ver 20261010d_roteiro_preco_minimo.sql. */
           preco_minimo: number | null;
@@ -866,6 +867,7 @@ export type Database = {
           preco_pessoa_capacidade_maxima?: number | null;
           preco_pessoa_modo_capacidade?: PrecoPessoaModoCapacidade;
           disponibilidade_dias_semana?: number[] | null;
+          janela_reserva_meses?: number;
           horario_saida?: string | null;
           ativo?: boolean;
           created_at?: string;
@@ -900,6 +902,7 @@ export type Database = {
           preco_pessoa_capacidade_maxima?: number | null;
           preco_pessoa_modo_capacidade?: PrecoPessoaModoCapacidade;
           disponibilidade_dias_semana?: number[] | null;
+          janela_reserva_meses?: number;
           horario_saida?: string | null;
           ativo?: boolean;
           updated_at?: string;
@@ -926,6 +929,28 @@ export type Database = {
           roteiro_id?: string;
           data?: string;
           motivo?: string | null;
+          created_at?: string;
+        };
+        Relationships: [];
+      };
+      /** Exceções de disponibilidade por data (migration 20261017): false = dia fechado; true = dia aberto fora da operação. */
+      roteiro_disponibilidade_dia: {
+        Row: {
+          roteiro_id: string;
+          data: string;
+          disponivel: boolean;
+          created_at: string;
+        };
+        Insert: {
+          roteiro_id: string;
+          data: string;
+          disponivel: boolean;
+          created_at?: string;
+        };
+        Update: {
+          roteiro_id?: string;
+          data?: string;
+          disponivel?: boolean;
           created_at?: string;
         };
         Relationships: [];
@@ -2418,14 +2443,32 @@ export type Database = {
       };
       /**
        * Preço do modelo "Roteiro" numa data, resolvendo as regras de
-       * `roteiro_preco_regra` (data_fixa > periodo_anual > dia_semana) com
-       * fallback em `preco_base`. Ver 20260907_roteiro_modelos_cobranca.sql.
+       * `roteiro_preco_regra` (data específica > maior valor entre periodo_anual
+       * e dia_semana) com fallback em `preco_base`. Ver 20261016.
        */
       get_preco_roteiro: {
         Args: { p_roteiro_id: string; p_data: string };
         Returns: number | null;
       };
-      /** Job diário que reavalia a janela de 365 dias de `roteiro.preco_minimo`. */
+      /**
+       * Situação de cada dia do roteiro (passado | ocupado | barco_fechado |
+       * fechado | nao_opera | fora_janela | disponivel) + preço do modelo
+       * Roteiro. Só service_role. Ver 20261017_disponibilidade_roteiro.sql.
+       */
+      roteiro_calendario: {
+        Args: { p_roteiro_id: string; p_de: string; p_ate: string };
+        Returns: { data: string; situacao: string; preco: number | null }[];
+      };
+      /** null = o período pode ser reservado; senão a situação do 1º dia que impede. Só service_role. */
+      roteiro_periodo_indisponivel: {
+        Args: { p_roteiro_id: string; p_inicio: string; p_fim: string };
+        Returns: string | null;
+      };
+      roteiro_dia_reservavel: {
+        Args: { p_roteiro_id: string; p_data: string };
+        Returns: boolean;
+      };
+      /** Job diário que reavalia a janela de reservas de `roteiro.preco_minimo`. */
       recalcular_precos_minimos_roteiros: {
         Args: Record<string, never>;
         Returns: number;

@@ -8,13 +8,13 @@ import { supabaseAdmin } from '@/lib/supabase';
 import { formatCurrency } from '@/lib/utils';
 import { getTaxaEfetiva } from '@/lib/taxas';
 import { buscarPrevisaoTempo } from '@/lib/weather';
-import { somarDiasISO } from '@/lib/reservas';
+import { getMotivoPeriodoIndisponivel, somarDiasISO } from '@/lib/reservas';
 import { capacidadeMaxima } from '@/lib/capacidade';
 import { obterTermoParaAceite } from '@/lib/termos/aceite';
 import { getPrecoRoteiroNaData } from '@/lib/precos-roteiro-actions';
 import ConfirmarReserva from './_components/ConfirmarReserva';
 import PrevisaoTempoCard from './_components/PrevisaoTempoCard';
-import { FUSO_HORARIO, dataMaximaReservaISO } from '@/lib/datas';
+import { FUSO_HORARIO } from '@/lib/datas';
 
 const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
 
@@ -68,8 +68,7 @@ export default async function NovaReservaPage({
   const pessoas = sp.pessoas ? parseInt(sp.pessoas) : 0;
 
   if (!alvoId) redirect('/buscar');
-  // Data além da antecedência máxima (ex.: URL editada) volta ao detalhe, que a descarta.
-  if (!data || !ISO_DATE.test(data) || pessoas < 1 || data > dataMaximaReservaISO()) {
+  if (!data || !ISO_DATE.test(data) || pessoas < 1) {
     // Faltam dados obrigatórios — volta ao detalhe para preenchê-los.
     redirect(voltarHref);
   }
@@ -143,6 +142,11 @@ export default async function NovaReservaPage({
       ? await getPrecoRoteiroNaData(roteiro.id, data)
       : roteiro.preco_base != null ? Number(roteiro.preco_base) : null;
   }
+  // Data indisponível (URL editada, ou ocupada/fechada depois de escolhida):
+  // volta ao detalhe, que a descarta — mesma regra do calendário do site.
+  const fimPeriodo = modalidade === 'diaria' ? somarDiasISO(data!, (diarias ?? 1) - 1) : data!;
+  if (await getMotivoPeriodoIndisponivel(roteiro.id, data!, fimPeriodo)) redirect(voltarHref);
+
   // Máximo de pessoas do grupo (capacidade da embarcação/roteiro — src/lib/capacidade.ts).
   const limitePessoas = capacidadeMaxima(
     roteiro.quantidade_pessoas,

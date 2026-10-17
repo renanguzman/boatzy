@@ -408,8 +408,9 @@ export default async function ReservaDetalhePage({ params }: { params: Promise<{
               <AlertTriangle className="h-4 w-4 text-amber-500 shrink-0 mt-0.5" />
               <p className="text-sm text-amber-800">
                 Esta data já tem outra reserva confirmada (ou aguardando pagamento) para
-                {r.tipo === 'embarcacao' ? ' esta embarcação' : ' este roteiro (ou a embarcação vinculada a ele)'}.
-                Confirmar esta solicitação vai falhar — considere recusá-la.
+                {r.tipo === 'embarcacao' ? ' esta embarcação' : ' este roteiro ou para outro roteiro do mesmo barco'} —
+                o barco faz um passeio por dia. Confirmar esta solicitação vai falhar: recuse-a e o cliente
+                recebe um aviso gentil por e-mail, convidando a escolher outra data.
               </p>
             </div>
           )}
@@ -457,6 +458,9 @@ export default async function ReservaDetalhePage({ params }: { params: Promise<{
           <ReservaAcoes
             reservaId={r.id}
             status={r.status}
+            sugestaoRecusa={temConflito
+              ? 'Infelizmente esta data não está mais disponível para o passeio. Ficaremos felizes em receber você em outra data!'
+              : undefined}
             atendenteOptions={atendenteOptions}
             atendentesAtuais={atendentesAtuaisIds}
             aceite={{

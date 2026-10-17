@@ -14,6 +14,9 @@ import {
 import BookingCard from './BookingCard';
 import EmbarcacaoFotosModal from './EmbarcacaoFotosModal';
 import { CartProvider } from './CartContext';
+import { DataReservaProvider } from './DataReservaContext';
+import DisponibilidadeSecao from './DisponibilidadeSecao';
+import type { CalendarioCliente } from '@/lib/disponibilidade';
 import LocalizacaoMap from './LocalizacaoMap';
 import GaleriaRoteiro from './GaleriaRoteiro';
 import AvaliacoesSection, { type AvaliacaoPublica } from '@/components/avaliacoes/AvaliacoesSection';
@@ -32,7 +35,6 @@ export type RoteiroDetalheDados = {
   quantidade_pessoas: number | null;
   preco_base: number | null;
   /** Menor preço só do modelo Roteiro — "a partir de" do card de reserva. */
-  preco_minimo_roteiro: number | null;
   preco_diaria_ativo: boolean;
   preco_diaria_valor: number | null;
   preco_diaria_minimo: number;
@@ -83,7 +85,7 @@ export default function RoteiroDetalheView({
   avaliacoes,
   ehDono,
   isFavorito,
-  datasBloqueadas,
+  calendario,
   initialData,
   initialFlex,
   initialPessoas,
@@ -92,8 +94,8 @@ export default function RoteiroDetalheView({
   avaliacoes: AvaliacaoPublica[];
   ehDono: boolean;
   isFavorito: boolean;
-  /** Bloqueios manuais + datas ocupadas por reserva confirmada (ISO yyyy-mm-dd). */
-  datasBloqueadas: string[];
+  /** Calendário do roteiro (o mesmo do painel): disponibilidade e total por dia, janela de reservas. */
+  calendario: CalendarioCliente;
   initialData?: string;
   initialFlex?: number;
   initialPessoas?: number;
@@ -130,6 +132,12 @@ export default function RoteiroDetalheView({
       <section className="pb-16" id="roteiro-content">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <CartProvider addons={catalogAddons}>
+          {/* Data vinda da busca só vale se o dia estiver disponível no calendário. */}
+          <DataReservaProvider
+            dataInicial={initialData && calendario.dias.find(d => d.data === initialData)?.status === 'disponivel' ? initialData : null}
+            flexInicial={initialFlex ?? 0}
+            modalidadeInicial={roteiro.preco_base != null || !roteiro.preco_diaria_ativo ? 'roteiro' : 'diaria'}
+            diariasIniciais={roteiro.preco_diaria_minimo}>
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-10">
 
             {/* ── Left column ── */}
@@ -232,6 +240,9 @@ export default function RoteiroDetalheView({
                   </div>
                 )}
               </div>
+
+              {/* Disponibilidade e preços — o calendário configurado pelo gestor */}
+              <DisponibilidadeSecao calendario={calendario} />
 
               {/* Embarcação details */}
               {roteiro.embarcacao && (
@@ -430,18 +441,14 @@ export default function RoteiroDetalheView({
             </div>
 
             {/* ── Right sidebar ── */}
-            <div className="lg:col-span-1">
+            <div className="lg:col-span-1 scroll-mt-24" id="reservar">
               <BookingCard
                 roteiroId={roteiro.id}
                 roteiroNome={roteiro.nome}
                 ehDono={ehDono}
                 initialFavorito={isFavorito}
                 preco={roteiro.preco_base}
-                precoMinimoRoteiro={roteiro.preco_minimo_roteiro}
-                diasOperacao={roteiro.disponibilidade_dias_semana}
-                datasBloqueadas={datasBloqueadas}
-                initialData={initialData}
-                initialFlex={initialFlex}
+                calendario={calendario}
                 initialPessoas={initialPessoas}
                 precoDiariaAtivo={roteiro.preco_diaria_ativo}
                 precoDiariaValor={roteiro.preco_diaria_valor}
@@ -455,6 +462,7 @@ export default function RoteiroDetalheView({
               />
             </div>
           </div>
+          </DataReservaProvider>
           </CartProvider>
         </div>
       </section>

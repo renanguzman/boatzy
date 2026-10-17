@@ -1,3 +1,4 @@
+import type { CalendarioCliente } from '@/lib/disponibilidade';
 import type { EmbarcacaoDetalheDados } from '@/app/embarcacoes/[id]/_components/EmbarcacaoDetalheView';
 import type { RoteiroDetalheDados } from '@/app/roteiros/[id]/_components/RoteiroDetalheView';
 
@@ -14,7 +15,7 @@ export const PREVIEW_DADOS = 'boatzy:preview-dados';
 
 export type PreviewDados =
   | { tipo: 'embarcacao'; embarcacao: EmbarcacaoDetalheDados }
-  | { tipo: 'roteiro'; roteiro: RoteiroDetalheDados; datasBloqueadas: string[] };
+  | { tipo: 'roteiro'; roteiro: RoteiroDetalheDados; calendario: CalendarioCliente };
 
 export type PreviewMensagem =
   | { type: typeof PREVIEW_PRONTO }

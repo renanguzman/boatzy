@@ -9,6 +9,10 @@ import IndicadorRolagem from '@/components/painel/IndicadorRolagem';
 import {
   decomporPreco, previaDeFormulario, type RegraFormulario, type RegraPreco, type TipoRegraRecorrente,
 } from '@/lib/precos-calendario';
+import {
+  JANELAS_RESERVA_MESES, type JanelaReservaMeses, type OcupacaoDia,
+} from '@/lib/disponibilidade';
+import { dataMaximaReservaISO, formatarData } from '@/lib/datas';
 
 // ─── Constantes ───────────────────────────────────────────────────────────────
 
@@ -25,7 +29,7 @@ const DIAS_MES: Record<number, number> = {
 /**
  * Tipos de regra do passo ③. Cores iguais às das células do `CalendarioPrecos`,
  * para ligar "a regra" a "onde ela vale". A data específica não está aqui: é
- * criada clicando no dia do calendário (passo ④).
+ * criada clicando no dia do calendário (passo ⑤).
  */
 const TIPOS: {
   tipo: TipoRegraRecorrente; label: string; exemplo: string; icon: React.ElementType;
@@ -106,7 +110,14 @@ function irParaCalendario() {
   document.getElementById('calendario-precos')?.scrollIntoView({ behavior: semAnimacao() ? 'auto' : 'smooth', block: 'start' });
 }
 
-type NumPasso = 1 | 2 | 3;
+type NumPasso = 1 | 2 | 3 | 4;
+
+/** "Sex, Sáb e Dom" / "Todos os dias" — semana começando na segunda. */
+function descreverDias(dias: number[]): string {
+  if (dias.length === 0 || dias.length === 7) return 'Todos os dias';
+  const ordem = [1, 2, 3, 4, 5, 6, 0].filter(d => dias.includes(d)).map(d => DIAS_SEMANA[d].label);
+  return ordem.length === 1 ? ordem[0] : `${ordem.slice(0, -1).join(', ')} e ${ordem[ordem.length - 1]}`;
+}
 type EstadoPasso = 'feito' | 'atual' | 'pendente';
 
 // ─── Tipos públicos ───────────────────────────────────────────────────────────
@@ -136,9 +147,22 @@ type Props = {
 
   ajustes: Record<string, number>;
   onAjustesChange: (ajustes: Record<string, number>) => void;
+
+  /** Dias da semana de operação (0=Dom..6=Sáb). Vazio = todos. */
   diasOperacao: number[];
-  bloqueios: string[];
-  datasOcupadas: string[];
+  onDiasOperacaoChange: (dias: number[]) => void;
+  /** Até quantos meses à frente o cliente pode reservar. */
+  janelaMeses: JanelaReservaMeses;
+  onJanelaMesesChange: (meses: JanelaReservaMeses) => void;
+  /** Exceções do roteiro: false = dia fechado; true = dia aberto fora da operação. */
+  diasRoteiro: Record<string, boolean>;
+  onDiasRoteiroChange: (dias: Record<string, boolean>) => void;
+  /** Dias com o barco inteiro fechado. null = roteiro sem embarcação. */
+  fechamentosBarco: string[] | null;
+  onFechamentosBarcoChange: (datas: string[]) => void;
+  /** Reservas que ocupam dias — deste roteiro ou de outro roteiro do mesmo barco. */
+  ocupacao: OcupacaoDia[];
+  pedidosPendentes?: Record<string, number>;
   taxaPercent: number;
 
   /** A etapa Preço está visível (liga o atalho flutuante até o calendário). */
@@ -146,18 +170,22 @@ type Props = {
 };
 
 /**
- * Etapa "Preço" do cadastro/edição de roteiro, em passos guiados:
- * ① como o cliente paga → ② preço padrão → ③ preços especiais (regras).
- * Os passos ①–③ são um accordion (um aberto por vez; ao entrar, só o passo
- * da vez aberto): número enquanto pendente, ✓ quando concluído, "Próximo
- * passo" abre o seguinte. O calendário de preços (④) fica sempre à vista (ao lado
- * em telas ≥ xl, logo abaixo nas demais) mostrando na hora onde cada regra vale.
+ * Etapa "Preço e disponibilidade" do cadastro/edição de roteiro, em passos
+ * guiados: ① como o cliente paga → ② preço padrão → ③ quando o roteiro opera
+ * (dias da semana + janela de reservas) → ④ preços especiais (regras).
+ * Os passos ①–④ são um accordion (um aberto por vez; ao entrar, só o passo da
+ * vez aberto): número enquanto pendente, ✓ quando concluído, "Próximo passo"
+ * abre o seguinte. O calendário (⑤) — o mesmo que o cliente vê — fica sempre
+ * à vista (ao lado em telas ≥ xl, logo abaixo nas demais): preço e
+ * disponibilidade de cada dia, com o que ainda não foi salvo.
  */
 export default function EtapaPreco({
   precoBase, onPrecoBaseChange, diariaAtivo, onDiariaAtivoChange,
   diariaValor, onDiariaValorChange, diariaMinimo, onDiariaMinimoChange,
   regras, onAdicionarRegra, onRemoverRegra,
-  ajustes, onAjustesChange, diasOperacao, bloqueios, datasOcupadas, taxaPercent, ativa,
+  ajustes, onAjustesChange, diasOperacao, onDiasOperacaoChange, janelaMeses, onJanelaMesesChange,
+  diasRoteiro, onDiasRoteiroChange, fechamentosBarco, onFechamentosBarcoChange, ocupacao, pedidosPendentes,
+  taxaPercent, ativa,
 }: Props) {
   const [rf, setRf] = useState<RegraFormulario | null>(null);
   const [destaqueId, setDestaqueId] = useState<string | null>(null);
@@ -189,19 +217,24 @@ export default function EtapaPreco({
   const passo1Ok = !diariaAtivo || parseFloat(diariaValor) > 0;
   const passo2Ok = precoBaseNum != null && precoBaseNum > 0;
   const temEspeciais = ativas.length > 0 || totalDatasEspecificas > 0;
+  // Roteiro que já chegou com preço (edição): os passos com padrão válido contam como feitos.
+  const [jaConfigurado] = useState(passo2Ok);
+  const dataMaxima = dataMaximaReservaISO(janelaMeses);
 
-  // ① já nasce válido (só Roteiro): conta como feito quando o gestor confirma o
-  // passo ou quando o preço padrão já existe (edição). ③ é opcional: feito com
-  // algum preço especial ou ao concluir sem nenhum.
+  // ① e ③ já nascem válidos (só Roteiro; todos os dias, 3 meses): contam como
+  // feitos quando o gestor confirma o passo ou o roteiro já estava configurado
+  // (① também quando o preço padrão já existe). ④ é opcional: feito com algum
+  // preço especial ou ao concluir sem nenhum.
   const feito: Record<NumPasso, boolean> = {
     1: passo1Ok && (confirmados.includes(1) || passo2Ok),
     2: passo2Ok,
-    3: temEspeciais || confirmados.includes(3),
+    3: confirmados.includes(3) || jaConfigurado,
+    4: temEspeciais || confirmados.includes(4),
   };
-  const proximo = ([1, 2, 3] as const).find(n => !feito[n]) ?? 4;
+  const proximo = ([1, 2, 3, 4] as const).find(n => !feito[n]) ?? 5;
   // Ao montar, o passo da vez (primeiro pendente) já vem aberto e os demais
   // fechados — no cadastro novo, o ①. Com tudo concluído (edição), todos fechados.
-  const [aberto, setAberto] = useState<NumPasso | null>(() => (proximo === 4 ? null : proximo));
+  const [aberto, setAberto] = useState<NumPasso | null>(() => (proximo === 5 ? null : proximo));
   const estado = (n: NumPasso): EstadoPasso =>
     feito[n] ? 'feito' : aberto === n || proximo === n ? 'atual' : 'pendente';
 
@@ -211,7 +244,8 @@ export default function EtapaPreco({
   const resumo2 = decomposicao && precoBaseNum != null
     ? `${brl(precoBaseNum)} / dia · cliente paga ${brl(decomposicao.clientePaga)}`
     : undefined;
-  const resumo3 = temEspeciais
+  const resumo3 = `${descreverDias(diasOperacao)} · reservas até ${formatarData(dataMaxima)}`;
+  const resumo4 = temEspeciais
     ? [
         ativas.length > 0 && `${ativas.length} ${ativas.length === 1 ? 'regra' : 'regras'}`,
         totalDatasEspecificas > 0 && `${totalDatasEspecificas} ${totalDatasEspecificas === 1 ? 'data específica' : 'datas específicas'}`,
@@ -220,15 +254,15 @@ export default function EtapaPreco({
 
   function alternarPasso(n: NumPasso) {
     // A regra em destaque só faz sentido com a lista à vista.
-    if (aberto === 3) setDestaqueId(null);
+    if (aberto === 4) setDestaqueId(null);
     setAberto(a => (a === n ? null : n));
   }
 
-  /** "Próximo passo" / "Concluir": marca o passo e abre o seguinte (o ③ só fecha). */
+  /** "Próximo passo" / "Concluir": marca o passo e abre o seguinte (o ④ só fecha). */
   function concluirPasso(n: NumPasso) {
     setConfirmados(c => (c.includes(n) ? c : [...c, n]));
-    if (n === 3) setDestaqueId(null);
-    const seguinte = n < 3 ? ((n + 1) as NumPasso) : null;
+    if (n === 4) setDestaqueId(null);
+    const seguinte = n < 4 ? ((n + 1) as NumPasso) : null;
     setAberto(seguinte);
     if (!seguinte) return;
     requestAnimationFrame(() => {
@@ -376,10 +410,62 @@ export default function EtapaPreco({
           <RodapePasso rotulo="Próximo passo" falta={passo2Ok ? null : 'o preço padrão'} onClick={() => concluirPasso(2)} />
         </Passo>
 
-        {/* ③ Preços especiais */}
-        <Passo n={3} id={idPasso(3)} titulo="Preços especiais" estado={estado(3)} opcional
+        {/* ③ Quando o roteiro opera */}
+        <Passo n={3} id={idPasso(3)} titulo="Quando o roteiro opera" estado={estado(3)}
           aberto={aberto === 3} onAlternar={() => alternarPasso(3)}
           resumo={feito[3] ? resumo3 : undefined}
+          subtitulo="Dias da semana em que o passeio sai e até quando os clientes podem reservar.">
+          <div>
+            <p className="text-xs font-medium text-slate-600 mb-1.5">Dias de operação</p>
+            <div className="grid grid-cols-7 gap-1" role="group" aria-label="Dias de operação">
+              {DIAS_SEMANA.map(d => {
+                const on = diasOperacao.length === 0 || diasOperacao.includes(d.value);
+                return (
+                  <button key={d.value} type="button" aria-pressed={on}
+                    onClick={() => {
+                      const base = diasOperacao.length === 0 ? DIAS_SEMANA.map(x => x.value) : diasOperacao;
+                      const novo = on ? base.filter(x => x !== d.value) : [...base, d.value].sort();
+                      if (novo.length === 0) return; // pelo menos um dia
+                      onDiasOperacaoChange(novo.length === 7 ? [] : novo);
+                    }}
+                    className={`h-10 rounded-lg text-xs font-bold transition-all ${
+                      on ? 'bg-[#0B2447] text-white shadow-md shadow-[#0B2447]/20' : 'bg-white border border-slate-200 text-slate-500 hover:border-[#0B2447]/30'
+                    }`}>
+                    {d.label}
+                  </button>
+                );
+              })}
+            </div>
+            <p className="mt-1.5 text-[11px] text-slate-400 leading-snug">
+              {descreverDias(diasOperacao)}. Nos outros dias o roteiro fica fechado — dá para abrir um dia específico no calendário (ex.: feriado).
+            </p>
+          </div>
+
+          <div className="mt-4">
+            <p className="text-xs font-medium text-slate-600 mb-1.5">Abrir reservas para os próximos</p>
+            <div className="grid grid-cols-4 gap-1 bg-slate-100 rounded-xl p-1" role="radiogroup" aria-label="Janela de reservas">
+              {JANELAS_RESERVA_MESES.map(m => (
+                <button key={m} type="button" role="radio" aria-checked={janelaMeses === m} onClick={() => onJanelaMesesChange(m)}
+                  className={`rounded-lg py-2 text-xs font-semibold transition-all ${
+                    janelaMeses === m ? 'bg-white text-[#0B2447] shadow-sm' : 'text-slate-500 hover:text-slate-700'
+                  }`}>
+                  {m === 12 ? '1 ano' : `${m} meses`}
+                </button>
+              ))}
+            </div>
+            <p className="mt-1.5 text-[11px] text-slate-500 leading-snug">
+              Clientes podem reservar até <strong className="text-[#0B2447]">{formatarData(dataMaxima)}</strong>. Os dias depois disso
+              aparecem no calendário como fora da janela — você já pode deixar preço e disponibilidade prontos.
+            </p>
+          </div>
+
+          <RodapePasso rotulo="Próximo passo" onClick={() => concluirPasso(3)} />
+        </Passo>
+
+        {/* ④ Preços especiais */}
+        <Passo n={4} id={idPasso(4)} titulo="Preços especiais" estado={estado(4)} opcional
+          aberto={aberto === 4} onAlternar={() => alternarPasso(4)}
+          resumo={feito[4] ? resumo4 : undefined}
           subtitulo="Cobre diferente em temporadas ou dias da semana — e veja no calendário onde cada preço vale.">
 
           {!rf ? (
@@ -521,7 +607,7 @@ export default function EtapaPreco({
             </div>
           )}
 
-          {!rf && <RodapePasso rotulo="Concluir" icone="check" onClick={() => concluirPasso(3)} />}
+          {!rf && <RodapePasso rotulo="Concluir" icone="check" onClick={() => concluirPasso(4)} />}
         </Passo>
       </div>
 
@@ -529,11 +615,12 @@ export default function EtapaPreco({
       <div id="calendario-precos" className="xl:col-span-7 min-w-0 scroll-mt-24 xl:sticky xl:top-4
         border-t border-slate-100 pt-6 xl:border-t-0 xl:pt-0">
         <div className="flex items-center gap-2.5 mb-1">
-          <NumeroPasso n={4} estado={proximo === 4 ? 'atual' : 'pendente'} />
-          <p className="text-sm font-bold text-[#0B2447]">Confira no calendário</p>
+          <NumeroPasso n={5} estado={proximo === 5 ? 'atual' : 'pendente'} />
+          <p className="text-sm font-bold text-[#0B2447]">Confira e ajuste no calendário</p>
         </div>
         <p className="text-xs text-slate-400 mb-4 sm:pl-8">
-          Veja, dia a dia, quanto será cobrado com as suas regras. Vale para o modelo <strong>Roteiro (diária única)</strong>.
+          Preço e disponibilidade de cada dia — <strong>é este calendário que o cliente vê</strong> na página do roteiro.
+          Vale para o modelo <strong>Roteiro (diária única)</strong>; a disponibilidade vale também para Por diária.
         </p>
         <CalendarioPrecos
           precoBase={precoBaseNum}
@@ -541,8 +628,13 @@ export default function EtapaPreco({
           ajustes={ajustes}
           onAjustesChange={onAjustesChange}
           diasOperacao={diasOperacao}
-          bloqueios={bloqueios}
-          datasOcupadas={datasOcupadas}
+          janelaMeses={janelaMeses}
+          diasRoteiro={diasRoteiro}
+          onDiasRoteiroChange={onDiasRoteiroChange}
+          fechamentosBarco={fechamentosBarco}
+          onFechamentosBarcoChange={onFechamentosBarcoChange}
+          ocupacao={ocupacao}
+          pedidosPendentes={pedidosPendentes}
           taxaPercent={taxaPercent}
           previaRegra={previa}
           previaTitulo={rf ? undefined : destaque ? `Onde vale a regra “${destaque.regra.nome}”` : undefined}

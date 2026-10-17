@@ -5,7 +5,9 @@ import { createClient } from '@/lib/supabase/server';
 import { supabaseAdmin } from '@/lib/supabase';
 import EditarRoteiroForm from '@/app/painel/(gestao)/roteiros/[id]/editar/_components/EditarRoteiroForm';
 import { getTaxaEfetiva } from '@/lib/taxas';
-import { getDatasOcupadasRoteiro } from '@/lib/reservas';
+import {
+  getDisponibilidadeDiasRoteiro, getFechamentosEmbarcacao, getOcupacaoRoteiro, getPedidosPendentesRoteiro,
+} from '@/lib/reservas';
 
 export default async function AdminEditarRoteiroPage({
   params,
@@ -21,7 +23,7 @@ export default async function AdminEditarRoteiroPage({
   // O roteiro vem primeiro: embarcações e catálogo dos selects são do gestor dono.
   const { data: roteiro } = await supabaseAdmin
     .from('roteiro')
-    .select('id, owner_id, embarcacao_id, nome, descricao, duracao, duracao_horas, quantidade_pessoas, origem, destino, municipio_id, cep, bairro, logradouro, logradouro_numero, complemento, latitude, longitude, preco_base, preco_diaria_ativo, preco_diaria_valor, preco_diaria_minimo, disponibilidade_dias_semana, horario_saida')
+    .select('id, owner_id, embarcacao_id, nome, descricao, duracao, duracao_horas, quantidade_pessoas, origem, destino, municipio_id, cep, bairro, logradouro, logradouro_numero, complemento, latitude, longitude, preco_base, preco_diaria_ativo, preco_diaria_valor, preco_diaria_minimo, disponibilidade_dias_semana, janela_reserva_meses, horario_saida')
     .eq('id', id)
     .single();
 
@@ -35,7 +37,6 @@ export default async function AdminEditarRoteiroPage({
     { data: embarcacoes },
     { data: catalogo },
     { data: catalogoVinculado },
-    { data: bloqueios },
     { data: paradas },
   ] = await Promise.all([
     supabaseAdmin.from('users').select('name, email').eq('id', roteiro.owner_id).single(),
@@ -68,21 +69,21 @@ export default async function AdminEditarRoteiroPage({
       .select('catalogo_id, valor_customizado')
       .eq('roteiro_id', id),
     supabaseAdmin
-      .from('roteiro_disponibilidade_bloqueio')
-      .select('data')
-      .eq('roteiro_id', id)
-      .order('data'),
-    supabaseAdmin
       .from('roteiro_parada')
       .select('nome')
       .eq('roteiro_id', id)
       .order('ordem'),
   ]);
 
-  // Calendário de preços: taxa do gestor dono e datas já seguradas por reservas.
-  const [taxaPercent, datasOcupadas] = await Promise.all([
+  // Calendário de preço e disponibilidade: taxa do gestor dono, exceções do
+  // roteiro, barco fechado, reservas (do roteiro e dos outros roteiros do
+  // barco) e pedidos pendentes.
+  const [taxaPercent, disponibilidade, fechamentosBarco, ocupacao, pedidosPendentes] = await Promise.all([
     getTaxaEfetiva(roteiro.owner_id),
-    getDatasOcupadasRoteiro({ roteiroId: roteiro.id, embarcacaoId: roteiro.embarcacao_id }),
+    getDisponibilidadeDiasRoteiro(roteiro.id),
+    getFechamentosEmbarcacao(roteiro.embarcacao_id),
+    getOcupacaoRoteiro({ roteiroId: roteiro.id, embarcacaoId: roteiro.embarcacao_id }),
+    getPedidosPendentesRoteiro(roteiro.id),
   ]);
 
   let estadoId: number | null = null;
@@ -146,11 +147,13 @@ export default async function AdminEditarRoteiroPage({
           catalogoId: c.catalogo_id,
           valorCustomizado: c.valor_customizado != null ? String(c.valor_customizado) : '',
         }))}
-        bloqueiosIniciais={(bloqueios ?? []).map(b => b.data)}
+        disponibilidadeInicial={disponibilidade}
+        fechamentosBarcoIniciais={fechamentosBarco}
         paradasIniciais={(paradas ?? []).map(p => p.nome)}
         voltarHref="/administrator/roteiros"
         taxaPercent={taxaPercent}
-        datasOcupadas={datasOcupadas}
+        ocupacaoInicial={ocupacao}
+        pedidosPendentes={pedidosPendentes}
       />
     </div>
   );

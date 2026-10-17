@@ -4,7 +4,7 @@ import { useState, useEffect, useMemo, useTransition, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import {
   Info, ClipboardCheck, MapPin, ImageIcon, DollarSign,
-  Loader2, AlertCircle, CheckCircle, CalendarDays,
+  Loader2, AlertCircle, CheckCircle,
   Plus, ChevronDown, ChevronUp, Trash2, BookOpen,
 } from 'lucide-react';
 import GaleriaImagensEditor, { type GaleriaItem } from '@/components/painel/GaleriaImagensEditor';
@@ -13,14 +13,16 @@ import {
   criarRoteiro,
   criarRegraRoteiro,
   salvarCatalogoRoteiro,
-  salvarBloqueiosRoteiro,
   salvarParadasRoteiro,
   getMunicipiosByEstado,
   type CriarRoteiroPayload,
 } from '../actions';
 import MapaPicker from '../../../embarcacoes/novo/_components/MapaPicker';
 import CatalogoSelector, { type CatalogoItem, type ItemSelecionado } from '../../_components/CatalogoSelector';
-import DisponibilidadePicker from '@/components/painel/DisponibilidadePicker';
+import {
+  salvarDisponibilidadeRoteiro, salvarFechamentosEmbarcacao, carregarAgendaEmbarcacao,
+} from '@/lib/disponibilidade-actions';
+import { JANELA_RESERVA_PADRAO, type JanelaReservaMeses, type OcupacaoDia } from '@/lib/disponibilidade';
 import EtapaPreco, { type RegraListada } from '../../_components/EtapaPreco';
 import {
   regraDeFormulario, compactarAjustes, type RegraFormulario, NOME_DATA_ESPECIFICA, PRIORIDADE_DATA_ESPECIFICA,
@@ -102,7 +104,7 @@ export default function NovoRoteiroForm({ estados, embarcacoes, catalogo: catalo
   const [, startTransition] = useTransition();
   const numeroInputRef = useRef<HTMLInputElement>(null);
 
-  const [form, setForm] = useState<Omit<CriarRoteiroPayload, 'municipio_id' | 'disponibilidade_dias_semana' | 'id' | 'imagens'> & {
+  const [form, setForm] = useState<Omit<CriarRoteiroPayload, 'municipio_id' | 'disponibilidade_dias_semana' | 'janela_reserva_meses' | 'id' | 'imagens'> & {
     municipio_id: string; estado_id: string;
   }>({
     embarcacao_id: embarcacaoInicial?.id ?? '',
@@ -129,9 +131,30 @@ export default function NovoRoteiroForm({ estados, embarcacoes, catalogo: catalo
   // Preço de um dia específico, definido no calendário de preços ('yyyy-mm-dd' → R$).
   const [ajustes, setAjustes]           = useState<Record<string, number>>({});
 
-  // Disponibilidade: dias da semana de operação (vazio = todos) + datas bloqueadas (ISO)
+  // Disponibilidade: dias da semana de operação (vazio = todos), janela de
+  // reservas, dias fechados/abertos do roteiro e dias com o barco fechado.
   const [diasOperacao, setDiasOperacao] = useState<number[]>([]);
-  const [bloqueios, setBloqueios]       = useState<string[]>([]);
+  const [janelaMeses, setJanelaMeses]   = useState<JanelaReservaMeses>(JANELA_RESERVA_PADRAO);
+  const [diasRoteiro, setDiasRoteiro]   = useState<Record<string, boolean>>({});
+  // Agenda do barco escolhido (reservas de outros roteiros e dias fechados):
+  // `base` = como está no banco, para gravar só a diferença.
+  const [agendaBarco, setAgendaBarco] = useState<{
+    embarcacaoId: string; base: string[]; fechamentos: string[]; ocupacao: OcupacaoDia[];
+  }>({ embarcacaoId: '', base: [], fechamentos: [], ocupacao: [] });
+  useEffect(() => {
+    const id = form.embarcacao_id;
+    if (id === agendaBarco.embarcacaoId) return;
+    let cancelado = false;
+    const vazia = { embarcacaoId: id, base: [], fechamentos: [], ocupacao: [] };
+    if (!id) { setAgendaBarco(vazia); return; }
+    carregarAgendaEmbarcacao(id, null).then(agenda => {
+      if (cancelado) return;
+      setAgendaBarco(agenda
+        ? { embarcacaoId: id, base: agenda.fechamentosBarco, fechamentos: agenda.fechamentosBarco, ocupacao: agenda.ocupacao }
+        : vazia);
+    });
+    return () => { cancelado = true; };
+  }, [form.embarcacao_id, agendaBarco.embarcacaoId]);
 
   // Regras exibidas na etapa Preço (e aplicadas no calendário de preços).
   const regrasListadas = useMemo<RegraListada[]>(
@@ -155,7 +178,7 @@ export default function NovoRoteiroForm({ estados, embarcacoes, catalogo: catalo
   // ── Etapas (wizard) ─────────────────────────────────────────────────────────
   const etapas = useEtapas(ETAPAS_ROTEIRO.length, { ids: ETAPAS_ROTEIRO.map(e => e.id) });
   const revisao = revisaoRoteiro({
-    form, embarcacoes, estados, municipios, paradas, imagens, diasOperacao, bloqueios,
+    form, embarcacoes, estados, municipios, paradas, imagens, diasOperacao, janelaMeses, diasRoteiro,
     totalAdicionais: itensCatalogo.length,
     ir: etapas.ir,
   });
@@ -178,8 +201,15 @@ export default function NovoRoteiroForm({ estados, embarcacoes, catalogo: catalo
   const embarcacaoPronta = !form.embarcacao_id || previewEmb?.id === form.embarcacao_id;
   const previewDados = previewAberto && embarcacaoPronta
     ? montarPreviewRoteiro({
-        form, estados, municipios, imagens, diasOperacao, bloqueios,
+        form, estados, municipios, imagens,
         paradas, itensCatalogo, catalogo,
+        agenda: {
+          diasOperacao, janelaMeses, diasRoteiro,
+          fechamentosBarco: form.embarcacao_id ? agendaBarco.fechamentos : null,
+          ocupacao: agendaBarco.ocupacao,
+          regras: regrasListadas.map(r => r.regra),
+          ajustes, taxaPercent,
+        },
         embarcacao: form.embarcacao_id ? previewEmb?.dados ?? null : null,
       })
     : null;
@@ -364,6 +394,7 @@ export default function NovoRoteiroForm({ estados, embarcacoes, catalogo: catalo
       logradouro_numero:  form.logradouro_numero,
       complemento:        form.complemento,
       disponibilidade_dias_semana: diasOperacao,
+      janela_reserva_meses: janelaMeses,
       horario_saida:       form.horario_saida,
     });
 
@@ -375,9 +406,17 @@ export default function NovoRoteiroForm({ estados, embarcacoes, catalogo: catalo
 
     const { roteiroId } = result;
 
-    // Salvar datas bloqueadas (exceções de disponibilidade)
-    if (bloqueios.length > 0) {
-      await salvarBloqueiosRoteiro(roteiroId, bloqueios);
+    // Disponibilidade: dias fechados/abertos do roteiro e barco fechado (só a
+    // diferença — o barco é compartilhado com outros roteiros).
+    if (Object.keys(diasRoteiro).length > 0) {
+      await salvarDisponibilidadeRoteiro(roteiroId, diasRoteiro);
+    }
+    if (form.embarcacao_id && form.embarcacao_id === agendaBarco.embarcacaoId) {
+      const adicionar = agendaBarco.fechamentos.filter(d => !agendaBarco.base.includes(d));
+      const remover = agendaBarco.base.filter(d => !agendaBarco.fechamentos.includes(d));
+      if (adicionar.length > 0 || remover.length > 0) {
+        await salvarFechamentosEmbarcacao(form.embarcacao_id, adicionar, remover);
+      }
     }
 
     // Salvar paradas do itinerário
@@ -582,26 +621,16 @@ export default function NovoRoteiroForm({ estados, embarcacoes, catalogo: catalo
           ajustes={ajustes}
           onAjustesChange={setAjustes}
           diasOperacao={diasOperacao}
-          bloqueios={bloqueios}
-          datasOcupadas={[]}
+          onDiasOperacaoChange={setDiasOperacao}
+          janelaMeses={janelaMeses}
+          onJanelaMesesChange={setJanelaMeses}
+          diasRoteiro={diasRoteiro}
+          onDiasRoteiroChange={setDiasRoteiro}
+          fechamentosBarco={form.embarcacao_id ? agendaBarco.fechamentos : null}
+          onFechamentosBarcoChange={datas => setAgendaBarco(a => ({ ...a, fechamentos: datas }))}
+          ocupacao={agendaBarco.ocupacao}
           taxaPercent={taxaPercent}
           ativa={etapas.atual === ETAPA_ROT.preco}
-        />
-      </SectionCard>
-
-      </div>
-
-      <div hidden={etapas.atual !== ETAPA_ROT.disponibilidade} className="space-y-6">
-      {/* ── 3. Disponibilidade ───────────────────────────────────────────── */}
-      <SectionCard id="disponibilidade" icon={CalendarDays} title="Disponibilidade">
-        <p className="text-xs text-slate-400 mb-5">
-          Defina os dias da semana em que o roteiro opera e bloqueie datas específicas em que ele não estará disponível para reserva.
-        </p>
-        <DisponibilidadePicker
-          diasSemana={diasOperacao}
-          onDiasSemanaChange={setDiasOperacao}
-          bloqueios={bloqueios}
-          onBloqueiosChange={setBloqueios}
         />
       </SectionCard>
 

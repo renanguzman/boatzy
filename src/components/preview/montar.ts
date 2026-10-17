@@ -3,6 +3,9 @@ import type { RoteiroDetalheDados } from '@/app/roteiros/[id]/_components/Roteir
 import { normalizarTituloImagem } from '@/lib/galeria';
 import { isComprimentoUnidade } from '@/lib/comprimento';
 import type { PreviewDados } from './mensagens';
+import { dataMaximaReservaISO, hojeISO } from '@/lib/datas';
+import { ajustesComoRegras, resolverPrecoNaData, somarDiasISO, type RegraPreco } from '@/lib/precos-calendario';
+import { calendarioClienteLocal, DIAS_APOS_JANELA, type OcupacaoDia } from '@/lib/disponibilidade';
 import type { CatalogoItem, ItemSelecionado } from '@/app/painel/(gestao)/roteiros/_components/CatalogoSelector';
 import { duracaoParaHoras, duracaoTexto, type DuracaoUnidade } from '@/lib/duracao';
 
@@ -136,9 +139,18 @@ export function montarPreviewRoteiro(args: {
   estados: Estado[];
   municipios: Municipio[];
   imagens: GaleriaItem[];
-  diasOperacao: number[];
-  bloqueios: string[];
   paradas: { nome: string }[];
+  /** Calendário do cliente com o que ainda não foi salvo (preço + disponibilidade). */
+  agenda: {
+    diasOperacao: number[];
+    janelaMeses: number;
+    diasRoteiro: Record<string, boolean>;
+    fechamentosBarco: string[] | null;
+    ocupacao: OcupacaoDia[];
+    regras: RegraPreco[];
+    ajustes: Record<string, number>;
+    taxaPercent: number;
+  };
   itensCatalogo: ItemSelecionado[];
   catalogo: CatalogoItem[];
   embarcacao: RoteiroDetalheDados['embarcacao'];
@@ -157,13 +169,10 @@ export function montarPreviewRoteiro(args: {
     duracao: duracaoTexto(duracaoParaHoras(form.duracao_valor, form.duracao_unidade)),
     quantidade_pessoas: inteiro(form.quantidade_pessoas),
     preco_base: numOuNull(form.preco_base),
-    // Na prévia o "a partir de" é o próprio preço digitado: as regras por data
-    // ainda não foram salvas, então não há janela a varrer.
-    preco_minimo_roteiro: numOuNull(form.preco_base),
     preco_diaria_ativo: form.preco_diaria_ativo,
     preco_diaria_valor: form.preco_diaria_ativo ? numOuNull(form.preco_diaria_valor) : null,
     preco_diaria_minimo: Math.max(1, inteiro(form.preco_diaria_minimo) ?? 1),
-    disponibilidade_dias_semana: args.diasOperacao.length > 0 ? args.diasOperacao : null,
+    disponibilidade_dias_semana: args.agenda.diasOperacao.length > 0 ? args.agenda.diasOperacao : null,
     horario_saida: textoOuNull(form.horario_saida),
     ...endereco(form),
     municipios: municipioParaPreview(args.estados, args.municipios, form.estado_id, form.municipio_id),
@@ -180,5 +189,19 @@ export function montarPreviewRoteiro(args: {
       }];
     }),
   };
-  return { tipo: 'roteiro', datasBloqueadas: args.bloqueios, roteiro };
+  const a = args.agenda;
+  const hoje = hojeISO();
+  const dataMaxima = dataMaximaReservaISO(a.janelaMeses, hoje);
+  const regrasDoDia = [...a.regras, ...ajustesComoRegras(a.ajustes)];
+  const calendario = calendarioClienteLocal({
+    agenda: {
+      hoje, dataMaxima, diasOperacao: a.diasOperacao, diasRoteiro: a.diasRoteiro,
+      barcoFechado: new Set(a.fechamentosBarco ?? []),
+      ocupadas: new Set(a.ocupacao.map(o => o.data)),
+    },
+    precoDoDia: iso => resolverPrecoNaData(roteiro.preco_base, regrasDoDia, iso).valor,
+    taxaPercent: a.taxaPercent,
+    ate: somarDiasISO(dataMaxima, DIAS_APOS_JANELA),
+  });
+  return { tipo: 'roteiro', calendario, roteiro };
 }

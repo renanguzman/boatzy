@@ -14,14 +14,13 @@ export const ETAPAS_ROTEIRO: EtapaDef[] = [
   { id: 'informacoes',     label: 'Informações',     desc: 'Nome, duração e itinerário' },
   { id: 'localizacao',     label: 'Localização',     desc: 'Ponto de partida' },
   { id: 'fotos',           label: 'Fotos',           desc: 'Galeria e títulos' },
-  { id: 'preco',           label: 'Preço',           desc: 'Modelos de cobrança' },
-  { id: 'disponibilidade', label: 'Disponibilidade', desc: 'Dias e bloqueios' },
+  { id: 'preco',           label: 'Preço e disponibilidade', desc: 'Preços, dias e calendário' },
   { id: 'adicionais',      label: 'Adicionais',      desc: 'Produtos e serviços' },
   { id: 'revisao',         label: 'Revisão',         desc: 'Conferir e salvar' },
 ];
 
 export const ETAPA_ROT = {
-  informacoes: 0, localizacao: 1, fotos: 2, preco: 3, disponibilidade: 4, adicionais: 5, revisao: 6,
+  informacoes: 0, localizacao: 1, fotos: 2, preco: 3, adicionais: 4, revisao: 5,
 } as const;
 
 const DIAS = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
@@ -50,7 +49,9 @@ export function revisaoRoteiro(args: {
   paradas: { nome: string }[];
   imagens: GaleriaItem[];
   diasOperacao: number[];
-  bloqueios: string[];
+  janelaMeses: number;
+  /** Exceções de disponibilidade: false = dia fechado; true = aberto fora da operação. */
+  diasRoteiro: Record<string, boolean>;
   totalAdicionais: number;
   ir: (etapa: number) => void;
 }): { itens: ItemRevisao[]; card: RoteiroCardData } {
@@ -126,10 +127,21 @@ export function revisaoRoteiro(args: {
     {
       label: 'Disponibilidade',
       status: 'ok',
-      resumo: `${args.diasOperacao.length === 0 || args.diasOperacao.length === 7
-        ? 'Todos os dias'
-        : [...args.diasOperacao].sort().map(d => DIAS[d]).join(', ')} · ${plural(args.bloqueios.length, 'data bloqueada', 'datas bloqueadas')}`,
-      onEditar: () => ir(ETAPA_ROT.disponibilidade),
+      resumo: [
+        args.diasOperacao.length === 0 || args.diasOperacao.length === 7
+          ? 'Todos os dias'
+          : [...args.diasOperacao].sort().map(d => DIAS[d]).join(', '),
+        `reservas para os próximos ${args.janelaMeses === 12 ? '12 meses (1 ano)' : `${args.janelaMeses} meses`}`,
+        ...(() => {
+          const fechados = Object.values(args.diasRoteiro).filter(v => v === false).length;
+          const abertos = Object.values(args.diasRoteiro).filter(v => v === true).length;
+          return [
+            fechados > 0 ? plural(fechados, 'dia fechado', 'dias fechados') : null,
+            abertos > 0 ? plural(abertos, 'dia aberto fora da operação', 'dias abertos fora da operação') : null,
+          ].filter((x): x is string => x != null);
+        })(),
+      ].join(' · '),
+      onEditar: () => ir(ETAPA_ROT.preco),
     },
     {
       label: 'Adicionais',

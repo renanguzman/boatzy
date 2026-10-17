@@ -5,12 +5,15 @@ import RoteiroDetalheView, { type RoteiroDetalheDados } from './_components/Rote
 import type { AvaliacaoPublica } from '@/components/avaliacoes/AvaliacoesSection';
 import { supabaseAdmin } from '@/lib/supabase';
 import { createClient } from '@/lib/supabase/server';
-import { getDatasOcupadasRoteiro } from '@/lib/reservas';
+import { getCalendarioRoteiro, somarDiasISO } from '@/lib/reservas';
+import { getTaxaEfetiva } from '@/lib/taxas';
+import { dataMaximaReservaISO, hojeISO } from '@/lib/datas';
+import { DIAS_APOS_JANELA, diasParaCliente, type CalendarioCliente } from '@/lib/disponibilidade';
 
 type RoteiroDetalhe = RoteiroDetalheDados & {
   owner_id: string;
   embarcacao_id: string | null;
-  roteiro_disponibilidade_bloqueio: { data: string }[];
+  janela_reserva_meses: number;
 };
 
 
@@ -28,13 +31,11 @@ export default async function RoteiroDetalhePage({
     .from('roteiro')
     .select(`
       id, owner_id, embarcacao_id, nome, descricao, origem, destino, duracao, quantidade_pessoas, preco_base,
-      preco_minimo_roteiro,
       preco_diaria_ativo, preco_diaria_valor, preco_diaria_minimo,
-      disponibilidade_dias_semana, horario_saida,
+      disponibilidade_dias_semana, janela_reserva_meses, horario_saida,
       latitude, longitude, cep, bairro, logradouro, logradouro_numero, complemento,
       municipios ( nome, estados ( uf, nome ) ),
       roteiro_imagens ( id, url_imagem, titulo, principal, ordem ),
-      roteiro_disponibilidade_bloqueio ( data ),
       roteiro_parada ( nome ),
       embarcacao ( nome, capacidade, comprimento, comprimento_unidade, quartos, banheiros, tripulacao, modalidade_capitao,
         embarcacao_tipo ( nome ),
@@ -57,12 +58,22 @@ export default async function RoteiroDetalhePage({
 
   const roteiro = data as unknown as RoteiroDetalhe;
 
-  // Datas ocupadas por reserva confirmada do próprio roteiro, da embarcação
-  // vinculada ou de outro roteiro que a compartilhe.
-  const datasOcupadas = await getDatasOcupadasRoteiro({
-    roteiroId: roteiro.id,
-    embarcacaoId: roteiro.embarcacao_id,
-  });
+  // Calendário do roteiro — o mesmo que o gestor configura no painel, pela
+  // função SQL única (`roteiro_calendario`): disponibilidade (dias de operação,
+  // dias/barco fechados, reservas de qualquer roteiro do barco, janela) e preço
+  // de cada dia, com o total que o cliente paga (taxa do gestor dono). Carrega
+  // um mês além da janela para os dias seguintes de uma reserva Por Diária.
+  const hoje = hojeISO();
+  const dataMaxima = dataMaximaReservaISO(roteiro.janela_reserva_meses, hoje);
+  const [linhasCalendario, taxaPercent] = await Promise.all([
+    getCalendarioRoteiro(roteiro.id, hoje, somarDiasISO(dataMaxima, DIAS_APOS_JANELA)),
+    getTaxaEfetiva(roteiro.owner_id),
+  ]);
+  const calendario: CalendarioCliente = {
+    dias: diasParaCliente(linhasCalendario, taxaPercent),
+    dataMaxima,
+    taxaPercent,
+  };
 
   // Avaliações de reservas concluídas deste roteiro (mais recentes primeiro).
   const { data: avaliacoesData } = await supabaseAdmin
@@ -99,10 +110,7 @@ export default async function RoteiroDetalhePage({
         avaliacoes={avaliacoes}
         ehDono={ehDono}
         isFavorito={isFavorito}
-        datasBloqueadas={[
-          ...(roteiro.roteiro_disponibilidade_bloqueio?.map((b) => b.data) ?? []),
-          ...datasOcupadas,
-        ]}
+        calendario={calendario}
         initialData={sp.data}
         initialFlex={sp.flex ? parseInt(sp.flex) : undefined}
         initialPessoas={sp.pessoas ? parseInt(sp.pessoas) : undefined}

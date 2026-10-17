@@ -7,7 +7,9 @@ import AvisoStatusPublicacao from '@/components/publicacao/AvisoStatusPublicacao
 import TimelinePublicacao from '@/components/publicacao/TimelinePublicacao';
 import EditarRoteiroForm from './_components/EditarRoteiroForm';
 import { getTaxaEfetiva } from '@/lib/taxas';
-import { getDatasOcupadasRoteiro } from '@/lib/reservas';
+import {
+  getDisponibilidadeDiasRoteiro, getFechamentosEmbarcacao, getOcupacaoRoteiro, getPedidosPendentesRoteiro,
+} from '@/lib/reservas';
 
 export default async function EditarRoteiroPage({
   params,
@@ -28,7 +30,6 @@ export default async function EditarRoteiroPage({
     { data: embarcacoes },
     { data: catalogo },
     { data: catalogoVinculado },
-    { data: bloqueios },
     { data: paradas },
     timeline,
     ultimaDecisao,
@@ -36,7 +37,7 @@ export default async function EditarRoteiroPage({
   ] = await Promise.all([
     supabaseAdmin
       .from('roteiro')
-      .select('id, embarcacao_id, nome, descricao, duracao, duracao_horas, quantidade_pessoas, origem, destino, municipio_id, cep, bairro, logradouro, logradouro_numero, complemento, latitude, longitude, preco_base, preco_diaria_ativo, preco_diaria_valor, preco_diaria_minimo, disponibilidade_dias_semana, horario_saida, status, enviado_analise_em')
+      .select('id, embarcacao_id, nome, descricao, duracao, duracao_horas, quantidade_pessoas, origem, destino, municipio_id, cep, bairro, logradouro, logradouro_numero, complemento, latitude, longitude, preco_base, preco_diaria_ativo, preco_diaria_valor, preco_diaria_minimo, disponibilidade_dias_semana, janela_reserva_meses, horario_saida, status, enviado_analise_em')
       .eq('id', id)
       .eq('owner_id', user.id)
       .single(),
@@ -68,11 +69,6 @@ export default async function EditarRoteiroPage({
       .select('catalogo_id, valor_customizado')
       .eq('roteiro_id', id),
     supabaseAdmin
-      .from('roteiro_disponibilidade_bloqueio')
-      .select('data')
-      .eq('roteiro_id', id)
-      .order('data'),
-    supabaseAdmin
       .from('roteiro_parada')
       .select('nome')
       .eq('roteiro_id', id)
@@ -84,10 +80,15 @@ export default async function EditarRoteiroPage({
 
   if (!roteiro) notFound();
 
-  // Calendário de preços: taxa do gestor (dono) e datas já seguradas por reservas.
-  const [taxaPercent, datasOcupadas] = await Promise.all([
+  // Calendário de preço e disponibilidade: taxa do gestor dono, exceções do
+  // roteiro, barco fechado, reservas (do roteiro e dos outros roteiros do
+  // barco) e pedidos pendentes.
+  const [taxaPercent, disponibilidade, fechamentosBarco, ocupacao, pedidosPendentes] = await Promise.all([
     getTaxaEfetiva(user.id),
-    getDatasOcupadasRoteiro({ roteiroId: roteiro.id, embarcacaoId: roteiro.embarcacao_id }),
+    getDisponibilidadeDiasRoteiro(roteiro.id),
+    getFechamentosEmbarcacao(roteiro.embarcacao_id),
+    getOcupacaoRoteiro({ roteiroId: roteiro.id, embarcacaoId: roteiro.embarcacao_id }),
+    getPedidosPendentesRoteiro(roteiro.id),
   ]);
 
   const embarcacoesSelecionaveis = (embarcacoes ?? [])
@@ -154,11 +155,13 @@ export default async function EditarRoteiroPage({
           catalogoId: c.catalogo_id,
           valorCustomizado: c.valor_customizado != null ? String(c.valor_customizado) : '',
         }))}
-        bloqueiosIniciais={(bloqueios ?? []).map(b => b.data)}
+        disponibilidadeInicial={disponibilidade}
+        fechamentosBarcoIniciais={fechamentosBarco}
         paradasIniciais={(paradas ?? []).map(p => p.nome)}
         avisarNovaAnalise={roteiro.status === 'ativo' && !isAdmin}
         taxaPercent={taxaPercent}
-        datasOcupadas={datasOcupadas}
+        ocupacaoInicial={ocupacao}
+        pedidosPendentes={pedidosPendentes}
       />
 
       <div className="mt-6 max-w-4xl">

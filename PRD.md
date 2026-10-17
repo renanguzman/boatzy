@@ -710,6 +710,32 @@ Ajuste na etapa **Preço** do roteiro (cadastro, edição e edição pelo admin)
 - **Calendário (④) continua sempre visível**, fora do accordion; o número 4 fica em destaque quando ①–③ estão concluídos. O aviso **"Clique em um dia…"** passou para **acima do calendário** (fixo); o painel para definir o preço do dia só aparece depois de selecionar um dia.
 - Nenhuma regra de negócio, campo salvo ou cálculo mudou. Detalhes técnicos: `SPEC.md` §47.6.
 
+#### ✅ Implementado — Preço e disponibilidade num calendário só, igual para gestor e cliente (17/10/2026)
+
+As etapas **Preço** e **Disponibilidade** do cadastro/edição de roteiro viraram uma só — **"Preço e disponibilidade"** (o cadastro passou de 7 para 6 etapas) — e o calendário que o gestor personaliza é o mesmo que o cliente vê na página do roteiro.
+
+**Gestor (painel e edição pelo admin)**
+- Novo passo **③ Quando o roteiro opera**: dias da semana em que o passeio sai e **"Abrir reservas para os próximos 3 · 6 · 9 meses · 1 ano"** (padrão 3 meses), com "Clientes podem reservar até dd/mm/aaaa". Preços especiais virou ④ e o calendário ⑤.
+- O **calendário** mostra, dia a dia, preço **e** situação: aberto (cor do preço), **Fechado** (cadeado), **Não opera** (dia da semana fora da operação), **Reservado** (reserva deste roteiro), **Barco ocupado** (reserva de outro roteiro do mesmo barco, com o nome do roteiro), **Barco fechado**, **fora da janela** (hachurado — editável, para deixar tudo pronto antes de abrir) e marcador de **pedido pendente**.
+- Ao clicar num dia (ou vários / período / "Selecionar o mês"), a barra do dia ganha **Fechar para reservas**, **Fechar o barco inteiro** (fecha o dia em todos os roteiros do barco — ex.: manutenção), **Abrir para reservas** (inclusive um dia fora da operação, ex.: feriado numa quarta) e **Reabrir o barco**, além do preço. Dia reservado mostra a reserva e o link para Agendamentos (não se fecha um dia com reserva).
+- Chips "Disponibilidade alterada" listam dias fechados, abertos e de barco fechado, com desfazer. Tudo vale ao salvar o roteiro.
+
+**Cliente (página do roteiro)**
+- Nova seção **"Disponibilidade e preços"** com o calendário do roteiro (2 meses no computador, 1 no celular): cada dia mostra o **valor total que o cliente vai pagar (preço + taxa de serviço)**, com o menor preço do mês em destaque; dias indisponíveis aparecem riscados, **sem dizer se estão reservados ou fechados**; o limite é a janela daquele roteiro ("Reservas abertas até…").
+- O campo de data do card de reserva abre o mesmo calendário (com a flexibilidade ± dias); escolher um dia na seção preenche o card e vice-versa. No Por Diária, os dois calendários destacam o período das diárias e avisam se algum dia estiver indisponível.
+- O card passou a mostrar **sempre o total com a taxa** (cabeçalho "a partir de", preço do dia, por diária) e o detalhamento passeio + adicionais + taxa de serviço = total.
+
+**Um passeio por barco por dia**
+- Reserva confirmada (ou aceita aguardando pagamento) em qualquer roteiro do barco ocupa o dia — no Por Diária, o período inteiro — em **todos** os roteiros do barco: no calendário do cliente, no checkout, no aceite do gestor e na busca. O banco garante isso mesmo em aceites simultâneos (antes ele só comparava o primeiro dia da reserva: uma diária de 10 a 12 não impedia outra reserva no dia 11).
+- Pedidos pendentes **não** são recusados automaticamente: o gestor decide qual aceitar. O pedido que conflita mostra o aviso no detalhe do agendamento, e a recusa já vem com uma mensagem sugerida. **Toda recusa envia ao cliente um e-mail gentil** ("não foi possível confirmar sua reserva… nenhum valor foi cobrado… que tal outra data?"), com o link para o calendário do roteiro.
+
+**Outras correções**
+- O checkout passou a recusar dia fechado ou fora dos dias de operação (antes só olhava janela e reservas — dava para burlar editando a URL).
+- A busca por data passou a considerar reservas do barco, dias fechados e a janela (antes mostrava roteiros que o cliente não conseguiria reservar).
+- O "A partir de R$ X" considera só os dias reserváveis dentro da janela do roteiro.
+
+**Decisões:** total com taxa no calendário e no card do roteiro; gestor decide entre pedidos conflitantes (sem recusa automática); "fechar o barco inteiro" incluído; janelas fixas de 3/6/9/12 meses; um passeio por barco por dia (turnos ficam para o futuro). Os cards da busca continuam anunciando o "a partir de" sem a taxa. Detalhes técnicos: `SPEC.md` §48.
+
 #### ✅ Implementado — Barra de preço do dia fixa no calendário (16/10/2026)
 
 Problema: ao clicar numa data do calendário de preços, o painel para definir o preço aparecia **abaixo** do calendário e, na maioria das telas, exigia rolar a página — perdendo o calendário de vista.
@@ -741,6 +767,7 @@ Problema: ao clicar numa data do calendário de preços, o painel para definir o
 
 #### ✅ Implementado — Disponibilidade (roteiros e embarcações)
 
+- **Substituído (17/10/2026):** a etapa "Disponibilidade" foi absorvida pela etapa **"Preço e disponibilidade"** (um calendário só, o mesmo que o cliente vê) — ver "Preço e disponibilidade num calendário só".
 - Nova seção "Disponibilidade" nos forms de cadastro/edição (roteiro **e** embarcação): o gestor define os **dias da semana** de operação e **bloqueia datas específicas** (exceções) num mini-calendário, via componente compartilhado `DisponibilidadePicker`.
 - Modelo: recorrência semanal + bloqueios; dia inteiro; capacidade exclusiva (1 reserva/dia). Sem dias selecionados = disponível todos os dias (sujeito a bloqueios).
 - **Roteiro:** a disponibilidade é refletida no calendário público de reserva (`BookingCard`).
@@ -1579,6 +1606,9 @@ A taxa padrão configurada inicialmente é **10%**. Admins podem alterá-la a qu
 
 ### ✅ Reserva de roteiro limitada a 3 meses à frente (12/10/2026)
 
+> **Atualizado (17/10/2026):** a janela passou a ser **configurável por roteiro** (3, 6, 9 ou 12 meses;
+> padrão 3) — ver "Preço e disponibilidade num calendário só".
+
 - No detalhe do roteiro (site), o calendário de reserva mostra no máximo até **3 meses a partir de
   hoje** (ex.: hoje 12/10/2026 → até 12/01/2027). Datas depois disso aparecem desabilitadas, a
   navegação de meses para no limite e o calendário informa "Reservas abertas até dd/mm/aaaa".
@@ -1592,6 +1622,9 @@ A taxa padrão configurada inicialmente é **10%**. Admins podem alterá-la a qu
 ---
 
 ### ✅ Bloqueio de vários dias de uma vez na disponibilidade do roteiro (12/10/2026)
+
+> **Substituído (17/10/2026):** o calendário de disponibilidade separado saiu; fechar/abrir dias (um,
+> vários, período ou o mês inteiro) agora é feito no calendário da etapa "Preço e disponibilidade".
 
 - No step **Disponibilidade** do roteiro (painel e admin), o calendário de datas bloqueadas ganhou
   duas formas rápidas de marcar indisponibilidade, além do clique dia a dia:

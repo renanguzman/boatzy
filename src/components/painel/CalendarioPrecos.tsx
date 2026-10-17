@@ -3,14 +3,17 @@
 import { useMemo, useRef, useState } from 'react';
 import {
   ChevronLeft, ChevronRight, MousePointerClick, CalendarRange, Info, Wallet, PencilLine,
-  RotateCcw, X, Eye, CircleAlert,
+  RotateCcw, X, Eye, CircleAlert, Lock, LockOpen, Ship, CalendarCheck, ExternalLink, Hourglass,
 } from 'lucide-react';
-import { hojeISO } from '@/lib/datas';
+import { dataMaximaReservaISO, hojeISO } from '@/lib/datas';
 import {
   type RegraPreco, type OrigemPreco,
   resolverPrecoNaData, regraCobreData, ajustesComoRegras, compactarAjustes, decomporPreco,
   diaDaSemanaISO, somarDiasISO, intervaloISO,
 } from '@/lib/precos-calendario';
+import {
+  type AgendaRoteiro, type OcupacaoDia, type SituacaoDia, situacaoDoDia, agruparDatas,
+} from '@/lib/disponibilidade';
 
 const MESES = [
   'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
@@ -19,7 +22,10 @@ const MESES = [
 const DOW_CURTOS = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
 const DOW_LONGOS = ['Domingo', 'Segunda-feira', 'Terça-feira', 'Quarta-feira', 'Quinta-feira', 'Sexta-feira', 'Sábado'];
 
-/** Janela que o calendário cobre, a mesma do "a partir de" do card (365 dias). */
+/**
+ * Dias que o calendário do painel cobre: 12 meses, mesmo com uma janela de
+ * reservas menor — o gestor prepara preço e disponibilidade com antecedência.
+ */
 const JANELA_DIAS = 365;
 
 // `data_fixa` = data específica: o preço definido clicando no dia, que vence qualquer regra.
@@ -59,6 +65,23 @@ function isoDe(ano: number, mes: number, dia: number): string {
 function fmtPct(p: number): string {
   return p.toLocaleString('pt-BR', { maximumFractionDigits: 2 });
 }
+/** Data em que `iso` entra na janela de reservas (iso − N meses, dia ajustado ao fim do mês). */
+function dataAbertura(iso: string, meses: number): string {
+  const [a, m, d] = iso.split('-').map(Number);
+  const alvo = new Date(Date.UTC(a, m - 1 - meses, 1));
+  const ultimo = new Date(Date.UTC(alvo.getUTCFullYear(), alvo.getUTCMonth() + 1, 0)).getUTCDate();
+  alvo.setUTCDate(Math.min(d, ultimo));
+  return alvo.toISOString().slice(0, 10);
+}
+
+/** Como cada situação de disponibilidade aparece na célula (as abertas usam a cor do preço). */
+const CELULA_FECHADA: Partial<Record<SituacaoDia, { label: string; curto: string; cell: string }>> = {
+  fechado:       { label: 'Fechado',       curto: 'Fech.', cell: 'bg-slate-100 border-slate-300' },
+  barco_fechado: { label: 'Barco fechado', curto: 'Barco', cell: 'bg-slate-200/80 border-slate-300' },
+  nao_opera:     { label: 'Não opera',     curto: '—',     cell: 'bg-white border-dashed border-slate-200' },
+};
+/** Fora da janela: hachura por cima da cor do preço. */
+const HACHURA = 'bg-[repeating-linear-gradient(135deg,transparent_0_5px,rgba(100,116,139,0.12)_5px_10px)]';
 
 type Props = {
   precoBase: number | null;
@@ -69,9 +92,18 @@ type Props = {
   onAjustesChange: (ajustes: Record<string, number>) => void;
   /** Dias da semana de operação (0=Dom..6=Sáb). Vazio = todos. */
   diasOperacao: number[];
-  bloqueios: string[];
-  /** Datas já seguradas por reservas (confirmadas / aguardando pagamento). */
-  datasOcupadas: string[];
+  /** Meses à frente em que o cliente pode reservar (3, 6, 9 ou 12). */
+  janelaMeses: number;
+  /** Exceções do roteiro: false = dia fechado; true = dia aberto fora da operação. */
+  diasRoteiro: Record<string, boolean>;
+  onDiasRoteiroChange: (dias: Record<string, boolean>) => void;
+  /** Dias em que o barco inteiro está fechado (todos os roteiros). null = roteiro sem embarcação. */
+  fechamentosBarco: string[] | null;
+  onFechamentosBarcoChange: (datas: string[]) => void;
+  /** Reservas que ocupam o dia — deste roteiro ou de outro roteiro do mesmo barco. */
+  ocupacao: OcupacaoDia[];
+  /** Pedidos pendentes do roteiro por dia (não seguram a data). */
+  pedidosPendentes?: Record<string, number>;
   /** Comissão do Boatzy (%) do gestor dono do roteiro. */
   taxaPercent: number;
   /**
@@ -86,7 +118,9 @@ type Props = {
 type Modo = 'dia' | 'periodo';
 
 export default function CalendarioPrecos({
-  precoBase, regras, ajustes, onAjustesChange, diasOperacao, bloqueios, datasOcupadas, taxaPercent, previaRegra = null,
+  precoBase, regras, ajustes, onAjustesChange, diasOperacao, janelaMeses,
+  diasRoteiro, onDiasRoteiroChange, fechamentosBarco, onFechamentosBarcoChange,
+  ocupacao, pedidosPendentes = {}, taxaPercent, previaRegra = null,
   previaTitulo = 'Prévia da regra que você está criando',
 }: Props) {
   const hoje = hojeISO();
@@ -100,11 +134,26 @@ export default function CalendarioPrecos({
   const [inicio, setInicio] = useState<string | null>(null);
   const [hover, setHover] = useState<string | null>(null);
   const [valorInput, setValorInput] = useState('');
+  /** Dia reservado clicado: a barra mostra só a reserva (não se edita dia ocupado). */
+  const [ocupadoSel, setOcupadoSel] = useState<OcupacaoDia | null>(null);
   const precoDiaRef = useRef<HTMLInputElement>(null);
 
-  const bloqueioSet = useMemo(() => new Set(bloqueios), [bloqueios]);
-  const ocupadoSet = useMemo(() => new Set(datasOcupadas), [datasOcupadas]);
-  const operaTodos = diasOperacao.length === 0;
+  // Disponibilidade de cada dia pelo espelho de `roteiro_situacao_dia` — com o
+  // que o gestor ainda não salvou.
+  const dataMaxima = dataMaximaReservaISO(janelaMeses, hoje);
+  const ocupacaoPorDia = useMemo(() => {
+    const m = new Map<string, OcupacaoDia>();
+    for (const o of ocupacao) if (!m.has(o.data) || o.mesmoRoteiro) m.set(o.data, o);
+    return m;
+  }, [ocupacao]);
+  const agenda = useMemo<AgendaRoteiro>(() => ({
+    hoje, dataMaxima, diasOperacao, diasRoteiro,
+    barcoFechado: new Set(fechamentosBarco ?? []),
+    ocupadas: new Set(ocupacaoPorDia.keys()),
+  }), [hoje, dataMaxima, diasOperacao, diasRoteiro, fechamentosBarco, ocupacaoPorDia]);
+  const situacao = (iso: string) => situacaoDoDia(agenda, iso);
+  /** Preço e disponibilidade se editam em dia futuro, dentro do calendário e sem reserva. */
+  const editavel = (iso: string) => iso >= hoje && iso <= limite && !agenda.ocupadas.has(iso);
 
   // Regras "oficiais" (com as datas específicas) e, por cima, a prévia da regra em edição
   // (uma regra já existente em destaque não entra de novo).
@@ -113,15 +162,6 @@ export default function CalendarioPrecos({
     () => (previaRegra && !regrasAtuais.some(r => r.id === previaRegra.id) ? [...regrasAtuais, previaRegra] : regrasAtuais),
     [regrasAtuais, previaRegra],
   );
-
-  function motivoIndisponivel(iso: string): string | null {
-    if (iso < hoje) return 'Data passada';
-    if (iso > limite) return 'Fora da janela de 12 meses';
-    if (ocupadoSet.has(iso)) return 'Já reservado';
-    if (bloqueioSet.has(iso)) return 'Data bloqueada na Disponibilidade';
-    if (!operaTodos && !diasOperacao.includes(diaDaSemanaISO(iso))) return 'Fora dos dias de operação';
-    return null;
-  }
 
   // ── Resumo da regra em edição ──────────────────────────────────────────────
   const previa = useMemo(() => {
@@ -135,7 +175,9 @@ export default function CalendarioPrecos({
     let ultima: string | null = null;
     for (let i = 0; i <= JANELA_DIAS; i++) {
       const iso = somarDiasISO(hoje, i);
-      if (motivoIndisponivel(iso) || !regraCobreData(previaRegra, iso)) continue;
+      const s = situacaoDoDia(agenda, iso);
+      // Conta só os dias abertos (reserváveis agora ou quando entrarem na janela).
+      if ((s !== 'disponivel' && s !== 'fora_janela') || !regraCobreData(previaRegra, iso)) continue;
       const vencedora = resolverPrecoNaData(precoBase, regrasComPrevia, iso).regra;
       if (vencedora?.id === previaRegra.id) {
         afetadas++;
@@ -148,9 +190,7 @@ export default function CalendarioPrecos({
       }
     }
     return { afetadas, comDataEspecifica, comPrecoMaior, sobrepostas: comDataEspecifica + comPrecoMaior, primeira, ultima };
-    // motivoIndisponivel depende só dos props abaixo.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [previaRegra, precoBase, regrasComPrevia, hoje, ocupadoSet, bloqueioSet, diasOperacao]);
+  }, [previaRegra, precoBase, regrasComPrevia, hoje, agenda]);
 
   // A regra em prévia/destaque passou a valer em outro mês: o calendário vai
   // até a primeira data afetada (ajuste de estado no render, sem efeito).
@@ -179,7 +219,14 @@ export default function CalendarioPrecos({
   }
 
   function clicarDia(iso: string) {
-    if (motivoIndisponivel(iso)) return;
+    if (iso < hoje || iso > limite) return;
+    const ocupado = ocupacaoPorDia.get(iso);
+    if (ocupado) {
+      limparSelecao();
+      setOcupadoSel(ocupado);
+      return;
+    }
+    setOcupadoSel(null);
     if (modo === 'dia') {
       if (selecionados.length === 0) focarPrecoDia();
       setSelecionados(prev => prev.includes(iso) ? prev.filter(d => d !== iso) : [...prev, iso].sort());
@@ -190,7 +237,7 @@ export default function CalendarioPrecos({
       setSelecionados([iso]);
       return;
     }
-    setSelecionados(intervaloISO(inicio, iso).filter(d => !motivoIndisponivel(d)));
+    setSelecionados(intervaloISO(inicio, iso).filter(editavel));
     setInicio(null);
     setHover(null);
     focarPrecoDia();
@@ -207,6 +254,59 @@ export default function CalendarioPrecos({
     setInicio(null);
     setHover(null);
     setValorInput('');
+    setOcupadoSel(null);
+  }
+
+  /** Atalho: seleciona todos os dias editáveis do mês à vista. */
+  function selecionarMes() {
+    const dias = Array.from(
+      { length: new Date(Date.UTC(view.ano, view.mes + 1, 0)).getUTCDate() },
+      (_, i) => isoDe(view.ano, view.mes, i + 1),
+    ).filter(editavel);
+    if (dias.length === 0) return;
+    setModo('dia');
+    setInicio(null);
+    setHover(null);
+    setOcupadoSel(null);
+    setSelecionados(dias);
+    focarPrecoDia();
+  }
+
+  // ── Disponibilidade ────────────────────────────────────────────────────────
+  const operaNoDiaDaSemana = (iso: string) => diasOperacao.length === 0 || diasOperacao.includes(diaDaSemanaISO(iso));
+
+  function fecharDias(dias: string[]) {
+    const novo = { ...diasRoteiro };
+    for (const d of dias) novo[d] = false;
+    onDiasRoteiroChange(novo);
+    limparSelecao();
+  }
+
+  /** Reabre: remove o fechamento; dia fora da operação vira abertura excepcional. */
+  function abrirDias(dias: string[]) {
+    const novo = { ...diasRoteiro };
+    for (const d of dias) {
+      if (operaNoDiaDaSemana(d)) delete novo[d];
+      else novo[d] = true;
+    }
+    onDiasRoteiroChange(novo);
+    limparSelecao();
+  }
+
+  function desfazerExcecoes(dias: string[]) {
+    const novo = { ...diasRoteiro };
+    for (const d of dias) delete novo[d];
+    onDiasRoteiroChange(novo);
+  }
+
+  function fecharBarco(dias: string[]) {
+    onFechamentosBarcoChange([...new Set([...(fechamentosBarco ?? []), ...dias])].sort());
+    limparSelecao();
+  }
+
+  function reabrirBarco(dias: string[], limpar = true) {
+    onFechamentosBarcoChange((fechamentosBarco ?? []).filter(d => !dias.includes(d)));
+    if (limpar) limparSelecao();
   }
 
   const valorDigitado = Number(valorInput.replace(',', '.'));
@@ -259,6 +359,12 @@ export default function CalendarioPrecos({
   const selecionadosComAjuste = selecionados.filter(d => ajustes[d] != null);
   // No modo Período, a barra só aparece depois do 2º clique (o 1º só marca o início).
   const barraVisivel = selecionados.length > 0 && !inicio;
+  const situacoesSel = selecionados.map(situacao);
+  const fechaveis = selecionados.filter((_, i) => situacoesSel[i] === 'disponivel' || situacoesSel[i] === 'fora_janela');
+  const abriveis = selecionados.filter((_, i) => situacoesSel[i] === 'fechado' || situacoesSel[i] === 'nao_opera');
+  const comBarcoFechado = selecionados.filter((_, i) => situacoesSel[i] === 'barco_fechado');
+  const situacaoUnica = selecionados.length === 1 ? situacoesSel[0] : null;
+  const pendentesSel = selecionados.reduce((n, d) => n + (pedidosPendentes[d] ?? 0), 0);
   const decomposicaoNova = valorArredondado != null ? decomporPreco(valorArredondado, taxaPercent) : null;
 
   const precoDoQuadro = valorArredondado ?? (unico?.valor ?? null);
@@ -268,6 +374,10 @@ export default function CalendarioPrecos({
 
   const gruposAjuste = compactarAjustes(ajustes).filter(g => g.fim >= hoje);
   const totalDiasAjustados = Object.keys(ajustes).length;
+  const futuras = (datas: string[]) => datas.filter(d => d >= hoje);
+  const gruposFechados = agruparDatas(futuras(Object.keys(diasRoteiro).filter(d => diasRoteiro[d] === false)));
+  const gruposAbertos = agruparDatas(futuras(Object.keys(diasRoteiro).filter(d => diasRoteiro[d] === true)));
+  const gruposBarco = agruparDatas(futuras(fechamentosBarco ?? []));
 
   return (
     <div className="space-y-5">
@@ -275,10 +385,10 @@ export default function CalendarioPrecos({
       <div className="flex items-start gap-2.5 rounded-xl border border-slate-200 bg-slate-50/70 px-3.5 py-3">
         <MousePointerClick className="w-4 h-4 shrink-0 mt-0.5 text-[#0B2447]" aria-hidden />
         <p className="text-xs text-slate-600 leading-relaxed">
-          <strong className="text-[#0B2447]">Clique em um dia</strong> para ver quanto será cobrado naquela data e, se quiser,
-          definir um preço só para ela — a <strong className="text-violet-700">data específica</strong>, que{' '}
-          <strong className="text-slate-700">vale acima de qualquer regra</strong>. Use <strong className="text-slate-700">Período</strong> para
-          definir vários dias de uma vez.
+          <strong className="text-[#0B2447]">Clique em um dia</strong> para ver o preço e a disponibilidade e, se quiser, mudar:
+          definir um preço só para ele — a <strong className="text-violet-700">data específica</strong>, que{' '}
+          <strong className="text-slate-700">vale acima de qualquer regra</strong> — ou <strong className="text-slate-700">fechar/abrir</strong> o dia
+          para reservas. Use <strong className="text-slate-700">Período</strong> para vários dias de uma vez. O cliente vê este mesmo calendário.
         </p>
       </div>
 
@@ -310,7 +420,7 @@ export default function CalendarioPrecos({
                   ? <>Esta regra não muda nenhum preço: {previa.sobrepostas === 1 ? 'a data que ela cobre' : `as ${previa.sobrepostas} datas que ela cobre`}{' '}
                     {previa.sobrepostas === 1 ? 'continua' : 'continuam'} com o preço atual
                     {' '}(<MotivosSobreposicao comDataEspecifica={previa.comDataEspecifica} comPrecoMaior={previa.comPrecoMaior} />).</>
-                  : <>Nenhuma data dos próximos 12 meses é afetada (considerando dias de operação, bloqueios e reservas).</>}
+                  : <>Nenhuma data dos próximos 12 meses é afetada (considerando dias de operação, dias fechados e reservas).</>}
               </p>
             )}
           </div>
@@ -341,6 +451,11 @@ export default function CalendarioPrecos({
               </div>
 
               <div className="flex items-center gap-1">
+                <button type="button" onClick={selecionarMes}
+                  title="Seleciona todos os dias livres do mês — para mudar preço ou disponibilidade de uma vez"
+                  className="mr-1 rounded-lg px-2 py-1.5 text-[11px] font-semibold text-[#0B3D91] hover:bg-[#0B3D91]/5 transition-colors">
+                  Selecionar o mês
+                </button>
                 <button type="button" onClick={mesAnterior} disabled={!podeVoltar} aria-label="Mês anterior"
                   className={`p-2.5 sm:p-1.5 rounded-full transition-colors ${
                     podeVoltar ? 'hover:bg-slate-100 text-slate-700' : 'text-slate-200 cursor-default'
@@ -363,56 +478,84 @@ export default function CalendarioPrecos({
               ))}
               {celulas.map((iso, i) => {
                 if (!iso) return <div key={`e-${i}`} />;
-                const motivo = motivoIndisponivel(iso);
-                const preco = resolverPrecoNaData(precoBase, regrasComPrevia, iso);
-                const chave = preco.origem;
-                const dataEspecifica = chave === 'data_fixa';
-                const afetadaPrevia = !!previaRegra && !motivo && preco.regra?.id === previaRegra.id;
-                const selecionado = selSet.has(iso);
-                const noRascunho = !!inicio && rascunhoPeriodo.has(iso) && !motivo;
-                const ehHoje = iso === hoje;
-
-                if (motivo) {
-                  const ocupado = motivo === 'Já reservado';
+                const dia = Number(iso.slice(8));
+                if (iso < hoje || iso > limite) {
                   return (
-                    <div key={iso} title={motivo}
-                      className={`h-12 sm:h-14 rounded-md sm:rounded-lg border px-0.5 sm:px-1.5 py-1 flex flex-col items-center sm:items-stretch justify-between cursor-default ${
-                        ocupado ? 'border-slate-200 bg-slate-100' : 'border-transparent'
-                      }`}>
-                      <span className="text-[11px] text-slate-300">{Number(iso.slice(8))}</span>
-                      <span className={`hidden sm:block text-[10px] font-medium leading-tight ${ocupado ? 'text-slate-500' : 'text-slate-300 line-through'}`}>
-                        {ocupado ? 'Reservado' : preco.valor != null && iso >= hoje ? brl(preco.valor) : ''}
-                      </span>
-                      <span className={`sm:hidden text-[9px] font-medium leading-tight ${ocupado ? 'text-slate-500' : 'text-slate-300 line-through'}`}>
-                        {ocupado ? 'Res.' : preco.valor != null && iso >= hoje ? brlCurto(preco.valor) : ''}
-                      </span>
+                    <div key={iso} title={iso < hoje ? 'Data passada' : 'Fora do calendário (12 meses)'}
+                      className="h-12 sm:h-14 rounded-md sm:rounded-lg px-0.5 sm:px-1.5 py-1 flex flex-col items-center sm:items-stretch cursor-default">
+                      <span className="text-[11px] text-slate-300">{dia}</span>
                     </div>
                   );
                 }
 
+                const sit = situacao(iso);
+                const preco = resolverPrecoNaData(precoBase, regrasComPrevia, iso);
+                const ocupado = ocupacaoPorDia.get(iso);
+                const fechada = CELULA_FECHADA[sit];
+                const aberto = sit === 'disponivel' || sit === 'fora_janela';
+                const pendentes = pedidosPendentes[iso] ?? 0;
+                const afetadaPrevia = !!previaRegra && aberto && preco.regra?.id === previaRegra.id;
+                const selecionado = selSet.has(iso) || ocupadoSel?.data === iso;
+                const noRascunho = !!inicio && rascunhoPeriodo.has(iso) && editavel(iso);
+                const ehHoje = iso === hoje;
+                const precoTexto = preco.valor != null ? brl(preco.valor) : 'sem preço';
+
+                let cell: string;
+                let rotulo: React.ReactNode;
+                let rotuloCurto: React.ReactNode;
+                let titulo: string;
+                let icone: React.ReactNode = null;
+                if (ocupado) {
+                  const aguardando = ocupado.status === 'aguardando_pagamento';
+                  cell = ocupado.mesmoRoteiro ? 'bg-emerald-50 border-emerald-300' : 'bg-slate-100 border-slate-300';
+                  rotulo = ocupado.mesmoRoteiro ? (aguardando ? 'Aguard. pgto' : 'Reservado') : 'Barco ocupado';
+                  rotuloCurto = ocupado.mesmoRoteiro ? 'Res.' : 'Ocup.';
+                  titulo = ocupado.mesmoRoteiro
+                    ? `Reservado neste roteiro${aguardando ? ' (aguardando pagamento)' : ''}`
+                    : `Barco ocupado pelo roteiro “${ocupado.roteiroNome ?? 'outro roteiro'}”`;
+                  icone = ocupado.mesmoRoteiro
+                    ? (aguardando ? <Hourglass className="w-2.5 h-2.5 sm:w-3 sm:h-3 text-emerald-700" /> : <CalendarCheck className="w-2.5 h-2.5 sm:w-3 sm:h-3 text-emerald-700" />)
+                    : <Ship className="w-2.5 h-2.5 sm:w-3 sm:h-3 text-slate-500" />;
+                } else if (fechada) {
+                  cell = fechada.cell;
+                  rotulo = fechada.label;
+                  rotuloCurto = fechada.curto;
+                  titulo = `${fechada.label} — ${precoTexto}`;
+                  icone = sit === 'barco_fechado'
+                    ? <Ship className="w-2.5 h-2.5 sm:w-3 sm:h-3 text-slate-500" />
+                    : sit === 'fechado' ? <Lock className="w-2.5 h-2.5 sm:w-3 sm:h-3 text-slate-500" /> : null;
+                } else {
+                  cell = `${ORIGEM[preco.origem].cell} ${sit === 'fora_janela' ? HACHURA : ''}`;
+                  rotulo = preco.valor != null ? brl(preco.valor) : 'Sem preço';
+                  rotuloCurto = preco.valor != null ? brlCurto(preco.valor) : '—';
+                  titulo = `${ORIGEM[preco.origem].label} — ${precoTexto}${sit === 'fora_janela' ? ` · fora da janela, abre para reservas em ${fmtBR(dataAbertura(iso, janelaMeses))}` : ''}`;
+                  if (preco.origem === 'data_fixa') icone = <PencilLine className="w-2.5 h-2.5 sm:w-3 sm:h-3 text-violet-600" />;
+                }
+                const corRotulo = ocupado
+                  ? (ocupado.mesmoRoteiro ? 'text-emerald-800' : 'text-slate-600')
+                  : fechada ? 'text-slate-500' : preco.valor == null ? 'text-red-500' : 'text-slate-800';
+
                 return (
                   <button key={iso} type="button" onClick={() => clicarDia(iso)}
                     onMouseEnter={() => { if (inicio) setHover(iso); }}
-                    title={`${DOW_LONGOS[diaDaSemanaISO(iso)]}, ${fmtBR(iso)} — ${ORIGEM[chave].label}`}
+                    title={`${DOW_LONGOS[diaDaSemanaISO(iso)]}, ${fmtBR(iso)} — ${titulo}${pendentes > 0 ? ` · ${pendentes} pedido(s) pendente(s)` : ''}`}
                     className={`relative h-12 sm:h-14 rounded-md sm:rounded-lg border px-0.5 sm:px-1.5 py-1 flex flex-col items-center sm:items-stretch justify-between text-center sm:text-left transition-all hover:shadow-sm ${
-                      ORIGEM[chave].cell
+                      cell
                     } ${selecionado || noRascunho ? 'ring-2 ring-[#0B2447] ring-offset-1' : ''}
                     ${afetadaPrevia ? 'ring-2 ring-[#0B3D91] ring-offset-1 shadow-md shadow-[#0B3D91]/20' : ''}`}>
-                    <span className={`text-[11px] ${ehHoje ? 'font-bold text-[#0B2447]' : 'text-slate-500'}`}>
-                      {Number(iso.slice(8))}
+                    <span className={`text-[11px] ${ehHoje ? 'font-bold text-[#0B2447]' : fechada ? 'text-slate-400' : 'text-slate-500'}`}>
+                      {dia}
                     </span>
-                    <span className={`hidden sm:block text-xs font-semibold leading-tight ${
-                      preco.valor == null ? 'text-red-500' : 'text-slate-800'
-                    }`}>
-                      {preco.valor != null ? brl(preco.valor) : 'Sem preço'}
+                    <span className={`hidden sm:block font-semibold leading-tight ${fechada || ocupado ? 'text-[10px]' : 'text-xs'} ${corRotulo}`}>
+                      {rotulo}
                     </span>
-                    <span className={`sm:hidden text-[10px] font-semibold leading-tight tabular-nums ${
-                      preco.valor == null ? 'text-red-500' : 'text-slate-800'
-                    }`}>
-                      {preco.valor != null ? brlCurto(preco.valor) : '—'}
+                    <span className={`sm:hidden text-[10px] font-semibold leading-tight tabular-nums ${corRotulo}`}>
+                      {rotuloCurto}
                     </span>
-                    {dataEspecifica && (
-                      <PencilLine className="absolute top-0.5 right-0.5 sm:top-1 sm:right-1 w-2.5 h-2.5 sm:w-3 sm:h-3 text-violet-600" aria-label="Data específica" />
+                    {icone && <span className="absolute top-0.5 right-0.5 sm:top-1 sm:right-1" aria-hidden>{icone}</span>}
+                    {pendentes > 0 && (
+                      <span className="absolute top-1 left-1/2 -translate-x-1/2 sm:left-auto sm:translate-x-0 sm:right-5 sm:top-1.5 h-1.5 w-1.5 rounded-full bg-amber-500"
+                        aria-label={`${pendentes} pedido(s) pendente(s)`} />
                     )}
                   </button>
                 );
@@ -449,8 +592,30 @@ export default function CalendarioPrecos({
                 <PencilLine className="w-2.5 h-2.5 -ml-1 text-violet-600" aria-hidden />
                 <span><span className="font-semibold text-violet-700">Data específica</span> (vence sempre)</span>
               </span>
-              <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-sm bg-slate-100 border border-slate-200" /> Reservado</span>
-              <span className="line-through">Indisponível</span>
+              <span className="flex items-center gap-1.5">
+                <span className={`w-2.5 h-2.5 rounded-sm border ${CELULA_FECHADA.fechado!.cell}`} />
+                <Lock className="w-2.5 h-2.5 -ml-1 text-slate-500" aria-hidden /> Fechado
+              </span>
+              <span className="flex items-center gap-1.5">
+                <span className={`w-2.5 h-2.5 rounded-sm border ${CELULA_FECHADA.nao_opera!.cell}`} /> Não opera
+              </span>
+              <span className="flex items-center gap-1.5">
+                <span className="w-2.5 h-2.5 rounded-sm border bg-emerald-50 border-emerald-300" /> Reservado
+              </span>
+              {fechamentosBarco && (
+                <span className="flex items-center gap-1.5">
+                  <span className="w-2.5 h-2.5 rounded-sm border bg-slate-100 border-slate-300" />
+                  <Ship className="w-2.5 h-2.5 -ml-1 text-slate-500" aria-hidden /> Barco ocupado/fechado (todos os roteiros)
+                </span>
+              )}
+              <span className="flex items-center gap-1.5">
+                <span className={`w-2.5 h-2.5 rounded-sm border border-slate-200 ${HACHURA}`} /> Fora da janela (até {fmtBR(dataMaxima)})
+              </span>
+              {Object.keys(pedidosPendentes).length > 0 && (
+                <span className="flex items-center gap-1.5">
+                  <span className="h-1.5 w-1.5 rounded-full bg-amber-500" /> Pedido pendente
+                </span>
+              )}
             </div>
 
           </div>
@@ -458,6 +623,34 @@ export default function CalendarioPrecos({
           {/* Barra de preço do dia: logo abaixo do calendário e `sticky` acima do
               rodapé das etapas (RodapeEtapas, ~6,5rem) — com o fim do calendário fora
               da tela, ela gruda no rodapé e o preço se define sem rolar a página. */}
+          {ocupadoSel && (
+            <div role="region" aria-label="Reserva do dia selecionado"
+              className="sticky bottom-[6.75rem] z-10 mt-3 rounded-xl border border-slate-300 bg-white/95 p-3 shadow-lg shadow-slate-900/10 backdrop-blur-sm">
+              <div className="flex items-start justify-between gap-2">
+                <div className="min-w-0 text-xs leading-snug">
+                  <p className="text-sm font-bold text-[#0B2447]">
+                    {DOW_LONGOS[diaDaSemanaISO(ocupadoSel.data)]}, {fmtBR(ocupadoSel.data)}
+                  </p>
+                  <p className="mt-0.5 text-slate-600">
+                    {ocupadoSel.mesmoRoteiro
+                      ? <>Reservado neste roteiro{ocupadoSel.status === 'aguardando_pagamento' && ' — aguardando o pagamento do cliente'}.</>
+                      : <>O barco está ocupado pelo roteiro <strong>“{ocupadoSel.roteiroNome ?? 'outro roteiro'}”</strong>
+                          {ocupadoSel.status === 'aguardando_pagamento' && ' (aguardando pagamento)'} — um barco faz um passeio por dia.</>}
+                    {' '}Para liberar o dia, a reserva precisa ser cancelada em Agendamentos.
+                  </p>
+                </div>
+                <button type="button" onClick={limparSelecao} aria-label="Fechar" title="Fechar (Esc)"
+                  className="shrink-0 w-9 h-9 sm:w-7 sm:h-7 -m-1.5 sm:m-0 flex items-center justify-center rounded-full text-slate-400 hover:bg-slate-100 hover:text-slate-600 transition-colors">
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+              <a href={`/painel/agendamentos/${ocupadoSel.reservaId}`} target="_blank" rel="noopener noreferrer"
+                className="mt-2 inline-flex items-center gap-1.5 text-xs font-semibold text-[#0B3D91] hover:text-[#0B2447]">
+                Ver a reserva em Agendamentos <ExternalLink className="w-3.5 h-3.5" />
+              </a>
+            </div>
+          )}
+
           {barraVisivel && (
             <div role="region" aria-label="Definir preço dos dias selecionados"
               className="sticky bottom-[6.75rem] z-10 mt-3 rounded-xl border border-[#0B2447]/20 bg-white/95 p-3 shadow-lg shadow-slate-900/10 backdrop-blur-sm">
@@ -495,6 +688,21 @@ export default function CalendarioPrecos({
                       Atuais: <strong className="text-slate-800">
                         {minSel == null ? 'sem preço' : minSel === maxSel ? brlCompleto(minSel) : `${brl(minSel)} a ${brl(maxSel!)}`}
                       </strong>
+                    </p>
+                  )}
+                  {situacaoUnica && (
+                    <p className="mt-0.5 flex items-center gap-1 text-slate-500">
+                      {situacaoUnica === 'disponivel' && <><LockOpen className="w-3 h-3 text-emerald-600" /> Aberto para reservas</>}
+                      {situacaoUnica === 'fora_janela' && <><LockOpen className="w-3 h-3 text-slate-400" /> Aberto, mas fora da janela — clientes reservam a partir de {fmtBR(dataAbertura(selecionados[0], janelaMeses))}</>}
+                      {situacaoUnica === 'fechado' && <><Lock className="w-3 h-3" /> Fechado para reservas</>}
+                      {situacaoUnica === 'nao_opera' && <><Lock className="w-3 h-3" /> Fechado — não opera neste dia da semana</>}
+                      {situacaoUnica === 'barco_fechado' && <><Ship className="w-3 h-3" /> Barco fechado neste dia (todos os roteiros)</>}
+                    </p>
+                  )}
+                  {pendentesSel > 0 && (
+                    <p className="mt-0.5 flex items-center gap-1 font-medium text-amber-700">
+                      <span className="h-1.5 w-1.5 rounded-full bg-amber-500" />
+                      {pendentesSel === 1 ? '1 pedido pendente' : `${pendentesSel} pedidos pendentes`} — responda em Agendamentos
                     </p>
                   )}
                 </div>
@@ -544,6 +752,34 @@ export default function CalendarioPrecos({
                   <>Vira <strong className="text-violet-700">data específica</strong>: vale acima de qualquer regra, mesmo que seja menor.</>
                 )}
               </p>
+
+              <div className="mt-2.5 flex flex-wrap items-center gap-1.5 border-t border-slate-100 pt-2.5">
+                <span className="mr-0.5 text-[11px] font-semibold text-slate-500">Disponibilidade:</span>
+                {fechaveis.length > 0 && (
+                  <BotaoDisponibilidade icone={Lock} onClick={() => fecharDias(fechaveis)}
+                    titulo="O cliente não consegue reservar este dia neste roteiro">
+                    Fechar para reservas{fechaveis.length < selecionados.length ? ` (${fechaveis.length})` : ''}
+                  </BotaoDisponibilidade>
+                )}
+                {fechaveis.length > 0 && fechamentosBarco && (
+                  <BotaoDisponibilidade icone={Ship} onClick={() => fecharBarco(fechaveis)}
+                    titulo="Fecha o dia em TODOS os roteiros deste barco (ex.: manutenção)">
+                    Fechar o barco inteiro
+                  </BotaoDisponibilidade>
+                )}
+                {abriveis.length > 0 && (
+                  <BotaoDisponibilidade icone={LockOpen} destaque onClick={() => abrirDias(abriveis)}
+                    titulo="Volta a aceitar reservas neste dia (mesmo fora dos dias de operação)">
+                    Abrir para reservas{abriveis.length < selecionados.length ? ` (${abriveis.length})` : ''}
+                  </BotaoDisponibilidade>
+                )}
+                {comBarcoFechado.length > 0 && (
+                  <BotaoDisponibilidade icone={LockOpen} destaque onClick={() => reabrirBarco(comBarcoFechado)}
+                    titulo="Reabre o dia em todos os roteiros deste barco">
+                    Reabrir o barco{comBarcoFechado.length < selecionados.length ? ` (${comBarcoFechado.length})` : ''}
+                  </BotaoDisponibilidade>
+                )}
+              </div>
             </div>
           )}
 
@@ -580,6 +816,32 @@ export default function CalendarioPrecos({
                     </span>
                   );
                 })}
+              </div>
+            </div>
+          )}
+
+          {/* Disponibilidade alterada à mão */}
+          {(gruposFechados.length > 0 || gruposAbertos.length > 0 || gruposBarco.length > 0) && (
+            <div className="mt-3 space-y-2">
+              <p className="text-[11px] font-medium text-slate-500">
+                Disponibilidade alterada <span className="text-slate-400">— entra ao salvar o roteiro</span>
+              </p>
+              <div className="flex flex-wrap gap-2">
+                {gruposFechados.map(g => (
+                  <ChipDatas key={`f${g.inicio}`} grupo={g} icone={Lock} rotulo="Fechado"
+                    cls="text-slate-700 bg-slate-100 border-slate-300 hover:bg-slate-200"
+                    onRemover={() => desfazerExcecoes(intervaloISO(g.inicio, g.fim))} acao="Reabrir" />
+                ))}
+                {gruposAbertos.map(g => (
+                  <ChipDatas key={`a${g.inicio}`} grupo={g} icone={LockOpen} rotulo="Aberto (fora da operação)"
+                    cls="text-emerald-800 bg-emerald-50 border-emerald-200 hover:bg-emerald-100"
+                    onRemover={() => desfazerExcecoes(intervaloISO(g.inicio, g.fim))} acao="Desfazer a abertura de" />
+                ))}
+                {gruposBarco.map(g => (
+                  <ChipDatas key={`b${g.inicio}`} grupo={g} icone={Ship} rotulo="Barco fechado"
+                    cls="text-slate-700 bg-slate-200/70 border-slate-300 hover:bg-slate-300/70"
+                    onRemover={() => reabrirBarco(intervaloISO(g.inicio, g.fim), false)} acao="Reabrir o barco em" />
+                ))}
               </div>
             </div>
           )}
@@ -656,4 +918,40 @@ function MotivosSobreposicao({ comDataEspecifica, comPrecoMaior }: { comDataEspe
       : `${comPrecoMaior} ${comPrecoMaior === 1 ? 'tem' : 'têm'} outra regra de preço igual ou maior`);
   }
   return <>{partes.join(' e ')}</>;
+}
+
+function BotaoDisponibilidade({ icone: Icone, onClick, titulo, destaque, children }: {
+  icone: React.ElementType; onClick: () => void; titulo: string; destaque?: boolean; children: React.ReactNode;
+}) {
+  return (
+    <button type="button" onClick={onClick} title={titulo}
+      className={`inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-[11px] font-semibold transition-colors ${
+        destaque
+          ? 'border-emerald-300 bg-emerald-50 text-emerald-800 hover:bg-emerald-100'
+          : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50'
+      }`}>
+      <Icone className="w-3.5 h-3.5" />
+      {children}
+    </button>
+  );
+}
+
+function ChipDatas({ grupo, icone: Icone, rotulo, cls, onRemover, acao }: {
+  grupo: { inicio: string; fim: string; dias: number };
+  icone: React.ElementType; rotulo: string; cls: string; onRemover: () => void; acao: string;
+}) {
+  const datas = grupo.inicio === grupo.fim ? fmtCurto(grupo.inicio) : `${fmtCurto(grupo.inicio)} – ${fmtCurto(grupo.fim)}`;
+  return (
+    <span className={`inline-flex items-center gap-1.5 rounded-full border pl-2.5 pr-2 py-1 text-xs font-medium ${cls}`}>
+      <Icone className="w-3 h-3 shrink-0" aria-hidden />
+      {datas}
+      {grupo.dias > 1 && <span className="text-[10px] opacity-70">· {grupo.dias} dias</span>}
+      <span className="sr-only">{rotulo}</span>
+      <button type="button" onClick={onRemover}
+        className="w-6 h-6 sm:w-4 sm:h-4 -my-1 sm:my-0 flex items-center justify-center rounded-full hover:bg-black/10 transition-colors"
+        aria-label={`${acao} ${datas}`} title={`${acao} ${datas}`}>
+        <X className="w-3 h-3" />
+      </button>
+    </span>
+  );
 }

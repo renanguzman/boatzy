@@ -3,7 +3,8 @@
 import { after } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { supabaseAdmin } from '@/lib/supabase';
-import { getDatasOcupadasRoteiro, expandirIntervalo, somarDiasISO } from '@/lib/reservas';
+import { getMotivoPeriodoIndisponivel, somarDiasISO } from '@/lib/reservas';
+import { mensagemIndisponivel } from '@/lib/disponibilidade';
 import { getTaxaEfetiva } from '@/lib/taxas';
 import { expirarPedidosVencidosSemFalhar } from '@/lib/pagamentos/pedidos';
 import { notificarGestorNovaSolicitacao } from '@/lib/emails/reserva-solicitada';
@@ -15,7 +16,7 @@ import type { CupomTipoDesconto, ReservaModalidadePreco } from '@/types/supabase
 export type ModalidadeReserva = Exclude<ReservaModalidadePreco, 'pessoa'>;
 import { obterTermoParaAceite, validarAceite, gravarAceite, type AceitePreparado } from '@/lib/termos/aceite';
 import type { AceiteErroCodigo, AceiteTermoCliente } from '@/lib/termos/tipos';
-import { hojeISO, dataMaximaReservaISO, MESES_ANTECEDENCIA_RESERVA } from '@/lib/datas';
+import { hojeISO, dataMaximaReservaISO } from '@/lib/datas';
 
 /**
  * Toda solicitação nova é de roteiro: a embarcação não tem preço nem
@@ -61,6 +62,8 @@ type AlvoResolvido = {
   precoDiariaMinimo: number;
   /** Máximo de pessoas do grupo: menor entre a capacidade da embarcação e a do roteiro — ver src/lib/capacidade.ts. */
   capacidadeMaxima: number | null;
+  /** Até quantos meses à frente o roteiro aceita reservas (`roteiro.janela_reserva_meses`). */
+  janelaMeses: number;
 };
 
 type Adicional = { roteiro_catalogo_id: string; descricao: string; valor: number; tipo: 'produto' | 'servico' };
@@ -120,7 +123,7 @@ async function resolverAlvo(input: ResolverAlvoInput): Promise<ResolverAlvoResul
     .from('roteiro')
     .select(`
       id, nome, preco_base, owner_id, embarcacao_id, ativo, quantidade_pessoas,
-      preco_diaria_ativo, preco_diaria_valor, preco_diaria_minimo,
+      preco_diaria_ativo, preco_diaria_valor, preco_diaria_minimo, janela_reserva_meses,
       embarcacao ( capacidade )
     `)
     .eq('id', input.roteiroId)
@@ -158,6 +161,7 @@ async function resolverAlvo(input: ResolverAlvoInput): Promise<ResolverAlvoResul
       roteiro.quantidade_pessoas,
       (roteiro.embarcacao as unknown as { capacidade: number | null } | null)?.capacidade,
     ),
+    janelaMeses: roteiro.janela_reserva_meses,
   };
 
   // Reconstrói os adicionais selecionados a partir dos ids (snapshot dos valores atuais).
@@ -385,9 +389,6 @@ export async function criarReserva(input: CriarReservaInput): Promise<CriarReser
 
   // Validação dos campos obrigatórios.
   if (!input.data || !ISO_DATE.test(input.data)) return { ok: false, error: 'Data inválida.' };
-  if (input.data > dataMaximaReservaISO()) {
-    return { ok: false, error: `As reservas ficam abertas até ${MESES_ANTECEDENCIA_RESERVA} meses à frente. Escolha uma data mais próxima.` };
-  }
   if (!input.pessoas || input.pessoas < 1) return { ok: false, error: 'Informe o número de pessoas.' };
 
   const modalidade: ModalidadeReserva = input.modalidade ?? 'roteiro';
@@ -415,16 +416,13 @@ export async function criarReserva(input: CriarReservaInput): Promise<CriarReser
   // Pedidos com prazo de pagamento vencido liberam a data antes da checagem.
   await expirarPedidosVencidosSemFalhar();
 
-  // Bloqueia a data (ou o intervalo, no modelo Por Diária) se a embarcação
-  // (ou o roteiro, quando sem vínculo) já tiver reserva CONFIRMADA que
-  // conflite — valida sempre pela embarcação quando ela existe, pois uma
-  // mesma embarcação pode atender vários roteiros.
-  const ocupadas = new Set(await getDatasOcupadasRoteiro({
-    roteiroId: alvo.roteiroId,
-    embarcacaoId: alvo.embarcacaoId,
-  }));
-  if (expandirIntervalo(input.data, dataFim ?? input.data).some((d) => ocupadas.has(d))) {
-    return { ok: false, error: 'Essa data não está mais disponível. Escolha outra data.' };
+  // Disponibilidade da data (ou do intervalo, no Por Diária) pela mesma regra
+  // do calendário do site — função SQL única: janela do roteiro, dias de
+  // operação, dias/barco fechados pelo gestor e reservas do barco (um barco faz
+  // um passeio por dia, em qualquer roteiro dele).
+  const motivo = await getMotivoPeriodoIndisponivel(alvo.roteiroId, input.data, dataFim ?? input.data);
+  if (motivo) {
+    return { ok: false, error: mensagemIndisponivel(motivo, dataMaximaReservaISO(alvo.janelaMeses)) };
   }
 
   // Cálculo (servidor) — mesma fórmula do resumo/BookingCard.

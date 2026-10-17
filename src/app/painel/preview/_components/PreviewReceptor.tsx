@@ -66,7 +66,7 @@ export default function PreviewReceptor({ tipo }: { tipo: PreviewDados['tipo'] }
           avaliacoes={[]}
           ehDono={false}
           isFavorito={false}
-          datasBloqueadas={dados.datasBloqueadas}
+          calendario={dados.calendario}
         />
       )}
 

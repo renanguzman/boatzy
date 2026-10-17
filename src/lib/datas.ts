@@ -36,15 +36,20 @@ export function hojeISO(): string {
   return dataISONoFuso(new Date());
 }
 
-/** Antecedência máxima para o cliente reservar um roteiro, em meses a partir de hoje. */
+/**
+ * Antecedência máxima padrão para o cliente reservar um roteiro, em meses. Cada
+ * roteiro tem a sua (`roteiro.janela_reserva_meses`: 3, 6, 9 ou 12 — ver
+ * `src/lib/disponibilidade.ts`).
+ */
 export const MESES_ANTECEDENCIA_RESERVA = 3;
 
 /**
  * Última data ('AAAA-MM-DD') que o cliente pode reservar: hoje (Brasília) + N
- * meses, com o dia ajustado ao fim do mês quando não existe (30/11 + 3 → 28/02).
+ * meses, com o dia ajustado ao fim do mês quando não existe (30/11 + 3 → 28/02)
+ * — mesma conta do SQL (`CURRENT_DATE + make_interval(months => N)`).
  */
-export function dataMaximaReservaISO(meses: number = MESES_ANTECEDENCIA_RESERVA): string {
-  const [ano, mes, dia] = hojeISO().split('-').map(Number);
+export function dataMaximaReservaISO(meses: number = MESES_ANTECEDENCIA_RESERVA, hoje: string = hojeISO()): string {
+  const [ano, mes, dia] = hoje.split('-').map(Number);
   const alvo = new Date(Date.UTC(ano, mes - 1 + meses, 1));
   const ultimoDia = new Date(Date.UTC(alvo.getUTCFullYear(), alvo.getUTCMonth() + 1, 0)).getUTCDate();
   alvo.setUTCDate(Math.min(dia, ultimoDia));
