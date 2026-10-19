@@ -739,7 +739,7 @@ As etapas **Preço** e **Disponibilidade** do cadastro/edição de roteiro virar
 
 **Cliente (página do roteiro)**
 - ~~Nova seção **"Disponibilidade e preços"**~~ *(removida em 19/10/2026 — o mesmo calendário, com os preços por dia, fica no campo Data do card de reserva; ver "Detalhe do roteiro sem a seção Disponibilidade e preços")* com o calendário do roteiro (2 meses no computador, 1 no celular): cada dia mostra o **valor total que o cliente vai pagar (preço + taxa de serviço)**, com o menor preço do mês em destaque; dias indisponíveis aparecem riscados, **sem dizer se estão reservados ou fechados**; o limite é a janela daquele roteiro ("Reservas abertas até…").
-- O campo de data do card de reserva abre o mesmo calendário (com a flexibilidade ± dias); escolher um dia na seção preenche o card e vice-versa. No Por Diária, os dois calendários destacam o período das diárias e avisam se algum dia estiver indisponível.
+- O campo de data do card de reserva abre o mesmo calendário (~~com a flexibilidade ± dias~~ — rodapé de flexibilidade e "Limpar data" removidos em 19/10/2026); escolher um dia na seção preenche o card e vice-versa. No Por Diária, os dois calendários destacam o período das diárias e avisam se algum dia estiver indisponível.
 - O card passou a mostrar **sempre o total com a taxa** (cabeçalho "a partir de", preço do dia, por diária) e o detalhamento passeio + adicionais + taxa de serviço = total. *(19/10/2026: a linha "Taxa de serviço" saiu — passeio e adicionais já vêm com ela embutida.)*
 
 **Um passeio por barco por dia**
@@ -1825,6 +1825,19 @@ taxa continua sendo cobrada e repassada como antes — muda só a apresentação
   "Sobre a Embarcação".
 - O resto do comportamento não muda: a data vinda da busca continua pré-selecionada e escolher a data
   no card atualiza o valor. Detalhes técnicos: `SPEC.md` §51.
+
+### ✅ Card de reserva do roteiro — calendário sem rodapé e coluna que acompanha o scroll (19/10/2026)
+
+- **Calendário do campo Data:** saiu o rodapé "Data exata · ±1 dia · ±2 dias · ±3 dias · ±7 dias ·
+  Limpar data" — não era funcional, porque escolher um dia já fecha o calendário. A flexibilidade
+  escolhida na busca continua valendo (aparece no campo como "· ±N dias" e vai para a solicitação).
+- **Coluna de reserva em telas baixas:** antes a coluna ficava presa no topo e, quando era mais alta
+  que a tela, o fim do card (botão "Solicitar Reserva") ficava cortado até o fim da página. Agora:
+  se o card cabe na tela, fica preso no topo como antes; se não cabe, a coluna rola junto com a
+  página até o fim do card aparecer (com "Solicitar Reserva" e os selos) e só então fica fixa. Para
+  ver o topo do card de novo, basta rolar para cima. Ajusta-se sozinha quando o card muda de altura
+  (aba Roteiro/Por Diária, adicionais abertos, mensagem de erro) ou a janela muda de tamanho.
+- Detalhes técnicos: `SPEC.md` §53.
 
 ## 11. Não Incluído no MVP
 

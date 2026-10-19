@@ -61,13 +61,10 @@ const MODALIDADE_INFO: Record<Modalidade, { label: string; unidade: string; linh
   diaria: { label: 'Por Diária', unidade: '/diária', linha: 'Diárias' },
 };
 
-const FLEX_OPCOES = [
-  { label: 'Data exata', value: 0 },
-  { label: '±1 dia', value: 1 },
-  { label: '±2 dias', value: 2 },
-  { label: '±3 dias', value: 3 },
-  { label: '±7 dias', value: 7 },
-];
+/** Topo da coluna fixa quando o card cabe na tela (abaixo do header) — o antigo `top-24`. */
+const TOPO_STICKY = 96;
+/** Respiro entre o fim do card de reserva e a borda de baixo da tela. */
+const RESPIRO_INFERIOR = 16;
 
 /** Soma `dias` dias a uma data ISO (aritmética em UTC), devolvendo outra data ISO. */
 function somarDias(iso: string, dias: number): string {
@@ -99,7 +96,7 @@ export default function BookingCard({
   // Escolhas da reserva (data, flexibilidade, modelo, diárias) — vêm pré-preenchidas
   // da busca pelo DataReservaContext.
   const {
-    data: dateISO, flex, setData, setFlex,
+    data: dateISO, flex, setData,
     modalidade: modalidadeEscolhida, setModalidade, diarias, setDiarias,
   } = useDataReserva();
   const modalidade: Modalidade = modalidadesDisponiveis.some((m) => m.id === modalidadeEscolhida)
@@ -118,6 +115,8 @@ export default function BookingCard({
   const [active, setActive] = useState<ActivePanel>(null);
   const [error, setError] = useState<string | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+  const cardRef = useRef<HTMLDivElement>(null);
+  const [topoSticky, setTopoSticky] = useState(TOPO_STICKY);
   const preview = useModoPreview();
   const { selectedAddons, totalAdicionais } = useCart();
 
@@ -135,6 +134,32 @@ export default function BookingCard({
     }
     document.addEventListener('mousedown', handleClick);
     return () => document.removeEventListener('mousedown', handleClick);
+  }, []);
+
+  // Coluna fixa: se o card de reserva cabe na tela, prende no topo (abaixo do
+  // header). Se não cabe (telas baixas, adicionais abertos), o `top` fica
+  // menor/negativo na medida exata para a coluna rolar junto com a página até o
+  // fim do card ("Solicitar Reserva" + selos) aparecer, e só então fixar — antes
+  // o fim ficava cortado até o fim da página. Para rever o topo, rola para cima.
+  // Remede quando o card muda de altura (abas, adicionais, erro) ou a janela muda.
+  useEffect(() => {
+    const container = containerRef.current;
+    const card = cardRef.current;
+    if (!container || !card) return;
+    function atualizar() {
+      // offsetTop relativo à coluna (sticky é posicionado → é o offsetParent).
+      const fimDoCard = card!.offsetTop + card!.offsetHeight;
+      setTopoSticky(Math.min(TOPO_STICKY, window.innerHeight - fimDoCard - RESPIRO_INFERIOR));
+    }
+    atualizar();
+    const observador = new ResizeObserver(atualizar);
+    observador.observe(container);
+    observador.observe(card);
+    window.addEventListener('resize', atualizar);
+    return () => {
+      observador.disconnect();
+      window.removeEventListener('resize', atualizar);
+    };
   }, []);
 
   // Calendário do gestor: status e preço (com a taxa) de cada dia.
@@ -212,12 +237,12 @@ export default function BookingCard({
   }
 
   return (
-    <div ref={containerRef} className="sticky top-24 space-y-4">
+    <div ref={containerRef} className="sticky space-y-4" style={{ top: topoSticky }}>
       {/* Favoritar + Compartilhar */}
       <RoteiroAcoes roteiroId={roteiroId} roteiroNome={roteiroNome} initialFavorito={initialFavorito} />
 
       {/* Price Card */}
-      <div className="rounded-2xl border border-slate-200 p-6 shadow-sm">
+      <div ref={cardRef} className="rounded-2xl border border-slate-200 p-6 shadow-sm">
         {/* Abas de modelo de cobrança — só aparecem quando há mais de uma opção */}
         {modalidadesDisponiveis.length > 1 && (
           <div className="mb-5 flex gap-1 rounded-xl bg-slate-100 p-1">
@@ -295,23 +320,6 @@ export default function BookingCard({
                 modalidade={modalidade}
                 diarias={diarias}
               />
-              <div className="mt-4 pt-4 border-t border-slate-100 flex items-center gap-2 flex-wrap">
-                {FLEX_OPCOES.map((opt) => (
-                  <button key={opt.value} type="button" onClick={() => setFlex(opt.value)}
-                    className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-colors ${
-                      flex === opt.value
-                        ? 'bg-slate-800 text-white border-slate-800'
-                        : 'bg-white text-slate-600 border-slate-300 hover:border-slate-500'
-                    }`}>
-                    {opt.label}
-                  </button>
-                ))}
-                <div className="flex-1" />
-                <button type="button" onClick={() => { setData(null); setFlex(0); setActive(null); }}
-                  className="text-xs text-slate-500 underline hover:text-slate-800 transition-colors">
-                  Limpar data
-                </button>
-              </div>
             </div>
           )}
           {modalidade === 'diaria' && checkout && (

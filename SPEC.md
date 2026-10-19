@@ -6361,3 +6361,20 @@ R$ 9.200 + Adicionais R$ 92 = Total R$ 9.292 (mesmo total do checkout).
 - `src/lib/weather.ts`: `DIAS_MAX_PREVISAO` 16 → 15 (alcance real da API; ver §20.3b).
 - Verificação: rota temporária (removida) com os dois estados, 900px — topo do texto = topo da área
   visível (sem corte); `tsc`/`eslint` limpos.
+
+## 53. Card de reserva do roteiro — calendário sem rodapé e coluna que acompanha o scroll (19/10/2026)
+
+`src/app/roteiros/[id]/_components/BookingCard.tsx`:
+- **Rodapé do popover de data removido:** `FLEX_OPCOES` (Data exata/±1/±2/±3/±7 dias) e "Limpar data"
+  saíram — escolher o dia já fecha o popover. `setFlex` deixou de ser usado no card; o `flex` do
+  `DataReservaContext` (vindo da busca) continua exibido no campo e enviado a `/reservas/novo`.
+- **Coluna sticky com topo calculado:** a coluna (`containerRef`, antes `sticky top-24`) usa
+  `style={{ top }}` com `top = min(TOPO_STICKY = 96, innerHeight − (cardRef.offsetTop +
+  cardRef.offsetHeight) − RESPIRO_INFERIOR = 16)`. Card cabe na tela → 96px (igual a antes); não cabe
+  → `top` menor/negativo na medida exata para a coluna rolar até o fim do card de reserva ficar 16px
+  acima da borda inferior e então fixar. Recalculado por `ResizeObserver` (coluna e card) e `resize`
+  da janela. A âncora é o fim do card de preço (botão + selos); "Converse com o dono" e "Por que
+  reservar no Boatzy?" ficam abaixo dele, como antes.
+- Verificação (navegador): 1280×700 → `top` 69px, card fixa com o fim a 16px da borda e o botão
+  visível; com os adicionais abertos → `top` −221px, mesmo comportamento; 1280×800/1100 (card cabe)
+  → 96px. Popover sem "Data exata"/"Limpar data". `tsc`/`eslint` limpos.
