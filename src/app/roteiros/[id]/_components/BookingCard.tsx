@@ -13,7 +13,7 @@ import CalendarioReserva from './CalendarioReserva';
 import { useModoPreview } from '@/components/preview/ModoPreview';
 import { FUSO_HORARIO, formatarData } from '@/lib/datas';
 import { capacidadeMaxima, mensagemCapacidadeExcedida } from '@/lib/capacidade';
-import { calcularValoresPedido } from '@/lib/pagamentos/valores';
+import { valoresParaCliente } from '@/lib/pagamentos/valores';
 import { decomporPreco } from '@/lib/precos-calendario';
 import {
   mensagemIndisponivel, periodoIndisponivel, type CalendarioCliente, type StatusPublico,
@@ -96,8 +96,8 @@ export default function BookingCard({
       : []),
   ];
 
-  // Escolhas compartilhadas com a seção "Disponibilidade e preços" (o calendário
-  // de lá destaca a mesma data e o mesmo período de diárias).
+  // Escolhas da reserva (data, flexibilidade, modelo, diárias) — vêm pré-preenchidas
+  // da busca pelo DataReservaContext.
   const {
     data: dateISO, flex, setData, setFlex,
     modalidade: modalidadeEscolhida, setModalidade, diarias, setDiarias,
@@ -148,9 +148,10 @@ export default function BookingCard({
   const unitario = modalidade === 'roteiro' ? precoNaData ?? (dateISO ? null : preco) : precoDiariaValor;
   const multiplicador = modalidade === 'diaria' ? diarias : 1;
   const subtotalModelo = unitario != null ? unitario * multiplicador : null;
-  // Mesma conta do pedido (`calcularValoresPedido`): a taxa incide sobre passeio + adicionais.
+  // Mesma conta do pedido (`calcularValoresPedido`), com a taxa embutida nas
+  // linhas: o cliente nunca vê a taxa de serviço separada.
   const valores = subtotalModelo != null && (modalidade === 'diaria' || dateISO)
-    ? calcularValoresPedido({
+    ? valoresParaCliente({
         precoUnitario: unitario!, multiplicador, totalAdicionais, taxaPercent, descontoCupom: 0,
       })
     : null;
@@ -251,13 +252,11 @@ export default function BookingCard({
                 <span className="text-3xl font-bold text-[#0B2447]">{formatCurrency(precoCabecalho)}</span>
                 <span className="text-sm text-slate-500">{MODALIDADE_INFO[modalidade].unidade}</span>
               </div>
-              <p className="mt-1 text-xs text-slate-400">
-                {precoVariaPorData
-                  ? dateISO
-                    ? 'Total para a data selecionada, já com a taxa de serviço.'
-                    : 'Já com a taxa de serviço. O preço varia conforme a data.'
-                  : 'Por diária, já com a taxa de serviço.'}
-              </p>
+              {precoVariaPorData && (
+                <p className="mt-1 text-xs text-slate-400">
+                  {dateISO ? 'Valor para a data selecionada.' : 'O preço varia conforme a data.'}
+                </p>
+              )}
             </>
           ) : (
             <span className="text-lg font-semibold text-slate-500">Consulte o preço</span>
@@ -377,26 +376,22 @@ export default function BookingCard({
         {/* Adicionais (produtos/serviços do catálogo) — accordion */}
         <AddonsAccordion />
 
-        {/* Price breakdown — total com a taxa (mesma conta do pedido) */}
+        {/* Detalhamento — valores com a taxa embutida (somam o total) */}
         {valores && (
           <div className="space-y-2 py-4 border-t border-slate-100">
             <div className="flex items-center justify-between text-sm">
               <span className="text-slate-600">
                 {MODALIDADE_INFO[modalidade].linha}
-                {multiplicador > 1 ? ` (${formatCurrency(unitario!)} × ${multiplicador})` : ''}
+                {multiplicador > 1 ? ` × ${multiplicador}` : ''}
               </span>
-              <span className="font-medium text-slate-800">{formatCurrency(subtotalModelo!)}</span>
+              <span className="font-medium text-slate-800">{formatCurrency(valores.passeio)}</span>
             </div>
             {totalAdicionais > 0 && (
               <div className="flex items-center justify-between text-sm">
                 <span className="text-slate-600">Adicionais</span>
-                <span className="font-medium text-slate-800">{formatCurrency(totalAdicionais)}</span>
+                <span className="font-medium text-slate-800">{formatCurrency(valores.adicionais)}</span>
               </div>
             )}
-            <div className="flex items-center justify-between text-sm">
-              <span className="text-slate-600">Taxa de serviço</span>
-              <span className="font-medium text-slate-800">{formatCurrency(valores.valorComissao)}</span>
-            </div>
           </div>
         )}
 
@@ -404,10 +399,10 @@ export default function BookingCard({
           <div className="py-4 border-t border-slate-200">
             <div className="flex items-center justify-between">
               <span className="text-base font-bold text-[#0B2447]">Total</span>
-              <span className="text-xl font-bold text-[#0B2447]">{formatCurrency(valores.valorTotal)}</span>
+              <span className="text-xl font-bold text-[#0B2447]">{formatCurrency(valores.total)}</span>
             </div>
             <p className="mt-1 text-[11px] text-slate-400">
-              Já inclui a taxa de serviço. Cupom de desconto pode ser aplicado na confirmação.
+              Cupom de desconto pode ser aplicado na confirmação.
             </p>
           </div>
         )}

@@ -49,6 +49,51 @@ export function calcularValoresPedido(input: {
   return { valorItens, valorComissao, valorDesconto, valorTotal };
 }
 
+// ── Valores como o CLIENTE vê ───────────────────────────────────────────────
+// O site nunca mostra a taxa de serviço em linha própria (19/10/2026): todo
+// valor exibido ao cliente já vem com a taxa embutida. O gestor continua vendo
+// o detalhamento (Você recebe × Cliente paga) no painel.
+
+/** Preço de um item (passeio, diária, adicional) com a taxa de serviço embutida. */
+export function precoComTaxa(preco: number, taxaPercent: number): number {
+  return calcularValoresPedido({
+    precoUnitario: preco, multiplicador: 1, totalAdicionais: 0, taxaPercent, descontoCupom: 0,
+  }).valorTotal;
+}
+
+export type ValoresCliente = {
+  /** Passeio/diárias com a taxa — o mesmo valor do cabeçalho e do calendário. */
+  passeio: number;
+  /** Adicionais com a taxa. Fica com o arredondamento para as linhas somarem o total exato. */
+  adicionais: number;
+  desconto: number;
+  /** O que o cliente paga (= `calcularValoresPedido().valorTotal`). */
+  total: number;
+};
+
+/**
+ * Detalhamento do pedido para o cliente: mesma conta de `calcularValoresPedido`,
+ * com a taxa distribuída nas linhas. A taxa é calculada em reais inteiros sobre o
+ * pedido todo, então somar as linhas com a taxa de cada uma pode diferir do total
+ * em R$ 1 — a diferença vai para a linha de adicionais, nunca para o passeio.
+ */
+export function valoresParaCliente(input: {
+  precoUnitario: number;
+  multiplicador: number;
+  totalAdicionais: number;
+  taxaPercent: number;
+  descontoCupom: number;
+}): ValoresCliente {
+  const v = calcularValoresPedido(input);
+  const passeio = precoComTaxa(input.precoUnitario * input.multiplicador, input.taxaPercent);
+  return {
+    passeio,
+    adicionais: input.totalAdicionais > 0 ? arredondarCentavos(v.valorItens + v.valorComissao - passeio) : 0,
+    desconto: v.valorDesconto,
+    total: v.valorTotal,
+  };
+}
+
 /** Opções de parcelamento do cartão: 1..parcelasMax, respeitando o valor mínimo por parcela. */
 export function opcoesParcelas(total: number, parcelasMax: number, valorMinimoParcela: number | null): number[] {
   const opcoes = [1];

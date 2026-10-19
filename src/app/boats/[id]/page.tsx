@@ -312,13 +312,7 @@ export default async function BoatDetailPage({ params }: any) {
                     <div className="flex items-center justify-between text-sm">
                       <span className="text-slate-600">Diária x 3</span>
                       <span className="text-slate-800 font-medium">
-                        {formatCurrency(boat.pricePerDay * 3)}
-                      </span>
-                    </div>
-                    <div className="flex items-center justify-between text-sm">
-                      <span className="text-slate-600">Taxa de serviço & tripulação</span>
-                      <span className="text-slate-800 font-medium">
-                        {formatCurrency(Math.round(boat.pricePerDay * 0.15))}
+                        {formatCurrency(boat.pricePerDay * 3 + Math.round(boat.pricePerDay * 0.15))}
                       </span>
                     </div>
                   </div>

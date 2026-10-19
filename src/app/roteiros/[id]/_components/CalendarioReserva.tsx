@@ -111,7 +111,7 @@ export default function CalendarioReserva({
       <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1 text-[11px] text-slate-500">
         {modalidade === 'roteiro' ? (
           <>
-            <span>Valores em R$ por dia, <strong className="font-semibold text-slate-600">já com a taxa de serviço</strong></span>
+            <span>Valores em R$ por dia</span>
             <span className="flex items-center gap-1.5"><span className="h-2 w-2 rounded-full bg-emerald-500" /> Menor preço do mês</span>
           </>
         ) : (
@@ -157,7 +157,7 @@ function Mes({ ano, mes, hoje, porData, dataMaxima, selecionada, fimPeriodo, mod
           const riscado = status === 'indisponivel' || status === 'nao_opera';
           const titulo = `${DOW_LONGOS[new Date(Date.UTC(ano, mes, dia)).getUTCDay()]}, ${formatarData(iso)} — ${
             podeIniciar
-              ? (modalidade === 'roteiro' && d?.total != null ? `${brl(d.total)} (com a taxa)` : 'disponível')
+              ? (modalidade === 'roteiro' && d?.total != null ? brl(d.total) : 'disponível')
               : status === 'fora_janela' ? `reservas abertas até ${formatarData(dataMaxima)}`
               : status === 'passado' ? 'data passada' : 'indisponível'
           }`;

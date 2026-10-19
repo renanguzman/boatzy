@@ -6,6 +6,7 @@ import Footer from '@/components/layout/Footer';
 import { createClient } from '@/lib/supabase/server';
 import { supabaseAdmin } from '@/lib/supabase';
 import { formatCurrency } from '@/lib/utils';
+import { precoComTaxa } from '@/lib/pagamentos/valores';
 import { getTaxaEfetiva } from '@/lib/taxas';
 import { buscarPrevisaoTempo } from '@/lib/weather';
 import { getMotivoPeriodoIndisponivel, somarDiasISO } from '@/lib/reservas';
@@ -293,7 +294,7 @@ export default async function NovaReservaPage({
                       {a.descricao}
                       <span className="ml-2 text-[10px] uppercase tracking-wider text-slate-400">{a.tipo}</span>
                     </span>
-                    <span className="font-medium text-slate-800">{formatCurrency(a.valor)}</span>
+                    <span className="font-medium text-slate-800">{formatCurrency(precoComTaxa(Number(a.valor), taxaPercent))}</span>
                   </div>
                 ))}
               </div>

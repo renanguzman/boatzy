@@ -5,6 +5,8 @@ import type { RoteiroCardData } from '@/app/buscar/_components/RoteiroCard';
 import type { ReservaModalidadePreco } from '@/types/supabase';
 import { duracaoParaHoras, duracaoTexto, type DuracaoUnidade } from '@/lib/duracao';
 import { FOTOS_RECOMENDADAS } from '@/lib/upload';
+import { decomporPreco } from '@/lib/precos-calendario';
+import { calendarioPreview, type AgendaPreview } from '@/components/preview/montar';
 
 /**
  * Etapas do cadastro/edição de roteiro (`NovoRoteiroForm` e
@@ -48,10 +50,11 @@ export function revisaoRoteiro(args: {
   municipios: { id: number; nome: string }[];
   paradas: { nome: string }[];
   imagens: GaleriaItem[];
-  diasOperacao: number[];
-  janelaMeses: number;
-  /** Exceções de disponibilidade: false = dia fechado; true = aberto fora da operação. */
-  diasRoteiro: Record<string, boolean>;
+  /**
+   * Preço e disponibilidade ainda não salvos (mesma agenda da prévia da página):
+   * dias de operação, janela, dias fechados/abertos, regras de preço e taxa.
+   */
+  agenda: AgendaPreview;
   totalAdicionais: number;
   ir: (etapa: number) => void;
 }): { itens: ItemRevisao[]; card: RoteiroCardData } {
@@ -72,12 +75,16 @@ export function revisaoRoteiro(args: {
     diaria != null && `Diária ${brl(diaria)}`,
   ].filter(Boolean) as string[];
 
-  // Prévia do "A partir de" do card. No banco `preco_minimo` considera também
-  // as regras por data; aqui só os modelos do formulário, que é o que o gestor
-  // acabou de digitar. Mesmo desempate da função SQL: roteiro > diária.
+  // Prévia do "A partir de" do card como o site vai mostrar (já com a taxa):
+  // mesma regra do banco (`calcular_preco_minimo_roteiro` + `preco_minimo_cliente`)
+  // sobre o calendário ainda não salvo — menor total entre os dias disponíveis
+  // no modelo Roteiro, ou a diária com a taxa. Desempate: roteiro > diária.
+  const totaisRoteiro = precoBase != null
+    ? calendarioPreview(precoBase, args.agenda).dias.flatMap(d => (d.status === 'disponivel' && d.total != null ? [d.total] : []))
+    : [];
   const candidatosPreco: { valor: number; modelo: ReservaModalidadePreco }[] = [
-    ...(precoBase != null ? [{ valor: precoBase, modelo: 'roteiro' as const }] : []),
-    ...(diaria != null ? [{ valor: diaria, modelo: 'diaria' as const }] : []),
+    ...(totaisRoteiro.length > 0 ? [{ valor: Math.min(...totaisRoteiro), modelo: 'roteiro' as const }] : []),
+    ...(diaria != null ? [{ valor: decomporPreco(diaria, args.agenda.taxaPercent).clientePaga, modelo: 'diaria' as const }] : []),
   ];
   const precoMinimo = candidatosPreco.length > 0
     ? candidatosPreco.reduce((a, b) => (a.valor <= b.valor ? a : b))
@@ -128,13 +135,13 @@ export function revisaoRoteiro(args: {
       label: 'Disponibilidade',
       status: 'ok',
       resumo: [
-        args.diasOperacao.length === 0 || args.diasOperacao.length === 7
+        args.agenda.diasOperacao.length === 0 || args.agenda.diasOperacao.length === 7
           ? 'Todos os dias'
-          : [...args.diasOperacao].sort().map(d => DIAS[d]).join(', '),
-        `reservas para os próximos ${args.janelaMeses === 12 ? '12 meses (1 ano)' : `${args.janelaMeses} meses`}`,
+          : [...args.agenda.diasOperacao].sort().map(d => DIAS[d]).join(', '),
+        `reservas para os próximos ${args.agenda.janelaMeses === 12 ? '12 meses (1 ano)' : `${args.agenda.janelaMeses} meses`}`,
         ...(() => {
-          const fechados = Object.values(args.diasRoteiro).filter(v => v === false).length;
-          const abertos = Object.values(args.diasRoteiro).filter(v => v === true).length;
+          const fechados = Object.values(args.agenda.diasRoteiro).filter(v => v === false).length;
+          const abertos = Object.values(args.agenda.diasRoteiro).filter(v => v === true).length;
           return [
             fechados > 0 ? plural(fechados, 'dia fechado', 'dias fechados') : null,
             abertos > 0 ? plural(abertos, 'dia aberto fora da operação', 'dias abertos fora da operação') : null,
@@ -158,7 +165,7 @@ export function revisaoRoteiro(args: {
     nome: form.nome.trim() || 'Nome do roteiro',
     descricao: form.descricao.trim(),
     quantidade_pessoas: form.quantidade_pessoas ? Number(form.quantidade_pessoas) : null,
-    preco_minimo: precoMinimo?.valor ?? null,
+    preco_minimo_cliente: precoMinimo?.valor ?? null,
     preco_minimo_modelo: precoMinimo?.modelo ?? null,
     duracao,
     municipios: municipio ? { nome: municipio, estados: uf ? { uf } : null } : null,

@@ -13,7 +13,7 @@ import { formatCurrency } from '@/lib/utils';
  * deixar claro que eles entram no preço total mesmo com o accordion fechado.
  */
 export default function AddonsAccordion() {
-  const { addons, selectedIds, toggle, selectedAddons, totalAdicionais } = useCart();
+  const { addons, selectedIds, toggle, selectedAddons, precoCliente } = useCart();
   const [open, setOpen] = useState(false);
 
   if (addons.length === 0) return null;
@@ -38,7 +38,7 @@ export default function AddonsAccordion() {
             </p>
             <p className={`text-xs ${hasSelection ? 'font-semibold text-[#0B3D91]' : 'text-slate-500'}`}>
               {hasSelection
-                ? `${selectedAddons.length} selecionado${selectedAddons.length > 1 ? 's' : ''} · ${formatCurrency(totalAdicionais)}`
+                ? `${selectedAddons.length} selecionado${selectedAddons.length > 1 ? 's' : ''} · ${formatCurrency(selectedAddons.reduce((soma, a) => soma + precoCliente(a.preco), 0))}`
                 : `Este roteiro tem ${addons.length} ${addons.length > 1 ? 'opcionais' : 'opcional'} para você. Clique e confira!`}
             </p>
           </div>
@@ -94,7 +94,7 @@ export default function AddonsAccordion() {
 
                   <div className="flex flex-col items-end gap-1.5 shrink-0">
                     <span className={`text-xs font-bold ${selected ? 'text-[#0B3D91]' : 'text-slate-700'}`}>
-                      {item.preco > 0 ? formatCurrency(item.preco) : 'Incluso'}
+                      {item.preco > 0 ? formatCurrency(precoCliente(item.preco)) : 'Incluso'}
                     </span>
                     <div
                       className={`h-5 w-5 rounded-full flex items-center justify-center transition-all ${

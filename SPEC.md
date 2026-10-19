@@ -1199,7 +1199,7 @@ Seção "Equipamentos de Segurança" no Step **Detalhes** do formulário de emba
 
 ### UI — Hotsite
 
-Seção "Equipamentos de Segurança" na página de detalhe da embarcação (`EmbarcacaoInfoSection`), exibida **antes** de "Comodidades a bordo". Grid 3 colunas com ícone `CheckCircle2` em azul. Exibida somente quando há ao menos um equipamento vinculado.
+Seção "Equipamentos de Segurança" na página de detalhe da embarcação (`EmbarcacaoItensSection`, em `EmbarcacaoInfoSection.tsx`), exibida **antes** de "Comodidades a bordo". Grid 3 colunas com ícone `CheckCircle2` em azul. Exibida somente quando há ao menos um equipamento vinculado.
 
 ---
 
@@ -1264,7 +1264,7 @@ specs).
 
 ### UI — Hotsite
 
-Seção "Acessórios da Embarcação" em `EmbarcacaoInfoSection`, entre "Equipamentos de Segurança" e
+Seção "Acessórios da Embarcação" em `EmbarcacaoItensSection` (`EmbarcacaoInfoSection.tsx`), entre "Equipamentos de Segurança" e
 "Comodidades a bordo". Grid 3 colunas com `CheckCircle2` em azul, exibida só quando há vínculo.
 
 Mesma seção no bloco "Sobre a Embarcação" de `RoteiroDetalheView`, na mesma posição relativa. O embed
@@ -1669,8 +1669,9 @@ Seções: `EmbarcacaoInfoSection` (badge de tipo, título + localidade, descriç
 busca por embarcação (§18.3/§18.6) — v1, a ser refinada.
 
 - Renderiza `EmbarcacaoDetalheView` (`src/app/embarcacoes/[id]/_components/`): galeria +
-  `EmbarcacaoInfoSection` + botão **"Converse com o dono"** (oculto quando `ehDono`, calculado com
-  `owner_id`) + `RoteirosCarousel`. A mesma view é usada pela pré-visualização do painel (§39).
+  `EmbarcacaoInfoSection` + `RoteirosCarousel` + `EmbarcacaoItensSection` + botão **"Converse com o
+  dono"** (oculto quando `ehDono`, calculado com `owner_id`). A mesma view é usada pela
+  pré-visualização do painel (§39), que passa `roteiros={[]}` (mostra o estado vazio do carrossel).
 - 404 quando `status != 'ativo'`.
 - Query da embarcação: `id, nome, descricao, capacidade, comprimento, quartos, suites, banheiros,
   tripulacao, embarcacao_tipo(nome), municipios(nome, estados(uf)),
@@ -1682,26 +1683,43 @@ busca por embarcação (§18.3/§18.6) — v1, a ser refinada.
   `getAvaliacoesResumoPorRoteiro` e a mesma query de `favorito` usada em `/buscar`.
 - `searchParams.voltar` (URL codificada, opcional) vira o `voltarHref` da `GaleriaRoteiro` — link
   "voltar" para a busca com os filtros originais; sem o param, cai em `/buscar?tipo=embarcacao`.
-- Layout: `GaleriaRoteiro` → `EmbarcacaoInfoSection` (mesmo componente do detalhe da embarcação,
-  **sem** sidebar de reserva — o objetivo aqui é escolher um roteiro, não reservar a embarcação) →
-  `RoteirosCarousel` com o título "Roteiros desta embarcação".
+- Filtros da busca (desde 19/10/2026, §49): lê `data/flex/pessoas`; com data, cada card mostra o preço
+  na data (`roteiro_preco_exibicao`) e o link leva os filtros ao detalhe do roteiro.
+- Layout (desde 19/10/2026): `GaleriaRoteiro` → `EmbarcacaoInfoSection` (badges, título,
+  descrição e specs — Pessoas, Tripulação, Quartos, Banheiros, Comprimento; **sem** sidebar de
+  reserva — o objetivo aqui é escolher um roteiro, não reservar a embarcação) → `RoteirosCarousel`
+  com o título "Roteiros desta embarcação" (logo abaixo das specs, na largura total `max-w-7xl`,
+  `mb-12`) → `EmbarcacaoItensSection` (equipamentos de segurança, acessórios, comodidades) → botão
+  "Converse com o dono". O bloco de informações e o de itens ficam em `max-w-4xl`; o carrossel
+  ocupa a largura toda para caber ~4 cards. Antes o carrossel ficava no fim da página, depois das
+  comodidades e do botão de chat.
 - Fora do escopo desta v1 (a pedido do usuário, que vai refinar depois): mapa de localização,
   avaliações e favoritar a embarcação nesta tela.
 
 **`EmbarcacaoInfoSection`** (`src/app/embarcacoes/[id]/_components/EmbarcacaoInfoSection.tsx`) —
 extraído de `/embarcacoes/[id]/page.tsx` para ser compartilhado pelas duas páginas: badges
-(tipo/"Embarcação Verificada"), título + localidade, descrição, specs row e comodidades.
+(tipo/"Embarcação Verificada"), título + localidade, descrição e specs row. O mesmo arquivo exporta
+**`EmbarcacaoItensSection`** (export nomeado, mesmas props) com as listas de equipamentos de
+segurança, acessórios e comodidades — separadas em 19/10/2026 para a view poder encaixar o
+carrossel de roteiros entre as specs e as listas.
 Props: só os campos que esse bloco usa (`nome`, `descricao`, `capacidade`, `comprimento`, `quartos`,
 `suites`, `banheiros`, `tripulacao`, `embarcacao_tipo`, `municipios`,
 `embarcacao_comodidades`).
 
 **`RoteirosCarousel`** (`src/components/ui/RoteirosCarousel.tsx`, `'use client'`) — primeiro
-carrossel horizontal do projeto (não existia nenhum antes). `overflow-x-auto snap-x snap-mandatory
-scrollbar-hide` com `RoteiroCard`s em itens `shrink-0 snap-start` de largura fixa, e duas setas
-(`ChevronLeft`/`ChevronRight`) que chamam `scrollerRef.current.scrollBy({ left: ±320,
-behavior: 'smooth' })`. Recebe `items: { roteiro, initialFavorito, avaliacaoResumo }[]` já resolvidos
-pela página (evita passar `Set`/`Map`, não serializáveis de Server → Client Component), `title?` e
-`query?`. Sem setas desabilitadas nas pontas nem dots nesta v1.
+carrossel horizontal do projeto. Recebe `items: { roteiro, initialFavorito, avaliacaoResumo }[]` já
+resolvidos pela página (evita passar `Set`/`Map`, não serializáveis de Server → Client Component),
+`title?` e `query?`. Os cards são o `RoteiroCard` da busca, sem alteração. Desde 19/10/2026 segue o
+mesmo comportamento do carrossel "Coleção de experiências" da home (`MomentsSection`, §18.9):
+- Container `flex gap-4 overflow-x-auto snap-x snap-mandatory scrollbar-hide`; no mobile sangra
+  até a borda (`-mx-4 px-4`) com `scroll-px-4` para o snap respeitar o respiro de 16px do 1º card.
+- Itens `shrink-0 snap-start` com largura responsiva `w-[78%] sm:w-[44%] lg:w-[22%]` (~4 cards em
+  `lg`, ~2 em `sm`, ~1 no mobile), sempre com uma fatia do próximo à mostra.
+- Setas `ChevronLeft`/`ChevronRight` (só quando `items.length > 1`) ficam `hidden sm:flex` — no
+  mobile a navegação é por arraste — e rolam `clientWidth * 0.9`. Estado
+  `canScrollPrev`/`canScrollNext` (listener de `scroll` + `resize`) desabilita a seta quando não há
+  mais para onde rolar naquele sentido.
+- Estado vazio: "Esta embarcação não tem roteiros ativos no momento." (borda tracejada).
 
 ### 18.5 Modal de Fotos da Embarcação
 
@@ -2244,9 +2262,11 @@ revertida.
   Cache via `fetch(..., { next: { revalidate: 1800 } })` (30 min) — não precisa ser tempo real.
 - **Nunca lança/quebra a página de reserva.** Retorna um `ResultadoPrevisao` com 3 estados:
   - `{ status: 'ok', previsao }` — dados completos.
-  - `{ status: 'fora-do-alcance' }` — a data está a mais de **16 dias** de hoje (limite confiável
-    da previsão diária gratuita do Open-Meteo, verificado empiricamente contra a própria API — ela
-    responde `error: true` com a janela permitida quando `start_date` extrapola). Checado
+  - `{ status: 'fora-do-alcance' }` — a data está a mais de **15 dias** de hoje
+    (`DIAS_MAX_PREVISAO = 15`; até 19/10/2026 era 16). A previsão diária gratuita do Open-Meteo
+    cobre 16 dias **contando hoje** (hoje + 15) — verificado contra a API em 19/10/2026: `start_date`
+    = hoje + 16 responde `error: true` ("out of allowed range"), então com o limite 16 essa data caía
+    no estado `indisponivel` em vez do aviso. Checado
     **localmente antes** de chamar a API (evita requisição desnecessária); datas negativas (passado)
     também caem aqui por segurança, embora não devam ocorrer (calendário já bloqueia).
   - `{ status: 'indisponivel' }` — qualquer falha de rede/parsing/HTTP não-2xx (`try/catch` + log
@@ -5320,6 +5340,10 @@ para não anunciar "/pessoa" quando o mesmo valor compra o barco inteiro. Roda c
 
 ### 36.3 Exibição
 
+> **Atualizado em 19/10/2026 (§49):** o card passou a exibir `preco_minimo_cliente` (com a taxa) ou,
+> com data na busca, o preço da data (`roteiro_preco_exibicao`). O texto abaixo descreve a versão de
+> 10/10.
+
 `src/lib/precos-roteiro.ts` centraliza a exibição: `precoExibicaoRoteiro({ preco_minimo,
 preco_minimo_modelo })` devolve `{ valor, unidade }` (ou `null` → "Consulte o preço") e
 `formatarPreco` formata em BRL sem centavos. `RoteiroCardData` passou a carregar
@@ -6164,7 +6188,7 @@ o calendário que o gestor configura é o mesmo que o cliente vê. Regra: **um b
 - `page.tsx`: `getCalendarioRoteiro(id, hoje, dataMaxima + 31)` + `getTaxaEfetiva(owner)` → `CalendarioCliente`.
 - `RoteiroDetalheView` (prop `calendario`, saiu `datasBloqueadas`): `DataReservaProvider` (data — da busca só se
   `disponivel` —, flex, modalidade, diárias) e a seção `DisponibilidadeSecao` (`#disponibilidade`; no celular,
-  atalho "Continuar a reserva" → `#reservar`).
+  atalho "Continuar a reserva" → `#reservar`). *(Seção removida em 19/10/2026 — §51.)*
 - `CalendarioReserva` (client): meses lado a lado (1 no celular), total compacto por dia, menor preço do mês em verde,
   indisponível riscado, fora da janela apagado, período Por Diária destacado com conflito em vermelho + mensagem.
 - `BookingCard`: props `calendario` (saíram `precoMinimoRoteiro`, `diasOperacao`, `datasBloqueadas`, `initialData`,
@@ -6183,3 +6207,157 @@ o calendário que o gestor configura é o mesmo que o cliente vê. Regra: **um b
 - Navegador (headless, rotas temporárias removidas): painel 1440px (passos, janela, situações das células, barras,
   abrir/fechar/fechar o barco, chips, selecionar o mês) e site 1440/390px (total com taxa, indisponíveis sem motivo,
   sincronia seção × card, popover com flexibilidade, Por Diária com conflito). `tsc` e `eslint` limpos.
+
+## 49. Preço ao cliente sincronizado — card = detalhe = checkout (19/10/2026)
+
+**Problema.** O card de roteiro (busca, mapa, home, favoritos, página da embarcação) anunciava
+`roteiro.preco_minimo` — o preço do **gestor**, sem a taxa de serviço —, enquanto o detalhe do roteiro
+(cabeçalho do card de reserva e calendário "Disponibilidade e preços") e o checkout mostram e cobram
+o valor **com** a taxa ("Cliente paga" no painel). Ex.: Ilha do Francês, menor dia R$ 7.999,97 +
+15% → card "a partir de R$ 8.000", detalhe "a partir de R$ 9.200". Além disso o mínimo do card
+contava dias já reservados (o detalhe não), o detalhe abria sempre na aba Roteiro (o card podia ter
+anunciado a diária) e a busca com data ignorava a data no preço.
+
+**Regra única.** Todo preço exibido ao cliente = preço do gestor no dia + taxa efetiva do gestor
+(`get_taxa_usuario`), com a conta de `calcularValoresPedido` (`src/lib/pagamentos/valores.ts`).
+- **Sem data:** "a partir de" = menor valor entre os dias **reserváveis** da janela (regra de
+  `roteiro_situacao_dia`, inclusive sem os dias ocupados por reserva) e os modelos ativos (Roteiro,
+  só com `preco_base`; Por Diária, valor fixo). Desempate: Roteiro.
+- **Com data ± flex:** menor valor entre os dias reserváveis do intervalo; desempate Roteiro, depois o
+  dia mais próximo da data pedida. O card mostra **"em dd/mm"** no lugar de "a partir de" e o link
+  leva essa data ao detalhe, que abre nela e mostra o mesmo valor.
+- A taxa é aplicada **na leitura** (não é materializada): mudança ou vencimento da taxa do gestor
+  reflete na hora, sem cron/trigger.
+
+### 49.1 Migration `supabase/migrations/20261019_preco_cliente_sincronizado.sql` (idempotente)
+
+Compatível com o código anterior (só cria funções e acrescenta colunas ao retorno da busca) —
+aplicar **antes** do deploy do front.
+
+| Objeto | O que faz |
+|---|---|
+| `valor_cliente(p_valor numeric, p_taxa numeric) → numeric(10,2)` (IMMUTABLE) | `round(v,2) + floor(round(v,2)::float8 × taxa/100 + 0.5)` — espelho exato de `calcularValoresPedido` (Math.round sobre double; o `round()` de float8 do Postgres arredonda metade para o par). |
+| `preco_minimo_cliente(r roteiro) → numeric(10,2)` | **Campo computado** do PostgREST: `valor_cliente(r.preco_minimo, get_taxa_usuario(r.owner_id))`. Selecionável como coluna (`select('…, preco_minimo_cliente, preco_minimo_modelo')`), inclusive em recursos embutidos. |
+| `roteiro_preco_exibicao(p_roteiro_id, p_data date = NULL, p_flex int = 0) → (preco, modelo, data)` | Fonte única do preço do card. Sem data: `preco_minimo_cliente` + `preco_minimo_modelo` (data NULL). Com data: regra "com data ± flex" acima, via `roteiro_situacao_dia = 'disponivel'` + `get_preco_roteiro` + `preco_diaria_*` (flex limitado a 31). Nenhuma linha = sem preço/sem dia reservável. SECURITY DEFINER; EXECUTE para `anon, authenticated, service_role`. |
+| `calcular_preco_minimo_roteiro` (mesma assinatura da 20261017) | Passa a excluir dias com reserva `confirmada`/`aguardando_pagamento` do roteiro **ou do barco** (mesmo `daterange` de `roteiro_situacao_dia`); o modelo Roteiro só conta com `preco_base` não nulo; dia com preço 0 não conta. |
+| `trg_reserva_preco_minimo` + triggers `trg_reserva_preco_minimo_ins_del` (AFTER INSERT/DELETE) e `trg_reserva_preco_minimo_upd` (AFTER UPDATE OF status, data_reserva, data_fim_reserva, roteiro_id, embarcacao_id) | Por linha (UPDATE com lista de colunas não aceita tabelas de transição). Quando a reserva entra ou sai dos status que ocupam o dia e não está inteira no passado, recalcula `preco_minimo` do roteiro e de todos os roteiros do barco. |
+| `buscar_roteiros` (DROP + CREATE, **mesmos parâmetros**) | Retorno ganha `preco_exibicao numeric`, `preco_exibicao_modelo text`, `preco_exibicao_data date` (`LATERAL roteiro_preco_exibicao(r.id, p_data, p_flex)`, calculado só para quem passou nos demais filtros). Faixa `p_preco_min/max` e ordenação `preco_asc/desc` passam a usar `preco_exibicao` — o valor que o card mostra (com data, o da data). |
+
+Fim da migration: `recalcular_precos_minimos_roteiros()` + `NOTIFY pgrst, 'reload schema'`.
+`preco_minimo` (gestor, sem taxa) continua existindo — índice, cron diário e triggers inalterados.
+
+### 49.2 Front
+
+- **`src/lib/precos-roteiro.ts`**: `PrecoMinimoRoteiro = { preco_minimo_cliente, preco_minimo_modelo }`;
+  `PrecoNaData = { valor, modelo, data }`; `precoExibicaoRoteiro(r, naData?) → { valor, unidade, rotulo }`
+  (`rotulo` = `'a partir de'` ou `rotuloNaData(data)` = `'em dd/mm'`, via `formatarData`);
+  `hrefRoteiro(id, query?, precoNaData?)` (link do detalhe; com preço na data, troca `data` pela data
+  anunciada); `precoNaDataDeLinha(linha)` (linha de `roteiro_preco_exibicao`/`preco_exibicao*` →
+  `PrecoNaData | null`); `escolherDiaDoPreco({ dias, data, flex, temModeloRoteiro, diaria })` —
+  **espelho TS** da regra "com data" sobre o calendário que o detalhe já carrega.
+- **`RoteiroCard`**: prop opcional `precoNaData` (substitui o "a partir de"; rótulo acima do valor vem
+  de `precoInfo.rotulo`; `href` via `hrefRoteiro`). Layout inalterado.
+- **SELECTs dos cards** (`/buscar`, `/favoritos`, `/embarcacoes/[id]/roteiros`, `lib/roteiros-top.ts`):
+  `preco_minimo` → `preco_minimo_cliente`.
+- **`/buscar`**: lê `preco_exibicao*` das linhas da RPC (`precoNaDataPorId`) e passa ao card e ao mapa.
+  `PontoMapa.preco` virou `PrecoExibicao | null` (`MapaResultados` mostra "A partir de R$ X/dia" ou
+  "Em dd/mm R$ X/dia"). O link do card/pin de **embarcação** leva `data/flex/pessoas` além de `voltar`.
+- **`/embarcacoes/[id]/roteiros`**: lê `data/flex/pessoas`; com data, chama `roteiro_preco_exibicao`
+  por roteiro (`Promise.all`) e repassa `precoNaData` + `query` ao `RoteirosCarousel`
+  (`RoteiroCarouselItem.precoNaData`; `EmbarcacaoDetalheView` ganhou `query?`). Roteiros sem dia
+  reservável no intervalo mostram o "a partir de" e vão para o fim do carrossel.
+- **`/roteiros/[id]`**: select inclui `preco_minimo_modelo`. Com `?data`, `escolherDiaDoPreco` define o
+  dia (com flex, o mais barato do intervalo — fallback para links sem a data anunciada) e o modelo
+  iniciais; sem data, abre no modelo do "a partir de" (`preco_minimo_modelo`). `RoteiroDetalheView`
+  ganhou `initialModalidade?`. Escolher outra data continua atualizando o valor (`DataReservaContext`).
+- **Painel — card da Revisão** (`etapasRoteiro.ts`): `revisaoRoteiro` recebe `agenda: AgendaPreview`
+  (no lugar de `diasOperacao/janelaMeses/diasRoteiro` soltos) e calcula o "a partir de" com taxa sobre
+  `calendarioPreview(precoBase, agenda)` — extraída de `montarPreviewRoteiro`
+  (`src/components/preview/montar.ts`), a mesma da prévia da página — e a diária com `decomporPreco`.
+  Os dois formulários montam `agendaPreview` uma vez e passam à Revisão e à prévia.
+- **Tipos** (`src/types/supabase.ts`): `roteiro.Row.preco_minimo_cliente` (só leitura),
+  `Functions.roteiro_preco_exibicao`, retorno novo de `buscar_roteiros`.
+
+### 49.3 Testes
+
+- PGlite (esquema mínimo + migrations reais 20261010d → 20261016 → 20261017 → 20261019, a última duas
+  vezes): `valor_cliente` × `calcularValoresPedido` em 20.040 valores/taxas sem divergência (inclui
+  bordas ".5"); "a partir de" = menor total do calendário (o que o detalhe calcula) com regras de período
+  e dia da semana, diária mais barata e roteiro sem `preco_base`; reserva confirmada de outro roteiro do
+  barco, cancelamento, pendente, intervalo Por Diária aguardando pagamento, DELETE e reserva passada;
+  taxa do gestor alterada/vencida refletindo na hora; `roteiro_preco_exibicao` × `escolherDiaDoPreco`
+  (TS real transpilado) em 525 combinações data/flex com dias fechados, barco fechado e reservado;
+  busca (preço sem/com data, faixa no limite exato, roteiro sem preço fora da faixa, ordenação);
+  permissão de `anon`. 584 verificações.
+
+## 50. Taxa de serviço invisível ao cliente (19/10/2026)
+
+Nenhuma tela do cliente mostra a taxa de serviço (linha, percentual ou "já com a taxa"): todo valor
+exibido já é o "Cliente paga". Cobrança, repasse, snapshots (`reserva.taxa_servico/taxa_percent`,
+`pedido.valor_comissao`) e o painel do gestor (Você recebe × Cliente paga) **não mudam**.
+
+**Helpers** (`src/lib/pagamentos/valores.ts`, puros):
+- `precoComTaxa(preco, taxaPercent)` — preço de um item com a taxa embutida
+  (`calcularValoresPedido` com um item).
+- `valoresParaCliente({ precoUnitario, multiplicador, totalAdicionais, taxaPercent, descontoCupom })`
+  → `{ passeio, adicionais, desconto, total }`: mesma conta de `calcularValoresPedido`, com a taxa
+  distribuída nas linhas. `passeio = precoComTaxa(preço × n)` (igual ao cabeçalho/calendário);
+  `adicionais = itens + comissão − passeio` — fica com o arredondamento (a comissão é em reais
+  inteiros sobre o pedido todo), então as linhas somam exatamente o total cobrado. Efeito colateral
+  conhecido: a linha "Adicionais" pode diferir em R$ 1 da soma dos adicionais exibidos um a um (com
+  preços com centavos/ímpares; com preços redondos não ocorre).
+
+**Telas:**
+- `BookingCard` (`/roteiros/[id]`): `valoresParaCliente` no resumo — "Passeio"/"Diárias × N" +
+  "Adicionais" + "Total"; sem linha de taxa; textos do cabeçalho "Valor para a data selecionada." /
+  "O preço varia conforme a data." (Por Diária sem texto); nota do total só sobre o cupom.
+- `CartProvider` recebe `taxaPercent` (do calendário) e expõe `precoCliente(preco)`;
+  `AddonsAccordion` mostra cada adicional e a soma dos selecionados com a taxa. `totalAdicionais`
+  continua pelo preço do gestor (entra na conta).
+- `CalendarioReserva` (legenda "Valores em R$ por dia"; título do dia sem "(com a taxa)") e
+  `DisponibilidadeSecao` ("Escolha o dia do passeio. Os valores são por dia." — seção removida depois, §51).
+- `/reservas/novo`: adicionais selecionados com `precoComTaxa`; `ConfirmarReserva` usa
+  `valoresParaCliente` (passeio, adicionais, desconto, total estimado), sem linha de taxa; aviso de
+  cupom limitado: "Este cupom tem um desconto máximo por reserva — o valor acima já é o máximo.";
+  `MSG_CUPOM_SEM_TAXA` (actions) = "Este cupom não se aplica a esta reserva."
+- `/reservas/[id]/pagar`: "Passeio e adicionais" = `valor_itens + valor_comissao`; sem linha de taxa
+  (`comissao_percentual` saiu do select).
+- `/minhas-reservas`: select inclui `taxa_percent`; adicionais exibidos com `precoComTaxa(valor,
+  taxa_percent ?? 0)`.
+- FAQ (`/help`): respostas de cupom e pagamento sem citar a taxa.
+- `/boats/[id]` (página antiga com dados mockados, sem links): linha "Taxa de serviço & tripulação"
+  removida (valor somado à linha das diárias).
+- Fica com a taxa (destinatário é o gestor): e-mail `reserva-solicitada`.
+
+**Testes:** `valoresParaCliente` em 200.000 combinações (preço, diárias, adicionais, taxas 0–18,75%,
+cupom): linhas somam o total de `calcularValoresPedido`, passeio = `precoComTaxa`, adicionais ≥ 0.
+Navegador (`/roteiros/[id]` com data e adicional): nenhuma ocorrência de "taxa" na página; Passeio
+R$ 9.200 + Adicionais R$ 92 = Total R$ 9.292 (mesmo total do checkout).
+
+## 51. Detalhe do roteiro sem a seção "Disponibilidade e preços" (19/10/2026)
+
+- `RoteiroDetalheView` não renderiza mais a seção do calendário aberto (`#disponibilidade`); o
+  componente `src/app/roteiros/[id]/_components/DisponibilidadeSecao.tsx` foi apagado (era o único
+  uso). O calendário continua no popover do campo Data do `BookingCard` (`CalendarioReserva`, mesmo
+  componente: preço por dia, menor preço do mês, indisponíveis riscados, janela de reservas, período
+  Por Diária).
+- `DataReservaContext` segue em uso (data/flex/modelo/diárias pré-preenchidos da busca e lidos pelo
+  `BookingCard`); comentários atualizados.
+- Verificação: navegador em `/roteiros/[id]` — nenhuma seção "Disponibilidade e preços"; o popover
+  do campo Data mostra os preços por dia. `tsc` e `eslint` limpos.
+
+## 52. Previsão do tempo na confirmação — aviso de data distante (19/10/2026)
+
+`src/app/reservas/novo/_components/PrevisaoTempoCard.tsx` (ver §20.3b):
+- Estado `fora-do-alcance`: ícone `Hourglass` (lucide, `strokeWidth 1.75`, `text-[#0B3D91]`, fundo
+  `from-sky-50 to-cyan-50 ring-sky-100`) no lugar de `CloudOff`; título "A previsão do tempo estará
+  disponível a partir dos 15 dias que antecedem seu passeio."; corpo "Seu passeio está marcado para
+  {data}. Volte a esta página nos 15 dias anteriores para conferir as condições esperadas em
+  {localidade}."
+- Corte da 1ª linha ao expandir: o parágrafo do corpo tinha `-mt-2` dentro do wrapper
+  `overflow-hidden` da animação `grid-rows` — a margem negativa empurrava o topo do texto para fora
+  da área visível. Removida nos estados `fora-do-alcance` e `indisponivel` (este mantém `CloudOff`,
+  é falha de fato).
+- `src/lib/weather.ts`: `DIAS_MAX_PREVISAO` 16 → 15 (alcance real da API; ver §20.3b).
+- Verificação: rota temporária (removida) com os dois estados, 900px — topo do texto = topo da área
+  visível (sem corte); `tsc`/`eslint` limpos.

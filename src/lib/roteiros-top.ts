@@ -59,7 +59,7 @@ export async function getRoteirosTopAvaliados(opts: {
   const { data: detalhes, error } = await supabaseAdmin
     .from('roteiro')
     .select(
-      `id, nome, descricao, quantidade_pessoas, preco_minimo, preco_minimo_modelo, duracao,
+      `id, nome, descricao, quantidade_pessoas, preco_minimo_cliente, preco_minimo_modelo, duracao,
        municipios ( nome, estados ( uf ) ),
        roteiro_imagens ( url_imagem, principal ),
        embarcacao ( embarcacao_tipo ( nome ) )`,

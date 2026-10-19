@@ -41,7 +41,7 @@ export type PrevisaoTempo = {
 
 export type ResultadoPrevisao =
   | { status: 'ok'; previsao: PrevisaoTempo }
-  /** Data além do alcance da previsão diária gratuita do Open-Meteo (~16 dias). */
+  /** Data além do alcance da previsão diária gratuita do Open-Meteo (hoje + 15 dias). */
   | { status: 'fora-do-alcance' }
   /** Falha de rede/API — não é motivo para quebrar a página de reserva. */
   | { status: 'indisponivel' };
@@ -85,8 +85,9 @@ function condicaoDoCodigo(codigo: number): CondicaoClima {
     : { codigo, label: 'Condição indisponível', paleta: 'nublado' };
 }
 
-// Janela de previsão diária confiável da API gratuita do Open-Meteo.
-const DIAS_MAX_PREVISAO = 16;
+// Janela de previsão diária da API gratuita do Open-Meteo: 16 dias contando
+// hoje (hoje + 15). É o "15 dias que antecedem seu passeio" do card.
+const DIAS_MAX_PREVISAO = 15;
 
 /**
  * Busca a previsão do tempo para uma coordenada e data específicas.

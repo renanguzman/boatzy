@@ -8,8 +8,10 @@ import { MapPin, Users, Clock, Ship, Star } from 'lucide-react';
 import { alternarFavorito } from '@/lib/favoritos-actions';
 import {
   formatarPreco,
+  hrefRoteiro,
   precoExibicaoRoteiro,
   type PrecoMinimoRoteiro,
+  type PrecoNaData,
 } from '@/lib/precos-roteiro';
 
 export type AvaliacaoResumoCard = { media: number; total: number };
@@ -34,10 +36,16 @@ export default function RoteiroCard({
   query,
   initialFavorito = false,
   avaliacaoResumo = null,
+  precoNaData = null,
 }: {
   roteiro: RoteiroCardData;
   /** Querystring (sem '?') com os filtros da busca (data/flex/pessoas) para pré-preencher o detalhe. */
   query?: string;
+  /**
+   * Preço na data escolhida pelo cliente (busca com data ± flex). Substitui o
+   * "a partir de", e o link abre o detalhe já nessa data — que mostra o mesmo valor.
+   */
+  precoNaData?: PrecoNaData | null;
   /** Se o usuário logado já favoritou este roteiro (false quando deslogado). */
   initialFavorito?: boolean;
   /** Média/total de avaliações do roteiro; null = sem avaliações (exibe o badge "Novo"). */
@@ -75,8 +83,8 @@ export default function RoteiroCard({
       : roteiro.municipios.nome
     : null;
 
-  const href = query ? `/roteiros/${roteiro.id}?${query}` : `/roteiros/${roteiro.id}`;
-  const precoInfo = precoExibicaoRoteiro(roteiro);
+  const href = hrefRoteiro(roteiro.id, query, precoNaData);
+  const precoInfo = precoExibicaoRoteiro(roteiro, precoNaData);
 
   return (
     <Link
@@ -163,7 +171,7 @@ export default function RoteiroCard({
         <div className="flex items-end justify-between pt-3 border-t border-slate-50">
           {precoInfo ? (
             <div>
-              <span className="block text-[9px] text-slate-400 uppercase tracking-wide">a partir de</span>
+              <span className="block text-[9px] text-slate-400 uppercase tracking-wide">{precoInfo.rotulo}</span>
               <span className="text-base font-bold text-[#0B3D91]">
                 {formatarPreco(precoInfo.valor)}
               </span>

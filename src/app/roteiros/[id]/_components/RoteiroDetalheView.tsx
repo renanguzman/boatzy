@@ -15,7 +15,6 @@ import BookingCard from './BookingCard';
 import EmbarcacaoFotosModal from './EmbarcacaoFotosModal';
 import { CartProvider } from './CartContext';
 import { DataReservaProvider } from './DataReservaContext';
-import DisponibilidadeSecao from './DisponibilidadeSecao';
 import type { CalendarioCliente } from '@/lib/disponibilidade';
 import LocalizacaoMap from './LocalizacaoMap';
 import GaleriaRoteiro from './GaleriaRoteiro';
@@ -89,6 +88,7 @@ export default function RoteiroDetalheView({
   initialData,
   initialFlex,
   initialPessoas,
+  initialModalidade,
 }: {
   roteiro: RoteiroDetalheDados;
   avaliacoes: AvaliacaoPublica[];
@@ -99,6 +99,8 @@ export default function RoteiroDetalheView({
   initialData?: string;
   initialFlex?: number;
   initialPessoas?: number;
+  /** Modelo em que o card de reserva abre — o mesmo do preço anunciado no card. */
+  initialModalidade?: 'roteiro' | 'diaria';
 }) {
   // Ordem da galeria definida pelo gestor
   const images = ordenarImagens(roteiro.roteiro_imagens);
@@ -131,12 +133,12 @@ export default function RoteiroDetalheView({
       {/* Content */}
       <section className="pb-16" id="roteiro-content">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-          <CartProvider addons={catalogAddons}>
+          <CartProvider addons={catalogAddons} taxaPercent={calendario.taxaPercent}>
           {/* Data vinda da busca só vale se o dia estiver disponível no calendário. */}
           <DataReservaProvider
             dataInicial={initialData && calendario.dias.find(d => d.data === initialData)?.status === 'disponivel' ? initialData : null}
             flexInicial={initialFlex ?? 0}
-            modalidadeInicial={roteiro.preco_base != null || !roteiro.preco_diaria_ativo ? 'roteiro' : 'diaria'}
+            modalidadeInicial={initialModalidade ?? (roteiro.preco_base != null || !roteiro.preco_diaria_ativo ? 'roteiro' : 'diaria')}
             diariasIniciais={roteiro.preco_diaria_minimo}>
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-10">
 
@@ -240,9 +242,6 @@ export default function RoteiroDetalheView({
                   </div>
                 )}
               </div>
-
-              {/* Disponibilidade e preços — o calendário configurado pelo gestor */}
-              <DisponibilidadeSecao calendario={calendario} />
 
               {/* Embarcação details */}
               {roteiro.embarcacao && (

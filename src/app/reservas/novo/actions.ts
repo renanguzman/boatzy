@@ -281,7 +281,8 @@ async function checarBloqueioCupom(clienteId: string): Promise<{ bloqueado: bool
 
 const MSG_BLOQUEADO = 'Muitas tentativas incorretas com cupom. Tente novamente mais tarde.';
 
-const MSG_CUPOM_SEM_TAXA = 'Este cupom não se aplica a esta reserva: ela não tem taxa de serviço.';
+// O cliente não vê a taxa de serviço, então a mensagem não a menciona.
+const MSG_CUPOM_SEM_TAXA = 'Este cupom não se aplica a esta reserva.';
 
 function arredondarCentavos(v: number): number {
   return Math.round(v * 100) / 100;

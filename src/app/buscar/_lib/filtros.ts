@@ -20,7 +20,10 @@ export type BuscaSearchParams = {
   tipo_embarcacao?: string;
   /** Rótulo do tipo para chip/título (evita query extra). */
   tipo_nome?: string;
-  /** Faixa de preço (`preco_minimo` do roteiro), em reais — só na aba Roteiros. */
+  /**
+   * Faixa de preço, em reais, sobre o valor que o card mostra (com a taxa; com data,
+   * o valor da data — `buscar_roteiros.preco_exibicao`). Só na aba Roteiros.
+   */
   preco_min?: string;
   preco_max?: string;
   /** Faixa de duração do passeio, em horas (1 dia = 24h). */

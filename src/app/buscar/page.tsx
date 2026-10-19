@@ -18,6 +18,7 @@ import EmbarcacaoCard, { type EmbarcacaoCardData } from '@/components/ui/Embarca
 import Link from 'next/link';
 import { SlidersHorizontal, X } from 'lucide-react';
 import { faixaDuracaoLabel, faixaPrecoLabel } from '@/lib/duracao';
+import { hrefRoteiro, precoExibicaoRoteiro, precoNaDataDeLinha, type PrecoNaData } from '@/lib/precos-roteiro';
 import {
   buildBuscarUrl,
   contarFiltrosAvancados,
@@ -88,7 +89,7 @@ function mapEmbarcacaoRow(d: EmbarcacaoDetalheRow): EmbarcacaoCardData {
   };
 }
 
-const ROTEIRO_SELECT = `id, nome, descricao, quantidade_pessoas, preco_minimo, preco_minimo_modelo,
+const ROTEIRO_SELECT = `id, nome, descricao, quantidade_pessoas, preco_minimo_cliente, preco_minimo_modelo,
    duracao, latitude, longitude,
    municipios ( nome, estados ( uf ) ),
    roteiro_imagens ( url_imagem, principal ),
@@ -149,6 +150,10 @@ export default async function BuscarPage({ searchParams }: { searchParams: Promi
   // do grid, que é montado depois porque depende dos hrefs dos cards.
   let roteirosRows: RoteiroDetalheRow[] = [];
   let embarcacoesRows: EmbarcacaoDetalheRow[] = [];
+  // Com data na busca: preço de cada roteiro na data (± flex), já com a taxa —
+  // o mesmo valor que a RPC usou na faixa de preço e na ordenação. Sem data
+  // fica vazio e o card mostra o "a partir de".
+  let precoNaDataPorId = new Map<string, PrecoNaData>();
 
   if (modoListaEmbarcacoes) {
     const { data: rpcRows, error: rpcError } = await supabaseAdmin.rpc('buscar_embarcacoes', {
@@ -229,6 +234,12 @@ export default async function BuscarPage({ searchParams }: { searchParams: Promi
     const rows = rpcRows ?? [];
     total = rows.length > 0 ? Number(rows[0].total) : 0;
     ids = rows.map((r) => r.id);
+    precoNaDataPorId = new Map(
+      rows.flatMap((r) => {
+        const p = precoNaDataDeLinha({ preco: r.preco_exibicao, modelo: r.preco_exibicao_modelo, data: r.preco_exibicao_data });
+        return p ? [[r.id, p] as const] : [];
+      }),
+    );
 
     // Busca os detalhes (com joins) preservando a ordem retornada pela RPC.
     if (ids.length > 0) {
@@ -281,10 +292,14 @@ export default async function BuscarPage({ searchParams }: { searchParams: Promi
     return sp.toString();
   })();
 
+  // Link da embarcação: leva os mesmos filtros (os cards de roteiro de lá
+  // mostram o preço na data) e o "voltar" para esta busca.
+  const hrefEmbarcacao = (id: string, voltar: string) =>
+    `/embarcacoes/${id}/roteiros?${detalheQuery ? `${detalheQuery}&` : ''}voltar=${encodeURIComponent(voltar)}`;
+
   // Pontos do mapa (mesma página de resultados, mesmos hrefs dos cards).
   // Itens sem coordenada cadastrada simplesmente não entram — o cabeçalho do
   // mapa informa "X de Y com localização".
-  const voltarParaBusca = encodeURIComponent(buildBuscarUrl(params, {}));
   const pontosMapa: PontoMapa[] = modoListaEmbarcacoes
     ? embarcacoesRows.flatMap((d) =>
         temCoordenada(d.latitude, d.longitude)
@@ -294,7 +309,7 @@ export default async function BuscarPage({ searchParams }: { searchParams: Promi
                 nome: d.nome,
                 lat: Number(d.latitude),
                 lng: Number(d.longitude),
-                href: `/embarcacoes/${d.id}/roteiros?voltar=${voltarParaBusca}`,
+                href: hrefEmbarcacao(d.id, buildBuscarUrl(params, {})),
                 subtitulo: d.embarcacao_tipo?.nome ?? null,
                 localidade: localidadeDe(d.municipios),
                 preco: null,
@@ -313,10 +328,10 @@ export default async function BuscarPage({ searchParams }: { searchParams: Promi
                 nome: d.nome,
                 lat: Number(d.latitude),
                 lng: Number(d.longitude),
-                href: detalheQuery ? `/roteiros/${d.id}?${detalheQuery}` : `/roteiros/${d.id}`,
+                href: hrefRoteiro(d.id, detalheQuery, precoNaDataPorId.get(d.id)),
                 subtitulo: d.embarcacao?.nome ?? null,
                 localidade: localidadeDe(d.municipios),
-                preco: d.preco_minimo,
+                preco: precoExibicaoRoteiro(d, precoNaDataPorId.get(d.id)),
                 imagem:
                   (d.roteiro_imagens.find((i) => i.principal) ?? d.roteiro_imagens[0])?.url_imagem ??
                   null,
@@ -556,7 +571,7 @@ export default async function BuscarPage({ searchParams }: { searchParams: Promi
                           embarcacao={e}
                           initialFavorito={favoritosEmbarcacaoSet.has(e.id)}
                           avaliacaoResumo={avaliacoesResumoEmbarcacao.get(e.id) ?? null}
-                          href={`/embarcacoes/${e.id}/roteiros?voltar=${encodeURIComponent(buildPageUrl(params, {}))}`}
+                          href={hrefEmbarcacao(e.id, buildPageUrl(params, {}))}
                         />
                       ))}
                     </div>
@@ -615,6 +630,7 @@ export default async function BuscarPage({ searchParams }: { searchParams: Promi
                         key={r.id}
                         roteiro={r}
                         query={detalheQuery}
+                        precoNaData={precoNaDataPorId.get(r.id) ?? null}
                         initialFavorito={favoritosRoteiroSet.has(r.id)}
                         avaliacaoResumo={avaliacoesResumoRoteiro.get(r.id) ?? null}
                       />

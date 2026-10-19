@@ -7,8 +7,9 @@ import { type RoteiroCardData } from '@/app/buscar/_components/RoteiroCard';
 import { supabaseAdmin } from '@/lib/supabase';
 import { createClient } from '@/lib/supabase/server';
 import { getAvaliacoesResumoPorRoteiro } from '@/lib/avaliacoes';
+import { precoNaDataDeLinha, type PrecoNaData } from '@/lib/precos-roteiro';
 
-const ROTEIRO_SELECT = `id, nome, descricao, quantidade_pessoas, preco_minimo, preco_minimo_modelo,
+const ROTEIRO_SELECT = `id, nome, descricao, quantidade_pessoas, preco_minimo_cliente, preco_minimo_modelo,
    duracao,
    municipios ( nome, estados ( uf ) ),
    roteiro_imagens ( url_imagem, principal ),
@@ -19,11 +20,24 @@ export default async function RoteirosDaEmbarcacaoPage({
   searchParams,
 }: {
   params: Promise<{ id: string }>;
-  searchParams: Promise<{ voltar?: string }>;
+  searchParams: Promise<{ voltar?: string; data?: string; flex?: string; pessoas?: string }>;
 }) {
   const { id } = await params;
   const sp = await searchParams;
   const voltarHref = sp.voltar ? decodeURIComponent(sp.voltar) : '/buscar?tipo=embarcacao';
+
+  // Filtros vindos da busca (data ± flex, pessoas): os cards mostram o preço na
+  // data e levam esses filtros ao detalhe do roteiro — mesmo comportamento da busca.
+  const dataBusca = sp.data && /^\d{4}-\d{2}-\d{2}$/.test(sp.data) ? sp.data : null;
+  const flex = Math.max(0, parseInt(sp.flex ?? '0') || 0);
+  const pessoas = Math.max(0, parseInt(sp.pessoas ?? '0') || 0);
+  const query = (() => {
+    const q = new URLSearchParams();
+    if (dataBusca) q.set('data', dataBusca);
+    if (flex > 0) q.set('flex', String(flex));
+    if (pessoas > 0) q.set('pessoas', String(pessoas));
+    return q.toString();
+  })();
 
   const { data, error } = await supabaseAdmin
     .from('embarcacao')
@@ -54,8 +68,27 @@ export default async function RoteirosDaEmbarcacaoPage({
   if (roteirosError) {
     console.error('[embarcacoes/[id]/roteiros] falha ao buscar roteiros:', roteirosError);
   }
-  const roteiros = (roteirosData ?? []) as unknown as RoteiroCardData[];
-  const roteiroIds = roteiros.map((r) => r.id);
+  const todosRoteiros = (roteirosData ?? []) as unknown as RoteiroCardData[];
+  const roteiroIds = todosRoteiros.map((r) => r.id);
+
+  // Preço de cada roteiro na data da busca (mesma função da busca). Os que não
+  // têm dia reservável no intervalo mostram o "a partir de" e vão para o fim.
+  const precoNaDataPorId = new Map<string, PrecoNaData>();
+  if (dataBusca) {
+    const linhas = await Promise.all(
+      roteiroIds.map((roteiroId) =>
+        supabaseAdmin.rpc('roteiro_preco_exibicao', { p_roteiro_id: roteiroId, p_data: dataBusca, p_flex: flex }),
+      ),
+    );
+    linhas.forEach(({ data: linha, error: erroPreco }, i) => {
+      if (erroPreco) console.error('[embarcacoes/[id]/roteiros] falha no preço na data:', erroPreco);
+      const preco = precoNaDataDeLinha(linha?.[0]);
+      if (preco) precoNaDataPorId.set(roteiroIds[i], preco);
+    });
+  }
+  const roteiros = dataBusca
+    ? [...todosRoteiros.filter((r) => precoNaDataPorId.has(r.id)), ...todosRoteiros.filter((r) => !precoNaDataPorId.has(r.id))]
+    : todosRoteiros;
 
   const avaliacoesResumo = await getAvaliacoesResumoPorRoteiro(roteiroIds);
 
@@ -77,6 +110,7 @@ export default async function RoteirosDaEmbarcacaoPage({
     roteiro,
     initialFavorito: favoritosSet.has(roteiro.id),
     avaliacaoResumo: avaliacoesResumo.get(roteiro.id) ?? null,
+    precoNaData: precoNaDataPorId.get(roteiro.id) ?? null,
   }));
 
   return (
@@ -86,6 +120,7 @@ export default async function RoteirosDaEmbarcacaoPage({
       <EmbarcacaoDetalheView
         embarcacao={embarcacao}
         roteiros={carouselItems}
+        query={query}
         voltarHref={voltarHref}
         ehDono={user?.id === embarcacao.owner_id}
       />

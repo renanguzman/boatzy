@@ -24,7 +24,6 @@ type PedidoPagar = {
   expira_em: string | null;
   pago_em: string | null;
   valor_itens: number;
-  comissao_percentual: number;
   valor_comissao: number;
   valor_desconto: number;
   valor_total: number;
@@ -67,7 +66,7 @@ export default async function PagarReservaPage({
     .select(
       `id, tipo, item_nome, data_reserva, data_fim_reserva, quantidade_pessoas,
        roteiro ( nome, municipios ( nome, estados ( uf ) ) ),
-       pedido ( id, numero, status, expira_em, pago_em, valor_itens, comissao_percentual, valor_comissao,
+       pedido ( id, numero, status, expira_em, pago_em, valor_itens, valor_comissao,
                 valor_desconto, valor_total, pedido_desconto ( cupom_codigo, valor ) )`,
     )
     .eq('id', id)
@@ -177,10 +176,10 @@ export default async function PagarReservaPage({
 
             {pedido && (
               <div className="mt-5 pt-4 border-t border-slate-100 space-y-2 text-sm">
-                <div className="flex justify-between"><span className="text-slate-500">Passeio e adicionais</span><span className="text-slate-700">{formatCurrencyPrecise(Number(pedido.valor_itens))}</span></div>
+                {/* Taxa de serviço embutida: o cliente não a vê separada. */}
                 <div className="flex justify-between">
-                  <span className="text-slate-500">Taxa de serviço ({Number(pedido.comissao_percentual).toLocaleString('pt-BR', { maximumFractionDigits: 2 })}%)</span>
-                  <span className="text-slate-700">{formatCurrencyPrecise(Number(pedido.valor_comissao))}</span>
+                  <span className="text-slate-500">Passeio e adicionais</span>
+                  <span className="text-slate-700">{formatCurrencyPrecise(Number(pedido.valor_itens) + Number(pedido.valor_comissao))}</span>
                 </div>
                 {Number(pedido.valor_desconto) > 0 && (
                   <div className="flex justify-between text-emerald-600">

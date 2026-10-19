@@ -824,6 +824,11 @@ export type Database = {
           preco_minimo: number | null;
           preco_minimo_modelo: ReservaModalidadePreco | null;
           preco_minimo_roteiro: number | null;
+          /**
+           * Campo computado (função `preco_minimo_cliente`, 20261019): `preco_minimo`
+           * + taxa do gestor — o "a partir de" que o cliente vê. Só leitura.
+           */
+          preco_minimo_cliente: number | null;
           /** Derivado por trigger: roteiro Ativo E embarcação vinculada Ativa (visível no site). */
           ativo: boolean;
           created_at: string;
@@ -2468,6 +2473,15 @@ export type Database = {
         Args: { p_roteiro_id: string; p_data: string };
         Returns: boolean;
       };
+      /**
+       * Preço que o card exibe, já com a taxa: sem data, o "a partir de"; com
+       * data ± flex, o menor valor entre os dias reserváveis e a data dele.
+       * Vazio = sem preço / sem dia reservável. Ver 20261019.
+       */
+      roteiro_preco_exibicao: {
+        Args: { p_roteiro_id: string; p_data?: string | null; p_flex?: number | null };
+        Returns: { preco: number; modelo: string; data: string | null }[];
+      };
       /** Job diário que reavalia a janela de reservas de `roteiro.preco_minimo`. */
       recalcular_precos_minimos_roteiros: {
         Args: Record<string, never>;
@@ -2536,7 +2550,15 @@ export type Database = {
           p_acessorio_ids?: string[] | null;
           p_equipamento_seguranca_ids?: string[] | null;
         };
-        Returns: { id: string; distancia_km: number | null; total: number }[];
+        /** `preco_exibicao*`: o preço do card (com a taxa) — com data, o da data (20261019). */
+        Returns: {
+          id: string;
+          distancia_km: number | null;
+          total: number;
+          preco_exibicao: number | null;
+          preco_exibicao_modelo: string | null;
+          preco_exibicao_data: string | null;
+        }[];
       };
       chat_nao_lidas_por_cliente: {
         Args: { p_gestor?: string };

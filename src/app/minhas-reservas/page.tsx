@@ -19,6 +19,7 @@ import type { ReservaStatus, AvaliacaoStatus, PedidoStatus } from '@/types/supab
 import CancelarReservaButton from './_components/CancelarReservaButton';
 import AvaliacaoReserva from './_components/AvaliacaoReserva';
 import { FUSO_HORARIO } from '@/lib/datas';
+import { precoComTaxa } from '@/lib/pagamentos/valores';
 
 type AvaliacaoResumo = { nota: number; comentario: string | null; created_at: string; status: AvaliacaoStatus };
 
@@ -34,6 +35,8 @@ type ReservaCliente = {
   preco_base: number | null;
   total_adicionais: number;
   taxa_servico: number | null;
+  /** Snapshot da taxa (%) na solicitação — só para exibir os adicionais com ela embutida. */
+  taxa_percent: number | null;
   total_estimado: number | null;
   cupom_codigo: string | null;
   desconto_valor: number;
@@ -162,7 +165,7 @@ export default async function MinhasReservasPage() {
     .from('reserva')
     .select(
       `id, owner_id, tipo, data_reserva, flexibilidade, quantidade_pessoas, roteiro_id, item_nome,
-       preco_base, total_adicionais, taxa_servico, total_estimado, cupom_codigo, desconto_valor,
+       preco_base, total_adicionais, taxa_servico, taxa_percent, total_estimado, cupom_codigo, desconto_valor,
        status, observacao_gestor, solicitado_em, respondido_em, cancelada_em, pagamento_exigido,
        pedido ( numero, status, expira_em, pago_em, valor_total ),
        roteiro ( nome, municipios ( nome, estados ( uf ) ), roteiro_imagens ( url_imagem, principal ) ),
@@ -304,7 +307,7 @@ export default async function MinhasReservasPage() {
                           {r.reserva_adicional.map((a) => (
                             <div key={a.id} className="flex items-center justify-between text-xs text-slate-600">
                               <span>{a.descricao}</span>
-                              <span className="font-medium">{formatCurrency(a.valor)}</span>
+                              <span className="font-medium">{formatCurrency(precoComTaxa(Number(a.valor), Number(r.taxa_percent ?? 0)))}</span>
                             </div>
                           ))}
                         </div>

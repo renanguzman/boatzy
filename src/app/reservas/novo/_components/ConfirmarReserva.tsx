@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import { CheckCircle2, Loader2, Tag, X, AlertCircle, Clock, ShieldCheck } from 'lucide-react';
 import { criarReserva, validarCupom, type ModalidadeReserva } from '../actions';
 import { formatCurrency } from '@/lib/utils';
+import { valoresParaCliente } from '@/lib/pagamentos/valores';
 import TermoAceite from '@/components/termos/TermoAceite';
 import type { AceiteTermoCliente, TermoParaAceite } from '@/lib/termos/tipos';
 import type { CupomTipoDesconto } from '@/types/supabase';
@@ -27,7 +28,10 @@ type Props = {
   /** Rótulo da linha de preço no resumo — "Diária" ou "Pessoa". */
   rotuloLinha: string;
   totalAdicionais: number;
-  /** Taxa de serviço efetiva (%) do gestor dono do alvo — resolvida no servidor (ver SPEC §14). */
+  /**
+   * Taxa de serviço efetiva (%) do gestor dono do alvo — resolvida no servidor
+   * (ver SPEC §14). Só entra na conta: o cliente vê os valores com ela embutida.
+   */
   taxaPercent: number;
   /** Termo `reserva_cliente` vigente — quando presente, o aceite é obrigatório para enviar. */
   termo: TermoParaAceite | null;
@@ -173,48 +177,44 @@ export default function ConfirmarReserva({
     );
   }
 
-  const precoLinha = precoUnitario != null ? precoUnitario * multiplicador : null;
-  const subtotal = (precoLinha ?? 0) + totalAdicionais;
-  const taxaServicoBruta = precoUnitario != null ? Math.round(subtotal * (taxaPercent / 100)) : null;
-  const totalBruto = precoUnitario != null && taxaServicoBruta != null ? subtotal + taxaServicoBruta : null;
-  const desconto = cupomAplicado?.descontoValor ?? 0;
-  const totalFinal = totalBruto != null ? Math.max(0, totalBruto - desconto) : null;
+  // Mesma conta do pedido, com a taxa de serviço embutida nas linhas (o cliente
+  // não vê a taxa separada). O desconto do cupom já vem limitado do servidor.
+  const valores = precoUnitario != null
+    ? valoresParaCliente({
+        precoUnitario, multiplicador, totalAdicionais, taxaPercent,
+        descontoCupom: cupomAplicado?.descontoValor ?? 0,
+      })
+    : null;
 
   return (
     <>
       {/* Valores + cupom */}
       <div className="mt-6 rounded-2xl border border-slate-200 bg-white shadow-sm overflow-hidden">
         <div className="p-5">
-          {precoUnitario != null ? (
+          {valores ? (
             <div className="space-y-4">
               <div className="space-y-2">
                 <div className="flex items-center justify-between text-sm">
                   <span className="text-slate-600">
                     {rotuloLinha}
-                    {multiplicador > 1 ? ` (${formatCurrency(precoUnitario)} × ${multiplicador})` : ''}
+                    {multiplicador > 1 ? ` × ${multiplicador}` : ''}
                   </span>
-                  <span className="font-medium text-slate-800">{formatCurrency(precoLinha!)}</span>
+                  <span className="font-medium text-slate-800">{formatCurrency(valores.passeio)}</span>
                 </div>
                 {totalAdicionais > 0 && (
                   <div className="flex items-center justify-between text-sm">
                     <span className="text-slate-600">Adicionais</span>
-                    <span className="font-medium text-slate-800">{formatCurrency(totalAdicionais)}</span>
+                    <span className="font-medium text-slate-800">{formatCurrency(valores.adicionais)}</span>
                   </div>
                 )}
-                <div className="flex items-center justify-between text-sm">
-                  <span className="text-slate-600">
-                    Taxa de serviço ({taxaPercent.toLocaleString('pt-BR', { maximumFractionDigits: 2 })}%)
-                  </span>
-                  <span className="font-medium text-slate-800">{formatCurrency(taxaServicoBruta!)}</span>
-                </div>
                 {cupomAplicado && (
                   <div className="flex items-center justify-between text-sm">
                     <span className="text-emerald-600">Desconto ({cupomAplicado.codigo})</span>
-                    <span className="font-medium text-emerald-600">-{formatCurrency(desconto)}</span>
+                    <span className="font-medium text-emerald-600">-{formatCurrency(valores.desconto)}</span>
                   </div>
                 )}
                 {cupomAplicado?.limitadoTaxa && (
-                  <p className="text-xs text-slate-400">O desconto do cupom é limitado ao valor da taxa de serviço.</p>
+                  <p className="text-xs text-slate-400">Este cupom tem um desconto máximo por reserva — o valor acima já é o máximo.</p>
                 )}
               </div>
 
@@ -281,7 +281,7 @@ export default function ConfirmarReserva({
 
               <div className="flex items-center justify-between pt-3 border-t border-slate-200">
                 <span className="text-base font-bold text-[#0B2447]">Total estimado</span>
-                <span className="text-xl font-bold text-[#0B2447]">{formatCurrency(totalFinal!)}</span>
+                <span className="text-xl font-bold text-[#0B2447]">{formatCurrency(valores.total)}</span>
               </div>
             </div>
           ) : (

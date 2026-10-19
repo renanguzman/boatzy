@@ -235,7 +235,7 @@ Exibir:
 - "O que está incluído": itens do catálogo vinculados ao roteiro (`roteiro_catalogo`).
 - "Itinerário": timeline vertical com gradiente — partida, **paradas intermediárias cadastradas pelo gestor (0, 1 ou várias)** e chegada (ver "Paradas do itinerário do roteiro" abaixo).
 - Reviews: seção placeholder.
-- Sidebar `BookingCard`: seleção de data e pessoas, breakdown de preço com taxa de serviço (dinâmica — taxa geral da plataforma ou específica do gestor dono do roteiro, configuráveis em `/administrator/taxas`; ver 6.11), total estimado, botão "Solicitar Reserva" → `/reservas/novo`.
+- Sidebar `BookingCard`: seleção de data e pessoas, resumo de preço com a taxa de serviço **embutida** nos valores (dinâmica — taxa geral da plataforma ou específica do gestor dono do roteiro, configuráveis em `/administrator/taxas`; ver 6.11; desde 19/10/2026 a taxa não aparece em linha própria), total estimado, botão "Solicitar Reserva" → `/reservas/novo`.
 - ✅ O calendário de data do `BookingCard` respeita a **disponibilidade do roteiro**: datas fora dos dias de operação ou bloqueadas pelo gestor aparecem riscadas e não selecionáveis (ver 6.8 → Disponibilidade do roteiro).
 - ✅ Botão **"Converse com o dono"** na sidebar (oculto para o próprio dono vendo seu roteiro) → `/roteiros/[id]/chat`, que abre o chat da plataforma com o gestor do roteiro (ver 6.8 → Chat).
 
@@ -253,10 +253,20 @@ Exibir:
   detalhe — galeria de fotos, badge de tipo, descrição, especificações técnicas
   (capacidade, comprimento, quartos, suítes, banheiros, tripulação) e comodidades a bordo, além do
   botão "Converse com o dono". É a página da embarcação (`/embarcacoes/[id]` redireciona para cá).
-- Abaixo, um **carrossel** com todos os **roteiros ativos** que aquela embarcação realiza (setas de
-  navegação; roteiros inativos nunca aparecem). Clicar num roteiro do carrossel leva ao detalhe
-  normal (`/roteiros/[id]`).
+- Logo abaixo das características (Pessoas, Tripulação, Quartos, Banheiros, Comprimento), um
+  **carrossel "Roteiros desta embarcação"** com todos os **roteiros ativos** que aquela embarcação
+  realiza (roteiros inativos nunca aparecem); equipamentos de segurança, acessórios, comodidades e
+  o botão de chat vêm depois. Clicar num roteiro leva ao detalhe normal (`/roteiros/[id]`).
+- ✅ 19/10/2026 — o carrossel subiu para logo abaixo das características (antes ficava no fim da
+  página) e passou a se comportar como o "Coleção de experiências" da home: ocupa a largura toda,
+  mostra ~4 roteiros no desktop / ~2 no tablet / ~1 no celular com uma fatia do próximo à mostra,
+  rola de lado por arraste (celular) ou pelas setas (tablet/desktop), e as setas ficam
+  desabilitadas quando não há mais para onde rolar. O card do roteiro é o mesmo da busca, com as
+  mesmas informações e layout.
 - Botão "voltar" (na galeria) retorna à busca com os filtros originais (local/data/pessoas/tipo).
+- ✅ 19/10/2026 — preço dos cards igual ao do detalhe e do checkout (com a taxa de serviço). Vindo da
+  busca com data, cada card mostra o preço daquela data ("em dd/mm") e o link leva os filtros ao
+  detalhe do roteiro (ver "Preço ao cliente sincronizado").
 - Primeira versão — mapa de localização, avaliações e favoritar a embarcação nesta tela ficam para
   uma refinada seguinte, a pedido do usuário.
 
@@ -289,9 +299,9 @@ Fluxo de **solicitação** (sem pagamento nesta etapa). Detalhes técnicos: SPEC
   assim que algo é marcado — visível mesmo com o accordion fechado. Cada item marcado entra na
   linha "Adicionais" do "Valor estimado" em tempo real. Os selecionados são registrados na
   solicitação.
-- O detalhe do roteiro/embarcação **não mostra a taxa de serviço** — só "Diária" + "Adicionais" →
-  "Valor estimado", com uma nota avisando que a taxa aparece na confirmação. A taxa (e o "Total
-  estimado" já com ela somada) só é exibida em `/reservas/novo`, ao confirmar a solicitação.
+- ~~O detalhe do roteiro/embarcação não mostra a taxa de serviço… a taxa só é exibida em
+  `/reservas/novo`.~~ Desde 19/10/2026 **nenhuma tela do cliente mostra a taxa de serviço**: todos
+  os valores já vêm com ela embutida (ver "Taxa de serviço invisível ao cliente").
 - "Solicitar Reserva" leva a `/reservas/novo`, que **exige login** e mostra um resumo; ao confirmar,
   cria a reserva como **Pendente** com `cliente_id`, data/hora da solicitação e **snapshot** dos
   valores e adicionais.
@@ -303,8 +313,13 @@ Fluxo de **solicitação** (sem pagamento nesta etapa). Detalhes técnicos: SPEC
   da página; um clique no cabeçalho expande os detalhes. Deixa claro, com destaque visual e link
   para a fonte, que é uma previsão sujeita a mudanças e que o Boatzy não se responsabiliza pela
   exatidão dela. Sem coordenadas cadastradas, a seção simplesmente não aparece; para datas muito
-  distantes (> 16 dias, limite da previsão diária gratuita) ou falha na consulta, mostra um aviso
+  distantes (> 15 dias, limite da previsão diária gratuita) ou falha na consulta, mostra um aviso
   neutro (também colapsável) no lugar — nunca impede a solicitação de reserva.
+  - ✅ 19/10/2026 — data distante: título "A previsão do tempo estará disponível a partir dos 15
+    dias que antecedem seu passeio.", ícone de ampulheta (espera, não erro — antes uma nuvem
+    cortada, que parecia falha do site) e texto aberto sem a primeira linha cortada (o mesmo corte
+    no aviso de falha também foi corrigido). O limite passou de 16 para 15 dias, que é o alcance
+    real da API (com 16, a data no limite caía no aviso de falha).
 - No painel (`/painel/agendamentos`), o gestor vê as solicitações dos seus roteiros (Pendentes em
   destaque) e pode **Confirmar** ou **Recusar**, escrevendo uma **observação** retornada ao cliente.
 
@@ -409,7 +424,9 @@ gestor. Detalhes técnicos: SPEC §20.4–20.5.
 - O desconto sai **só da taxa de serviço** da Boatzy e é **limitado ao valor dela** (desde
   30/09/2026 — antes o excedente abatia o total). O cliente paga no mínimo o valor dos itens e o
   gestor recebe esse valor integral; quando o cupom é maior que a taxa, a tela avisa que o desconto
-  foi limitado. Em reserva sem taxa de serviço, o cupom é recusado.
+  foi limitado. Em reserva sem taxa de serviço, o cupom é recusado. (Desde 19/10/2026 os avisos ao
+  cliente não citam a taxa: "Este cupom tem um desconto máximo por reserva…" / "Este cupom não se
+  aplica a esta reserva." — a regra não mudou.)
 - **Segurança contra força bruta**: 5 tentativas de cupom malsucedidas seguidas (mesmo cliente)
   bloqueiam o campo por 15 minutos, com contagem regressiva visível. A validação final é sempre
   refeita no servidor no momento do envio — o que o cliente vê na pré-visualização nunca é
@@ -721,9 +738,9 @@ As etapas **Preço** e **Disponibilidade** do cadastro/edição de roteiro virar
 - Chips "Disponibilidade alterada" listam dias fechados, abertos e de barco fechado, com desfazer. Tudo vale ao salvar o roteiro.
 
 **Cliente (página do roteiro)**
-- Nova seção **"Disponibilidade e preços"** com o calendário do roteiro (2 meses no computador, 1 no celular): cada dia mostra o **valor total que o cliente vai pagar (preço + taxa de serviço)**, com o menor preço do mês em destaque; dias indisponíveis aparecem riscados, **sem dizer se estão reservados ou fechados**; o limite é a janela daquele roteiro ("Reservas abertas até…").
+- ~~Nova seção **"Disponibilidade e preços"**~~ *(removida em 19/10/2026 — o mesmo calendário, com os preços por dia, fica no campo Data do card de reserva; ver "Detalhe do roteiro sem a seção Disponibilidade e preços")* com o calendário do roteiro (2 meses no computador, 1 no celular): cada dia mostra o **valor total que o cliente vai pagar (preço + taxa de serviço)**, com o menor preço do mês em destaque; dias indisponíveis aparecem riscados, **sem dizer se estão reservados ou fechados**; o limite é a janela daquele roteiro ("Reservas abertas até…").
 - O campo de data do card de reserva abre o mesmo calendário (com a flexibilidade ± dias); escolher um dia na seção preenche o card e vice-versa. No Por Diária, os dois calendários destacam o período das diárias e avisam se algum dia estiver indisponível.
-- O card passou a mostrar **sempre o total com a taxa** (cabeçalho "a partir de", preço do dia, por diária) e o detalhamento passeio + adicionais + taxa de serviço = total.
+- O card passou a mostrar **sempre o total com a taxa** (cabeçalho "a partir de", preço do dia, por diária) e o detalhamento passeio + adicionais + taxa de serviço = total. *(19/10/2026: a linha "Taxa de serviço" saiu — passeio e adicionais já vêm com ela embutida.)*
 
 **Um passeio por barco por dia**
 - Reserva confirmada (ou aceita aguardando pagamento) em qualquer roteiro do barco ocupa o dia — no Por Diária, o período inteiro — em **todos** os roteiros do barco: no calendário do cliente, no checkout, no aceite do gestor e na busca. O banco garante isso mesmo em aceites simultâneos (antes ele só comparava o primeiro dia da reserva: uma diária de 10 a 12 não impedia outra reserva no dia 11).
@@ -734,7 +751,7 @@ As etapas **Preço** e **Disponibilidade** do cadastro/edição de roteiro virar
 - A busca por data passou a considerar reservas do barco, dias fechados e a janela (antes mostrava roteiros que o cliente não conseguiria reservar).
 - O "A partir de R$ X" considera só os dias reserváveis dentro da janela do roteiro.
 
-**Decisões:** total com taxa no calendário e no card do roteiro; gestor decide entre pedidos conflitantes (sem recusa automática); "fechar o barco inteiro" incluído; janelas fixas de 3/6/9/12 meses; um passeio por barco por dia (turnos ficam para o futuro). Os cards da busca continuam anunciando o "a partir de" sem a taxa. Detalhes técnicos: `SPEC.md` §48.
+**Decisões:** total com taxa no calendário e no card do roteiro; gestor decide entre pedidos conflitantes (sem recusa automática); "fechar o barco inteiro" incluído; janelas fixas de 3/6/9/12 meses; um passeio por barco por dia (turnos ficam para o futuro). ~~Os cards da busca continuam anunciando o "a partir de" sem a taxa.~~ Revisto em 19/10/2026: os cards também mostram o valor com a taxa (ver "Preço ao cliente sincronizado"). Detalhes técnicos: `SPEC.md` §48.
 
 #### ✅ Implementado — Barra de preço do dia fixa no calendário (16/10/2026)
 
@@ -1518,6 +1535,9 @@ A taxa padrão configurada inicialmente é **10%**. Admins podem alterá-la a qu
 
 ### ✅ Preço "A partir de" nos roteiros (10/10/2026)
 
+> Atualizado em 19/10/2026: o "a partir de" passou a ser o valor **com a taxa de serviço** e, na
+> busca com data, o card mostra o preço da data — ver "Preço ao cliente sincronizado".
+
 - O card do roteiro passa a anunciar sempre **"A partir de R$ X"**, com o **menor preço que o cliente
   pode efetivamente pagar** no próximo ano, considerando todas as faixas de preço cadastradas pelo
   gestor e todos os modelos de cobrança ativos (Roteiro, Por Diária, Por Pessoa). Mesma lógica que o
@@ -1744,6 +1764,67 @@ verificação de posse em regras de preço, catálogo e paradas do roteiro.
 **Fora de escopo / próximos passos:** previsão de retorno da manutenção; SLA/alerta de fila parada;
 notificação ao admin por e-mail a cada envio; paginação/busca na lista de anúncios do admin (hoje
 mostra os 100 primeiros por aba).
+
+### ✅ Preço ao cliente sincronizado — card = detalhe = checkout (19/10/2026)
+
+**Problema:** o mesmo roteiro aparecia com dois preços. Ex.: Ilha do Francês — "a partir de
+R$ 8.000/dia" no card (página da embarcação, busca, home, favoritos, mapa) e "a partir de
+R$ 9.200/dia" no detalhe do roteiro. Os dois vinham da mesma configuração do gestor; o card mostrava
+o preço **sem** a taxa de serviço (15% desse gestor) e o detalhe e o checkout, **com** a taxa — o
+card anunciava menos do que seria cobrado.
+
+**Regra (vale para todo o site):** o preço que o cliente vê é sempre o **"Cliente paga"** do painel
+— o preço que o gestor configurou no calendário + a taxa de serviço dele —, o mesmo valor cobrado
+no checkout.
+- **Sem data escolhida:** o card mostra **"a partir de"** = o menor valor que o cliente consegue
+  reservar de fato (só dias abertos, dentro da janela, sem barco fechado e **sem dias já
+  reservados**), entre os modelos de cobrança ativos. O detalhe do roteiro abre mostrando o mesmo
+  valor (inclusive na aba Por Diária, se foi ela que gerou o "a partir de").
+- **Com data (busca com data ± flexibilidade):** o card troca "a partir de" por **"em dd/mm"** e
+  mostra o valor daquela data; com flexibilidade, o menor valor entre os dias do intervalo, informando
+  o dia. Clicar no card abre o detalhe **já nesse dia**, com o mesmo valor.
+- **No detalhe:** escolher outra data no card de reserva ou no calendário atualiza o valor na hora
+  (já funcionava).
+- **Busca:** o filtro de faixa de preço e a ordenação "Menor/Maior preço" usam esse mesmo valor
+  (com data, o da data). O balão do mapa mostra o mesmo texto do card.
+- **Página da embarcação:** quando o cliente chega pela busca com data, os cards dos roteiros mostram
+  o preço da data (os que não têm dia livre no intervalo ficam no fim, com o "a partir de"), e os
+  links levam os filtros ao detalhe.
+- **Painel:** o card "Como o cliente verá" da etapa Revisão mostra o mesmo valor do site (com regras
+  de preço, dias fechados e taxa).
+- Se a taxa do gestor mudar ou vencer, os preços do site se ajustam na hora.
+
+**Implantação:** aplicar a migration `20261019_preco_cliente_sincronizado.sql` no Supabase **antes**
+do deploy do front (ela é compatível com a versão atual). Detalhes técnicos: `SPEC.md` §49.
+
+### ✅ Taxa de serviço invisível ao cliente (19/10/2026)
+
+O cliente nunca vê a taxa de serviço: todo valor exibido no site já é o total com ela embutida. A
+taxa continua sendo cobrada e repassada como antes — muda só a apresentação. O gestor continua vendo
+"Você recebe × Cliente paga" no painel.
+
+- **Detalhe do roteiro (card de reserva):** resumo "Passeio" (ou "Diária × N") + "Adicionais" →
+  "Total", sem a linha "Taxa de serviço"; textos "já com a taxa de serviço" removidos do cabeçalho,
+  do calendário "Disponibilidade e preços" e da nota do total. Os adicionais (accordion) mostram o
+  preço com a taxa.
+- **Confirmação da reserva (`/reservas/novo`):** mesmo resumo (passeio, adicionais, desconto do
+  cupom, total estimado), adicionais selecionados com a taxa embutida; aviso de cupom limitado e erro
+  de cupom sem citar a taxa.
+- **Pagamento (`/reservas/[id]/pagar`):** "Passeio e adicionais" já com a taxa + desconto + total.
+- **Minhas reservas:** adicionais exibidos com a taxa embutida (o total já era com a taxa).
+- **Central de ajuda (FAQ):** respostas sobre cupom e pagamento sem mencionar a taxa ("os valores
+  exibidos no site já são o total que você paga").
+- O e-mail de nova solicitação vai para o **gestor** e continua com o detalhamento da taxa.
+- Detalhes técnicos: `SPEC.md` §50.
+
+### ✅ Detalhe do roteiro sem a seção "Disponibilidade e preços" (19/10/2026)
+
+- A seção com o calendário aberto no meio da página do roteiro foi removida: a mesma informação
+  (preço de cada dia, dias indisponíveis, menor preço do mês, "Reservas abertas até…") já aparece no
+  calendário do campo **Data** do card de reserva. Depois das características do roteiro vem direto
+  "Sobre a Embarcação".
+- O resto do comportamento não muda: a data vinda da busca continua pré-selecionada e escolher a data
+  no card atualiza o valor. Detalhes técnicos: `SPEC.md` §51.
 
 ## 11. Não Incluído no MVP
 

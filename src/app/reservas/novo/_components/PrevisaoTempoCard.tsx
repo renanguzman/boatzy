@@ -19,6 +19,7 @@ import {
   ChevronDown,
   ThermometerSun,
   CloudOff,
+  Hourglass,
 } from 'lucide-react';
 import type { ResultadoPrevisao, PaletaClima } from '@/lib/weather';
 
@@ -125,7 +126,8 @@ export default function PrevisaoTempoCard({ resultado, localidade, dataLabel }: 
   const [aberto, setAberto] = useState(false);
   const [mostrarHoras, setMostrarHoras] = useState(false);
 
-  // Data fora do alcance da previsão diária gratuita (~16 dias) — estado neutro, sem alarmar.
+  // Data além dos 15 dias da previsão — é espera, não erro: ampulheta em tom
+  // da marca (o ícone de nuvem cortada dava a sensação de falha no site).
   if (resultado.status === 'fora-do-alcance') {
     return (
       <div className="mb-6 rounded-2xl border border-slate-200 bg-white shadow-sm overflow-hidden">
@@ -135,11 +137,13 @@ export default function PrevisaoTempoCard({ resultado, localidade, dataLabel }: 
           aria-expanded={aberto}
           className="w-full flex items-center gap-4 p-5 sm:p-6 text-left hover:bg-slate-50/60 transition-colors"
         >
-          <div className="h-11 w-11 rounded-xl bg-slate-100 flex items-center justify-center shrink-0">
-            <CloudOff className="h-5 w-5 text-slate-400" />
+          <div className="h-11 w-11 rounded-xl bg-gradient-to-br from-sky-50 to-cyan-50 ring-1 ring-sky-100 flex items-center justify-center shrink-0">
+            <Hourglass className="h-5 w-5 text-[#0B3D91]" strokeWidth={1.75} />
           </div>
           <div className="flex-1 min-w-0">
-            <p className="text-sm font-semibold text-[#0B2447]">Previsão do tempo ainda não disponível</p>
+            <p className="text-sm font-semibold text-[#0B2447] leading-snug">
+              A previsão do tempo estará disponível a partir dos 15 dias que antecedem seu passeio.
+            </p>
             <p className="text-xs text-slate-400 mt-0.5">{dataLabel}</p>
           </div>
           <ChevronDown
@@ -149,10 +153,10 @@ export default function PrevisaoTempoCard({ resultado, localidade, dataLabel }: 
 
         <div className={`grid transition-all duration-200 ease-in-out ${aberto ? 'grid-rows-[1fr]' : 'grid-rows-[0fr]'}`}>
           <div className="overflow-hidden">
-            <p className="px-5 sm:px-6 pb-5 -mt-2 text-sm text-slate-500 leading-relaxed">
-              A data do passeio ({dataLabel}) está além do alcance confiável de previsão
-              meteorológica (cerca de 16 dias). Volte a esta página mais perto da data para
-              conferir as condições esperadas{localidade ? ` em ${localidade}` : ''}.
+            {/* Sem margem negativa: dentro do overflow-hidden ela cortava a 1ª linha. */}
+            <p className="px-5 sm:px-6 pb-5 text-sm text-slate-500 leading-relaxed">
+              Seu passeio está marcado para {dataLabel}. Volte a esta página nos 15 dias anteriores
+              para conferir as condições esperadas{localidade ? ` em ${localidade}` : ''}.
             </p>
             <RodapeFonte />
           </div>
@@ -185,7 +189,7 @@ export default function PrevisaoTempoCard({ resultado, localidade, dataLabel }: 
 
         <div className={`grid transition-all duration-200 ease-in-out ${aberto ? 'grid-rows-[1fr]' : 'grid-rows-[0fr]'}`}>
           <div className="overflow-hidden">
-            <p className="px-5 sm:px-6 pb-5 -mt-2 text-sm text-slate-500 leading-relaxed">
+            <p className="px-5 sm:px-6 pb-5 text-sm text-slate-500 leading-relaxed">
               Não foi possível carregar a previsão meteorológica agora. Isso não afeta sua
               solicitação de reserva.
             </p>

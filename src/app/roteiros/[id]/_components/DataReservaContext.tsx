@@ -5,10 +5,9 @@ import { createContext, useContext, useState, type ReactNode } from 'react';
 export type ModalidadeReserva = 'roteiro' | 'diaria';
 
 /**
- * Escolhas do cliente na página do roteiro — compartilhadas entre a seção
- * "Disponibilidade e preços" e o card de reserva (escolher num atualiza o
- * outro): data, flexibilidade (± dias, informada ao gestor), modelo de cobrança
- * e diárias (Por Diária — os dois calendários destacam o mesmo período).
+ * Escolhas do cliente na página do roteiro: data, flexibilidade (± dias,
+ * informada ao gestor), modelo de cobrança e diárias (Por Diária — o calendário
+ * do card de reserva destaca o período). Pré-preenchidas a partir da busca.
  */
 type DataReservaValor = {
   data: string | null;

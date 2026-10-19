@@ -1,7 +1,7 @@
 import Link from 'next/link';
 import { MessageCircle } from 'lucide-react';
 import GaleriaRoteiro from '../../../roteiros/[id]/_components/GaleriaRoteiro';
-import EmbarcacaoInfoSection, { type EmbarcacaoInfo } from './EmbarcacaoInfoSection';
+import EmbarcacaoInfoSection, { EmbarcacaoItensSection, type EmbarcacaoInfo } from './EmbarcacaoInfoSection';
 import RoteirosCarousel, { type RoteiroCarouselItem } from '@/components/ui/RoteirosCarousel';
 import { ordenarImagens } from '@/lib/galeria';
 
@@ -12,8 +12,9 @@ export type EmbarcacaoDetalheDados = EmbarcacaoInfo & {
 };
 
 /**
- * Conteúdo da página pública da embarcação (galeria → informações → roteiros
- * dela), sem Header/Footer. A embarcação não é reservada diretamente: preço e
+ * Conteúdo da página pública da embarcação (galeria → informações/specs →
+ * carrossel dos roteiros dela → equipamentos/acessórios/comodidades → chat),
+ * sem Header/Footer. A embarcação não é reservada diretamente: preço e
  * disponibilidade vivem nos roteiros.
  *
  * Usado por `/embarcacoes/[id]/roteiros` (dados do banco) e pela
@@ -22,11 +23,14 @@ export type EmbarcacaoDetalheDados = EmbarcacaoInfo & {
 export default function EmbarcacaoDetalheView({
   embarcacao,
   roteiros,
+  query,
   voltarHref,
   ehDono,
 }: {
   embarcacao: EmbarcacaoDetalheDados;
   roteiros: RoteiroCarouselItem[];
+  /** Filtros da busca (data/flex/pessoas, sem '?') repassados ao detalhe do roteiro. */
+  query?: string;
   voltarHref: string;
   /** Dono vendo a própria embarcação: sem CTA de chat (não conversa consigo mesmo). */
   ehDono: boolean;
@@ -39,20 +43,25 @@ export default function EmbarcacaoDetalheView({
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <div className="max-w-4xl">
             <EmbarcacaoInfoSection embarcacao={embarcacao} />
+          </div>
+
+          {/* Roteiros logo abaixo das specs, na largura total da página. */}
+          <div className="mb-12">
+            <RoteirosCarousel title="Roteiros desta embarcação" items={roteiros} query={query} />
+          </div>
+
+          <div className="max-w-4xl">
+            <EmbarcacaoItensSection embarcacao={embarcacao} />
 
             {!ehDono && (
               <Link
                 href={`/embarcacoes/${embarcacao.id}/chat`}
-                className="mb-10 inline-flex items-center justify-center gap-2 px-5 py-3 rounded-xl bg-[#0B3D91] hover:bg-[#092E6E] text-white text-sm font-semibold transition-colors"
+                className="inline-flex items-center justify-center gap-2 px-5 py-3 rounded-xl bg-[#0B3D91] hover:bg-[#092E6E] text-white text-sm font-semibold transition-colors"
               >
                 <MessageCircle className="h-4 w-4" />
                 Converse com o dono
               </Link>
             )}
-          </div>
-
-          <div className="mt-4">
-            <RoteirosCarousel title="Roteiros desta embarcação" items={roteiros} />
           </div>
         </div>
       </section>

@@ -5,6 +5,7 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { useJsApiLoader, GoogleMap, MarkerF, InfoWindowF } from '@react-google-maps/api';
 import { Loader2, Map as MapIcon, ArrowRight } from 'lucide-react';
+import { formatarPreco, type PrecoExibicao } from '@/lib/precos-roteiro';
 
 /** Um resultado da busca com coordenada — roteiro ou embarcação. */
 export type PontoMapa = {
@@ -17,7 +18,8 @@ export type PontoMapa = {
   /** Linha de apoio: nome da embarcação (aba Roteiros) ou tipo (aba Embarcações). */
   subtitulo: string | null;
   localidade: string | null;
-  preco: number | null;
+  /** Mesmo preço do card (com a taxa): "a partir de" ou o da data escolhida. */
+  preco: PrecoExibicao | null;
   imagem: string | null;
 };
 
@@ -50,14 +52,6 @@ const MAP_OPTIONS: google.maps.MapOptions = {
     { featureType: 'transit', stylers: [{ visibility: 'off' }] },
   ],
 };
-
-function formatPrice(value: number): string {
-  return new Intl.NumberFormat('pt-BR', {
-    style: 'currency',
-    currency: 'BRL',
-    maximumFractionDigits: 0,
-  }).format(value);
-}
 
 /** Pin no azul do design; o ativo fica maior e no tom claro da marca. */
 function pinIcon(ativo: boolean): google.maps.Icon {
@@ -192,7 +186,9 @@ export default function MapaResultados({ pontos, totalResultados, itemLabelPlura
                       <p className="text-[11px] text-slate-400 truncate">{ativo.localidade}</p>
                     )}
                     <span className="mt-1 flex items-center gap-1 text-[11px] font-semibold text-[#0B3D91]">
-                      {ativo.preco != null ? formatPrice(ativo.preco) : 'Ver detalhes'}
+                      {ativo.preco != null
+                        ? `${ativo.preco.rotulo.charAt(0).toUpperCase()}${ativo.preco.rotulo.slice(1)} ${formatarPreco(ativo.preco.valor)}${ativo.preco.unidade}`
+                        : 'Ver detalhes'}
                       <ArrowRight className="h-3 w-3 transition-transform group-hover:translate-x-0.5" />
                     </span>
                   </div>

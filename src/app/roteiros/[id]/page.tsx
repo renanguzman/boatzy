@@ -9,11 +9,15 @@ import { getCalendarioRoteiro, somarDiasISO } from '@/lib/reservas';
 import { getTaxaEfetiva } from '@/lib/taxas';
 import { dataMaximaReservaISO, hojeISO } from '@/lib/datas';
 import { DIAS_APOS_JANELA, diasParaCliente, type CalendarioCliente } from '@/lib/disponibilidade';
+import { escolherDiaDoPreco } from '@/lib/precos-roteiro';
+import type { ReservaModalidadePreco } from '@/types/supabase';
 
 type RoteiroDetalhe = RoteiroDetalheDados & {
   owner_id: string;
   embarcacao_id: string | null;
   janela_reserva_meses: number;
+  /** Modelo do "a partir de" anunciado no card. */
+  preco_minimo_modelo: ReservaModalidadePreco | null;
 };
 
 
@@ -31,7 +35,7 @@ export default async function RoteiroDetalhePage({
     .from('roteiro')
     .select(`
       id, owner_id, embarcacao_id, nome, descricao, origem, destino, duracao, quantidade_pessoas, preco_base,
-      preco_diaria_ativo, preco_diaria_valor, preco_diaria_minimo,
+      preco_diaria_ativo, preco_diaria_valor, preco_diaria_minimo, preco_minimo_modelo,
       disponibilidade_dias_semana, janela_reserva_meses, horario_saida,
       latitude, longitude, cep, bairro, logradouro, logradouro_numero, complemento,
       municipios ( nome, estados ( uf, nome ) ),
@@ -75,6 +79,24 @@ export default async function RoteiroDetalhePage({
     taxaPercent,
   };
 
+  // Abre no mesmo dia e modelo que o card anunciou, para o cabeçalho mostrar o
+  // mesmo valor. Com data (± flex): a regra de `roteiro_preco_exibicao` sobre
+  // este calendário. Sem data: o modelo do "a partir de" (`preco_minimo_modelo`).
+  const flex = sp.flex ? Math.max(0, parseInt(sp.flex) || 0) : 0;
+  const diariaAtiva = roteiro.preco_diaria_ativo && roteiro.preco_diaria_valor != null;
+  const escolha = sp.data
+    ? escolherDiaDoPreco({
+        dias: calendario.dias,
+        data: sp.data,
+        flex,
+        temModeloRoteiro: roteiro.preco_base != null,
+        diaria: diariaAtiva ? roteiro.preco_diaria_valor : null,
+      })
+    : null;
+  const modalidadeInicial: 'roteiro' | 'diaria' =
+    escolha?.modelo
+    ?? ((roteiro.preco_minimo_modelo === 'diaria' && diariaAtiva) || roteiro.preco_base == null ? 'diaria' : 'roteiro');
+
   // Avaliações de reservas concluídas deste roteiro (mais recentes primeiro).
   const { data: avaliacoesData } = await supabaseAdmin
     .from('avaliacao')
@@ -111,8 +133,9 @@ export default async function RoteiroDetalhePage({
         ehDono={ehDono}
         isFavorito={isFavorito}
         calendario={calendario}
-        initialData={sp.data}
-        initialFlex={sp.flex ? parseInt(sp.flex) : undefined}
+        initialData={escolha?.data ?? sp.data}
+        initialFlex={flex || undefined}
+        initialModalidade={modalidadeInicial}
         initialPessoas={sp.pessoas ? parseInt(sp.pessoas) : undefined}
       />
       <Footer />

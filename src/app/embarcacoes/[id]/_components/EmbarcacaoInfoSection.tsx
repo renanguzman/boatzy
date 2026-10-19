@@ -18,7 +18,9 @@ export type EmbarcacaoInfo = {
 };
 
 /**
- * Badges + título/localidade + descrição + specs + comodidades da embarcação.
+ * Badges + título/localidade + descrição + specs da embarcação. As listas
+ * (equipamentos, acessórios, comodidades) ficam em `EmbarcacaoItensSection`,
+ * para a página poder encaixar o carrossel de roteiros logo abaixo das specs.
  */
 export default function EmbarcacaoInfoSection({ embarcacao }: { embarcacao: EmbarcacaoInfo }) {
   const localidade = embarcacao.municipios
@@ -89,7 +91,14 @@ export default function EmbarcacaoInfoSection({ embarcacao }: { embarcacao: Emba
           ))}
         </div>
       )}
+    </>
+  );
+}
 
+/** Equipamentos de segurança + acessórios + comodidades da embarcação. */
+export function EmbarcacaoItensSection({ embarcacao }: { embarcacao: EmbarcacaoInfo }) {
+  return (
+    <>
       {/* Equipamentos de segurança */}
       {embarcacao.embarcacao_equipamentos_seguranca.length > 0 && (
         <div className="mb-10">

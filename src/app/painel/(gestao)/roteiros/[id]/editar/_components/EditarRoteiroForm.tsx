@@ -38,7 +38,7 @@ import { horasParaPartes } from '@/lib/duracao';
 import ConfirmarNovaAnaliseModal from '@/components/publicacao/ConfirmarNovaAnaliseModal';
 import PreviewPublicacaoModal from '@/components/preview/PreviewPublicacaoModal';
 import BotaoPreview from '@/components/preview/BotaoPreview';
-import { montarPreviewRoteiro } from '@/components/preview/montar';
+import { montarPreviewRoteiro, type AgendaPreview } from '@/components/preview/montar';
 import { buscarEmbarcacaoParaPreview } from '@/lib/preview-actions';
 import type { RoteiroDetalheDados } from '@/app/roteiros/[id]/_components/RoteiroDetalheView';
 import IndicadorEtapas from '@/components/painel/etapas/IndicadorEtapas';
@@ -293,8 +293,17 @@ export default function EditarRoteiroForm({ roteiro, estados, municipiosIniciais
 
   // ── Etapas (wizard) ─────────────────────────────────────────────────────────
   const etapas = useEtapas(ETAPAS_ROTEIRO.length, { todasVisitadas: true, ids: ETAPAS_ROTEIRO.map(e => e.id) });
+  // Preço e disponibilidade ainda não salvos — alimentam o card da Revisão e a
+  // prévia da página (o mesmo calendário que o cliente verá).
+  const agendaPreview: AgendaPreview = {
+    diasOperacao, janelaMeses, diasRoteiro,
+    fechamentosBarco: form.embarcacao_id ? agendaBarco.fechamentos : null,
+    ocupacao: agendaBarco.ocupacao,
+    regras: regrasListadas.filter(r => r.estado !== 'excluir').map(r => r.regra),
+    ajustes, taxaPercent,
+  };
   const revisao = revisaoRoteiro({
-    form, embarcacoes, estados, municipios, paradas, imagens, diasOperacao, janelaMeses, diasRoteiro,
+    form, embarcacoes, estados, municipios, paradas, imagens, agenda: agendaPreview,
     totalAdicionais: itensCatalogo.length,
     ir: etapas.ir,
   });
@@ -319,13 +328,7 @@ export default function EditarRoteiroForm({ roteiro, estados, municipiosIniciais
     ? montarPreviewRoteiro({
         form, estados, municipios, imagens,
         paradas, itensCatalogo, catalogo,
-        agenda: {
-          diasOperacao, janelaMeses, diasRoteiro,
-          fechamentosBarco: form.embarcacao_id ? agendaBarco.fechamentos : null,
-          ocupacao: agendaBarco.ocupacao,
-          regras: regrasListadas.filter(r => r.estado !== 'excluir').map(r => r.regra),
-          ajustes, taxaPercent,
-        },
+        agenda: agendaPreview,
         embarcacao: form.embarcacao_id ? previewEmb?.dados ?? null : null,
       })
     : null;

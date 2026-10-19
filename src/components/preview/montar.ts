@@ -5,7 +5,7 @@ import { isComprimentoUnidade } from '@/lib/comprimento';
 import type { PreviewDados } from './mensagens';
 import { dataMaximaReservaISO, hojeISO } from '@/lib/datas';
 import { ajustesComoRegras, resolverPrecoNaData, somarDiasISO, type RegraPreco } from '@/lib/precos-calendario';
-import { calendarioClienteLocal, DIAS_APOS_JANELA, type OcupacaoDia } from '@/lib/disponibilidade';
+import { calendarioClienteLocal, DIAS_APOS_JANELA, type CalendarioCliente, type OcupacaoDia } from '@/lib/disponibilidade';
 import type { CatalogoItem, ItemSelecionado } from '@/app/painel/(gestao)/roteiros/_components/CatalogoSelector';
 import { duracaoParaHoras, duracaoTexto, type DuracaoUnidade } from '@/lib/duracao';
 
@@ -127,6 +127,39 @@ export function montarPreviewEmbarcacao(args: {
  * de valor+unidade, diária mínima ≥ 1, valores só quando o modelo está ativo),
  * para a prévia mostrar exatamente o que será salvo.
  */
+/** Agenda do formulário de roteiro (preço + disponibilidade) ainda não salva. */
+export type AgendaPreview = {
+  diasOperacao: number[];
+  janelaMeses: number;
+  diasRoteiro: Record<string, boolean>;
+  fechamentosBarco: string[] | null;
+  ocupacao: OcupacaoDia[];
+  regras: RegraPreco[];
+  ajustes: Record<string, number>;
+  taxaPercent: number;
+};
+
+/**
+ * Calendário que o cliente verá (situação + preço + total com a taxa de cada
+ * dia), calculado no navegador com o que ainda não foi salvo — espelho de
+ * `roteiro_calendario`. Usado pela prévia da página e pelo card da Revisão.
+ */
+export function calendarioPreview(precoBase: number | null, a: AgendaPreview): CalendarioCliente {
+  const hoje = hojeISO();
+  const dataMaxima = dataMaximaReservaISO(a.janelaMeses, hoje);
+  const regrasDoDia = [...a.regras, ...ajustesComoRegras(a.ajustes)];
+  return calendarioClienteLocal({
+    agenda: {
+      hoje, dataMaxima, diasOperacao: a.diasOperacao, diasRoteiro: a.diasRoteiro,
+      barcoFechado: new Set(a.fechamentosBarco ?? []),
+      ocupadas: new Set(a.ocupacao.map(o => o.data)),
+    },
+    precoDoDia: iso => resolverPrecoNaData(precoBase, regrasDoDia, iso).valor,
+    taxaPercent: a.taxaPercent,
+    ate: somarDiasISO(dataMaxima, DIAS_APOS_JANELA),
+  });
+}
+
 export function montarPreviewRoteiro(args: {
   form: EnderecoForm & {
     nome: string; descricao: string; origem: string; destino: string;
@@ -141,16 +174,7 @@ export function montarPreviewRoteiro(args: {
   imagens: GaleriaItem[];
   paradas: { nome: string }[];
   /** Calendário do cliente com o que ainda não foi salvo (preço + disponibilidade). */
-  agenda: {
-    diasOperacao: number[];
-    janelaMeses: number;
-    diasRoteiro: Record<string, boolean>;
-    fechamentosBarco: string[] | null;
-    ocupacao: OcupacaoDia[];
-    regras: RegraPreco[];
-    ajustes: Record<string, number>;
-    taxaPercent: number;
-  };
+  agenda: AgendaPreview;
   itensCatalogo: ItemSelecionado[];
   catalogo: CatalogoItem[];
   embarcacao: RoteiroDetalheDados['embarcacao'];
@@ -189,19 +213,5 @@ export function montarPreviewRoteiro(args: {
       }];
     }),
   };
-  const a = args.agenda;
-  const hoje = hojeISO();
-  const dataMaxima = dataMaximaReservaISO(a.janelaMeses, hoje);
-  const regrasDoDia = [...a.regras, ...ajustesComoRegras(a.ajustes)];
-  const calendario = calendarioClienteLocal({
-    agenda: {
-      hoje, dataMaxima, diasOperacao: a.diasOperacao, diasRoteiro: a.diasRoteiro,
-      barcoFechado: new Set(a.fechamentosBarco ?? []),
-      ocupadas: new Set(a.ocupacao.map(o => o.data)),
-    },
-    precoDoDia: iso => resolverPrecoNaData(roteiro.preco_base, regrasDoDia, iso).valor,
-    taxaPercent: a.taxaPercent,
-    ate: somarDiasISO(dataMaxima, DIAS_APOS_JANELA),
-  });
-  return { tipo: 'roteiro', calendario, roteiro };
+  return { tipo: 'roteiro', calendario: calendarioPreview(roteiro.preco_base, args.agenda), roteiro };
 }

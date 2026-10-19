@@ -83,7 +83,7 @@ const FAQ_ITEMS: FaqItem[] = [
       <>
         Sim. Na página de confirmação da reserva há um campo para informar o código do cupom; ao
         aplicar, o desconto é validado na hora e refletido no total estimado antes de você enviar
-        a solicitação. O desconto do cupom é aplicado sobre a taxa de serviço (até o valor dela).
+        a solicitação. Cada cupom tem um desconto máximo por reserva, já considerado no total.
       </>
     ),
   },
@@ -97,7 +97,7 @@ const FAQ_ITEMS: FaqItem[] = [
         do prazo informado. O pagamento é processado pelo Asaas, nosso parceiro de pagamentos: no
         cartão, você digita os dados no ambiente seguro do Asaas e o Boatzy não recebe nem guarda o
         número do cartão. O valor fica com o Boatzy e é repassado ao proprietário depois do passeio.
-        O total inclui a taxa de serviço da plataforma, exibida antes de você solicitar.
+        Os valores exibidos no site já são o total que você paga, sem cobranças extras na finalização.
       </>
     ),
   },
