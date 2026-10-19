@@ -1620,6 +1620,12 @@ A taxa padrão configurada inicialmente é **10%**. Admins podem alterá-la a qu
   receber roteiros.
 - No **administrator** (`/administrator/embarcacoes`) a lista também ganhou a coluna **Roteiros**,
   com a mesma contagem (sem ordenação por essa coluna).
+- ✅ 19/10/2026 — a quantidade de roteiros ("N roteiro(s)") virou **link para a lista de roteiros do
+  painel** (`/painel/roteiros`), na tabela e na versão celular. O ícone de criar roteiro ganhou um
+  **tooltip evidente** (balão azul-marinho que aparece na hora, ao passar o mouse ou com o foco do
+  teclado): "Crie um Roteiro a partir desta embarcação" — antes só havia a dica nativa do navegador,
+  que demora e passava despercebida. O ícone desabilitado (embarcação inativa) usa o mesmo balão
+  para explicar que é preciso reativar a embarcação.
 - Detalhes técnicos: SPEC §42.
 
 ---

@@ -5614,6 +5614,15 @@ banco (`roteiro_disponibilidade_bloqueio`, uma linha por data).
   - Ação **"Visualizar" (olho, sem função) removida**; no lugar, **"Criar roteiro com esta
     embarcação"** (ícone `MapPinPlus`) → `/painel/roteiros/novo?embarcacao=<id>`. Embarcação não
     ativa mostra o ícone desabilitado (o cadastro de roteiro só lista embarcações `ativo`).
+  - **19/10/2026:** pill "N roteiro(s)" virou `<Link href="/painel/roteiros">` (tabela e lista
+    mobile; hover com sublinhado e `bg-cyan-100`; nomes continuam no `title`). Tooltip local `Dica`
+    (CSS puro: `group/dica` + `group-hover`/`group-focus-within`, `role="tooltip"`, fundo
+    `#0B2447`, seta, abre à esquerda do ícone e dentro da altura da linha para não ser cortado pelo
+    `overflow-x-auto` da tabela) no ícone de criar roteiro — texto `DICA_CRIAR_ROTEIRO` = "Crie um
+    Roteiro a partir desta embarcação" (também no `aria-label`) — e no ícone desabilitado ("Solicite
+    a reativação da embarcação para criar um roteiro com ela", `aria-disabled`). O `title` nativo
+    saiu desses dois ícones. Verificado em rota temporária (removida): links, tooltip visível no
+    hover e no foco, oculto sem hover.
 - `/painel/roteiros/novo/page.tsx` lê `searchParams.embarcacao` e repassa `embarcacaoInicialId` ao
   `NovoRoteiroForm`, que inicia com `embarcacao_id` preenchido e herda a capacidade da embarcação
   (mesma regra de `setEmbarcacao`). Id fora da lista de embarcações ativas do gestor é ignorado.

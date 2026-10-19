@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, type ReactNode } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import {
@@ -20,6 +20,28 @@ import type { PublicacaoStatus } from '@/types/supabase';
 import AcoesStatusGestor from '@/components/publicacao/AcoesStatusGestor';
 
 const PAGE_SIZE = 10;
+
+const DICA_CRIAR_ROTEIRO = 'Crie um Roteiro a partir desta embarcação';
+
+/**
+ * Tooltip das ações da tabela — aparece na hora ao passar o mouse ou focar pelo
+ * teclado (o `title` nativo demora e passava despercebido). Abre à esquerda do
+ * ícone, dentro da altura da linha, para não ser cortado pelo `overflow-x-auto`.
+ */
+function Dica({ texto, children }: { texto: string; children: ReactNode }) {
+  return (
+    <span className="group/dica relative inline-flex">
+      {children}
+      <span
+        role="tooltip"
+        className="pointer-events-none absolute right-full top-1/2 z-20 mr-2 -translate-y-1/2 translate-x-1 whitespace-nowrap rounded-lg bg-[#0B2447] px-3 py-2 text-xs font-medium text-white opacity-0 shadow-lg transition-all duration-150 group-hover/dica:translate-x-0 group-hover/dica:opacity-100 group-focus-within/dica:translate-x-0 group-focus-within/dica:opacity-100"
+      >
+        {texto}
+        <span className="absolute left-full top-1/2 -translate-y-1/2 border-4 border-transparent border-l-[#0B2447]" />
+      </span>
+    </span>
+  );
+}
 
 export type EmbarcacaoStatus = PublicacaoStatus;
 
@@ -189,9 +211,12 @@ export default function EmbarcacoesGrid({ embarcacoes }: { embarcacoes: Embarcac
                           </span>
                         )}
                         {e.roteiro.length > 0 && (
-                          <span className="inline-block text-[11px] font-semibold px-2 py-0.5 rounded-full bg-cyan-50 text-cyan-700">
+                          <Link
+                            href="/painel/roteiros"
+                            className="inline-block text-[11px] font-semibold px-2 py-0.5 rounded-full bg-cyan-50 text-cyan-700 underline-offset-2 hover:underline hover:bg-cyan-100 transition-colors"
+                          >
                             {e.roteiro.length} {e.roteiro.length === 1 ? 'roteiro' : 'roteiros'}
-                          </span>
+                          </Link>
                         )}
                       </div>
                       <p className="mt-1 text-xs text-slate-500">
@@ -208,7 +233,7 @@ export default function EmbarcacoesGrid({ embarcacoes }: { embarcacoes: Embarcac
                       {e.status !== 'inativo' && (
                         <Link
                           href={`/painel/roteiros/novo?embarcacao=${e.id}`}
-                          aria-label={`Criar roteiro com ${e.nome}`}
+                          aria-label={`${DICA_CRIAR_ROTEIRO}: ${e.nome}`}
                           className="w-10 h-10 flex items-center justify-center rounded-lg text-slate-400 hover:text-[#0B2447] hover:bg-slate-100 transition-colors"
                         >
                           <MapPinPlus className="w-4 h-4" />
@@ -317,12 +342,13 @@ export default function EmbarcacoesGrid({ embarcacoes }: { embarcacoes: Embarcac
                       {/* Roteiros vinculados */}
                       <td className="py-4 px-4">
                         {e.roteiro.length > 0 ? (
-                          <span
+                          <Link
+                            href="/painel/roteiros"
                             title={e.roteiro.map((r) => r.nome).join('\n')}
-                            className="inline-flex items-center gap-1 text-[11px] font-semibold px-2.5 py-1 rounded-full bg-cyan-50 text-cyan-700 whitespace-nowrap"
+                            className="inline-flex items-center gap-1 text-[11px] font-semibold px-2.5 py-1 rounded-full bg-cyan-50 text-cyan-700 whitespace-nowrap underline-offset-2 hover:underline hover:bg-cyan-100 transition-colors"
                           >
                             {e.roteiro.length} {e.roteiro.length === 1 ? 'roteiro' : 'roteiros'}
-                          </span>
+                          </Link>
                         ) : (
                           <span className="text-xs text-slate-400 whitespace-nowrap">Nenhum</span>
                         )}
@@ -332,22 +358,25 @@ export default function EmbarcacoesGrid({ embarcacoes }: { embarcacoes: Embarcac
                       <td className="py-4 px-4 pr-6">
                         <div className="flex items-center justify-end gap-1">
                           {e.status !== 'inativo' ? (
-                            <Link
-                              href={`/painel/roteiros/novo?embarcacao=${e.id}`}
-                              title="Criar roteiro com esta embarcação"
-                              aria-label={`Criar roteiro com ${e.nome}`}
-                              className="w-8 h-8 flex items-center justify-center rounded-lg text-slate-400 hover:text-[#0B2447] hover:bg-slate-100 transition-colors"
-                            >
-                              <MapPinPlus className="w-4 h-4" />
-                            </Link>
+                            <Dica texto={DICA_CRIAR_ROTEIRO}>
+                              <Link
+                                href={`/painel/roteiros/novo?embarcacao=${e.id}`}
+                                aria-label={`${DICA_CRIAR_ROTEIRO}: ${e.nome}`}
+                                className="w-8 h-8 flex items-center justify-center rounded-lg text-slate-400 hover:text-[#0B2447] hover:bg-slate-100 transition-colors"
+                              >
+                                <MapPinPlus className="w-4 h-4" />
+                              </Link>
+                            </Dica>
                           ) : (
                             // O cadastro de roteiro não lista embarcações inativas.
-                            <span
-                              title="Solicite a reativação da embarcação para criar um roteiro com ela"
-                              className="w-8 h-8 flex items-center justify-center rounded-lg text-slate-200 cursor-not-allowed"
-                            >
-                              <MapPinPlus className="w-4 h-4" />
-                            </span>
+                            <Dica texto="Solicite a reativação da embarcação para criar um roteiro com ela">
+                              <span
+                                aria-disabled="true"
+                                className="w-8 h-8 flex items-center justify-center rounded-lg text-slate-200 cursor-not-allowed"
+                              >
+                                <MapPinPlus className="w-4 h-4" />
+                              </span>
+                            </Dica>
                           )}
                           <Link
                             href={`/painel/embarcacoes/${e.id}/editar`}
