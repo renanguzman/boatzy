@@ -20,32 +20,47 @@ export default function AddonsAccordion() {
 
   const hasSelection = selectedAddons.length > 0;
 
+  // Menor adicional pago (com a taxa embutida): dá concretude ao convite.
+  const menorPreco = addons.filter((a) => a.preco > 0).reduce<number | null>(
+    (min, a) => (min == null || a.preco < min ? a.preco : min), null);
+  const totalSelecionado = selectedAddons.reduce((soma, a) => soma + precoCliente(a.preco), 0);
+
   return (
-    <div className="mb-4 rounded-xl border border-dashed border-[#0B3D91]/40 bg-gradient-to-br from-[#0B3D91]/5 to-cyan-500/5 overflow-hidden">
+    <div className={`mb-4 rounded-2xl border overflow-hidden transition-shadow ${
+      hasSelection
+        ? 'border-[#0B3D91]/40 bg-[#0B3D91]/[0.04]'
+        : 'border-cyan-200 bg-gradient-to-br from-cyan-50 via-white to-[#0B3D91]/[0.06] shadow-sm hover:shadow-md'
+    }`}>
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
         aria-expanded={open}
-        className="w-full flex items-center justify-between gap-3 px-4 py-3.5 text-left hover:bg-white/50 transition-colors"
+        className="w-full flex items-center gap-3 px-4 py-4 text-left transition-colors hover:bg-white/60"
       >
-        <div className="flex items-center gap-3 min-w-0 flex-1">
-          <div className="h-9 w-9 rounded-lg bg-white shadow-sm flex items-center justify-center shrink-0">
-            <Sparkles className="h-4 w-4 text-[#0B3D91]" />
-          </div>
-          <div className="min-w-0">
-            <p className="text-sm font-semibold text-[#0B2447] leading-snug">
-              {hasSelection ? 'Torne seu passeio inesquecível' : 'Deixe seu passeio inesquecível!'}
-            </p>
-            <p className={`text-xs ${hasSelection ? 'font-semibold text-[#0B3D91]' : 'text-slate-500'}`}>
-              {hasSelection
-                ? `${selectedAddons.length} selecionado${selectedAddons.length > 1 ? 's' : ''} · ${formatCurrency(selectedAddons.reduce((soma, a) => soma + precoCliente(a.preco), 0))}`
-                : `Este roteiro tem ${addons.length} ${addons.length > 1 ? 'opcionais' : 'opcional'} para você. Clique e confira!`}
-            </p>
-          </div>
+        {/* Ícone cheio na cor da marca — o "ponto focal" do card */}
+        <div className="relative h-11 w-11 rounded-xl bg-gradient-to-br from-[#0B3D91] to-cyan-500 shadow-md shadow-[#0B3D91]/25 flex items-center justify-center shrink-0">
+          <Sparkles className="h-5 w-5 text-white" />
+          {!hasSelection && (
+            <span className="absolute -top-1 -right-1 flex h-3 w-3">
+              <span className="absolute inline-flex h-full w-full rounded-full bg-cyan-400 opacity-70 motion-safe:animate-ping" />
+              <span className="relative inline-flex h-3 w-3 rounded-full bg-cyan-500 ring-2 ring-white" />
+            </span>
+          )}
         </div>
-        <ChevronDown
-          className={`h-4 w-4 text-[#0B3D91] shrink-0 transition-transform duration-200 ${open ? 'rotate-180' : ''}`}
-        />
+        <div className="min-w-0 flex-1">
+          <p className="text-sm font-bold text-[#0B2447] leading-snug">
+            {hasSelection ? 'Seu passeio está ficando inesquecível' : 'Deixe seu passeio inesquecível!'}
+          </p>
+          <p className={`text-xs leading-snug mt-0.5 ${hasSelection ? 'font-semibold text-[#0B3D91]' : 'text-slate-600'}`}>
+            {hasSelection
+              ? `${selectedAddons.length} selecionado${selectedAddons.length > 1 ? 's' : ''} · ${formatCurrency(totalSelecionado)}`
+              : `${addons.length} ${addons.length > 1 ? 'opcionais' : 'opcional'} para turbinar a experiência${menorPreco != null ? ` · a partir de ${formatCurrency(precoCliente(menorPreco))}` : ''}`}
+          </p>
+          <span className="mt-1.5 inline-flex items-center gap-1 text-xs font-semibold text-[#0B3D91]">
+            {open ? 'Ocultar opcionais' : hasSelection ? 'Editar opcionais' : 'Clique para ver os opcionais'}
+            <ChevronDown className={`h-3.5 w-3.5 transition-transform duration-200 ${open ? 'rotate-180' : ''}`} />
+          </span>
+        </div>
       </button>
 
       {/* Expansão via grid-rows para altura automática, sem JS medindo o conteúdo. */}

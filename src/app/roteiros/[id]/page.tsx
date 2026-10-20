@@ -34,7 +34,7 @@ export default async function RoteiroDetalhePage({
   const { data, error } = await supabaseAdmin
     .from('roteiro')
     .select(`
-      id, owner_id, embarcacao_id, nome, descricao, origem, destino, duracao, quantidade_pessoas, preco_base,
+      id, owner_id, embarcacao_id, nome, descricao, origem, destino, duracao, duracao_horas, quantidade_pessoas, preco_base,
       preco_diaria_ativo, preco_diaria_valor, preco_diaria_minimo, preco_minimo_modelo,
       disponibilidade_dias_semana, janela_reserva_meses, horario_saida,
       latitude, longitude, cep, bairro, logradouro, logradouro_numero, complemento,

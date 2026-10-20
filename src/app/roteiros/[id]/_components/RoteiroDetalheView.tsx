@@ -9,8 +9,10 @@ import {
   CheckCircle2,
   ShieldCheck,
   AlarmClock,
+  AlarmClockCheck,
   Waves,
 } from 'lucide-react';
+import Image from 'next/image';
 import BookingCard from './BookingCard';
 import EmbarcacaoFotosModal from './EmbarcacaoFotosModal';
 import { CartProvider } from './CartContext';
@@ -22,6 +24,7 @@ import AvaliacoesSection, { type AvaliacaoPublica } from '@/components/avaliacoe
 import { formatarComprimento } from '@/lib/comprimento';
 import { ordenarImagens } from '@/lib/galeria';
 import { capacidadeMaxima } from '@/lib/capacidade';
+import { horarioRetorno, retornoTexto } from '@/lib/duracao';
 
 /** Dados que a página do roteiro exibe — vindos do banco ou do formulário (prévia). */
 export type RoteiroDetalheDados = {
@@ -31,6 +34,8 @@ export type RoteiroDetalheDados = {
   origem: string | null;
   destino: string | null;
   duracao: string | null;
+  /** Duração em horas (`roteiro.duracao_horas`) — base do "Retorno aproximado". */
+  duracao_horas: number | null;
   quantidade_pessoas: number | null;
   preco_base: number | null;
   /** Menor preço só do modelo Roteiro — "a partir de" do card de reserva. */
@@ -105,6 +110,12 @@ export default function RoteiroDetalheView({
   // Ordem da galeria definida pelo gestor
   const images = ordenarImagens(roteiro.roteiro_imagens);
 
+  // Foto principal da embarcação (miniatura no bloco "Sobre a Embarcação").
+  const imagensEmb = roteiro.embarcacao?.embarcacao_imagens ?? [];
+  const fotoEmbarcacao = (imagensEmb.find((i) => i.principal) ?? ordenarImagens(imagensEmb)[0])?.url_imagem ?? null;
+
+  const retorno = horarioRetorno(roteiro.horario_saida, roteiro.duracao_horas);
+
   const localidade = roteiro.municipios
     ? roteiro.municipios.estados
       ? `${roteiro.municipios.nome}, ${roteiro.municipios.estados.uf}`
@@ -178,8 +189,8 @@ export default function RoteiroDetalheView({
                 {roteiro.descricao}
               </p>
 
-              {/* Specs row */}
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 py-6 border-y border-slate-100 mb-10">
+              {/* Specs row — 3 por linha no desktop: Duração · Saída · Retorno / Capacidade · Rota · Embarcação */}
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-4 py-6 border-y border-slate-100 mb-10">
                 {roteiro.duracao && (
                   <div className="flex items-center gap-3 min-w-0">
                     <div className="h-10 w-10 rounded-xl bg-slate-100 flex items-center justify-center shrink-0">
@@ -204,6 +215,25 @@ export default function RoteiroDetalheView({
                     </div>
                   </div>
                 )}
+                {/* Retorno aproximado = saída + duração (relógio de 24 h; pode cair de madrugada / em outro dia) */}
+                {retorno && (
+                  <div className="flex items-center gap-3 min-w-0">
+                    <div className="h-10 w-10 rounded-xl bg-slate-100 flex items-center justify-center shrink-0">
+                      <AlarmClockCheck className="h-4 w-4 text-[#0B3D91]" />
+                    </div>
+                    <div className="min-w-0">
+                      <p className="text-[10px] text-slate-500 uppercase tracking-wider font-medium">Retorno Aproximado</p>
+                      <p className="text-sm font-semibold text-slate-800 truncate" title={retornoTexto(retorno)}>
+                        {retorno.horario}
+                        {retorno.diasDepois > 0 && (
+                          <span className="ml-1 text-xs font-medium text-slate-500">
+                            {retorno.diasDepois === 1 ? '(dia seguinte)' : `(+${retorno.diasDepois} dias)`}
+                          </span>
+                        )}
+                      </p>
+                    </div>
+                  </div>
+                )}
                 {roteiro.quantidade_pessoas && (
                   <div className="flex items-center gap-3 min-w-0">
                     <div className="h-10 w-10 rounded-xl bg-slate-100 flex items-center justify-center shrink-0">
@@ -221,7 +251,7 @@ export default function RoteiroDetalheView({
                       <Navigation className="h-4 w-4 text-[#0B3D91]" />
                     </div>
                     <div className="min-w-0">
-                      <p className="text-[10px] text-slate-500 uppercase tracking-wider font-medium">Rota</p>
+                      <p className="text-[10px] text-slate-500 uppercase tracking-wider font-medium">Local de partida</p>
                       <p className="text-sm font-semibold text-slate-800 truncate">
                         {roteiro.origem && roteiro.destino
                           ? `${roteiro.origem} → ${roteiro.destino}`
@@ -251,8 +281,12 @@ export default function RoteiroDetalheView({
                   </h2>
                   <div className="rounded-2xl border border-slate-100 p-5 bg-slate-50/50">
                     <div className="flex items-center gap-3 mb-4 min-w-0">
-                      <div className="h-10 w-10 rounded-xl bg-[#0B3D91]/10 flex items-center justify-center shrink-0">
-                        <Anchor className="h-5 w-5 text-[#0B3D91]" />
+                      <div className="relative h-10 w-10 rounded-xl bg-[#0B3D91]/10 flex items-center justify-center shrink-0 overflow-hidden">
+                        {fotoEmbarcacao ? (
+                          <Image src={fotoEmbarcacao} alt={roteiro.embarcacao.nome} fill sizes="40px" className="object-cover" />
+                        ) : (
+                          <Anchor className="h-5 w-5 text-[#0B3D91]" />
+                        )}
                       </div>
                       <div className="min-w-0 flex-1">
                         <EmbarcacaoFotosModal embarcacao={roteiro.embarcacao} />

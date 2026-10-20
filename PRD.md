@@ -1869,6 +1869,55 @@ permissão de localização, não fazia nada.
 - **Implantação:** aplicar a migration `20261020_busca_destino_centro_municipio.sql` (o resto já
   funciona sem ela). Detalhes técnicos: `SPEC.md` §54.
 
+### ✅ Confirmação da reserva — bloco do roteiro com fotos e descrição (20/10/2026)
+
+- O bloco "Roteiro" de `/reservas/novo` (antes só nome e cidade) virou um card de apresentação: **foto
+  de capa** (a principal do roteiro) com degradê azul-marinho e o nome/cidade sobrepostos, até **4
+  miniaturas** das demais fotos (com "+N" quando há mais) e a **descrição** do roteiro. Sem fotos, mostra
+  um fundo neutro; sem descrição, não mostra o texto. A **previsão do tempo** vem logo abaixo desse card, antes de Data/Pessoas.
+  - ✅ 20/10/2026 — **carrossel e tela cheia:** as miniaturas viraram um carrossel com **todas** as fotos
+    (antes só 4 + "+N", sem como ver o resto): arrastar no celular, setas no computador (somem nas
+    pontas), uma fatia da próxima foto à mostra. Clicar na capa ou em qualquer miniatura abre a foto em
+    **tela cheia** — fundo escuro, contador "3 de 7 fotos", setas, ← → e Esc, tira de miniaturas — o
+    mesmo visualizador da galeria do detalhe do roteiro. A capa ganhou o selo "7 fotos".
+  - ✅ 20/10/2026 — logo abaixo do card do roteiro, o botão **"Converse com o dono da embarcação deste
+    Roteiro"** (mesmo visual do "Converse com o dono" do detalhe) abre o chat com o dono **numa nova
+    aba**, para o cliente não perder a confirmação. Oculto quando quem está reservando é o próprio dono. Detalhes: `SPEC.md` §59.
+
+### ✅ Aceite dos termos — dica do que digitar na confirmação de identidade (20/10/2026)
+
+- Ao aceitar os termos da reserva, o campo de confirmação agora mostra **como começa o dado esperado**,
+  para quem entrou por login social e não sabe como o cadastro ficou: CPF → "Começa com os dígitos
+  **829...** — complete por inteiro, com ou sem máscara" (CNPJ: 4 dígitos); nome → "Começa com **Renan...**"
+  (as 5 primeiras letras do nome cadastrado). Nunca revela o valor completo. Detalhes: `SPEC.md` §58.
+
+### ✅ Card de reserva — convite aos opcionais mais visível (20/10/2026)
+
+- O bloco "Deixe seu passeio inesquecível!" (antes borda tracejada, ícone claro, fácil de ignorar) agora
+  é um card com borda e fundo em degradê ciano da marca, **ícone cheio azul→ciano** com um pontinho
+  pulsante (animação desligada para quem pede menos movimento), subtítulo concreto — "3 opcionais para
+  turbinar a experiência · a partir de R$ 92" — e um **link explícito "Clique para ver os opcionais ⌄"**. Com itens
+  marcados vira "Seu passeio está ficando inesquecível" + "N selecionados · R$ X" + "Editar opcionais",
+  num tom azul calmo (sem o pulso). Detalhes: `SPEC.md` §57.
+
+### ✅ Detalhe do roteiro — botão "Ver N fotos" da embarcação (20/10/2026)
+
+- Em "Sobre a Embarcação", o link discreto (nome sublinhado + câmera cinza) virou uma **pílula azul da
+  marca com ícone de câmera e o texto "Ver fotos desta embarcação (7 fotos)"** ao lado do nome; no hover preenche de azul com
+  sombra suave. Abre o mesmo modal de fotos. Sem fotos, não aparece. O ícone de âncora ao lado do nome virou a **foto principal da embarcação** em miniatura (40×40, cantos arredondados); sem foto, mantém a âncora. Detalhes: `SPEC.md` §56.
+
+### ✅ Detalhe do roteiro — "Retorno Aproximado" (20/10/2026)
+
+- Na linha de informações do roteiro, quando o gestor preencheu **Duração** e **Saída**, aparece ao
+  lado da Saída o campo **"Retorno Aproximado"** = horário de saída + duração (ex.: saída 10:00 + 8
+  horas → 18:00). A conta é num relógio de 24 h: se passar da meia-noite, mostra o horário certo da
+  madrugada e indica o dia — "04:00 (dia seguinte)" ou, em passeios de vários dias, "10:00 (+2
+  dias)". Durações quebradas contam os minutos (09:30 + 2,5 h → 12:00). Sem Duração ou sem Saída, o
+  campo não aparece.
+- A linha foi reorganizada em 3 colunas no computador (Duração · Saída · Retorno Aproximado /
+  Capacidade · Local de partida · Embarcação); no celular continua em 2. A pré-visualização do painel mostra o
+  mesmo campo. Detalhes técnicos: `SPEC.md` §55.
+
 ## 11. Não Incluído no MVP
 
 - Chat em tempo real

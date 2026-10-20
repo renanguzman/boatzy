@@ -6435,3 +6435,82 @@ mim" substituía a coordenada pelo município com roteiro mais próximo e não t
   embarcações), Salvador (mensagens de roteiro e embarcação), "Próximo de mim" com permissão (busca por
   `lat/lng`, "Roteiros próximos a você") e negada (aviso), filtro de preço numa cidade com ofertas
   ("Nenhum roteiro encontrado"), filtros laterais (São José). `tsc`/`eslint` limpos.
+
+## 55. Detalhe do roteiro — "Retorno Aproximado" (20/10/2026)
+
+- `src/lib/duracao.ts` (puro): `horarioRetorno(horarioSaida, duracaoHoras) → { horario: 'HH:MM',
+  diasDepois } | null` — minutos da saída + `round(duracaoHoras × 60)`, módulo 1.440 (relógio de 24
+  h); `diasDepois = floor(total / 1.440)`. Aceita `time` do banco ('HH:MM' ou 'HH:MM:SS'); null sem
+  saída, sem duração, duração ≤ 0 ou horário inválido. `retornoTexto` → "18:00" / "04:00 (dia
+  seguinte)" / "10:00 (+2 dias)".
+- `RoteiroDetalheDados` ganhou `duracao_horas` (selecionado em `/roteiros/[id]/page.tsx`; na prévia
+  do painel, `montarPreviewRoteiro` usa `duracaoParaHoras` do formulário). A grade de specs de
+  `RoteiroDetalheView` passou de `md:grid-cols-4` para `md:grid-cols-3`; novo item "Retorno
+  Aproximado" (ícone `AlarmClockCheck`) logo após "Saída", só quando `horarioRetorno` não é null; o
+  sufixo de dia aparece em `text-xs text-slate-500`.
+- Testes: 15 casos do helper (inclui 10:00 + 8 h = 18:00, 22:00 + 6 h = 04:00 do dia seguinte,
+  23:30 + 0,5 h, frações, 24 h, 48 h, 20:00 + 30 h = 02:00 +2 dias, entradas inválidas → null).
+  Navegador: Ilha do Campeche 18:00, Caixa D'aço 15:30, Ilha do Francês (sem saída) sem o campo;
+  1280 px em 2 linhas de 3, 390 px em 2 colunas. `tsc`/`eslint` limpos.
+
+## 56. Botão "Ver N fotos" da embarcação no detalhe do roteiro (20/10/2026)
+
+`EmbarcacaoFotosModal`: o gatilho (nome sublinhado pontilhado + `Camera` + contagem + `ExternalLink`
+no hover) foi trocado por nome em texto simples + `<button>` pílula `border-[#0B3D91]/20
+bg-[#0B3D91]/5 text-[#0B3D91]` com `Camera` e "Ver fotos desta embarcação ({total} foto(s))" (hover: fundo `#0B3D91`, texto
+branco, sombra; `focus-visible` com outline; `aria-label` descritivo). Só renderiza com `total > 0`.
+O modal é inalterado. Verificado no navegador (clique abre o modal). `tsc`/`eslint` limpos.
+
+- **Miniatura (20/10/2026):** em `RoteiroDetalheView` o quadrado `h-10 w-10` do bloco "Sobre a Embarcação"
+  mostra `next/image` (`fill`, `object-cover`, `sizes="40px"`) da foto `principal` de
+  `embarcacao_imagens` (senão a 1ª por `ordenarImagens`); sem imagens, mantém o ícone `Anchor`.
+
+## 57. Convite aos opcionais no card de reserva (20/10/2026)
+
+`AddonsAccordion` (só o cabeçalho; lista e lógica inalteradas): container `rounded-2xl` com borda
+`cyan-200` + degradê `from-cyan-50 via-white to-[#0B3D91]/[0.06]` e sombra (estado vazio) ou borda
+`#0B3D91/40` + fundo `#0B3D91/[0.04]` (com seleção). Ícone `Sparkles` branco em quadrado 44px
+`from-[#0B3D91] to-cyan-500`; ponto `animate-ping` (`motion-safe`) só sem seleção. Subtítulo com o
+menor adicional pago via `precoCliente` (taxa embutida); affordance "Clique para ver os opcionais"/"Ocultar opcionais"/"Editar opcionais" +
+`ChevronDown`. Validado no navegador (fechado, aberto com seleção). `tsc`/`eslint` limpos.
+
+## 58. Aceite de termos — dica da confirmação (20/10/2026)
+
+`ConfirmacaoExigida` (`src/lib/termos/tipos.ts`) ganhou `dica: string`, preenchida por
+`definirConfirmacao` (`confirmacao.ts`): CPF → 3 primeiros dígitos + "...", CNPJ → 4 + "...", nome →
+`inicioDoNome(name, 5)` (5 primeiras letras, espaços preservados: "Ana Ma...") + "...". `TermoAceite`
+exibe a dica acima do campo ("Começa com os dígitos/Começa com … — complete por inteiro"). A
+validação no servidor é a mesma (com/sem máscara; nome sem acento/caixa). Testado: 829..., 1234...,
+Renan..., Ana Ma..., Jo.... `tsc`/`eslint` limpos.
+
+## 59. Confirmação da reserva — card do roteiro (20/10/2026)
+
+`src/app/reservas/novo/page.tsx` (Server Component): a consulta do roteiro passa a trazer `descricao` e
+`roteiro_imagens ( url_imagem, principal, ordem )`. `fotos = ordenarImagens(...)` com a principal na
+frente. Bloco "Alvo": capa `h-52 sm:h-64` (`next/image` fill, `priority`) + degradê
+`from-[#0B2447]/85`, selo "Roteiro", título e localidade em branco; grade de 4 miniaturas
+(`aspect-[4/3]`, a última com overlay "+N"); descrição em `whitespace-pre-line`. Demais blocos
+(Data/Pessoas, adicionais, valores) inalterados. `tsc`/`eslint` limpos; a rota exige login, então a
+verificação visual fica para a conta do usuário.
+
+- **Ordem (20/10/2026):** o card do roteiro foi separado do card de Data/Pessoas/adicionais; sequência
+  em `/reservas/novo`: card do roteiro → `PrevisaoTempoCard` → card de Data/Pessoas/adicionais →
+  `ConfirmarReserva`.
+
+- **20/10/2026:** o rótulo "Rota" da grade de specs de `RoteiroDetalheView` passou a "Local de partida" (valor inalterado).
+
+- **Carrossel + lightbox (20/10/2026):** o modal de tela cheia de `GaleriaRoteiro` foi extraído para
+  `src/components/ui/FotosLightbox.tsx` (controlado: `images`, `nome`, `indice`, `onMudar`, `onFechar`;
+  teclado ← → Esc e trava do scroll do body) e é usado pela galeria do detalhe e por
+  `src/app/reservas/novo/_components/GaleriaReserva.tsx` (client): capa clicável (`cursor-zoom-in`,
+  selo "N fotos") + carrossel `overflow-x-auto snap-x` com todas as demais fotos (`w-[30%] sm:w-[23%]`,
+  fatia da próxima à mostra; setas `sm:flex` que somem nas pontas via scroll/resize; hover com ícone
+  `Expand`). A página passa `roteiro_imagens ( id, url_imagem, titulo, principal, ordem )`. Validado em
+  rota temporária (removida) com as 7 fotos reais do Caixa D'aço — capa e miniaturas abrem o lightbox,
+  setas/teclado navegam, Esc fecha — e na galeria pública do detalhe (lightbox extraído). `tsc`/`eslint`.
+
+- **Chat na confirmação (20/10/2026):** `/reservas/novo/page.tsx` renderiza, entre o card do roteiro e a
+  previsão, `<a href="/roteiros/{id}/chat" target="_blank" rel="noopener noreferrer">` (mesma rota e
+  estilo do botão do `BookingCard`; ícones `MessageCircle` + `ExternalLink`, `sr-only` "abre em uma nova
+  aba"), só quando `user.id !== roteiro.owner_id`. A rota de chat já exige login e registra a origem
+  `roteiro` da conversa.

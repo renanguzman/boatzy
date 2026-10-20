@@ -46,6 +46,12 @@ export type ConfirmacaoExigida = {
   tipo: ConfirmacaoTipo;
   /** Texto para a instrução, ex.: "seu CPF". */
   rotulo: string;
+  /**
+   * Começo do valor esperado, para o usuário (principalmente quem entrou por
+   * login social e não sabe como o cadastro ficou) saber o que digitar:
+   * "829..." (CPF), "5 primeiras letras" do nome. Nunca o valor completo.
+   */
+  dica: string;
 };
 
 /** Versão vigente de um termo, pronta para exibição e aceite. */

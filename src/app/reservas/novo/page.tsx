@@ -1,6 +1,6 @@
 import { redirect } from 'next/navigation';
 import Link from 'next/link';
-import { MapPin, Users, CalendarDays, ShoppingCart } from 'lucide-react';
+import { Users, CalendarDays, ShoppingCart, MessageCircle, ExternalLink } from 'lucide-react';
 import Header from '@/components/layout/Header';
 import Footer from '@/components/layout/Footer';
 import { createClient } from '@/lib/supabase/server';
@@ -15,7 +15,9 @@ import { obterTermoParaAceite } from '@/lib/termos/aceite';
 import { getPrecoRoteiroNaData } from '@/lib/precos-roteiro-actions';
 import ConfirmarReserva from './_components/ConfirmarReserva';
 import PrevisaoTempoCard from './_components/PrevisaoTempoCard';
+import GaleriaReserva from './_components/GaleriaReserva';
 import { FUSO_HORARIO } from '@/lib/datas';
+import { ordenarImagens } from '@/lib/galeria';
 
 const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
 
@@ -101,10 +103,11 @@ export default async function NovaReservaPage({
   const { data: roteiroRaw } = await supabaseAdmin
     .from('roteiro')
     .select(`
-      id, owner_id, nome, preco_base, latitude, longitude, quantidade_pessoas,
+      id, owner_id, nome, descricao, preco_base, latitude, longitude, quantidade_pessoas,
       preco_diaria_ativo, preco_diaria_valor, preco_diaria_minimo,
       municipios ( nome, estados ( uf ), latitude, longitude ),
-      embarcacao ( capacidade )
+      embarcacao ( capacidade ),
+      roteiro_imagens ( id, url_imagem, titulo, principal, ordem )
     `)
     .eq('id', alvoId)
     .eq('ativo', true)
@@ -115,6 +118,8 @@ export default async function NovaReservaPage({
     id: string;
     owner_id: string;
     nome: string;
+    descricao: string | null;
+    roteiro_imagens: { id: string; url_imagem: string; titulo: string | null; principal: boolean; ordem: number | null }[];
     preco_base: number | null;
     preco_diaria_ativo: boolean;
     preco_diaria_valor: number | null;
@@ -126,6 +131,8 @@ export default async function NovaReservaPage({
     municipios: { nome: string; estados: { uf: string } | null; latitude: number | null; longitude: number | null } | null;
   };
   const nome = roteiro.nome;
+  // Capa = foto principal; demais na ordem do gestor.
+  const fotos = ordenarImagens(roteiro.roteiro_imagens ?? []).sort((a, b) => Number(b.principal) - Number(a.principal));
   const ownerId = roteiro.owner_id;
 
   // Resolve o modelo pedido pela URL contra os modelos realmente ativos
@@ -219,6 +226,34 @@ export default async function NovaReservaPage({
           Revise os dados abaixo. Após o envio, o gestor analisará sua solicitação; se aceitar, você paga pelo Boatzy (Pix ou cartão) para garantir a data.
         </p>
 
+        <div className="mt-6 rounded-2xl border border-slate-200 bg-white shadow-sm overflow-hidden">
+          {/* Alvo — foto de capa com o nome sobreposto, miniaturas e descrição */}
+          <div>
+            <GaleriaReserva fotos={fotos} nome={nome} localidade={localidade} />
+
+            {roteiro.descricao?.trim() && (
+              <p className="px-5 py-4 text-sm leading-relaxed text-slate-600 whitespace-pre-line">{roteiro.descricao.trim()}</p>
+            )}
+            {!roteiro.descricao?.trim() && <div className="pb-1" />}
+          </div>
+
+        </div>
+
+        {/* Chat com o dono — nova aba, para o cliente não perder a confirmação. Oculto para o próprio dono. */}
+        {user.id !== ownerId && (
+          <a
+            href={`/roteiros/${alvoId}/chat`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="mt-4 w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-[#0B3D91] hover:bg-[#092E6E] text-white text-sm font-semibold transition-colors"
+          >
+            <MessageCircle className="h-4 w-4" />
+            Converse com o dono da embarcação deste Roteiro
+            <ExternalLink className="h-3.5 w-3.5 opacity-70" aria-hidden />
+            <span className="sr-only">(abre em uma nova aba)</span>
+          </a>
+        )}
+
         {previsaoTempo && (
           <div className="mt-6">
             <PrevisaoTempoCard
@@ -229,22 +264,8 @@ export default async function NovaReservaPage({
           </div>
         )}
 
-        <div className="mt-6 rounded-2xl border border-slate-200 bg-white shadow-sm overflow-hidden">
-          {/* Alvo */}
-          <div className="p-5 border-b border-slate-100">
-            <div className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-slate-400 mb-1">
-              <MapPin className="h-3 w-3" />
-              Roteiro
-            </div>
-            <h2 className="text-base font-bold text-[#0B2447]">{nome}</h2>
-            {localidade && (
-              <div className="mt-1 flex items-center gap-1.5 text-sm text-slate-500">
-                <MapPin className="h-4 w-4 shrink-0" />
-                {localidade}
-              </div>
-            )}
-          </div>
-
+        {/* (a previsão já traz margem inferior; sem previsão, o espaçamento vem do mt-6) */}
+        <div className={`${previsaoTempo ? '' : 'mt-6 '}rounded-2xl border border-slate-200 bg-white shadow-sm overflow-hidden`}>
           {/* Data / Pessoas */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 p-5 border-b border-slate-100">
             <div className="flex items-center gap-3">

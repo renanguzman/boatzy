@@ -191,6 +191,7 @@ export function montarPreviewRoteiro(args: {
     origem: textoOuNull(form.origem),
     destino: textoOuNull(form.destino),
     duracao: duracaoTexto(duracaoParaHoras(form.duracao_valor, form.duracao_unidade)),
+    duracao_horas: duracaoParaHoras(form.duracao_valor, form.duracao_unidade),
     quantidade_pessoas: inteiro(form.quantidade_pessoas),
     preco_base: numOuNull(form.preco_base),
     preco_diaria_ativo: form.preco_diaria_ativo,

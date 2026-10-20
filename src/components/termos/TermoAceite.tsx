@@ -261,6 +261,11 @@ export default function TermoAceite({ termo, aceite, onAceitar, finalidade, disa
                       <label htmlFor="termo-confirmacao" className="block text-xs font-medium text-slate-600 mb-1">
                         Para confirmar sua identidade, digite {termo.confirmacao.rotulo}:
                       </label>
+                      <p className="mb-1.5 text-xs text-slate-500">
+                        {termo.confirmacao.tipo === 'nome' ? 'Começa com' : 'Começa com os dígitos'}{' '}
+                        <strong className="font-mono text-slate-700">{termo.confirmacao.dica}</strong> — complete por
+                        inteiro{termo.confirmacao.tipo === 'nome' ? '.' : ', com ou sem máscara.'}
+                      </p>
                       <input
                         id="termo-confirmacao"
                         type="text"

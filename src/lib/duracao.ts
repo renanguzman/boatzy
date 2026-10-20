@@ -75,3 +75,33 @@ export function faixaPrecoLabel(min: number | null, max: number | null): string 
   if (min != null) return `A partir de ${fmt(min)}`;
   return `Até ${fmt(max as number)}`;
 }
+
+const MINUTOS_POR_DIA = HORAS_POR_DIA * 60;
+
+/**
+ * Retorno aproximado do passeio: horário de saída + duração, num relógio de
+ * 24 h. Passando da meia-noite, volta a contar do 00:00 (22:00 + 6 h = 04:00)
+ * e `diasDepois` diz em quantos dias depois da saída ele cai (0 = mesmo dia).
+ * Aceita duração fracionada (2,5 h = 2 h 30). `horarioSaida` vem como o tipo
+ * `time` do banco ('HH:MM' ou 'HH:MM:SS'). null quando falta algum dos dois.
+ */
+export function horarioRetorno(
+  horarioSaida: string | null | undefined,
+  duracaoHoras: number | null | undefined,
+): { horario: string; diasDepois: number } | null {
+  if (!horarioSaida || duracaoHoras == null || !Number.isFinite(duracaoHoras) || duracaoHoras <= 0) return null;
+  const [h, m] = horarioSaida.split(':').map(Number);
+  if (!Number.isInteger(h) || !Number.isInteger(m) || h < 0 || h > 23 || m < 0 || m > 59) return null;
+  const total = h * 60 + m + Math.round(duracaoHoras * 60);
+  const noDia = total % MINUTOS_POR_DIA;
+  const hh = String(Math.floor(noDia / 60)).padStart(2, '0');
+  const mm = String(noDia % 60).padStart(2, '0');
+  return { horario: `${hh}:${mm}`, diasDepois: Math.floor(total / MINUTOS_POR_DIA) };
+}
+
+/** "18:00", "04:00 (dia seguinte)", "10:00 (+2 dias)". */
+export function retornoTexto(retorno: { horario: string; diasDepois: number }): string {
+  if (retorno.diasDepois === 0) return retorno.horario;
+  if (retorno.diasDepois === 1) return `${retorno.horario} (dia seguinte)`;
+  return `${retorno.horario} (+${retorno.diasDepois} dias)`;
+}

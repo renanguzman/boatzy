@@ -12,7 +12,6 @@ import {
   Bed,
   Shield,
   Camera,
-  ExternalLink,
 } from 'lucide-react';
 import { formatarComprimento } from '@/lib/comprimento';
 import { ordenarImagens } from '@/lib/galeria';
@@ -75,23 +74,21 @@ export default function EmbarcacaoFotosModal({ embarcacao }: Props) {
 
   return (
     <>
-      {/* Trigger — boat name as a styled link */}
-      <button
-        type="button"
-        onClick={() => { setOpen(true); setCurrent(0); }}
-        className="group flex items-center gap-1.5 text-left hover:text-[#0B3D91] transition-colors"
-      >
-        <span className="font-semibold text-slate-800 group-hover:text-[#0B3D91] transition-colors underline decoration-dotted underline-offset-2 decoration-slate-400 group-hover:decoration-[#0B3D91]">
-          {embarcacao.nome}
-        </span>
+      {/* Trigger — nome + botão-pílula "Ver N fotos" (chama o clique sem poluir) */}
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
+        <span className="font-semibold text-slate-800">{embarcacao.nome}</span>
         {total > 0 && (
-          <span className="inline-flex items-center gap-1 text-[10px] font-medium text-slate-400 group-hover:text-[#0B3D91] transition-colors">
-            <Camera className="h-3 w-3" />
-            {total}
-          </span>
+          <button
+            type="button"
+            onClick={() => { setOpen(true); setCurrent(0); }}
+            aria-label={`Ver ${total} ${total === 1 ? 'foto' : 'fotos'} da embarcação ${embarcacao.nome}`}
+            className="group inline-flex items-center gap-1.5 rounded-full border border-[#0B3D91]/20 bg-[#0B3D91]/5 px-3 py-1 text-xs font-semibold text-[#0B3D91] transition-all hover:border-[#0B3D91] hover:bg-[#0B3D91] hover:text-white hover:shadow-md hover:shadow-[#0B3D91]/20 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#0B3D91]"
+          >
+            <Camera className="h-3.5 w-3.5" />
+            Ver fotos desta embarcação ({total} {total === 1 ? 'foto' : 'fotos'})
+          </button>
         )}
-        <ExternalLink className="h-3.5 w-3.5 text-slate-300 group-hover:text-[#0B3D91] transition-colors opacity-0 group-hover:opacity-100" />
-      </button>
+      </div>
 
       {/* Modal */}
       {open && (
