@@ -6514,3 +6514,53 @@ verificação visual fica para a conta do usuário.
   estilo do botão do `BookingCard`; ícones `MessageCircle` + `ExternalLink`, `sr-only` "abre em uma nova
   aba"), só quando `user.id !== roteiro.owner_id`. A rota de chat já exige login e registra a origem
   `roteiro` da conversa.
+
+## 60. Home — vídeos do hero (20/10/2026)
+
+`src/components/home/HeroSection.tsx`: `HERO_VIDEOS` (sorteio no cliente, após a montagem, para não
+divergir da hidratação) passou a `['/videos/hero02.mp4', '/videos/hero03.mp4', '/videos/hero04.mp4']`
+— `hero01.mp4` removido do sorteio. O arquivo continua em `public/videos/` (sem uso).
+
+- **Altura + "Ver mais" (20/10/2026):** `<section id="hero-section">` = `h-[600px] md:h-[calc(100svh-8rem)]
+  md:min-h-[540px] md:max-h-[640px]` (8rem = header `h-16` + ~64px do conteúdo seguinte à mostra).
+  Botão `hidden md:flex` no rodapé do hero ("Ver mais", `text-[11px] uppercase tracking-[0.2em]
+  text-white/75`, `ChevronDown` com `motion-safe:animate-[ver-mais_2.2s_ease-in-out_infinite]` —
+  keyframe `ver-mais` em `globals.css`, 3px + opacidade). `irParaConteudo` rola até
+  `#featured-charters-section` (ou o próximo irmão do hero, quando a seção não renderiza por falta de
+  avaliações) com `window.scrollTo(top − 64px do header)`, `smooth` salvo `prefers-reduced-motion`.
+  Medido no navegador: 1180×730 → hero 602px, 63px de conteúdo à mostra; 1440×900 e 1920×1080 → 640px;
+  clique leva a seção a 64px do topo; 390px → botão oculto. `tsc`/`eslint` limpos.
+
+- **Balão do Destino (20/10/2026):** `HeroSection` — estado `dicaDestino` (timers: entra em 700 ms,
+  sai em +15 s; limpos no unmount); `open(panel)` zera a dica. Elemento `absolute left-3 top-full mt-3`
+  dentro do wrapper do `LocationPicker`, `pointer-events-none`, transição de opacidade/translate (500
+  ms), fundo `bg-black/70 backdrop-blur-md` (seta idem, quadrado girado 45°), `Compass` `strokeWidth 1.5` `text-white/80`; oculto também enquanto
+  `active === 'location'`. Mostrado a cada carregamento (sem `sessionStorage`). Medido no navegador:
+  opacidade 0 no início, 1 em 1,5 s, 0 após o tempo (5 s na 1ª versão; agora 15 s), 0 ao clicar no Destino.
+
+## 61. Header do site — logo por resolução (20/10/2026)
+
+`src/components/layout/Header.tsx`: duas `<Image priority>` no `#header-logo` — `logo-vertical.svg`
+(`h-14`, `lg:hidden`) e `logo-horizontal-header-site.svg` (459×130, `hidden lg:block h-[52px] w-auto`
+≈ 184px de largura). Breakpoint `lg` (1024px): entre `md` e `lg` o menu já aparece e o logo largo
+apertaria os links. Header segue `h-16`. Medido: 390/900px → vertical 54×56; 1024/1440px → horizontal
+184×52; header 65px e topo do hero em 65px nos quatro tamanhos. `tsc`/`eslint` limpos.
+
+- **Menu principal (20/10/2026):** `src/components/layout/NavPrincipal.tsx` (client) substitui o `<nav>`
+  de links soltos do `Header`. `<nav id="main-nav" aria-label="Menu principal">` em pílula
+  (`rounded-full border-slate-200/80 bg-slate-50/80 p-1`) com `MapPin`/`Ship`/`Tag` (os mesmos do `SearchTypeToggle`)
+  (`strokeWidth 1.75`), divisórias `h-4 w-px bg-slate-200` (ocultas ao lado do item ativo), hover/ativo
+  `bg-white text-[#0B3D91] shadow-sm` + ícone `text-cyan-600`, `aria-current="page"`. Item ativo por
+  `usePathname` + `useSearchParams().get('tipo')` dentro de `<Suspense>` (fallback: o mesmo menu sem
+  ativo — exigência do `useSearchParams` em rota pré-renderizada). `md`–`lg`: só ícones
+  (`hidden lg:inline` no rótulo; `title`/`aria-label`). Medido: folga logo↔menu↔ações de 88px (768),
+  21px (1024, com rótulos); sem estouro horizontal; ativo correto em /, /buscar, /buscar?tipo=embarcacao,
+  /vendas, /roteiros/[id]. `tsc`/`eslint` limpos.
+
+- **CTA do painel (20/10/2026):** `Header` — `<Link href="/painel">` `bg-[#0B2447] text-white rounded-full
+  py-1.5 pl-1.5 pr-4` (40px, alinhado à cápsula do menu), ícone em `h-7 w-7 rounded-full bg-white/10
+  ring-white/15` (`Anchor` se `isGestor`, senão `Megaphone`; `text-cyan-300`), hover `bg-[#0B3D91]` +
+  `shadow-[#0B3D91]/25`, `ArrowUpRight` com espaço reservado (só opacidade/translate no hover, para não
+  deslocar o menu — medido: posição do menu igual antes/no hover). Menu mobile: mesmo fundo e ícones.
+  Itens do `NavPrincipal` com `px-3 xl:px-4` para manter folga em 1024px (21px; 768px → 76px; 1440px →
+  137px; sem estouro). `tsc`/`eslint` limpos.

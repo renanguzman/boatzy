@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import Image from 'next/image';
-import { Search, X } from 'lucide-react';
+import { Search, X, ChevronDown, Compass } from 'lucide-react';
 import LocationPicker, { type LocationValue } from './search/LocationPicker';
 import DatePicker, { type DateValue } from './search/DatePicker';
 import GuestPicker from './search/GuestPicker';
@@ -16,7 +16,7 @@ import { buildVendaSearchUrl } from './search/venda/build-url';
 
 type ActivePanel = 'location' | 'date' | 'guests' | 'tipo' | 'tipo_venda' | 'localidade' | 'ano' | 'valor' | null;
 
-const HERO_VIDEOS = ['/videos/hero01.mp4', '/videos/hero02.mp4', '/videos/hero03.mp4', '/videos/hero04.mp4'];
+const HERO_VIDEOS = ['/videos/hero02.mp4', '/videos/hero03.mp4', '/videos/hero04.mp4'];
 
 type Props = {
   tiposEmbarcacao: TipoEmbarcacaoValue[];
@@ -59,8 +59,32 @@ export default function HeroSection({ tiposEmbarcacao, tiposVenda, locaisVenda }
     return () => document.removeEventListener('mousedown', handleClick);
   }, []);
 
+  // Balão "Comece sua experiência por aqui" sob o campo Destino: entra pouco
+  // depois de a página abrir e some sozinho em 15 s — ou antes, se a pessoa
+  // interagir com a busca.
+  const [dicaDestino, setDicaDestino] = useState(false);
+  useEffect(() => {
+    const entrar = setTimeout(() => setDicaDestino(true), 700);
+    const sair = setTimeout(() => setDicaDestino(false), 700 + 15000);
+    return () => {
+      clearTimeout(entrar);
+      clearTimeout(sair);
+    };
+  }, []);
+
   function open(panel: ActivePanel) {
+    setDicaDestino(false);
     setActive((prev) => (prev === panel ? null : panel));
+  }
+
+  /** Rola até "Roteiros Mais Bem Avaliados"; sem ela (nenhum roteiro avaliado), até a seção seguinte. */
+  function irParaConteudo() {
+    const alvo = document.getElementById('featured-charters-section')
+      ?? document.getElementById('hero-section')?.nextElementSibling;
+    if (!alvo) return;
+    const suave = !window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    const topo = alvo.getBoundingClientRect().top + window.scrollY - 64; // header fixo (h-16)
+    window.scrollTo({ top: topo, behavior: suave ? 'smooth' : 'auto' });
   }
 
   function clearLocation() {
@@ -119,7 +143,10 @@ export default function HeroSection({ tiposEmbarcacao, tiposVenda, locaisVenda }
   }
 
   return (
-    <section className="relative z-10 h-[600px] md:h-[650px]" id="hero-section">
+    // Altura: no computador, a tela menos 8rem (header de 64px + uma faixa do
+    // conteúdo seguinte à mostra, indicando que a página continua), entre 540 e
+    // 640px. No celular a busca empilhada precisa dos 600px.
+    <section className="relative z-10 h-[600px] md:h-[calc(100svh-8rem)] md:min-h-[540px] md:max-h-[640px]" id="hero-section">
       {/* Background */}
       <div className="absolute inset-0 overflow-hidden">
         {!videoReady && (
@@ -304,6 +331,20 @@ export default function HeroSection({ tiposEmbarcacao, tiposVenda, locaisVenda }
                   onClose={() => setActive(null)}
                 />
               )}
+
+              {/* Balão de boas-vindas apontando para o Destino (some em 15 s) */}
+              <div
+                aria-hidden={!dicaDestino}
+                className={`pointer-events-none absolute left-3 top-full z-40 mt-3 transition-all duration-500 ease-out ${
+                  dicaDestino && active !== 'location' ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-1'
+                }`}
+              >
+                <span className="absolute -top-1.5 left-6 h-3 w-3 rotate-45 rounded-[2px] bg-black/70 backdrop-blur-md" />
+                <div className="relative flex items-center gap-2 whitespace-nowrap rounded-xl bg-black/70 backdrop-blur-md px-3.5 py-2.5 text-xs font-medium tracking-wide text-white shadow-xl shadow-black/40 ring-1 ring-white/10">
+                  <Compass className="h-3.5 w-3.5 text-white/80" strokeWidth={1.5} />
+                  Comece sua experiência por aqui
+                </div>
+              </div>
             </div>
 
             {/* Divider */}
@@ -371,6 +412,16 @@ export default function HeroSection({ tiposEmbarcacao, tiposVenda, locaisVenda }
           </div>
         </div>
       </div>
+
+      {/* "Ver mais" — leva aos Roteiros Mais Bem Avaliados (ou à próxima seção, se ela não existir) */}
+      <button
+        type="button"
+        onClick={irParaConteudo}
+        className="group absolute bottom-5 left-1/2 z-10 hidden -translate-x-1/2 md:flex flex-col items-center gap-0.5 rounded-full px-4 py-1.5 text-[11px] font-medium uppercase tracking-[0.2em] text-white/75 transition-colors hover:text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white/70"
+      >
+        Ver mais
+        <ChevronDown className="h-4 w-4 motion-safe:animate-[ver-mais_2.2s_ease-in-out_infinite] group-hover:translate-y-0.5 transition-transform" />
+      </button>
     </section>
   );
 }

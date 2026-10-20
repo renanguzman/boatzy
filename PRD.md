@@ -1869,6 +1869,39 @@ permissão de localização, não fazia nada.
 - **Implantação:** aplicar a migration `20261020_busca_destino_centro_municipio.sql` (o resto já
   funciona sem ela). Detalhes técnicos: `SPEC.md` §54.
 
+### ✅ Header do site — logo horizontal no desktop (20/10/2026)
+
+- No computador (a partir de 1024 px) o header mostra o **logo horizontal** ("Boatzy" por extenso,
+  `logo-horizontal-header-site.svg`), ocupando melhor o espaço na horizontal; no celular e em
+  tablets continua o **logo vertical**. A altura do header não muda (o hero continua no mesmo lugar).
+  Detalhes: `SPEC.md` §61.
+- **Menu do header redesenhado:** Roteiros, Embarcações e Vendas ficam numa **cápsula** clara com
+  borda fina, cada um com ícone (os mesmos do seletor de busca do hero: pino de local, navio, etiqueta) e **divisórias** finas entre eles. Ao passar
+  o mouse, o item vira um botão branco elevado com o texto azul da marca; a **página atual** fica
+  marcada do mesmo jeito (Roteiros em /buscar e no detalhe do roteiro; Embarcações em
+  /buscar?tipo=embarcacao e nas páginas da embarcação; Vendas em /vendas). No tablet (768–1023 px) a
+  cápsula mostra só os ícones (o nome aparece ao passar o mouse), para caber ao lado do logo e dos
+  botões.
+- **Botão "Minhas embarcações" / "Anuncie sua embarcação":** virou uma pílula **azul-marinho cheia**
+  (contraponto ao menu claro, mesma altura da cápsula), com o ícone num círculo translúcido (âncora
+  para quem já é gestor; megafone para quem ainda vai anunciar). No hover o fundo clareia para o azul
+  da marca, ganha um brilho suave e aparece uma setinha ↗ — sem deslocar nada no header. No menu do
+  celular o botão segue o mesmo estilo.
+
+### ✅ Home — vídeos do hero (20/10/2026)
+
+- O fundo do hero sorteia um vídeo a cada visita entre `hero02`, `hero03` e `hero04`
+  (`public/videos/`); o `hero01.mp4` saiu do sorteio. Detalhes: `SPEC.md` §60.
+- **Altura do hero e "Ver mais":** no computador o hero passou a ocupar a altura da tela menos uma
+  faixa (entre 540 e 640 px), deixando sempre o começo do conteúdo seguinte à mostra — numa tela de
+  ~730 px aparecem os ícones da faixa de vantagens, antes escondidos. No rodapé do hero, um botão
+  discreto **"VER MAIS"** com uma seta que flutua suavemente leva, rolando a página, até **"Roteiros
+  Mais Bem Avaliados"** (ou à seção seguinte, se ainda não houver roteiro avaliado). No celular o hero
+  mantém 600 px e o botão não aparece (a busca empilhada ocupa o espaço e rolar é natural).
+- **Balão no campo Destino (teste):** ao abrir a home, um balão preto translúcido (vidro fosco) com seta e um ícone de bússola — **"Comece sua experiência por aqui"** — aparece sob o campo Destino (~0,7 s depois de
+  carregar) e some sozinho em 15 s, ou na hora se a pessoa clicar em qualquer campo da busca. Aparece a
+  cada carregamento da home. No celular fica sobre o campo Data enquanto visível, sem bloquear o clique.
+
 ### ✅ Confirmação da reserva — bloco do roteiro com fotos e descrição (20/10/2026)
 
 - O bloco "Roteiro" de `/reservas/novo` (antes só nome e cidade) virou um card de apresentação: **foto

@@ -4,12 +4,13 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { usePathname, useRouter } from 'next/navigation';
-import { Menu, X, User, Briefcase, LogOut, Loader2, CalendarCheck, UserCog, Heart, MessageCircle, Megaphone, Tag } from 'lucide-react';
+import { Menu, X, User, Briefcase, LogOut, Loader2, CalendarCheck, UserCog, Heart, MessageCircle, Megaphone, Tag, Anchor, ArrowUpRight } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { authorizeRealtime } from '@/lib/supabase/realtime';
 import type { User as SupabaseUser, RealtimeChannel } from '@supabase/supabase-js';
 import UserMenu from './UserMenu';
 import EntrarMenu from './EntrarMenu';
+import NavPrincipal from './NavPrincipal';
 
 export default function Header() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -101,33 +102,30 @@ export default function Header() {
         <div className="flex h-16 items-center justify-between">
           {/* Logo */}
           <Link href="/" className="flex items-center gap-2" id="header-logo">
-            <Image src="/images/logo-vertical.svg" alt="Boatzy" width={282} height={290} className="h-14 w-auto object-contain" priority />
+            {/* Celular/tablet: logo vertical. Desktop (lg+): logo horizontal, 52px de
+                altura — preenche na horizontal sem mudar a altura do header (h-16). */}
+            <Image src="/images/logo-vertical.svg" alt="Boatzy" width={282} height={290} className="h-14 w-auto object-contain lg:hidden" priority />
+            <Image src="/images/logo-horizontal-header-site.svg" alt="Boatzy" width={459} height={130} className="hidden lg:block h-[52px] w-auto object-contain" priority />
           </Link>
 
           {/* Desktop Navigation */}
-          <nav className="hidden md:flex items-center gap-8" id="main-nav">
-            <Link href="/buscar" className="text-sm font-medium text-slate-700 hover:text-[#0B3D91] transition-colors">
-              Roteiros
-            </Link>
-            <Link href="/buscar?tipo=embarcacao" className="text-sm font-medium text-slate-700 hover:text-[#0B3D91] transition-colors">
-              Embarcações
-            </Link>
-            <Link href="/vendas" className="flex items-center gap-1.5 text-sm font-medium text-slate-700 hover:text-[#0B3D91] transition-colors">
-              Vendas
-              <span className="flex h-4 w-4 items-center justify-center rounded-full bg-gradient-to-br from-[#0B3D91] to-cyan-400 text-white">
-                <Tag className="h-2.5 w-2.5" />
-              </span>
-            </Link>
-          </nav>
+          <NavPrincipal />
 
           {/* Right Side Actions */}
           <div className="flex items-center gap-3">
+            {/* CTA do painel — pílula azul-marinho (contraponto ao menu claro), mesma
+                altura da cápsula do menu; ícone num círculo translúcido e seta ↗ no hover. */}
             <Link
               href="/painel"
-              className="hidden md:inline-flex items-center gap-1.5 rounded-full bg-[#0B3D91]/10 px-4 py-2 text-sm font-semibold text-[#0B3D91] hover:bg-[#0B3D91] hover:text-white transition-colors"
+              className="group hidden md:inline-flex items-center gap-2 rounded-full bg-[#0B2447] py-1.5 pl-1.5 pr-4 text-sm font-semibold text-white shadow-sm ring-1 ring-[#0B2447]/10 transition-all duration-200 hover:bg-[#0B3D91] hover:shadow-md hover:shadow-[#0B3D91]/25 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#0B3D91]"
             >
-              <Megaphone className="h-4 w-4" />
+              <span className="flex h-7 w-7 items-center justify-center rounded-full bg-white/10 ring-1 ring-white/15 transition-colors group-hover:bg-white/15">
+                {isGestor
+                  ? <Anchor className="h-3.5 w-3.5 text-cyan-300" strokeWidth={2} />
+                  : <Megaphone className="h-3.5 w-3.5 text-cyan-300" strokeWidth={2} />}
+              </span>
               {isGestor ? 'Minhas embarcações' : 'Anuncie sua embarcação'}
+              <ArrowUpRight className="-ml-0.5 h-3.5 w-3.5 -translate-x-1 opacity-0 transition-all duration-200 group-hover:translate-x-0 group-hover:opacity-80" />
             </Link>
 
             {/* Auth */}
@@ -176,9 +174,9 @@ export default function Header() {
               <Link
                 href="/painel"
                 onClick={() => setMobileMenuOpen(false)}
-                className="mx-3 mt-2 flex items-center justify-center gap-1.5 rounded-full bg-[#0B3D91]/10 px-4 py-2.5 text-sm font-semibold text-[#0B3D91]"
+                className="mx-3 mt-2 flex items-center justify-center gap-2 rounded-full bg-[#0B2447] px-4 py-2.5 text-sm font-semibold text-white"
               >
-                <Megaphone className="h-4 w-4" />
+                {isGestor ? <Anchor className="h-4 w-4 text-cyan-300" /> : <Megaphone className="h-4 w-4 text-cyan-300" />}
                 {isGestor ? 'Minhas embarcações' : 'Anuncie sua embarcação'}
               </Link>
               <hr className="border-slate-100 my-1" />

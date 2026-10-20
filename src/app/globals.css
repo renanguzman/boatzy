@@ -25,6 +25,12 @@ body {
 }
 
 /* Custom animations */
+/* Seta do "Ver mais" do hero: flutua 3px, discreta (o bounce padrão é grande demais). */
+@keyframes ver-mais {
+  0%, 100% { transform: translateY(0); opacity: 0.75; }
+  50% { transform: translateY(3px); opacity: 1; }
+}
+
 @keyframes fade-in {
   from {
     opacity: 0;
