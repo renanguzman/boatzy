@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { CalendarDays, Clock, MapPin, Receipt, Ship, ShieldCheck, Sparkles, Users, Wallet, Waves } from 'lucide-react';
-import LocationPicker, { type LocationValue } from '@/components/home/search/LocationPicker';
+import LocationPicker, { ROTULO_PROXIMO_DE_MIM, type LocationValue } from '@/components/home/search/LocationPicker';
 import DatePicker, { type DateValue } from '@/components/home/search/DatePicker';
 import PainelFiltros from '@/components/busca/PainelFiltros';
 import { useNavegacaoBusca } from '@/components/busca/NavegacaoBusca';
@@ -66,7 +66,7 @@ export default function FiltrosLaterais({
       return { type: 'place', id: parseInt(params.municipio), nome, uf: uf ?? '' };
     }
     if (params.lat && params.lng) {
-      return { type: 'geo', lat: parseFloat(params.lat), lng: parseFloat(params.lng), label: 'Minha localização' };
+      return { type: 'geo', lat: parseFloat(params.lat), lng: parseFloat(params.lng), label: ROTULO_PROXIMO_DE_MIM };
     }
     return null;
   }, [params.municipio, params.local, params.lat, params.lng]);

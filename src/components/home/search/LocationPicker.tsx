@@ -1,12 +1,24 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import { MapPin, Navigation, Clock } from 'lucide-react';
+import { MapPin, Navigation, Clock, AlertCircle } from 'lucide-react';
 import type { LocalResult } from '@/app/api/buscar/locais/route';
 
+/**
+ * Destino da busca. `place` = município (a busca pega roteiros com ponto de
+ * saída e embarcações localizadas nele ou num raio ao redor); `geo` = "Próximo
+ * de mim" (coordenada do usuário + raio).
+ */
 export type LocationValue =
   | { type: 'geo'; lat: number; lng: number; label: string }
   | { type: 'place'; id: number; nome: string; uf: string };
+
+export const ROTULO_PROXIMO_DE_MIM = 'Próximo de mim';
+
+const MSG_GEO_NEGADA =
+  'Não temos acesso à sua localização. Para buscar perto de você, permita o acesso à localização '
+  + 'para o Boatzy no navegador (ícone ao lado do endereço do site) e tente de novo.';
+const MSG_GEO_FALHOU = 'Não foi possível obter sua localização agora. Tente de novo ou digite o destino.';
 
 type Props = {
   value: LocationValue | null;
@@ -21,22 +33,21 @@ type Props = {
 
 const RECENT_KEY = 'boatzy_recent_locations';
 
+/** Só destinos (municípios): a localização do usuário muda, não vale guardar. */
 function getRecent(): LocationValue[] {
   if (typeof window === 'undefined') return [];
   try {
-    return JSON.parse(localStorage.getItem(RECENT_KEY) ?? '[]');
+    const salvos: LocationValue[] = JSON.parse(localStorage.getItem(RECENT_KEY) ?? '[]');
+    return salvos.filter((r) => r.type === 'place');
   } catch {
     return [];
   }
 }
 
 function saveRecent(value: LocationValue) {
+  if (value.type !== 'place') return;
   try {
-    const prev = getRecent().filter((r) =>
-      r.type === 'geo'
-        ? value.type !== 'geo'
-        : value.type !== 'place' || r.id !== value.id,
-    );
+    const prev = getRecent().filter((r) => r.type !== 'place' || r.id !== value.id);
     localStorage.setItem(RECENT_KEY, JSON.stringify([value, ...prev].slice(0, 4)));
   } catch {
     // ignore
@@ -52,9 +63,13 @@ export default function LocationPicker({ value, onChange, isOpen, onOpen, onClos
   const [suggestions, setSuggestions] = useState<LocalResult[]>([]);
   const [loading, setLoading] = useState(false);
   const [geoLoading, setGeoLoading] = useState(false);
+  const [geoErro, setGeoErro] = useState<string | null>(null);
   const [recent, setRecent] = useState<LocationValue[]>([]);
   const inputRef = useRef<HTMLInputElement>(null);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Enter apertado antes de as sugestões chegarem: escolhe a 1ª quando chegarem.
+  const escolherAoCarregarRef = useRef(false);
+  const selecionarRef = useRef<(r: LocalResult) => void>(() => {});
 
   useEffect(() => {
     if (isOpen) {
@@ -63,6 +78,7 @@ export default function LocationPicker({ value, onChange, isOpen, onOpen, onClos
     } else {
       setQuery('');
       setSuggestions([]);
+      setGeoErro(null);
     }
   }, [isOpen]);
 
@@ -73,11 +89,17 @@ export default function LocationPicker({ value, onChange, isOpen, onOpen, onClos
       return;
     }
     debounceRef.current = setTimeout(async () => {
+      debounceRef.current = null;
       setLoading(true);
       try {
         const res = await fetch(`/api/buscar/locais?q=${encodeURIComponent(query)}`);
-        const data: LocalResult[] = await res.json();
-        setSuggestions(data);
+        const data: unknown = await res.json();
+        const lista = res.ok && Array.isArray(data) ? (data as LocalResult[]) : [];
+        setSuggestions(lista);
+        if (escolherAoCarregarRef.current && lista.length > 0) selecionarRef.current(lista[0]);
+        escolherAoCarregarRef.current = false;
+      } catch {
+        setSuggestions([]);
       } finally {
         setLoading(false);
       }
@@ -90,6 +112,9 @@ export default function LocationPicker({ value, onChange, isOpen, onOpen, onClos
     onChange(v);
     onClose();
   }
+  useEffect(() => {
+    selecionarRef.current = handleSelectPlace;
+  });
 
   function handleSelectRecent(v: LocationValue) {
     saveRecent(v);
@@ -97,28 +122,45 @@ export default function LocationPicker({ value, onChange, isOpen, onOpen, onClos
     onClose();
   }
 
-  async function handleGeo() {
-    if (!navigator.geolocation) return;
+  // "Próximo de mim": busca pela coordenada do usuário (com raio) — não pelo
+  // município mais próximo, que podia estar longe. Na primeira vez o navegador
+  // pede a permissão; negada ou bloqueada, explica como liberar.
+  function handleGeo() {
+    setGeoErro(null);
+    if (!navigator.geolocation || !window.isSecureContext) {
+      setGeoErro(MSG_GEO_FALHOU);
+      return;
+    }
     setGeoLoading(true);
     navigator.geolocation.getCurrentPosition(
-      async (pos) => {
-        try {
-          const { latitude: lat, longitude: lng } = pos.coords;
-          const res = await fetch(`/api/buscar/locais?lat=${lat}&lng=${lng}`);
-          const data: LocalResult[] = await res.json();
-          const nearest = data[0];
-          const v: LocationValue = nearest
-            ? { type: 'place', id: nearest.id, nome: nearest.nome, uf: nearest.uf }
-            : { type: 'geo', lat, lng, label: 'Minha localização' };
-          saveRecent(v);
-          onChange(v);
-          onClose();
-        } finally {
-          setGeoLoading(false);
-        }
+      (pos) => {
+        setGeoLoading(false);
+        const v: LocationValue = {
+          type: 'geo',
+          lat: Number(pos.coords.latitude.toFixed(5)),
+          lng: Number(pos.coords.longitude.toFixed(5)),
+          label: ROTULO_PROXIMO_DE_MIM,
+        };
+        onChange(v);
+        onClose();
       },
-      () => setGeoLoading(false),
+      (erro) => {
+        setGeoLoading(false);
+        setGeoErro(erro.code === erro.PERMISSION_DENIED ? MSG_GEO_NEGADA : MSG_GEO_FALHOU);
+      },
+      { enableHighAccuracy: false, timeout: 15000, maximumAge: 5 * 60 * 1000 },
     );
+  }
+
+  // Enter escolhe a primeira sugestão (antes o texto digitado era descartado).
+  function handleKeyDown(e: React.KeyboardEvent<HTMLInputElement>) {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      if (suggestions.length > 0 && !loading && !debounceRef.current) handleSelectPlace(suggestions[0]);
+      else if (query.trim().length >= 2) escolherAoCarregarRef.current = true;
+    } else if (e.key === 'Escape') {
+      onClose();
+    }
   }
 
   const showSuggestions = query.trim().length > 0;
@@ -159,7 +201,8 @@ export default function LocationPicker({ value, onChange, isOpen, onOpen, onClos
               type="text"
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              placeholder="Buscar destino..."
+              onKeyDown={handleKeyDown}
+              placeholder="Cidade de saída do passeio"
               className="flex-1 text-sm text-slate-800 outline-none placeholder:text-slate-400 bg-transparent"
             />
             {loading && (
@@ -182,10 +225,16 @@ export default function LocationPicker({ value, onChange, isOpen, onOpen, onClos
                   <Navigation className="h-4 w-4 text-slate-600" />
                 )}
               </div>
-              <span className="text-sm font-medium text-slate-800">Próximo de mim</span>
+              <span className="text-sm font-medium text-slate-800">{ROTULO_PROXIMO_DE_MIM}</span>
             </button>
+            {geoErro && (
+              <p role="alert" className="mx-4 mb-2 flex items-start gap-2 rounded-xl bg-amber-50 px-3 py-2.5 text-xs leading-relaxed text-amber-800">
+                <AlertCircle className="h-3.5 w-3.5 shrink-0 mt-0.5" />
+                {geoErro}
+              </p>
+            )}
 
-            {/* Recent searches */}
+            {/* Recent searches (só destinos; a localização do usuário muda) */}
             {showRecent && (
               <>
                 <div className="px-4 py-1.5">
@@ -210,7 +259,10 @@ export default function LocationPicker({ value, onChange, isOpen, onOpen, onClos
             )}
 
             {/* Suggestions from API */}
-            {showSuggestions && suggestions.length === 0 && !loading && (
+            {showSuggestions && query.trim().length < 2 && (
+              <p className="px-4 py-4 text-sm text-slate-400 text-center">Digite ao menos 2 letras</p>
+            )}
+            {showSuggestions && query.trim().length >= 2 && suggestions.length === 0 && !loading && (
               <p className="px-4 py-4 text-sm text-slate-400 text-center">
                 Nenhum destino encontrado
               </p>
@@ -228,7 +280,10 @@ export default function LocationPicker({ value, onChange, isOpen, onOpen, onClos
                   </div>
                   <div>
                     <p className="text-sm font-medium text-slate-800">{r.nome}</p>
-                    <p className="text-xs text-slate-500">{r.estado}</p>
+                    <p className="text-xs text-slate-500">
+                      {r.estado}
+                      {r.temOfertas && <span className="text-emerald-600 font-medium"> · Com passeios no Boatzy</span>}
+                    </p>
                   </div>
                 </button>
               ))}

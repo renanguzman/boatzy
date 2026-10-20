@@ -1285,12 +1285,14 @@ mapeando os itens marcados no formulário. Antes `embarcacao_equipamentos_segura
 
 **`GET /api/buscar/locais`**
 
+> **Reescrita em 19/10/2026 (§54).** Antes lia `roteiro` com o cliente anônimo — o RLS não deixa o
+> público ler `roteiro`, a consulta voltava vazia e o campo Destino nunca sugeria nada.
+
 | Parâmetro | Tipo | Descrição |
 |-----------|------|-----------|
-| `q` | string | Texto para autocomplete de municípios |
-| `lat` + `lng` | numeric | Coordenadas para busca "próximo de mim" |
+| `q` | string (≥ 2 letras) | Texto do autocomplete; menos de 2 letras → `[]` |
 
-Retorna `LocalResult[]`:
+Retorna até 8 `LocalResult`:
 ```ts
 type LocalResult = {
   id: number;         // municipio_id (IBGE)
@@ -1299,10 +1301,16 @@ type LocalResult = {
   estado: string;
   latitude: number | null;
   longitude: number | null;
+  temOfertas: boolean; // roteiro ativo saindo daqui ou embarcação ativa localizada aqui
 };
 ```
 
-Apenas municípios que possuem pelo menos um `roteiro` cadastrado são retornados. Para geolocalização, os resultados são ordenados por distância (Haversine via `Math.hypot`).
+Lê com `supabaseAdmin` (só dados públicos de município). Busca em **todos** os 5.571 municípios,
+sem diferenciar acentos/maiúsculas (`normalize('NFD')`), para o cliente poder buscar um lugar sem
+oferta (a busca então avisa "O Boatzy ainda não possui…"). Ordem: com oferta → começa com o texto →
+A–Z. Cache em memória por instância: municípios 24 h (carregados em páginas de 1.000 em paralelo —
+limite da Data API), "com oferta" 5 min. O parâmetro `lat`/`lng` saiu: o "Próximo de mim" busca pela
+coordenada do usuário com raio (o município de centro mais próximo nem sempre é onde o usuário está).
 
 ---
 
@@ -1328,6 +1336,14 @@ type Props = {
 ```
 
 - Dropdown com "Próximo de mim" (geolocation), histórico recente (localStorage key `boatzy_recent_locations`), e sugestões da API (debounce 300ms).
+- **Desde 19/10/2026 (§54):** "Próximo de mim" gera `{ type: 'geo', lat, lng, label: 'Próximo de mim' }`
+  (`ROTULO_PROXIMO_DE_MIM`) com a coordenada do usuário — antes trocava pelo município *com roteiro*
+  mais próximo, que podia estar longe. `getCurrentPosition` dispara o pedido de permissão do
+  navegador; erro `PERMISSION_DENIED` (ou contexto inseguro/sem suporte) mostra aviso âmbar
+  (`role="alert"`) explicando como liberar; outros erros → "Não foi possível obter sua localização
+  agora…". Opções: `enableHighAccuracy: false`, `timeout: 15s`, `maximumAge: 5 min`. Enter escolhe a
+  1ª sugestão (se ainda estiver carregando, escolhe quando chegar); Esc fecha. Sugestão com oferta
+  mostra "· Com passeios no Boatzy". Buscas recentes guardam só municípios.
 - `compact` reduz o trigger para tamanho menor (usado em `SearchBarCompact`).
 
 #### `DatePicker`
@@ -6387,3 +6403,35 @@ R$ 9.200 + Adicionais R$ 92 = Total R$ 9.292 (mesmo total do checkout).
 - Verificação (navegador): 1280×700 → `top` 69px, card fixa com o fim a 16px da borda e o botão
   visível; com os adicionais abertos → `top` −221px, mesmo comportamento; 1280×800/1100 (card cabe)
   → 96px. Popover sem "Data exata"/"Limpar data". `tsc`/`eslint` limpos.
+
+## 54. Campo Destino — sugestões, "Próximo de mim" e localidade sem ofertas (19/10/2026)
+
+**Causas.** (1) `GET /api/buscar/locais` lia `roteiro` com o cliente anônimo; o RLS bloqueia a
+leitura pública de `roteiro`, então a lista vinha vazia e o campo nunca sugeria nada. (2) "Próximo de
+mim" substituía a coordenada pelo município com roteiro mais próximo e não tratava permissão negada.
+(3) Roteiro/embarcação sem coordenada exata ficava fora de toda busca por raio.
+
+- **API** (`src/app/api/buscar/locais/route.ts`): ver §18.1 — `supabaseAdmin`, todos os municípios,
+  sem acento, com-oferta primeiro, cache em memória, `temOfertas`.
+- **`LocationPicker`**: ver §18.2 — "Próximo de mim" com a coordenada real + tratamento de
+  permissão; Enter/Esc; buscas recentes só de municípios. `FiltrosLaterais` usa
+  `ROTULO_PROXIMO_DE_MIM` para `?lat&lng`.
+- **`/buscar`** (`page.tsx`): com destino (`municipio` ou `lat`+`lng`) e `total = 0`, roda a mesma RPC
+  só com a localização (`p_limit 1`); se também vier vazia → título `MSG_SEM_ROTEIRO_NA_LOCALIDADE`
+  ("O Boatzy ainda não possui um Roteiro nesta localidade") / `MSG_SEM_EMBARCACAO_NA_LOCALIDADE`
+  ("…uma Embarcação…") + "Experimente outro destino…"; senão mantém "Nenhum roteiro/embarcação
+  encontrado" (o vazio vem dos outros filtros).
+- **Migration `supabase/migrations/20261020_busca_destino_centro_municipio.sql`** (CREATE OR REPLACE,
+  mesma assinatura e retorno; GRANTs mantidos): `buscar_roteiros` (base 20261019) e
+  `buscar_embarcacoes` (base 20261012) calculam a posição com `CROSS JOIN LATERAL (COALESCE(x.latitude,
+  municipio.latitude), COALESCE(x.longitude, municipio.longitude))` — ponto de saída do roteiro /
+  localização da embarcação; sem ela, o centro do município — no filtro de raio e na distância
+  (`distancia_km`, ordenação). Regra do destino inalterada: município exato **ou** raio (50 km).
+- **Testes:** PGlite com as migrations reais (20261010d → 20261012 → 20261016 → 20261017 → 20261019 →
+  20261020 ×2): sem coordenada entra pelo centro do município (perto de mim, município vizinho no
+  raio), coordenada exata tem precedência (raio 2 km), cidade distante vazia, distância/ordem pelo
+  centro, sem destino sem filtro. Navegador: sugestões sem acento com "Com passeios no Boatzy", Enter
+  imediato com cache frio (campo preenchido em < 1 s), busca por Florianópolis (4 roteiros, 3
+  embarcações), Salvador (mensagens de roteiro e embarcação), "Próximo de mim" com permissão (busca por
+  `lat/lng`, "Roteiros próximos a você") e negada (aviso), filtro de preço numa cidade com ofertas
+  ("Nenhum roteiro encontrado"), filtros laterais (São José). `tsc`/`eslint` limpos.

@@ -34,6 +34,9 @@ import { FUSO_HORARIO } from '@/lib/datas';
 const POR_PAGINA = 24;
 const RAIO_KM = 50;
 
+const MSG_SEM_ROTEIRO_NA_LOCALIDADE = 'O Boatzy ainda não possui um Roteiro nesta localidade';
+const MSG_SEM_EMBARCACAO_NA_LOCALIDADE = 'O Boatzy ainda não possui uma Embarcação nesta localidade';
+
 function buildPageUrl(current: SearchParams, overrides: Partial<SearchParams & { pagina: string }>) {
   return buildBuscarUrl(current, overrides);
 }
@@ -254,6 +257,20 @@ export default async function BuscarPage({ searchParams }: { searchParams: Promi
   }
 
   const totalPaginas = Math.max(1, Math.ceil(total / POR_PAGINA));
+
+  // Busca vazia com destino (município ou "Próximo de mim"): se nem só pela
+  // localização existe oferta, a mensagem é "O Boatzy ainda não possui…"; se
+  // existe, o vazio vem dos outros filtros e a mensagem segue sendo a de ajustar
+  // os filtros. A consulta extra só roda no estado vazio.
+  const temDestino = municipioId != null || (lat != null && lng != null);
+  let semOfertaNaLocalidade = false;
+  if (total === 0 && temDestino) {
+    const soLocalizacao = { p_municipio_id: municipioId, p_lat: lat, p_lng: lng, p_raio_km: RAIO_KM, p_limit: 1 };
+    const { data: algum } = modoListaEmbarcacoes
+      ? await supabaseAdmin.rpc('buscar_embarcacoes', soLocalizacao)
+      : await supabaseAdmin.rpc('buscar_roteiros', soLocalizacao);
+    semOfertaNaLocalidade = (algum ?? []).length === 0;
+  }
 
   // Favoritos do usuário logado + avaliações entre os resultados.
   const supabase = await createClient();
@@ -522,12 +539,16 @@ export default async function BuscarPage({ searchParams }: { searchParams: Promi
                         <SlidersHorizontal className="h-8 w-8 text-slate-300" />
                       </div>
                       <h2 className="text-lg font-semibold text-slate-700 mb-2">
-                        {tipoNome ? `Nenhuma embarcação com ${tipoNome} encontrada` : 'Nenhuma embarcação encontrada'}
+                        {semOfertaNaLocalidade
+                          ? MSG_SEM_EMBARCACAO_NA_LOCALIDADE
+                          : tipoNome ? `Nenhuma embarcação com ${tipoNome} encontrada` : 'Nenhuma embarcação encontrada'}
                       </h2>
                       <p className="text-sm text-slate-400 max-w-sm">
-                        {tipoNome
-                          ? 'Tente outro tipo de embarcação, ajustar os filtros ou explorar outros destinos.'
-                          : 'Tente ajustar os filtros ou explorar outros destinos.'}
+                        {semOfertaNaLocalidade
+                          ? 'Experimente outro destino ou veja todas as embarcações disponíveis.'
+                          : tipoNome
+                            ? 'Tente outro tipo de embarcação, ajustar os filtros ou explorar outros destinos.'
+                            : 'Tente ajustar os filtros ou explorar outros destinos.'}
                       </p>
                       <div className="mt-6 flex items-center gap-3 flex-wrap justify-center">
                         {(filtrosAvancadosAtivos > 0 || catalogoAuxiliarAtivo) && (
@@ -582,12 +603,16 @@ export default async function BuscarPage({ searchParams }: { searchParams: Promi
                       <SlidersHorizontal className="h-8 w-8 text-slate-300" />
                     </div>
                     <h2 className="text-lg font-semibold text-slate-700 mb-2">
-                      {tipoNome ? `Nenhum roteiro com ${tipoNome} encontrado` : 'Nenhum roteiro encontrado'}
+                      {semOfertaNaLocalidade
+                        ? MSG_SEM_ROTEIRO_NA_LOCALIDADE
+                        : tipoNome ? `Nenhum roteiro com ${tipoNome} encontrado` : 'Nenhum roteiro encontrado'}
                     </h2>
                     <p className="text-sm text-slate-400 max-w-sm">
-                      {tipoNome
-                        ? 'Tente outro tipo de embarcação, ajustar os filtros ou explorar outros destinos.'
-                        : 'Tente ajustar os filtros ou explorar outros destinos.'}
+                      {semOfertaNaLocalidade
+                        ? 'Experimente outro destino ou veja todos os roteiros disponíveis.'
+                        : tipoNome
+                          ? 'Tente outro tipo de embarcação, ajustar os filtros ou explorar outros destinos.'
+                          : 'Tente ajustar os filtros ou explorar outros destinos.'}
                     </p>
                     <div className="mt-6 flex items-center gap-3 flex-wrap justify-center">
                       {(filtrosAvancadosAtivos > 0 || catalogoAuxiliarAtivo) && (

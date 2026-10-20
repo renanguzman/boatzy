@@ -148,7 +148,7 @@ Visualização:
 
 #### ✅ Implementado — Barra de Busca Inteligente (Hero Section)
 
-- `LocationPicker`: autocomplete de municípios com roteiros cadastrados, opção "Próximo de mim" via geolocalização do navegador, histórico de buscas recentes (localStorage).
+- `LocationPicker`: autocomplete de municípios com roteiros cadastrados, opção "Próximo de mim" via geolocalização do navegador, histórico de buscas recentes (localStorage). *(Corrigido em 19/10/2026 — ver "Campo Destino funcionando".)*
 - `DatePicker`: calendário de 2 meses, datas passadas bloqueadas, opções de flexibilidade (Data exata, ±1, ±2, ±3, ±7 dias), totalmente em pt-BR.
 - `GuestPicker`: contador +/− com mínimo 0, dropdown.
 - Navegação para `/buscar?municipio=&data=&flex=&pessoas=` ao submeter.
@@ -1844,6 +1844,30 @@ taxa continua sendo cobrada e repassada como antes — muda só a apresentação
   ver o topo do card de novo, basta rolar para cima. Ajusta-se sozinha quando o card muda de altura
   (aba Roteiro/Por Diária, adicionais abertos, mensagem de erro) ou a janela muda de tamanho.
 - Detalhes técnicos: `SPEC.md` §53.
+
+### ✅ Campo Destino funcionando — home e busca (19/10/2026)
+
+**Problema:** o campo "Destino" (home e filtros da busca) não sugeria nenhuma cidade — a consulta das
+sugestões era bloqueada pelas permissões do banco e voltava vazia. O "Próximo de mim" trocava a
+posição do cliente pela cidade com roteiro mais próxima (podendo estar a centenas de km) e, sem
+permissão de localização, não fazia nada.
+
+- **Destino:** ao digitar (a partir de 2 letras, com ou sem acento — "florianopolis" acha
+  "Florianópolis"), aparecem as cidades do país; as que têm passeios no Boatzy vêm primeiro, com a
+  indicação "Com passeios no Boatzy". Enter escolhe a primeira sugestão.
+- **O que a busca considera:** no **roteiro**, o **ponto de saída**; na **embarcação**, a
+  **localização da embarcação** — na cidade escolhida ou num raio de 50 km dela. Roteiro/embarcação
+  sem o ponto marcado no mapa usa o centro da sua cidade (antes ficava fora de toda busca por raio,
+  inclusive do "Próximo de mim").
+- **Próximo de mim:** usa a localização real do cliente (raio de 50 km). Na primeira vez o navegador
+  pede a autorização; se o cliente negar (ou já tiver bloqueado), aparece a orientação para liberar o
+  acesso no navegador.
+- **Sem resultado na localidade:** quando não há nada no destino escolhido, a busca mostra
+  **"O Boatzy ainda não possui um Roteiro nesta localidade"** (ou **"…uma Embarcação…"** na aba
+  Embarcações), com o botão para ver todos. Se há ofertas na cidade mas os outros filtros (data,
+  preço…) zeraram o resultado, continua a mensagem de ajustar os filtros.
+- **Implantação:** aplicar a migration `20261020_busca_destino_centro_municipio.sql` (o resto já
+  funciona sem ela). Detalhes técnicos: `SPEC.md` §54.
 
 ## 11. Não Incluído no MVP
 
