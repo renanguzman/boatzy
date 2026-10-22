@@ -36,6 +36,49 @@ export function isValidCPF(value: string): boolean {
   return d2 === parseInt(cpf[10], 10);
 }
 
+// ─── CNPJ ─────────────────────────────────────────────────────────────────
+
+/** Valida CNPJ pelos dígitos verificadores (rejeita sequências repetidas). */
+export function isValidCNPJ(value: string): boolean {
+  const cnpj = onlyDigits(value);
+  if (cnpj.length !== 14) return false;
+  if (/^(\d)\1{13}$/.test(cnpj)) return false;
+
+  const calcCheck = (base: string): number => {
+    let total = 0;
+    let factor = base.length - 7;
+    for (const digit of base) {
+      total += parseInt(digit, 10) * factor--;
+      if (factor < 2) factor = 9;
+    }
+    const rest = total % 11;
+    return rest < 2 ? 0 : 11 - rest;
+  };
+
+  const d1 = calcCheck(cnpj.slice(0, 12));
+  if (d1 !== parseInt(cnpj[12], 10)) return false;
+
+  const d2 = calcCheck(cnpj.slice(0, 13));
+  return d2 === parseInt(cnpj[13], 10);
+}
+
+/** Máscara progressiva: CPF até 11 dígitos, CNPJ (00.000.000/0000-00) acima disso. */
+export function maskCpfCnpj(value: string): string {
+  const d = onlyDigits(value).slice(0, 14);
+  if (d.length <= 11) return maskCPF(d);
+  return d
+    .replace(/^(\d{2})(\d)/, '$1.$2')
+    .replace(/^(\d{2})\.(\d{3})(\d)/, '$1.$2.$3')
+    .replace(/\.(\d{3})(\d)/, '.$1/$2')
+    .replace(/(\d{4})(\d{1,2})$/, '$1-$2');
+}
+
+/** CPF (11 dígitos) ou CNPJ (14 dígitos) válido. */
+export function isValidCpfOuCnpj(value: string): boolean {
+  const d = onlyDigits(value);
+  return d.length === 11 ? isValidCPF(d) : isValidCNPJ(d);
+}
+
 // ─── CEP ──────────────────────────────────────────────────────────────────
 
 /** Aplica a máscara de CEP: 00000-000. */

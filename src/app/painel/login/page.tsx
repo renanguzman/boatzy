@@ -40,7 +40,7 @@ export default function PainelLoginPage() {
       return;
     }
 
-    // Redireciona para setup-role que garante o registro no DB com role gestor.
+    // Redireciona para setup-role, que garante o registro no DB (o papel gestor vem da aprovação do admin).
     lembrarDestino();
     window.location.href = '/api/painel/setup-role';
   }

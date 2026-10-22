@@ -164,7 +164,7 @@ repasse ainda serão definidas (decisão D7 do planejamento).
 - Sessões gerenciadas via cookies HTTP-only, renovadas automaticamente pelo middleware.
 - Middleware (`src/proxy.ts`): cria client Supabase SSR, chama `getUser()` para renovar a sessão, redireciona rotas `/painel/**` não autenticadas para `/painel/login`.
 - Rotas públicas do painel: `/painel/login`, `/painel/cadastro`, `/painel/auth/*`, `/api/painel/setup-role`.
-- Gating por role: `src/app/painel/(gestao)/layout.tsx` consulta `user_roles` no Supabase para verificar se o usuário tem `gestor` ou `admin`. Usuários sem a role veem tela "Acesso Restrito" com botão "Tornar-me gestor".
+- Gating por role: `src/app/painel/(gestao)/layout.tsx` consulta `user_roles` no Supabase para verificar se o usuário tem `gestor` ou `admin`. Usuários sem a role veem o **pedido de acesso de gestor** (formulário, "em análise" ou "recusado"); o papel só é concedido quando o admin aprova — ver §62.
 - `SUPABASE_SERVICE_ROLE_KEY` nunca exposta ao browser — usada apenas em `src/lib/supabase/admin.ts` (`server-only`).
 - Validação de inputs e open-redirect mitigation em todas as rotas de callback.  
 
@@ -251,7 +251,9 @@ Módulo independente do hotsite, acessível apenas por usuários cuja lista de r
 | `/painel` | Dashboard com dados reais do gestor (ver "Dashboard" abaixo) | gestor/admin |
 | `/painel/agendamentos` | Listagem/gestão de reservas (Confirmar/Recusar) — ver §20 | gestor/admin |
 | `/painel/embarcacoes` | CRUD de embarcações | gestor/admin |
-| `/painel/usuarios` | Cadastro e listagem de usuários | gestor/admin |
+| `/painel/clientes` | Clientes com reserva no gestor + chat (ver §21) | gestor/admin |
+
+> `/painel/usuarios` foi **removida** em 22/10/2026 (listava todas as contas e criava usuários com qualquer papel, inclusive `admin`). A consulta de contas passou para `/administrator/usuarios`, somente leitura — §62.
 
 ### Layout responsivo (mobile — Chrome/Safari, Android/iOS)
 
@@ -405,7 +407,7 @@ Mesmo padrão já usado no OAuth (`/auth/callback` vs `/painel/auth/callback`): 
 
 1. **`/recuperar-senha`** / **`/painel/recuperar-senha`** (`'use client'`) — form de e-mail que chama `resetPasswordForEmail` com `redirectTo` apontando para a rota de confirmação da própria superfície (sem query string). O card de sucesso é **genérico** ("Se existir uma conta para…") mesmo para e-mail inexistente — anti-enumeração de contas (o Supabase também não revela). A versão do site lê `?error=link-invalido` via `useSearchParams` (exige o wrapper `<Suspense>`, mesmo padrão de `/entrar`); a do painel idem. Não redireciona usuário já logado — pessoa logada pode legitimamente redefinir a senha.
 2. **`GET /auth/confirm`** / **`GET /painel/auth/confirm`** (`src/app/auth/confirm/route.ts` e `src/app/painel/auth/confirm/route.ts`) — valida o token do e-mail via `verifyOtp({ type, token_hash })` (client SSR compartilhado de `@/lib/supabase/server`), grava a sessão nos cookies e redireciona para o destino fixo da sua superfície (`/redefinir-senha` ou `/painel/redefinir-senha`). Qualquer falha → volta para a tela de solicitação da mesma superfície com `?error=link-invalido`. A versão do site ainda aceita um `next` opcional por query (aceita **apenas caminhos relativos** — guarda anti-open-redirect), mas nada no app o utiliza hoje além do default.
-3. **`/redefinir-senha`** / **`/painel/redefinir-senha`** (`'use client'`) — máquina de estados `checking | no-session | form | success`. No mount, `getUser()`: sem sessão → card "Link inválido ou expirado" com CTA para a tela de solicitação da mesma superfície. Com sessão → form nova senha + confirmação (`minLength=6`, validação local de igualdade) → `supabase.auth.updateUser({ password })` → card "Senha redefinida!". Erro de sessão no submit (`session_expired`/`session_not_found`) rebaixa para `no-session`. **Diferença entre as duas:** no site o botão de sucesso leva para `/`; no painel, o botão ("Entrar no Painel") aponta para `GET /api/painel/setup-role` — mesmo endpoint usado após login/cadastro do gestor — garantindo (upsert idempotente) que a conta tenha a role `gestor` antes de entrar em `/painel`, já que a recuperação de senha em si não atribui roles.
+3. **`/redefinir-senha`** / **`/painel/redefinir-senha`** (`'use client'`) — máquina de estados `checking | no-session | form | success`. No mount, `getUser()`: sem sessão → card "Link inválido ou expirado" com CTA para a tela de solicitação da mesma superfície. Com sessão → form nova senha + confirmação (`minLength=6`, validação local de igualdade) → `supabase.auth.updateUser({ password })` → card "Senha redefinida!". Erro de sessão no submit (`session_expired`/`session_not_found`) rebaixa para `no-session`. **Diferença entre as duas:** no site o botão de sucesso leva para `/`; no painel, o botão ("Entrar no Painel") aponta para `GET /api/painel/setup-role` — mesmo endpoint usado após login/cadastro do gestor — garantindo (upsert idempotente) o registro em `users` antes de entrar em `/painel`. Nem ele nem a recuperação de senha atribuem roles (§62).
 
 **Client dedicado com `flowType: 'implicit'` só para `resetPasswordForEmail`** (`src/lib/supabase/reset-password-client.ts`, usado pelas duas telas de solicitação). Os clients padrão (`@/lib/supabase/client` e `server`) usam `@supabase/ssr`, que força `flowType: 'pkce'` (não é configurável — `createBrowserClient.js`/`createServerClient.js` sobrescrevem qualquer `flowType` passado nas options). Se as telas de solicitação usassem esse client compartilhado, o `resetPasswordForEmail` enviaria um `code_challenge` ao Supabase e guardaria o `code_verifier` correspondente em cookie — o token do e-mail viria prefixado com `pkce_` e só poderia virar sessão **no mesmo navegador/perfil** que fez o pedido (via `exchangeCodeForSession`, que lê esse cookie). Isso quebra o caso comum de abrir o e-mail de recuperação em outro navegador, app de e-mail ou dispositivo.
 
@@ -423,7 +425,7 @@ Ambas as rotas de confirmação mantêm um fallback defensivo: se algum token ch
 
 **Notas de comportamento:**
 - A sessão criada pelo recovery é uma sessão completa — após redefinir, o usuário está logado.
-- No site, o fluxo não passa por `/api/auth/setup-cliente`; irrelevante para quem já tem conta (role já existe). No painel, o botão de sucesso passa por `/api/painel/setup-role` de propósito, para cobrir o caso de a role `gestor` ainda não existir.
+- No site, o fluxo não passa por `/api/auth/setup-cliente`; irrelevante para quem já tem conta (role já existe). No painel, o botão de sucesso passa por `/api/painel/setup-role` de propósito, para garantir o registro em `users`; sem a role `gestor`, o painel mostra o pedido de acesso (§62).
 - Scanners de e-mail corporativos podem consumir o link via GET antes do usuário (limitação aceita do fluxo GET, adotado pela própria doc do Supabase; mitigação futura: página intermediária com botão de confirmação).
 - `src/proxy.ts` inclui `/painel/recuperar-senha` e `/painel/redefinir-senha` em `painelPublicRoutes` (e `/painel/auth/**` já cobria `/painel/auth/confirm`) — sem isso, quem não está logado (o público-alvo da recuperação de senha) seria barrado antes mesmo de ver o formulário.
 
@@ -434,8 +436,8 @@ Ambos são **aditivos** (não substituem roles existentes):
 - `GET /api/painel/setup-role`
   1. Lê sessão via `createClient()` SSR.
   2. Upsert do usuário em `users` com `id = auth.uid()`.
-  3. `addRole(userId, 'gestor')`.
-  4. Redireciona para `/painel`.
+  3. **Não concede papel** (desde 22/10/2026): o `gestor` vem da aprovação do pedido pelo admin (§62).
+  4. Redireciona para `/painel` (ou o destino guardado), onde quem não é gestor vê o pedido de acesso.
 
 - `GET /api/auth/setup-cliente?redirect_to=/...`
   1. Mesmo fluxo de upsert. **No insert** (primeiro acesso), grava também `cpf_cnpj` e `phone` lidos do `user_metadata` (`user.user_metadata.cpf` / `.phone`) — presentes só no cadastro por e-mail; `NULL` no SSO. No **update** (logins seguintes) esses campos não são tocados, para não sobrescrever dados editados em "Minha conta".
@@ -455,7 +457,7 @@ const { data: rows } = await supabaseAdmin.from('user_roles').select('role').eq(
 const canAccess = roles.includes('gestor') || roles.includes('admin');
 ```
 
-Usuário sem role adequada vê tela "Acesso Restrito" com botão **Tornar-me gestor** → chama `/api/painel/setup-role`.
+Usuário sem role adequada vê o componente `SolicitacaoGestor` (§62): formulário de pedido, pedido em análise ou pedido recusado com a observação da equipe.
 
 ---
 
@@ -2687,7 +2689,10 @@ duas funções).
 ### 21.2 Server actions — `src/app/painel/(gestao)/clientes/actions.ts`
 
 - `abrirConversa(clienteId)` (em `clientes/actions.ts`): valida sessão + role `gestor`/`admin`;
-  `upsert` em `conversa` por `(gestor_id, cliente_id)`; retorna `conversaId` (idempotente).
+  devolve a `conversa` existente do par `(gestor_id, cliente_id)`. Sem conversa, só cria (`upsert`)
+  se o usuário tiver **vínculo** com o gestor: reserva com `owner_id` = gestor ou interação em
+  anúncio de venda do gestor (lead do funil). Sem vínculo → erro e a página do chat dá 404 — o gestor
+  não abre chat nem vê nome/e-mail de contas aleatórias pelo id na URL (22/10/2026, §62).
 
 **Actions genéricas compartilhadas** — `src/lib/chat-actions.ts` (`'use server'`, usadas pelos dois
 lados):
@@ -3179,7 +3184,7 @@ contra fundo branco. Ink dos textos permanece `#0B2447`.
 
 - **Role `admin`**: existe no enum `user_role` e na tabela `user_roles` desde a migration 001.
   **Nenhum código da aplicação concede essa role** — não há endpoint, server action ou tela de
-  auto-atribuição (diferente do `gestor`, que tem o `/api/painel/setup-role`). A concessão é feita
+  auto-atribuição (o `gestor` também não: vem da aprovação do pedido em `/administrator/usuarios/solicitacoes`, §62). A concessão é feita
   exclusivamente via SQL direto no banco:
 
   ```sql
@@ -6564,3 +6569,68 @@ apertaria os links. Header segue `h-16`. Medido: 390/900px → vertical 54×56; 
   deslocar o menu — medido: posição do menu igual antes/no hover). Menu mobile: mesmo fundo e ícones.
   Itens do `NavPrincipal` com `px-3 xl:px-4` para manter folga em 1024px (21px; 768px → 76px; 1440px →
   137px; sem estouro). `tsc`/`eslint` limpos.
+
+## 62. Pedido de acesso de gestor e Usuários no admin (22/10/2026)
+
+**Problema:** qualquer conta virava `gestor` em um clique (`/api/painel/setup-role` e botão "Tornar-me
+gestor"), e a rota oculta `/painel/usuarios` deixava qualquer gestor listar todas as contas e criar
+usuários com o papel vindo do formulário — inclusive `admin`.
+
+**Mudanças**
+- `/painel/usuarios` (página, `CreateUserForm`, action `createUser`) **removida**. Nenhum fluxo da
+  aplicação cria contas com papel escolhido.
+- `GET /api/painel/setup-role` só garante a linha em `users` e redireciona; **não concede papel**.
+- O papel `gestor` só é concedido pela aprovação do admin. Gestores já existentes não mudam.
+- Chat do gestor restrito a quem tem vínculo (ver §21.2).
+
+**Banco** — `supabase/migrations/20261022_solicitacao_gestor.sql`
+- Enum `solicitacao_gestor_status`: `pendente | aprovada | recusada`.
+- Tabela `solicitacao_gestor`: `user_id` → `users`, `status`, `nome`, `telefone` (E.164),
+  `documento` (11 ou 14 dígitos), `estado_id`, `municipio_id`, `qtd_embarcacoes` (1–999),
+  `mensagem` (≤ 1000), `observacao` (ao solicitante), `observacao_interna`, `decidido_em`,
+  `decidido_por`, `created_at`, `updated_at`. Índice único parcial: **um pedido `pendente` por
+  usuário**; recusado pode ser refeito (novo registro). RLS: `service_role_all` (TO service_role) e
+  `user_select_own` (SELECT, `user_id = auth.uid()`); GRANTs da Data API.
+- `decidir_solicitacao_gestor(p_id, p_aprovar, p_admin_id, p_observacao, p_observacao_interna)
+  RETURNS uuid` — `SECURITY DEFINER`, EXECUTE só para `service_role`. Exige que `p_admin_id` seja
+  admin, trava o pedido (`FOR UPDATE`), exige `pendente`, exige observação na recusa, grava a decisão
+  e, se aprovado, insere `gestor` em `user_roles` **na mesma transação**. Erros:
+  `apenas_admin`, `solicitacao_inexistente`, `solicitacao_ja_decidida`, `observacao_obrigatoria`.
+- Validada em PGlite: pedido pendente duplicado, não-admin decidindo, recusa sem observação, dupla
+  decisão, RLS (lê só os próprios, não insere) e EXECUTE negado a `authenticated`.
+
+**Painel (solicitante)**
+- `src/app/painel/(gestao)/layout.tsx`: sem `gestor`/`admin`, renderiza
+  `src/components/painel/SolicitacaoGestor.tsx` no lugar do shell, com o último pedido
+  (`ultimaSolicitacaoGestor`), estados e o perfil (nome, celular, CPF/CNPJ) para pré-preencher.
+  Estados: **formulário** (sem pedido), **em análise** (pendente, com resumo) e **recusado**
+  (observação da equipe + formulário pré-preenchido para novo pedido).
+- `solicitarAcessoGestor(input)` (`src/lib/solicitacao-gestor-actions.ts`, `'use server'`): valida
+  sessão, recusa quem já é gestor/admin, valida nome, celular E.164, CPF ou CNPJ
+  (`isValidCpfOuCnpj`), município do estado escolhido, quantidade (1–999) e mensagem; insere o
+  pedido (23505 → "Você já tem um pedido em análise"); completa `users.phone`/`cpf_cnpj` só se
+  vazios; `after()` → e-mail a todos os admins.
+- `/painel/cadastro`: o aviso pós-cadastro diz que o acesso passa pela aprovação da equipe.
+
+**Administrator** — novo menu **USUÁRIOS** (contador de pedidos pendentes), com abas
+(`UsuariosAbas`):
+- `/administrator/usuarios` — lista de **todas as contas, somente leitura**: busca por nome, e-mail,
+  CPF/CNPJ ou celular; filtro por papel (cliente/gestor/admin via `user_roles!inner`); ordenação por
+  nome ou cadastro; paginação no servidor (10/25/50). Colunas: usuário, papéis, CPF/CNPJ, celular,
+  cadastro. Não cria contas nem altera papéis.
+- `/administrator/usuarios/solicitacoes` — fila por status (Pendentes, Aprovados, Recusados, com
+  contadores), 20 por página; pendentes do mais antigo ao mais novo. Cartão com e-mail, celular,
+  documento, cidade, embarcações, mensagem e, se decidido, quem decidiu, quando e as observações.
+  **Aprovar** (observação opcional) e **Recusar** (observação obrigatória) + observação interna, via
+  `decidirSolicitacaoGestor` (`usuarios/actions.ts`) → RPC → `after()` e-mail ao solicitante.
+- Dashboard: "Pedidos de gestor" entra no card de fila de análise; card de módulo "Usuários".
+- Contagem: `contarSolicitacoesGestorPendentes()` (`src/lib/solicitacao-gestor.ts`).
+
+**E-mails** — `src/lib/emails/solicitacao-gestor.ts` (layout padrão `montarEmailHtml`):
+`notificarAdminsNovaSolicitacao` (para cada `user_roles.role = 'admin'`, botão "Analisar pedido") e
+`notificarSolicitanteDecisao` (aprovado → "Entrar no painel"; recusado → observação + convite a novo
+pedido). A observação interna nunca vai.
+
+**Utilitários** — `src/lib/validators.ts`: `isValidCNPJ`, `maskCpfCnpj`, `isValidCpfOuCnpj`;
+`src/lib/countries.ts`: `formatarTelefoneE164`.
+

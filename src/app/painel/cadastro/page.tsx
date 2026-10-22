@@ -68,7 +68,8 @@ export default function PainelCadastroPage() {
           </div>
           <h2 className="text-xl font-bold text-[#0B2447] mb-2">Verifique seu e-mail</h2>
           <p className="text-slate-500 text-sm mb-6">
-            Enviamos um link de confirmação para <strong>{email}</strong>. Clique no link para ativar sua conta e acessar o painel.
+            Enviamos um link de confirmação para <strong>{email}</strong>. Clique no link para ativar sua conta.
+            Depois, no painel, envie seu pedido de acesso de gestor: a equipe Boatzy aprova cada novo gestor.
           </p>
           <Link
             href="/painel/login"

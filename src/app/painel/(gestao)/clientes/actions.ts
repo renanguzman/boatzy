@@ -24,6 +24,20 @@ export async function abrirConversa(clienteId: string): Promise<AbrirConversaRes
     return { ok: false, error: 'Não é possível abrir uma conversa consigo mesmo.' };
   }
 
+  // Conversa já existente (o cliente puxou o assunto pelo roteiro, embarcação, reserva ou anúncio).
+  const { data: existente } = await supabaseAdmin
+    .from('conversa')
+    .select('id')
+    .eq('gestor_id', user.id)
+    .eq('cliente_id', clienteId)
+    .maybeSingle();
+  if (existente) return { ok: true, conversaId: existente.id };
+
+  // Sem conversa, o gestor só inicia com quem tem vínculo com ele: reserva ou lead de anúncio.
+  if (!(await clienteVinculadoAoGestor(user.id, clienteId))) {
+    return { ok: false, error: 'Cliente não encontrado.' };
+  }
+
   // upsert idempotente pela constraint UNIQUE (gestor_id, cliente_id).
   const { data, error } = await supabaseAdmin
     .from('conversa')
@@ -39,6 +53,23 @@ export async function abrirConversa(clienteId: string): Promise<AbrirConversaRes
   }
 
   return { ok: true, conversaId: data.id };
+}
+
+/** O usuário já reservou com o gestor ou é lead de um anúncio de venda dele. */
+async function clienteVinculadoAoGestor(gestorId: string, clienteId: string): Promise<boolean> {
+  const [{ count: reservas }, { count: interacoes }] = await Promise.all([
+    supabaseAdmin
+      .from('reserva')
+      .select('id', { count: 'exact', head: true })
+      .eq('owner_id', gestorId)
+      .eq('cliente_id', clienteId),
+    supabaseAdmin
+      .from('anuncio_venda_interacao')
+      .select('id, anuncio_venda!inner ( owner_id )', { count: 'exact', head: true })
+      .eq('user_id', clienteId)
+      .eq('anuncio_venda.owner_id', gestorId),
+  ]);
+  return (reservas ?? 0) > 0 || (interacoes ?? 0) > 0;
 }
 
 // As actions genéricas de mensagem (enviarMensagem, marcarConversaComoLida) vivem

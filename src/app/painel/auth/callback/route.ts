@@ -37,6 +37,6 @@ export async function GET(request: NextRequest) {
     return NextResponse.redirect(new URL('/painel/login', origin));
   }
 
-  // Após trocar o código, garante que o usuário existe no DB com role gestor.
+  // Após trocar o código, garante que o usuário existe no DB (o papel gestor vem da aprovação do admin).
   return NextResponse.redirect(new URL('/api/painel/setup-role', origin));
 }

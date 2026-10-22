@@ -1,3 +1,5 @@
+import { applyPhoneMask } from '@/lib/validators';
+
 // Lista de países (DDI) usada no seletor do campo de celular do cadastro.
 // `flag` é o emoji da bandeira (regional indicators) — renderiza no macOS/iOS/Android;
 // em alguns navegadores desktop (Windows) o fallback é o código ISO em letras, o que
@@ -35,4 +37,15 @@ export const DEFAULT_COUNTRY = COUNTRIES[0]; // Brasil
 
 export function findCountryByCode(code: string): Country {
   return COUNTRIES.find((c) => c.code === code) ?? DEFAULT_COUNTRY;
+}
+
+/** Celular em E.164 para exibição (ex.: +55 (11) 91234-5678). */
+export function formatarTelefoneE164(e164: string | null | undefined): string {
+  if (!e164) return '—';
+  // Casa o DDI mais longo primeiro (evita ambiguidade entre +5 e +55 etc.).
+  const country = [...COUNTRIES]
+    .sort((a, b) => b.dial.length - a.dial.length)
+    .find((c) => e164.startsWith(c.dial));
+  if (!country?.mask) return e164;
+  return `${country.dial} ${applyPhoneMask(e164.slice(country.dial.length), country.mask)}`;
 }

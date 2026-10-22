@@ -20,11 +20,13 @@ import {
   LogOut,
   LayoutList,
   BadgeDollarSign,
+  Users,
 } from 'lucide-react';
 import clsx from 'clsx';
 
 const navItems = [
   { href: '/administrator', label: 'DASHBOARD', icon: LayoutDashboard, exact: true },
+  { href: '/administrator/usuarios', label: 'USUÁRIOS', icon: Users, exact: false },
   { href: '/administrator/avaliacoes', label: 'AVALIAÇÕES', icon: Star, exact: false },
   { href: '/administrator/embarcacoes', label: 'EMBARCAÇÕES', icon: Ship, exact: false },
   { href: '/administrator/roteiros', label: 'ROTEIROS', icon: MapPin, exact: false },
@@ -40,16 +42,19 @@ const navItems = [
   { href: '/administrator/configuracoes', label: 'CONFIGURAÇÕES', icon: Settings, exact: false },
 ];
 
-/** Itens com fila de análise (pipeline de aprovação) — contador ao lado do rótulo. */
-const PENDENTES_POR_HREF: Record<string, 'embarcacao' | 'roteiro' | 'anuncio_venda'> = {
+type FilaAnalise = 'embarcacao' | 'roteiro' | 'anuncio_venda' | 'solicitacao_gestor';
+
+/** Itens com fila de análise (pipeline de aprovação e pedidos de gestor) — contador ao lado do rótulo. */
+const PENDENTES_POR_HREF: Record<string, FilaAnalise> = {
+  '/administrator/usuarios': 'solicitacao_gestor',
   '/administrator/embarcacoes': 'embarcacao',
   '/administrator/roteiros': 'roteiro',
   '/administrator/vendas': 'anuncio_venda',
 };
 
 export default function AdminSidebar({ pendentes }: {
-  /** Registros Em análise por entidade (pipeline de aprovação). */
-  pendentes?: Record<'embarcacao' | 'roteiro' | 'anuncio_venda', number>;
+  /** Registros Em análise por entidade (pipeline de aprovação) e pedidos de gestor pendentes. */
+  pendentes?: Record<FilaAnalise, number>;
 }) {
   const pathname = usePathname();
   const router = useRouter();

@@ -61,7 +61,7 @@ Validar um marketplace de aluguel de embarcações, garantindo:
 
 #### Dono da Embarcação (role: gestor)
 - ✅ Cadastro/Login exclusivo em `/painel/cadastro` e `/painel/login` (Supabase Auth — email/senha, Google, Facebook, Apple)
-- ✅ Role `gestor` atribuída automaticamente via API após cadastro
+- ✅ Role `gestor` concedida só após **aprovação do admin** do pedido de acesso (desde 22/10/2026 — ver "Pedido de acesso de gestor")
 - ✅ Dashboard em `/painel` com visão geral (stats)
 - ✅ Menu com Agendamentos e Embarcações
 - ✅ Estrutura do banco de dados para embarcações (migration 002)
@@ -97,9 +97,9 @@ Validar um marketplace de aluguel de embarcações, garantindo:
 - ✅ Um mesmo e-mail pode acumular múltiplas roles (`cliente` + `gestor`), sem precisar criar conta nova.
 - ✅ Login com provedores diferentes (Google/Facebook) usando o mesmo e-mail referencia **a mesma conta** — o Supabase faz vínculo automático de identidades por e-mail verificado (verificado em produção). Detalhes técnicos no `SPEC.md`.
 - ✅ Roles são armazenadas em `user_roles` (Supabase, fonte da verdade). Lidas diretamente do banco nos Server Components.
-- ✅ Cliente que tenta acessar `/painel` vê a opção "Tornar-me gestor", que adiciona a role sem destruir o vínculo de cliente.
+- ✅ Cliente que tenta acessar `/painel` vê o **pedido de acesso de gestor** (formulário); aprovado pelo admin, a role `gestor` é adicionada sem destruir o vínculo de cliente. ~~"Tornar-me gestor" em um clique~~ (removido em 22/10/2026).
 - ✅ Recuperação de senha do cliente: `/recuperar-senha` (solicita e-mail) → e-mail com link → `/auth/confirm` (valida token e cria sessão) → `/redefinir-senha` (define nova senha). Mensagem de envio é genérica (anti-enumeração de contas) e o link funciona em qualquer navegador/dispositivo (client dedicado com `flowType: 'implicit'`, evitando a exigência de PKCE do client principal). Detalhes no `SPEC.md`.
-- ✅ Recuperação de senha do gestor: mesmo fluxo, rotas espelhadas (`/painel/recuperar-senha` → `/painel/auth/confirm` → `/painel/redefinir-senha`). Ao concluir, passa por `/api/painel/setup-role` (garante a role `gestor`, idempotente) antes de entrar em `/painel` — a recuperação de senha em si não atribui roles. Detalhes no `SPEC.md`.
+- ✅ Recuperação de senha do gestor: mesmo fluxo, rotas espelhadas (`/painel/recuperar-senha` → `/painel/auth/confirm` → `/painel/redefinir-senha`). Ao concluir, passa por `/api/painel/setup-role` (garante o registro do usuário, idempotente) antes de entrar em `/painel` — nem ele nem a recuperação de senha atribuem roles. Detalhes no `SPEC.md`.
 - Separação de perfis:
   - Cliente — acessa o hotsite (`/`), autenticado via social/email com role `cliente`
   - Gestor (Owner) — acessa o painel (`/painel`), com role `gestor`
@@ -662,6 +662,7 @@ Todos os números são do **gestor logado** (`owner_id`):
 - Lista todos os clientes que **já efetuaram pelo menos uma reserva** (de embarcação ou roteiro) com o gestor logado. Cada cliente aparece **uma única vez**.
 - Exibe os dados do cliente: avatar + nome, "cliente desde" (data de cadastro), e-mail, CPF/CNPJ, total de reservas e data da última reserva.
 - Apenas **busca** (nome, e-mail ou CPF/CNPJ), **ordenação por coluna** e **paginação** (10 por página), seguindo o padrão visual do grid de embarcações; a única ação por linha é abrir o **chat** (abaixo).
+- O gestor **só vê e só conversa com quem tem vínculo com ele**: quem reservou um roteiro/embarcação dele, quem já puxou conversa pelo site ou um lead dos anúncios de venda dele. Abrir o chat de outra conta pelo endereço dá "não encontrado" (22/10/2026).
 - Os clientes surgem automaticamente conforme fazem reservas; não há cadastro manual.
 
 #### ✅ Implementado — Chat em tempo real Gestor ↔ Cliente (dois lados)
@@ -955,6 +956,7 @@ Problema: ao clicar numa data do calendário de preços, o painel para definir o
 
 - Layout inspirado no `/painel` (sidebar + header), com dashboard de métricas globais do sistema (usuários, gestores, embarcações, roteiros, reservas, avaliações e taxa vigente) e cards de acesso rápido aos módulos.
 - Menu com os módulos previstos:
+  - **Usuários** — ✅ lista de contas (somente leitura) e fila de **pedidos de gestor** (ver "Pedido de acesso de gestor")
   - **Avaliações** — ✅ implementado (ver abaixo)
   - **Embarcações** — ✅ implementado (ver abaixo)
   - **Roteiros** — ✅ implementado (ver abaixo)
@@ -1950,6 +1952,31 @@ permissão de localização, não fazia nada.
 - A linha foi reorganizada em 3 colunas no computador (Duração · Saída · Retorno Aproximado /
   Capacidade · Local de partida · Embarcação); no celular continua em 2. A pré-visualização do painel mostra o
   mesmo campo. Detalhes técnicos: `SPEC.md` §55.
+
+### ✅ Pedido de acesso de gestor com aprovação do admin (22/10/2026)
+
+**Objetivo:** qualquer pessoa pode pedir para ser gestor (dono de embarcação), mas só a equipe Boatzy
+libera o acesso ao painel. Antes, qualquer conta virava gestor em um clique.
+
+- **Quem pede:** ao entrar em `/painel` sem ser gestor (vindo do cadastro de gestor, do login ou de
+  uma conta de cliente), a pessoa vê o formulário **"Peça acesso ao painel de gestor"**: nome,
+  celular, CPF ou CNPJ, estado e cidade da embarcação, quantas embarcações tem e uma mensagem
+  opcional. Depois de enviar, vê **"Pedido em análise"** até a decisão.
+- **Equipe Boatzy:** novo menu **Usuários** no administrator, com a aba **Pedidos de gestor**
+  (Pendentes, Aprovados, Recusados, com contador no menu e no card de fila do dashboard). Cada pedido
+  mostra os dados informados; o admin **aprova** (observação opcional) ou **recusa** (motivo
+  obrigatório), com observação interna opcional. Os admins recebem e-mail a cada pedido novo.
+- **Resposta:** aprovado, a conta acessa o painel na hora e recebe e-mail. Recusado, recebe e-mail com
+  o motivo, vê o motivo no painel e pode enviar um novo pedido (os dados vêm preenchidos).
+- **Um pedido em análise por vez** por pessoa. Celular e CPF/CNPJ informados completam o cadastro da
+  conta quando estavam vazios.
+- **Gestores existentes** continuam com acesso, sem novo pedido.
+- **Usuários no admin:** a aba **Usuários** lista todas as contas (nome, e-mail, papéis, CPF/CNPJ,
+  celular, data de cadastro), com busca, filtro por papel e paginação. É **só consulta**: não cria
+  contas nem muda papéis. O papel admin continua sendo concedido só por SQL.
+- **Removido:** a tela oculta `/painel/usuarios`, que listava todas as contas para qualquer gestor e
+  permitia criar contas com qualquer papel, inclusive admin.
+- Detalhes técnicos: `SPEC.md` §62.
 
 ## 11. Não Incluído no MVP
 

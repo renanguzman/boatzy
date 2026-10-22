@@ -1,7 +1,6 @@
 import { createClient } from '@/lib/supabase/server';
 import { supabaseAdmin } from '@/lib/supabase';
 import { NextResponse } from 'next/server';
-import { addRole } from '@/lib/roles';
 import { cookies } from 'next/headers';
 import { COOKIE_DESTINO_PAINEL, destinoPainelSeguro } from '@/lib/painel-destino';
 import type { Database } from '@/types/supabase';
@@ -52,7 +51,8 @@ export async function GET() {
       .eq('id', user.id);
   }
 
-  await addRole(user.id, 'gestor');
+  // Não concede o papel `gestor`: quem ainda não o tem cai no /painel, que
+  // mostra o pedido de acesso — o papel só vem com a aprovação do admin (SPEC §62).
 
   // Volta para a página que o gestor tentou abrir antes do login (ex.: link de e-mail).
   const cookieStore = await cookies();

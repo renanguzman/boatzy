@@ -1,6 +1,8 @@
 import type { ConfirmacaoTipo, DispositivoTipo, GeoGpsStatus } from '@/lib/termos/tipos';
 
 export type UserRole = 'admin' | 'gestor' | 'cliente';
+/** Pedido de acesso de gestor — aprovado ou recusado pelo admin (SPEC §62). */
+export type SolicitacaoGestorStatus = 'pendente' | 'aprovada' | 'recusada';
 /** Status de publicação (embarcação e roteiro) — pipeline de aprovação, SPEC §45. */
 export type PublicacaoStatus = 'em_analise' | 'retorno' | 'ativo' | 'inativo' | 'em_manutencao';
 export type EmbarcacaoStatus = PublicacaoStatus;
@@ -381,6 +383,92 @@ export type Database = {
           updated_at?: string;
         };
         Relationships: [];
+      };
+      solicitacao_gestor: {
+        Row: {
+          id: string;
+          user_id: string;
+          status: SolicitacaoGestorStatus;
+          nome: string;
+          telefone: string;
+          documento: string;
+          estado_id: number;
+          municipio_id: number;
+          qtd_embarcacoes: number;
+          mensagem: string | null;
+          observacao: string | null;
+          observacao_interna: string | null;
+          decidido_em: string | null;
+          decidido_por: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          status?: SolicitacaoGestorStatus;
+          nome: string;
+          telefone: string;
+          documento: string;
+          estado_id: number;
+          municipio_id: number;
+          qtd_embarcacoes: number;
+          mensagem?: string | null;
+          observacao?: string | null;
+          observacao_interna?: string | null;
+          decidido_em?: string | null;
+          decidido_por?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          user_id?: string;
+          status?: SolicitacaoGestorStatus;
+          nome?: string;
+          telefone?: string;
+          documento?: string;
+          estado_id?: number;
+          municipio_id?: number;
+          qtd_embarcacoes?: number;
+          mensagem?: string | null;
+          observacao?: string | null;
+          observacao_interna?: string | null;
+          decidido_em?: string | null;
+          decidido_por?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'solicitacao_gestor_user_id_fkey';
+            columns: ['user_id'];
+            isOneToOne: false;
+            referencedRelation: 'users';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'solicitacao_gestor_decidido_por_fkey';
+            columns: ['decidido_por'];
+            isOneToOne: false;
+            referencedRelation: 'users';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'solicitacao_gestor_estado_id_fkey';
+            columns: ['estado_id'];
+            isOneToOne: false;
+            referencedRelation: 'estados';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'solicitacao_gestor_municipio_id_fkey';
+            columns: ['municipio_id'];
+            isOneToOne: false;
+            referencedRelation: 'municipios';
+            referencedColumns: ['id'];
+          },
+        ];
       };
       user_roles: {
         Row: {
@@ -2416,6 +2504,17 @@ export type Database = {
     };
     Views: Record<string, never>;
     Functions: {
+      /** Decisão do admin sobre o pedido de gestor; aprovar concede o papel (SPEC §62). */
+      decidir_solicitacao_gestor: {
+        Args: {
+          p_id: string;
+          p_aprovar: boolean;
+          p_admin_id: string;
+          p_observacao?: string | null;
+          p_observacao_interna?: string | null;
+        };
+        Returns: string;
+      };
       /** Pipeline de aprovação — porta única de mudança de status (SPEC §45). */
       transicionar_publicacao: {
         Args: {
@@ -2684,6 +2783,7 @@ export type Database = {
     };
     Enums: {
       user_role: UserRole;
+      solicitacao_gestor_status: SolicitacaoGestorStatus;
       publicacao_status: PublicacaoStatus;
       preco_regra_tipo: PrecoRegraTipo;
       modalidade_capitao: ModalidadeCapitao;

@@ -93,8 +93,8 @@ function PainelRedefinirSenhaForm() {
         <p className="text-slate-500 text-sm mb-6">
           Sua senha foi alterada com sucesso. Você já está conectado.
         </p>
-        {/* setup-role garante a role `gestor` (idempotente) antes de entrar no painel —
-            mesmo caminho usado após login e cadastro do gestor. */}
+        {/* setup-role garante o registro em `users` antes de entrar no painel — mesmo caminho
+            usado após login e cadastro do gestor. Não concede papel (SPEC §62). */}
         <a
           href="/api/painel/setup-role"
           className="w-full flex items-center justify-center gap-2 bg-[#0B2447] hover:bg-[#0B3D91] text-white font-semibold py-3.5 rounded-xl transition-all duration-200 shadow-lg shadow-[#0B2447]/20"
