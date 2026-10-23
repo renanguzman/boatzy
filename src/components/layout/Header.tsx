@@ -12,6 +12,7 @@ import UserMenu, { identificacaoUsuario } from './UserMenu';
 import EntrarMenu from './EntrarMenu';
 import NavPrincipal from './NavPrincipal';
 import SinoNotificacoes from '@/components/notificacoes/SinoNotificacoes';
+import { rastrear } from '@/lib/analytics';
 
 export default function Header() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -141,6 +142,7 @@ export default function Header() {
                 altura da cápsula do menu; ícone num círculo translúcido e seta ↗ no hover. */}
             <Link
               href="/painel"
+              onClick={() => { if (!isGestor) rastrear('clique_anunciar', { posicao: 'header' }); }}
               className="group hidden md:inline-flex items-center gap-2 rounded-full bg-[#0B2447] py-1.5 pl-1.5 pr-4 text-sm font-semibold text-white shadow-sm ring-1 ring-[#0B2447]/10 transition-all duration-200 hover:bg-[#0B3D91] hover:shadow-md hover:shadow-[#0B3D91]/25 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#0B3D91]"
             >
               <span className="flex h-7 w-7 items-center justify-center rounded-full bg-white/10 ring-1 ring-white/15 transition-colors group-hover:bg-white/15">
@@ -200,7 +202,7 @@ export default function Header() {
               </Link>
               <Link
                 href="/painel"
-                onClick={() => setMobileMenuOpen(false)}
+                onClick={() => { setMobileMenuOpen(false); if (!isGestor) rastrear('clique_anunciar', { posicao: 'menu_mobile' }); }}
                 className="mx-3 mt-2 flex items-center justify-center gap-2 rounded-full bg-[#0B2447] px-4 py-2.5 text-sm font-semibold text-white"
               >
                 {isGestor ? <Anchor className="h-4 w-4 text-cyan-300" /> : <Megaphone className="h-4 w-4 text-cyan-300" />}

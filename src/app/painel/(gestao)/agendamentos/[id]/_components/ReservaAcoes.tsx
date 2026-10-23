@@ -9,6 +9,7 @@ import type { ReservaModalidadePreco, ReservaStatus } from '@/types/supabase';
 import { calcularValoresPedido } from '@/lib/pagamentos/valores';
 import { formatCurrencyPrecise } from '@/lib/utils';
 import { confirmarReserva, recusarReserva, definirAtendentes } from '../../actions';
+import { rastrear } from '@/lib/analytics';
 
 type Status = ReservaStatus;
 
@@ -258,6 +259,8 @@ export default function ReservaAcoes({ reservaId, status, atendenteOptions, aten
       if (!res.ok) {
         setErro(res.error ?? 'Erro ao processar.');
       } else {
+        // GA4: resposta do gestor à solicitação — SPEC §65.
+        rastrear('gestor_respondeu_reserva', { resposta: acao === 'confirmar' ? 'aceitou' : 'recusou' });
         setAcao(null);
         setObservacao('');
         router.refresh();

@@ -2038,6 +2038,39 @@ sino como referência única. Os avisos importantes também vão por e-mail.
   site (o painel tem o sino próprio); notificação push no celular.
 - Detalhes técnicos: `SPEC.md` §64.
 
+### ✅ Google Analytics 4 (23/10/2026)
+
+**Objetivo:** medir todo o tráfego do site e do painel — de onde vêm os acessos (Google, redes
+sociais, campanhas, links diretos), quem navega e como o funil de reserva converte.
+
+- Tag do GA4 (`G-4QJF8H6EDJ`) em todas as páginas: site, painel do gestor e admin. Só é ativada em
+  **produção** — testes locais e versões de pré-visualização não entram nas métricas.
+- Métricas automáticas do GA4: origem/mídia/campanha (UTM), páginas, navegação interna, tempo de
+  engajamento, rolagem, cliques em links externos, dispositivo, navegador, cidade/país.
+- **Usuário logado** identificado pelo ID interno (nunca e-mail ou nome) e pelo **perfil**
+  (cliente, gestor, admin ou visitante). O acesso de **admin** é marcado como tráfego interno, para
+  poder ser excluído dos relatórios.
+- **Eventos do funil** (todos com o parâmetro `area` = site/painel/admin):
+
+| Evento | Quando |
+|---|---|
+| `search` | busca de passeios/embarcações (local, data, pessoas, aba, nº de resultados) |
+| `view_item` | abriu o detalhe de um roteiro (preço, cidade, embarcação) |
+| `begin_checkout` | abriu a tela de confirmação da solicitação de reserva |
+| `solicitar_reserva` | enviou a solicitação (valor, modalidade, pessoas, cupom) |
+| `add_payment_info` | gerou o Pix ou foi para o pagamento com cartão (parcelas) |
+| `purchase` | pagamento confirmado (nº do pedido, valor, forma, cupom) — 1 vez por pedido |
+| `iniciar_conversa` | abriu o chat com o dono (roteiro, embarcação ou anúncio de venda) |
+| `clique_anunciar` | clicou em "Anuncie sua embarcação" (header ou menu do celular) |
+| `solicitar_acesso_gestor` | enviou o pedido para ser gestor |
+| `gestor_respondeu_reserva` | (painel) gestor aceitou ou recusou uma solicitação |
+
+- **Configurações no painel do GA4** (feitas pelo time, fora do código): marcar eventos-chave,
+  registrar as dimensões personalizadas, ativar o filtro de tráfego interno — ver `SPEC.md` §65.
+- **Pendências:** banner de consentimento de cookies (LGPD); registro da compra pelo servidor
+  (Measurement Protocol) para não depender de o cliente ver a tela de confirmação.
+- Detalhes técnicos: `SPEC.md` §65.
+
 ## 11. Não Incluído no MVP
 
 - Chat em tempo real

@@ -7,6 +7,7 @@ import { CheckCircle2, Loader2, Tag, X, AlertCircle, Clock, ShieldCheck } from '
 import { criarReserva, validarCupom, type ModalidadeReserva } from '../actions';
 import { formatCurrency } from '@/lib/utils';
 import { valoresParaCliente } from '@/lib/pagamentos/valores';
+import { rastrear } from '@/lib/analytics';
 import TermoAceite from '@/components/termos/TermoAceite';
 import type { AceiteTermoCliente, TermoParaAceite } from '@/lib/termos/tipos';
 import type { CupomTipoDesconto } from '@/types/supabase';
@@ -79,6 +80,22 @@ export default function ConfirmarReserva({
   const [bloqueadoAte, setBloqueadoAte] = useState<Date | null>(null);
   const [agora, setAgora] = useState(() => Date.now());
 
+  // GA4: início do checkout (tela de confirmação da solicitação) — SPEC §65.
+  useEffect(() => {
+    const total = precoUnitario != null
+      ? valoresParaCliente({ precoUnitario, multiplicador, totalAdicionais, taxaPercent, descontoCupom: 0 }).total
+      : undefined;
+    rastrear('begin_checkout', {
+      currency: 'BRL',
+      value: total,
+      items: [{ item_id: roteiroId, item_category: 'roteiro', quantity: 1, price: total }],
+      modalidade,
+      pessoas,
+    });
+    // Só ao abrir a tela.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   // Contagem regressiva do bloqueio por tentativas — atualiza a cada segundo até liberar.
   useEffect(() => {
     if (!bloqueadoAte) return;
@@ -129,6 +146,14 @@ export default function ConfirmarReserva({
     if (result.ok) {
       setComprovanteAceite(result.aceite);
       setEnviada(true);
+      rastrear('solicitar_reserva', {
+        currency: 'BRL',
+        value: valores?.total,
+        item_id: roteiroId,
+        modalidade,
+        pessoas,
+        cupom: cupomAplicado?.codigo,
+      });
     } else if (result.aceiteCodigo) {
       // Problema no aceite: exige nova leitura. Se o termo mudou (ou foi
       // publicado agora), recarrega a página para exibir a versão vigente.

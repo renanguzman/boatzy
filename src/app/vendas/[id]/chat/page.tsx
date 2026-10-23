@@ -1,5 +1,6 @@
 import { notFound, redirect } from 'next/navigation';
 import Header from '@/components/layout/Header';
+import EventoAnalytics from '@/components/analytics/EventoAnalytics';
 import { createClient } from '@/lib/supabase/server';
 import { supabaseAdmin } from '@/lib/supabase';
 import ChatBox, { type Mensagem } from '@/components/chat/ChatBox';
@@ -97,6 +98,8 @@ export default async function ChatVendaPage({ params }: { params: Promise<{ id: 
   return (
     <div className="h-screen flex flex-col">
       <Header />
+      {/* GA4: contato com o dono (1x por item e navegador) — SPEC §65 */}
+      <EventoAnalytics evento="iniciar_conversa" chave={`venda:${id}`} umaVez params={{ origem: 'venda', item_id: id }} />
       <div className="flex-1 min-h-0">
         <ChatBox
           conversaId={conversaId}

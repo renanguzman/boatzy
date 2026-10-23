@@ -6748,3 +6748,61 @@ Os existentes continuam (`emailPagamentoPendente`, `emailPagamentoConfirmado`, `
 
 Verificado: `tsc`/`eslint` limpos; páginas compilam; visual do dropdown e do menu conferido no
 navegador com dados de exemplo. Ponto de atenção: o cron de conversas está diário em `vercel.json`.
+
+## 65. Google Analytics 4 (23/10/2026)
+
+**Carga** — `src/components/analytics/GoogleAnalytics.tsx` no `<body>` do layout raiz
+(`src/app/layout.tsx`): dois `next/script` `afterInteractive` (gtag.js + `gtag('config', GA_ID)`).
+Renderiza só se `VERCEL_ENV === 'production'` (fora da Vercel: `NODE_ENV === 'production'`). ID:
+`NEXT_PUBLIC_GA_ID`, padrão `G-4QJF8H6EDJ` (`GA_ID` em `src/lib/analytics.ts`). Sem
+`@next/third-parties` (não instalado; `next/script` dá controle de `set`/eventos). Sem CSP no projeto
+— se uma for criada, liberar `googletagmanager.com` e `*.google-analytics.com`.
+
+**Page views** — automáticos: o `config` envia o 1º; as navegações client-side do App Router geram
+`page_view` pela medição otimizada do GA4 (eventos de histórico). Não enviar `page_view` manual
+(duplicaria).
+
+**`src/lib/analytics.ts`** (client-safe): `rastrear(evento, params)` — acrescenta `area`
+(`site`/`painel`/`admin` pelo pathname) e espera o `gtag` existir (até ~6 s, 300 ms por tentativa;
+sem tag, no-op). `rastrearUmaVez(chave, …)` — dedupe por navegador em `localStorage` (`ga:<chave>`).
+`identificarUsuario(userId, perfil)` — `gtag('set', { user_id })`, `user_properties.perfil` e, para
+admin, `traffic_type: 'internal'`.
+
+**Componentes** — `IdentificarUsuario` (dentro do `GoogleAnalytics`): `getUser` + `onAuthStateChange`
+(SIGNED_IN/SIGNED_OUT) → papéis em `user_roles` (RLS própria) → perfil admin > gestor > cliente;
+deslogado = visitante. `EventoAnalytics({ evento, params, chave, umaVez })`: dispara ao montar em
+páginas server-side; guarda por `useRef` (uma vez por `chave`, inclusive no StrictMode); `chave`
+nova → novo envio.
+
+**Eventos**
+
+| Evento | Onde | Parâmetros |
+|---|---|---|
+| `search` | `src/app/buscar/page.tsx` (só página 1; chave = local/município/data/pessoas/aba/tipo) | `search_term` (`local` ou aba), `aba`, `data_passeio`, `pessoas`, `resultados` |
+| `view_item` | `src/app/roteiros/[id]/page.tsx` (não na prévia do painel) | `currency`, `value` (`preco_base`), `items[]` (id, nome, `roteiro`, cidade, embarcação) |
+| `begin_checkout` | `ConfirmarReserva` (montagem) | `value` (`valoresParaCliente`, sem cupom), `items`, `modalidade`, `pessoas` |
+| `solicitar_reserva` | `ConfirmarReserva` (`criarReserva` ok) | `value`, `item_id`, `modalidade`, `pessoas`, `cupom` |
+| `add_payment_info` | `CheckoutPagamento.pagar` (cobrança criada) | `value`, `payment_type`, `parcelas` |
+| `purchase` | `/reservas/[id]/pagar` com pedido `pago` (`umaVez`) | `transaction_id` (nº do pedido — o GA deduplica), `value`, `payment_type`, `coupon`, `items` |
+| `iniciar_conversa` | `/roteiros/[id]/chat`, `/embarcacoes/[id]/chat`, `/vendas/[id]/chat` (`umaVez` por item) | `origem`, `item_id` |
+| `clique_anunciar` | `Header` (CTA desktop e menu mobile, só para quem não é gestor) | `posicao` |
+| `solicitar_acesso_gestor` | `SolicitacaoGestor` (envio ok) | `qtd_embarcacoes` |
+| `gestor_respondeu_reserva` | `ReservaAcoes` (painel) | `resposta` (`aceitou`/`recusou`) |
+
+**Configuração no GA4 (admin, fora do código)**
+1. Eventos-chave: `purchase`, `solicitar_reserva`, `iniciar_conversa`, `solicitar_acesso_gestor`.
+2. Dimensões personalizadas — evento: `area`, `aba`, `modalidade`, `origem`, `posicao`, `resposta`,
+   `payment_type`; usuário: `perfil`. Métrica: `resultados`, `pessoas`.
+3. Admin → Coleta → Filtros de dados → "Internal Traffic" → **Ativo** (o código envia
+   `traffic_type=internal` para admins).
+4. Identidade nos relatórios: "Combinada" (usa o User-ID); Google Signals para dados demográficos;
+   retenção de dados em 14 meses; vincular o Search Console.
+
+**Limitações** — o 1º `page_view` sai antes do `set` de user_id/perfil (só os seguintes levam);
+`purchase` depende do cliente ver a tela de pedido pago (webhook confirma no servidor) — evolução:
+Measurement Protocol em `confirmarPedidoPago` com `client_id` capturado no checkout. Sem banner de
+consentimento (LGPD).
+
+Verificado em dev forçando a tag (hits respondidos com 204 no navegador de teste): carregamento do
+roteiro → 1 `page_view` + 1 `view_item`; navegação interna para a busca → 1 `search` + 1 `page_view`.
+Sem a tag (dev normal), nenhum script do Google e nenhum erro. `tsc`/`eslint` limpos.

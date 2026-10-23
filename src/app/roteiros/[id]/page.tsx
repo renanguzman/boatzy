@@ -1,6 +1,7 @@
 import { notFound } from 'next/navigation';
 import Header from '@/components/layout/Header';
 import Footer from '@/components/layout/Footer';
+import EventoAnalytics from '@/components/analytics/EventoAnalytics';
 import RoteiroDetalheView, { type RoteiroDetalheDados } from './_components/RoteiroDetalheView';
 import type { AvaliacaoPublica } from '@/components/avaliacoes/AvaliacoesSection';
 import { supabaseAdmin } from '@/lib/supabase';
@@ -127,6 +128,23 @@ export default async function RoteiroDetalhePage({
   return (
     <div className="min-h-screen bg-white">
       <Header />
+      {/* GA4: visualização do roteiro (funil de reserva — SPEC §65) */}
+      <EventoAnalytics
+        evento="view_item"
+        chave={roteiro.id}
+        params={{
+          currency: 'BRL',
+          value: roteiro.preco_base ?? undefined,
+          items: [{
+            item_id: roteiro.id,
+            item_name: roteiro.nome,
+            item_category: 'roteiro',
+            item_category2: roteiro.municipios?.nome,
+            item_brand: roteiro.embarcacao?.nome,
+            price: roteiro.preco_base ?? undefined,
+          }],
+        }}
+      />
       <RoteiroDetalheView
         roteiro={roteiro}
         avaliacoes={avaliacoes}

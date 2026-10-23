@@ -16,6 +16,7 @@ import { formatarDataHoraBR } from '@/lib/termos/formato';
 import type { FormaPagamentoCodigo, PedidoStatus } from '@/types/supabase';
 import CheckoutPagamento, { type FormaCheckout, type Pix } from './_components/CheckoutPagamento';
 import { FUSO_HORARIO } from '@/lib/datas';
+import EventoAnalytics from '@/components/analytics/EventoAnalytics';
 
 type PedidoPagar = {
   id: string;
@@ -222,6 +223,28 @@ export default async function PagarReservaPage({
               )
             ) : pedido.status === 'pago' || pedido.status === 'reembolsado_parcial' || pedido.status === 'em_disputa' || pedido.status === 'reembolsado' ? (
               <div className="rounded-2xl border border-emerald-200 bg-white shadow-sm p-6">
+                {/* GA4: compra concluída — 1x por navegador; transaction_id deduplica no GA (SPEC §65) */}
+                {pedido.status === 'pago' && (
+                  <EventoAnalytics
+                    evento="purchase"
+                    chave={String(pedido.numero)}
+                    umaVez
+                    params={{
+                      transaction_id: String(pedido.numero),
+                      currency: 'BRL',
+                      value: Number(pedido.valor_total),
+                      payment_type: pago?.forma,
+                      coupon: cupom ?? undefined,
+                      items: [{
+                        item_id: reserva.id,
+                        item_name: reserva.roteiro?.nome ?? reserva.item_nome,
+                        item_category: reserva.tipo,
+                        price: Number(pedido.valor_total),
+                        quantity: 1,
+                      }],
+                    }}
+                  />
+                )}
                 <BadgeCheck className="h-9 w-9 text-emerald-600" />
                 <h2 className="mt-3 text-lg font-bold text-[#0B2447]">
                   {pedido.status === 'pago' ? 'Pagamento confirmado!' : 'Pagamento recebido'}

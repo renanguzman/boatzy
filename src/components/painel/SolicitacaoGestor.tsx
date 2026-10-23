@@ -10,6 +10,7 @@ import { getMunicipiosByEstado } from '@/lib/conta-actions';
 import { solicitarAcessoGestor } from '@/lib/solicitacao-gestor-actions';
 import { isValidCpfOuCnpj, maskCpfCnpj } from '@/lib/validators';
 import { formatarData } from '@/lib/datas';
+import { rastrear } from '@/lib/analytics';
 import type { SolicitacaoGestorResumo } from '@/lib/solicitacao-gestor';
 
 type Estado = { id: number; uf: string; nome: string };
@@ -156,6 +157,8 @@ function Formulario({ estados, municipiosIniciais, perfil, recusada }: {
         setErro(r.error);
         return;
       }
+      // GA4: lead de gestor (dono de embarcação) — SPEC §65.
+      rastrear('solicitar_acesso_gestor', { qtd_embarcacoes: parseInt(qtd, 10) || 0 });
       router.refresh();
     });
   }

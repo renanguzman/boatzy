@@ -30,6 +30,7 @@ import {
   type BuscaSearchParams as SearchParams,
 } from './_lib/filtros';
 import { FUSO_HORARIO } from '@/lib/datas';
+import EventoAnalytics from '@/components/analytics/EventoAnalytics';
 
 const POR_PAGINA = 24;
 const RAIO_KM = 50;
@@ -449,6 +450,20 @@ export default async function BuscarPage({ searchParams }: { searchParams: Promi
   return (
     <div className="min-h-screen flex flex-col bg-slate-50">
       <Header />
+      {/* GA4: cada busca distinta (local/data/pessoas/aba), sem contar troca de página — SPEC §65 */}
+      {pagina === 1 && (
+        <EventoAnalytics
+          evento="search"
+          chave={[params.local, params.municipio, params.data, params.pessoas, params.tipo, params.tipo_embarcacao].join('|')}
+          params={{
+            search_term: params.local || (abaEmbarcacao ? 'embarcacoes' : 'roteiros'),
+            aba: abaEmbarcacao ? 'embarcacao' : 'roteiro',
+            data_passeio: params.data,
+            pessoas: pessoas || undefined,
+            resultados: total,
+          }}
+        />
+      )}
 
       <NavegacaoBuscaProvider>
         <main className="flex-1 max-w-7xl mx-auto px-4 sm:px-6 py-6 md:py-8 w-full">

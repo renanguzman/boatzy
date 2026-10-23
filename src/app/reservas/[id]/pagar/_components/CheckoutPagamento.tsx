@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { QrCode, CreditCard, Loader2, Copy, Check, ShieldCheck, Clock, FlaskConical } from 'lucide-react';
 import type { FormaPagamentoCodigo } from '@/types/supabase';
+import { rastrear } from '@/lib/analytics';
 import { maskCPF } from '@/lib/validators';
 import { formatCurrencyPrecise } from '@/lib/utils';
 import { consultarStatusPedido, pagarReserva } from '../actions';
@@ -80,6 +81,13 @@ export default function CheckoutPagamento({
       setErro({ texto: r.error, campo: r.campo });
       return;
     }
+    // GA4: forma de pagamento escolhida e cobrança gerada — SPEC §65.
+    rastrear('add_payment_info', {
+      currency: 'BRL',
+      value: valorTotal,
+      payment_type: formaEscolhida === 'pix' ? 'pix' : 'cartao_credito',
+      parcelas: formaEscolhida === 'cartao_credito' ? parcelas : 1,
+    });
     if (r.forma === 'pix') {
       setPix(r.pix);
       setCarregando(false);
