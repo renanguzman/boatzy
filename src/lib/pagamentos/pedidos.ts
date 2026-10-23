@@ -75,7 +75,7 @@ export async function dadosParaEmail(pedidoId: string) {
   const { data } = await supabaseAdmin
     .from('pedido')
     .select(
-      `numero, valor_total, valor_itens, reserva_id,
+      `numero, status, expira_em, valor_total, valor_itens, reserva_id,
        reserva:reserva_id ( item_nome, data_reserva ),
        cliente:users!pedido_cliente_id_fkey ( name, email ),
        gestor:users!pedido_gestor_id_fkey ( name, email )`,
@@ -84,6 +84,8 @@ export async function dadosParaEmail(pedidoId: string) {
     .single();
   return data as unknown as {
     numero: number;
+    status: string;
+    expira_em: string | null;
     valor_total: number;
     valor_itens: number;
     reserva_id: string;

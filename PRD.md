@@ -230,7 +230,7 @@ Exibir:
 
 - Galeria: imagem principal (2/3 largura) + 2 miniaturas laterais.
 - Specs row: ícones com Localização, Duração, Pessoas, Preço — layout com `min-w-0` + `truncate` para evitar overflow.
-- "Sobre a Embarcação": nome clicável que abre `EmbarcacaoFotosModal` com galeria completa e especificações da embarcação.
+- "Sobre a Embarcação": foto principal grande da embarcação (clicável, abre `EmbarcacaoFotosModal` com galeria completa e especificações), nome, tipo, modalidade de capitão e link **"Veja outros roteiros desta embarcação"** (nova aba) — ver "Detalhe do roteiro — foto da embarcação em destaque" abaixo.
 - "Comodidades a bordo": grid 3 colunas com ícones `CheckCircle2`.
 - "O que está incluído": itens do catálogo vinculados ao roteiro (`roteiro_catalogo`).
 - "Itinerário": timeline vertical com gradiente — partida, **paradas intermediárias cadastradas pelo gestor (0, 1 ou várias)** e chegada (ver "Paradas do itinerário do roteiro" abaixo).
@@ -241,7 +241,7 @@ Exibir:
 
 #### ✅ Implementado — Modal de Fotos da Embarcação (`EmbarcacaoFotosModal`)
 
-- Trigger: nome da embarcação como link estilizado (underline pontilhado + ícone câmera com contagem + ExternalLink no hover).
+- Trigger: a própria foto principal da embarcação, em tamanho grande, com o selo "📷 N fotos" sobreposto (desde 23/10/2026; antes era uma pílula "Ver fotos desta embarcação").
 - Modal: backdrop escuro + blur, painel `max-w-4xl`, header gradiente navy.
 - Navegação: setas ◀ ▶, teclado (ESC fecha, ← → navega), contador "N / total".
 - Thumbnails: strip no rodapé com ring cyan no ativo.
@@ -1977,6 +1977,66 @@ libera o acesso ao painel. Antes, qualquer conta virava gestor em um clique.
 - **Removido:** a tela oculta `/painel/usuarios`, que listava todas as contas para qualquer gestor e
   permitia criar contas com qualquer papel, inclusive admin.
 - Detalhes técnicos: `SPEC.md` §62.
+
+### ✅ Detalhe do roteiro — foto da embarcação em destaque e "outros roteiros" (23/10/2026)
+
+- Em "Sobre a Embarcação", a miniatura de 40×40 virou uma **foto grande da embarcação** (≈240 px de
+  largura à esquerda no computador; largura total no celular, acima do nome). Ao passar o mouse a foto
+  aproxima levemente; um selo **"📷 N fotos"** sobre ela indica que, ao clicar, abre a galeria
+  completa (o mesmo modal de antes, começando pela foto principal). Sem fotos, aparece um quadro com o
+  ícone de âncora, sem clique.
+- A pílula "Ver fotos desta embarcação (N fotos)" ao lado do nome **saiu** — a ação de fotos passou
+  para a própria imagem, para não ficar com dois botões disputando espaço ao lado do nome.
+- Novo link **"Veja outros roteiros desta embarcação"**, abaixo do nome/tipo, que abre **em nova aba**
+  a página da embarcação (`/embarcacoes/[id]/roteiros`) com todos os roteiros que ela executa. O link
+  leva junto os filtros da busca (data, flexibilidade, pessoas) e o "voltar" aponta para o roteiro de
+  origem. Também aparece na pré-visualização do painel.
+- Detalhes técnicos: `SPEC.md` §63.
+
+### ✅ Central de notificações do cliente (23/10/2026)
+
+**Objetivo:** o cliente sempre sabe, em tempo real, tudo o que acontece com seus passeios — e usa o
+sino como referência única. Os avisos importantes também vão por e-mail.
+
+- **Sino no header do site** (ao lado do menu da conta, no computador e no celular) com contador de não
+  lidas. Ao clicar, abre a lista das mais recentes — ícone colorido por tipo, título, texto, "há 3d" e
+  ponto azul nas não lidas — com **"Marcar todas como lidas"** e **"Ver todas as notificações"**.
+- **Tempo real:** a notificação aparece sem recarregar a página; o sino balança e surge um aviso
+  flutuante no canto (some sozinho em 7 s; clicável).
+- **Página `/notificacoes`** (acesso pelo "Ver todas as notificações" do sino): histórico completo,
+  filtro **Todas / Não lidas**, marcar todas como lidas e "Carregar mais".
+- Clicar numa notificação marca como lida e leva ao lugar certo: o card da reserva em
+  `/minhas-reservas` (rola até ele e destaca), a tela de pagamento ou a conversa.
+- **Eventos avisados:**
+
+| Evento | No sino | E-mail |
+|---|---|---|
+| Reserva confirmada (gestor aceitou, sem cobrança online) | ✅ | ✅ novo |
+| Reserva aceita — aguardando pagamento (com prazo) | ✅ | ✅ (já existia) |
+| Pagamento aprovado (reserva garantida) | ✅ | ✅ (já existia) |
+| Pagamento recusado (cartão negado / análise de risco) — ainda dá para pagar | ✅ | ✅ novo |
+| Prazo de pagamento expirado | ✅ | ✅ (já existia) |
+| Reserva não aceita (recusada pelo gestor, com o recado dele) | ✅ | ✅ (já existia) |
+| Reserva cancelada | ✅ | ✅ novo |
+| Reembolso total ou parcial | ✅ | ✅ novo |
+| Mensagem do dono da embarcação/equipe | ✅ (agrupada: "3 novas mensagens de…") | ✅ (aviso agrupado de conversas, já existia; respeita a preferência em Minha conta) |
+| Passeio concluído — "Como foi seu passeio?" (convite para avaliar) | ✅ | — |
+
+- Mensagens não viram uma notificação por mensagem: há **uma por conversa**, atualizada a cada
+  mensagem nova; ao abrir a conversa ela fica lida automaticamente.
+- Ao publicar, conversas com mensagens não lidas e reservas que já aguardavam pagamento entram no
+  sino automaticamente.
+- **Menu da conta:** em vez de só a inicial, mostra as **iniciais (nome e sobrenome) + o primeiro
+  nome** (ex.: "RG Renan ⌄"), usando o nome do cadastro (Minha conta).
+- **Itens do menu da conta (23/10/2026):** sem "Notificações" (o acesso é pelo sino); ordem **Minha
+  conta → Minhas conversas → Minhas reservas → Favoritos → Sair**. No celular, o menu (☰) segue a mesma
+  ordem e ganhou o mesmo cabeçalho do desktop (iniciais/foto, nome completo e e-mail); o sino fica
+  sempre visível ao lado do ☰.
+- Em **Minha conta → Notificações**, um aviso explica que os e-mails de reserva e pagamento são
+  sempre enviados.
+- **Fora do escopo agora:** lembrete antes do prazo de pagamento vencer; avisos ao gestor no sino do
+  site (o painel tem o sino próprio); notificação push no celular.
+- Detalhes técnicos: `SPEC.md` §64.
 
 ## 11. Não Incluído no MVP
 

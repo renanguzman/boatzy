@@ -243,7 +243,7 @@ export default async function MinhasReservasPage() {
                 (r.status === 'confirmada' || r.status === 'concluida') && atendentes.length > 0;
 
               return (
-                <article key={r.id} className="rounded-2xl border border-slate-200 bg-white shadow-sm overflow-hidden">
+                <article key={r.id} id={`reserva-${r.id}`} className="scroll-mt-24 rounded-2xl border border-slate-200 bg-white shadow-sm overflow-hidden target:ring-2 target:ring-[#0B3D91]/40">
                   {/* Topo: imagem + título + status */}
                   <div className="flex items-stretch gap-4 p-4 border-b border-slate-100">
                     <div className="relative h-20 w-28 shrink-0 rounded-xl overflow-hidden bg-slate-100 hidden sm:block">

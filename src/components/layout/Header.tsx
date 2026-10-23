@@ -8,9 +8,10 @@ import { Menu, X, User, Briefcase, LogOut, Loader2, CalendarCheck, UserCog, Hear
 import { createClient } from '@/lib/supabase/client';
 import { authorizeRealtime } from '@/lib/supabase/realtime';
 import type { User as SupabaseUser, RealtimeChannel } from '@supabase/supabase-js';
-import UserMenu from './UserMenu';
+import UserMenu, { identificacaoUsuario } from './UserMenu';
 import EntrarMenu from './EntrarMenu';
 import NavPrincipal from './NavPrincipal';
+import SinoNotificacoes from '@/components/notificacoes/SinoNotificacoes';
 
 export default function Header() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -18,6 +19,7 @@ export default function Header() {
   const [authLoading, setAuthLoading] = useState(true);
   const [naoLidas, setNaoLidas] = useState(0);
   const [isGestor, setIsGestor] = useState(false);
+  const [perfil, setPerfil] = useState<{ name: string; avatar_url: string | null } | null>(null);
   const pathname = usePathname();
   const router = useRouter();
   const supabase = createClient();
@@ -60,6 +62,28 @@ export default function Header() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user]);
 
+  // Nome e foto do cadastro (`users`, editáveis em Minha conta) — o metadata do
+  // login pode estar desatualizado ou sem nome (conta criada por e-mail).
+  useEffect(() => {
+    if (!user) {
+      setPerfil(null);
+      return;
+    }
+    let active = true;
+    supabase
+      .from('users')
+      .select('name, avatar_url')
+      .eq('id', user.id)
+      .maybeSingle()
+      .then(({ data }) => {
+        if (active) setPerfil(data ?? null);
+      });
+    return () => {
+      active = false;
+    };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user]);
+
   // Total de mensagens de chat não lidas (cliente), mantido ao vivo via Realtime.
   useEffect(() => {
     if (!user) return;
@@ -93,8 +117,8 @@ export default function Header() {
   }
 
   const entrarUrl = `/entrar?redirect_to=${encodeURIComponent(pathname)}`;
-  const avatarUrl = user?.user_metadata?.avatar_url as string | undefined;
-  const displayName = (user?.user_metadata?.full_name ?? user?.email ?? '') as string;
+  const avatarUrl = (perfil?.avatar_url ?? user?.user_metadata?.avatar_url ?? undefined) as string | undefined;
+  const displayName = (perfil?.name?.trim() || user?.user_metadata?.full_name || user?.user_metadata?.name || '') as string;
 
   return (
     <header className="sticky top-0 z-50 bg-white/95 backdrop-blur-md border-b border-slate-100 shadow-sm">
@@ -127,6 +151,9 @@ export default function Header() {
               {isGestor ? 'Minhas embarcações' : 'Anuncie sua embarcação'}
               <ArrowUpRight className="-ml-0.5 h-3.5 w-3.5 -translate-x-1 opacity-0 transition-all duration-200 group-hover:translate-x-0 group-hover:opacity-80" />
             </Link>
+
+            {/* Notificações do cliente (todas as larguras) */}
+            {!authLoading && user && <SinoNotificacoes userId={user.id} />}
 
             {/* Auth */}
             <div className="hidden md:flex items-center">
@@ -205,6 +232,28 @@ export default function Header() {
               )}
               {!authLoading && user && (
                 <>
+                  {/* Identificação — mesmo cabeçalho do menu da conta no desktop */}
+                  <div className="mx-3 mb-1 flex items-center gap-3 rounded-xl bg-slate-50 px-3 py-3">
+                    {avatarUrl ? (
+                      <Image src={avatarUrl} alt={displayName} width={40} height={40} className="h-10 w-10 shrink-0 rounded-full object-cover" />
+                    ) : (
+                      <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#0B2447] text-xs font-bold tracking-wide text-white">
+                        {identificacaoUsuario(displayName, user.email ?? '').iniciais}
+                      </span>
+                    )}
+                    <div className="min-w-0">
+                      <p className="truncate text-sm font-semibold text-[#0B2447]">{displayName || 'Minha conta'}</p>
+                      {user.email && <p className="truncate text-xs text-slate-400">{user.email}</p>}
+                    </div>
+                  </div>
+                  <Link
+                    href="/minha-conta"
+                    onClick={() => setMobileMenuOpen(false)}
+                    className="flex items-center gap-2 px-3 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-50 rounded-lg"
+                  >
+                    <UserCog className="h-4 w-4 text-slate-400" />
+                    Minha conta
+                  </Link>
                   <Link
                     href="/minhas-conversas"
                     onClick={() => setMobileMenuOpen(false)}
@@ -234,17 +283,10 @@ export default function Header() {
                     <Heart className="h-4 w-4 text-slate-400" />
                     Favoritos
                   </Link>
-                  <Link
-                    href="/minha-conta"
-                    onClick={() => setMobileMenuOpen(false)}
-                    className="flex items-center gap-2 px-3 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-50 rounded-lg"
-                  >
-                    <UserCog className="h-4 w-4 text-slate-400" />
-                    Minha conta
-                  </Link>
+                  <hr className="border-slate-100 my-1" />
                   <button
                     onClick={() => { handleSignOut(); setMobileMenuOpen(false); }}
-                    className="flex items-center gap-2 px-3 py-2.5 text-sm font-medium text-red-500 w-full text-left"
+                    className="flex items-center gap-2 px-3 py-2.5 text-sm font-medium text-red-500 hover:bg-red-50 rounded-lg w-full text-left"
                   >
                     <LogOut className="w-4 h-4" />
                     Sair

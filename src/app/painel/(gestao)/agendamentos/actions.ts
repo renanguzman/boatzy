@@ -12,6 +12,7 @@ import { getFinanceiroConfig } from '@/lib/financeiro/config';
 import { calcularExpiracao } from '@/lib/pagamentos/pedidos';
 import { emailPagamentoPendente } from '@/lib/pagamentos/emails';
 import { emailReservaRecusada } from '@/lib/emails/reserva-recusada';
+import { emailReservaConfirmada } from '@/lib/emails/reserva-cliente';
 import { calcularValoresPedido, multiplicadorDaReserva, VALOR_MINIMO_COBRANCA } from '@/lib/pagamentos/valores';
 import type { ReservaModalidadePreco } from '@/types/supabase';
 
@@ -346,6 +347,10 @@ async function responderReserva(
   if (status === 'recusada') {
     const observacaoCliente = observacao?.trim() ? observacao.trim() : null;
     after(() => avisarClienteRecusa(reservaId, observacaoCliente));
+  }
+  // Confirmação sem cobrança online: avisa o cliente (o in-app vem do trigger, SPEC §64).
+  if (status === 'confirmada') {
+    after(() => emailReservaConfirmada(reservaId));
   }
 
   revalidatePath('/painel/agendamentos');

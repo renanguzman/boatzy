@@ -688,6 +688,12 @@ export default function MinhaContaForm({
             />
           </button>
         </div>
+
+        <p className="mt-6 rounded-xl bg-slate-50 px-4 py-3 text-xs leading-relaxed text-slate-500">
+          Avisos sobre suas reservas e pagamentos (confirmação, cancelamento, pagamento aprovado ou
+          recusado, prazo para pagar e reembolso) são sempre enviados por e-mail e ficam no sino de{' '}
+          <a href="/notificacoes" className="font-semibold text-[#0B3D91] hover:underline">Notificações</a>.
+        </p>
       </div>
 
       {/* Segurança / senha */}

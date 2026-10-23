@@ -27,7 +27,7 @@ export async function buscarEmbarcacaoParaPreview(
   let query = supabaseAdmin
     .from('embarcacao')
     .select(`
-      nome, capacidade, comprimento, comprimento_unidade, quartos, banheiros, tripulacao, modalidade_capitao,
+      id, nome, capacidade, comprimento, comprimento_unidade, quartos, banheiros, tripulacao, modalidade_capitao,
       embarcacao_tipo ( nome ),
       embarcacao_comodidades ( comodidade ( nome ) ),
       embarcacao_equipamentos_seguranca ( equipamentos_seguranca ( nome ) ),

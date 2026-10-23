@@ -123,3 +123,51 @@ export async function emailPedidoExpirado(input: DadosPedidoEmail & { para: stri
     'pedido expirado',
   );
 }
+
+/** Cliente: cartão negado / reprovado na análise — ainda dá para pagar até o prazo. */
+export async function emailPagamentoRecusado(input: DadosPedidoEmail & { para: string; nome: string; expiraEm: string | null }) {
+  await enviar(
+    input.para,
+    'Seu pagamento não foi aprovado — tente novamente',
+    montarHtml({
+      nome: input.nome,
+      paragrafos: [
+        `O pagamento de <strong>${esc(input.itemNome)}</strong> não foi aprovado pela operadora. Nenhum valor foi cobrado.`,
+        input.expiraEm
+          ? `Sua data continua reservada até <strong>${esc(dataHoraBR(input.expiraEm))}</strong>: tente com outro cartão ou pague por Pix.`
+          : 'Tente com outro cartão ou pague por Pix.',
+      ],
+      linhas: [
+        ['Pedido', `#${input.pedidoNumero}`],
+        ['Data do passeio', dataBR(input.dataReserva)],
+        ['Total', brl(input.valorTotal)],
+      ],
+      botao: { texto: 'Tentar novamente', url: `${baseUrl()}/reservas/${input.reservaId}/pagar` },
+      rodape: 'Você recebe este e-mail porque solicitou uma reserva no Boatzy.',
+    }),
+    'pagamento recusado',
+  );
+}
+
+/** Cliente: estorno total ou parcial do pedido. */
+export async function emailReembolso(input: DadosPedidoEmail & { para: string; nome: string; parcial: boolean }) {
+  await enviar(
+    input.para,
+    input.parcial ? 'Reembolso parcial realizado' : 'Reembolso realizado',
+    montarHtml({
+      nome: input.nome,
+      paragrafos: [
+        `${input.parcial ? 'Parte do valor' : 'O valor'} do pedido de <strong>${esc(input.itemNome)}</strong> foi estornado.`,
+        'O prazo para o valor aparecer no extrato depende do seu banco ou da operadora do cartão.',
+      ],
+      linhas: [
+        ['Pedido', `#${input.pedidoNumero}`],
+        ['Data do passeio', dataBR(input.dataReserva)],
+        ['Total do pedido', brl(input.valorTotal)],
+      ],
+      botao: { texto: 'Ver minhas reservas', url: `${baseUrl()}/minhas-reservas#reserva-${input.reservaId}` },
+      rodape: 'Você recebe este e-mail porque fez uma reserva no Boatzy.',
+    }),
+    'reembolso',
+  );
+}

@@ -11,8 +11,9 @@ import {
   AlarmClock,
   AlarmClockCheck,
   Waves,
+  Ship,
+  ExternalLink,
 } from 'lucide-react';
-import Image from 'next/image';
 import BookingCard from './BookingCard';
 import EmbarcacaoFotosModal from './EmbarcacaoFotosModal';
 import { CartProvider } from './CartContext';
@@ -54,6 +55,7 @@ export type RoteiroDetalheDados = {
   municipios: { nome: string; estados: { uf: string; nome: string } | null } | null;
   roteiro_imagens: { id: string; url_imagem: string; titulo: string | null; principal: boolean; ordem: number }[];
   embarcacao: {
+    id: string;
     nome: string;
     capacidade: number | null;
     comprimento: number | null;
@@ -113,6 +115,18 @@ export default function RoteiroDetalheView({
   // Foto principal da embarcação (miniatura no bloco "Sobre a Embarcação").
   const imagensEmb = roteiro.embarcacao?.embarcacao_imagens ?? [];
   const fotoEmbarcacao = (imagensEmb.find((i) => i.principal) ?? ordenarImagens(imagensEmb)[0])?.url_imagem ?? null;
+
+  // "Veja outros roteiros desta embarcação" — leva os filtros da busca e volta para este roteiro.
+  const hrefRoteirosEmbarcacao = roteiro.embarcacao?.id
+    ? (() => {
+        const q = new URLSearchParams();
+        if (initialData) q.set('data', initialData);
+        if (initialFlex) q.set('flex', String(initialFlex));
+        if (initialPessoas) q.set('pessoas', String(initialPessoas));
+        q.set('voltar', `/roteiros/${roteiro.id}`);
+        return `/embarcacoes/${roteiro.embarcacao.id}/roteiros?${q.toString()}`;
+      })()
+    : null;
 
   const retorno = horarioRetorno(roteiro.horario_saida, roteiro.duracao_horas);
 
@@ -280,23 +294,34 @@ export default function RoteiroDetalheView({
                     Sobre a Embarcação
                   </h2>
                   <div className="rounded-2xl border border-slate-100 p-5 bg-slate-50/50">
-                    <div className="flex items-center gap-3 mb-4 min-w-0">
-                      <div className="relative h-10 w-10 rounded-xl bg-[#0B3D91]/10 flex items-center justify-center shrink-0 overflow-hidden">
-                        {fotoEmbarcacao ? (
-                          <Image src={fotoEmbarcacao} alt={roteiro.embarcacao.nome} fill sizes="40px" className="object-cover" />
-                        ) : (
-                          <Anchor className="h-5 w-5 text-[#0B3D91]" />
+                    {/* Foto grande (abre a galeria) | nome, tipo, capitão e link p/ os outros roteiros */}
+                    <div className="flex flex-col sm:flex-row gap-4 sm:gap-5 mb-5 min-w-0">
+                      <EmbarcacaoFotosModal capa={fotoEmbarcacao} embarcacao={roteiro.embarcacao} />
+                      <div className="min-w-0 flex-1 flex flex-col">
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="min-w-0">
+                            <p className="text-lg font-semibold text-slate-800 leading-snug">{roteiro.embarcacao.nome}</p>
+                            {roteiro.embarcacao.embarcacao_tipo && (
+                              <p className="text-xs text-slate-500 mt-0.5">{roteiro.embarcacao.embarcacao_tipo.nome}</p>
+                            )}
+                          </div>
+                          <span className="shrink-0 text-xs font-medium bg-[#0B3D91]/10 text-[#0B3D91] px-3 py-1 rounded-full whitespace-nowrap">
+                            {modalidadeLabel[roteiro.embarcacao.modalidade_capitao] ?? roteiro.embarcacao.modalidade_capitao}
+                          </span>
+                        </div>
+                        {hrefRoteirosEmbarcacao && (
+                          <a
+                            href={hrefRoteirosEmbarcacao}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="group mt-4 sm:mt-auto inline-flex w-fit items-center gap-1.5 text-sm font-semibold text-[#0B3D91] hover:underline underline-offset-4 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#0B3D91] rounded"
+                          >
+                            <Ship className="h-4 w-4" />
+                            Veja outros roteiros desta embarcação
+                            <ExternalLink className="h-3.5 w-3.5 opacity-70 transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
+                          </a>
                         )}
                       </div>
-                      <div className="min-w-0 flex-1">
-                        <EmbarcacaoFotosModal embarcacao={roteiro.embarcacao} />
-                        {roteiro.embarcacao.embarcacao_tipo && (
-                          <p className="text-xs text-slate-500 mt-0.5">{roteiro.embarcacao.embarcacao_tipo.nome}</p>
-                        )}
-                      </div>
-                      <span className="shrink-0 text-xs font-medium bg-[#0B3D91]/10 text-[#0B3D91] px-3 py-1 rounded-full whitespace-nowrap">
-                        {modalidadeLabel[roteiro.embarcacao.modalidade_capitao] ?? roteiro.embarcacao.modalidade_capitao}
-                      </span>
                     </div>
                     <div className="grid grid-cols-3 sm:grid-cols-5 gap-3">
                       {roteiro.embarcacao.capacidade && (

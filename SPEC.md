@@ -1746,6 +1746,8 @@ mesmo comportamento do carrossel "Coleção de experiências" da home (`MomentsS
 **Props:**
 ```ts
 type Props = {
+  /** URL da foto principal — exibida grande como gatilho da galeria (desde 23/10/2026, ver §63). */
+  capa: string | null;
   embarcacao: {
     nome: string;
     capacidade: number | null;
@@ -6634,3 +6636,115 @@ pedido). A observação interna nunca vai.
 **Utilitários** — `src/lib/validators.ts`: `isValidCNPJ`, `maskCpfCnpj`, `isValidCpfOuCnpj`;
 `src/lib/countries.ts`: `formatarTelefoneE164`.
 
+## 63. Detalhe do roteiro — foto grande da embarcação e link "outros roteiros" (23/10/2026)
+
+**`RoteiroDetalheDados.embarcacao`** ganhou `id: string`. Selecionado em `src/app/roteiros/[id]/page.tsx`
+(`embarcacao ( id, nome, … )`) e em `buscarEmbarcacaoParaPreview` (`src/lib/preview-actions.ts`), que
+alimenta a pré-visualização do painel.
+
+**`EmbarcacaoFotosModal`** — nova prop `capa: string | null` (substitui a miniatura e a pílula do §56).
+O gatilho passa a ser um `<button>` com `next/image` (`fill`, `object-cover`, hover `scale-105`,
+`sizes="(min-width: 640px) 240px, 100vw"`) em `aspect-[16/10] w-full sm:w-60`, degradê inferior e
+selo branco "`Camera` N foto(s)" (`bottom-2.5 left-2.5`; hover azul `#0B3D91`). O `aria-label`
+descritivo foi mantido. Abre o modal no índice da `capa` dentro de `ordenarImagens` (fallback 0). Sem
+`capa` ou sem imagens: quadro `bg-[#0B3D91]/10` com `Anchor`, não clicável. O nome da embarcação deixou de
+ser renderizado pelo componente.
+
+**`RoteiroDetalheView`** — bloco "Sobre a Embarcação": `flex-col sm:flex-row` com o modal (foto) à
+esquerda e, à direita, nome (`text-lg font-semibold`), tipo, badge de modalidade de capitão e o link
+`<a target="_blank" rel="noopener noreferrer">` "Veja outros roteiros desta embarcação" (`Ship` +
+`ExternalLink`, `sm:mt-auto` para alinhar à base da foto). `href` =
+`/embarcacoes/{embarcacao.id}/roteiros?data=&flex=&pessoas=&voltar=/roteiros/{roteiro.id}` (os três
+filtros só quando presentes em `initialData`/`initialFlex`/`initialPessoas`). Sem `embarcacao.id`, o
+link não renderiza. O grid de especificações abaixo não mudou.
+
+Verificado no navegador (1280 px e 390 px; link com `target=_blank` e href correto; sem erros no
+console). `tsc`/`eslint` limpos.
+
+## 64. Central de notificações do cliente (23/10/2026)
+
+### 64.1 Modelo — `public.notificacao` (migration `20261023_notificacoes.sql`)
+
+| Coluna | Tipo | Observação |
+|---|---|---|
+| `id` | uuid PK | |
+| `user_id` | uuid → `users` | destinatário (cliente) |
+| `tipo` | text CHECK | `reserva_confirmada`, `reserva_recusada`, `reserva_cancelada`, `reserva_expirada`, `reserva_concluida`, `aguardando_pagamento`, `pagamento_aprovado`, `pagamento_recusado`, `reembolso`, `mensagem` (`NotificacaoTipo` em `src/types/supabase.ts`) |
+| `titulo`, `mensagem` | text | texto pronto, em pt-BR (datas em Brasília) |
+| `link` | text | caminho relativo (`/minhas-reservas#reserva-<id>`, `/reservas/<id>/pagar`, `/minhas-conversas/<id>/chat`) |
+| `reserva_id` / `conversa_id` | uuid | ON DELETE CASCADE |
+| `chave` | text | idempotência: único por `(user_id, chave)` |
+| `quantidade` | int | mensagens agrupadas (tipo `mensagem`) |
+| `lida_em` | timestamptz | null = não lida |
+| `criada_em` | timestamptz | mensagem agrupada: momento da última |
+
+Índices: `notificacao_chave_uniq (user_id, chave) WHERE chave IS NOT NULL`;
+`notificacao_mensagem_aberta_uniq (user_id, conversa_id) WHERE tipo='mensagem' AND lida_em IS NULL`
+(uma aberta por conversa); `(user_id, criada_em DESC)`; parcial de não lidas.
+
+RLS: `service_role_all`; `user_select_own` (SELECT); `user_update_own` (UPDATE — marcar como lida pelo
+browser). Ninguém além do banco/servidor insere. GRANTs da Data API conforme AGENTS.md. Tabela no
+`supabase_realtime`.
+
+### 64.2 Geração — triggers (SECURITY DEFINER, `search_path=public`, fuso America/Sao_Paulo)
+
+Helper `notificar(user, tipo, titulo, mensagem, link, reserva_id, chave)` — `INSERT … ON CONFLICT
+(user_id, chave) DO NOTHING`; `notificacao_item_nome(reserva_id)` = nome atual do roteiro ou
+`item_nome`. EXECUTE revogado de `anon`/`authenticated`.
+
+| Trigger | Quando | Notificação (chave) |
+|---|---|---|
+| `notificacao_reserva` | `reserva` AFTER UPDATE OF status (mudou) | `confirmada` (exceto vinda de `aguardando_pagamento` — coberta por "Pagamento aprovado"), `recusada` (+ recado do gestor, 200 chars), `cancelada`, `expirada`, `concluida` — `reserva:<id>:<status>` |
+| `notificacao_pedido_insert` | `pedido` AFTER INSERT em `aguardando_pagamento` | prazo `expira_em` — `pedido:<id>:aguardando_pagamento` |
+| `notificacao_pedido_status` | `pedido` status → `pago` / `reembolsado` / `reembolsado_parcial` | `pedido:<id>:<status>` |
+| `notificacao_pagamento_recusado` | `pagamento` status → `recusado` com pedido ainda `aguardando_pagamento` | `pagamento:<id>:recusado` |
+| `notificacao_mensagem` | `mensagem` AFTER INSERT de quem não é o `conversa.cliente_id` | upsert na notificação aberta da conversa: título "Nova mensagem de <nome>", texto = 160 chars, `quantidade + 1`, `criada_em = now()` |
+| `notificacao_mensagem_lida` | `mensagem.lida_em` preenchida | marca lida a notificação `mensagem` da conversa do leitor |
+
+Por estarem no banco, cobrem todos os caminhos (ação do gestor, webhook Asaas, cron, expiração lazy,
+`concluirReservasVencidas`, admin). Backfill na migration: conversas com mensagens não lidas e pedidos
+aguardando pagamento dentro do prazo.
+
+### 64.3 E-mails (aplicação)
+
+Os existentes continuam (`emailPagamentoPendente`, `emailPagamentoConfirmado`, `emailPedidoExpirado`,
+`emailReservaRecusada`, aviso agrupado de conversas — cron `/api/cron/notificar-conversas`). Novos:
+
+- `src/lib/emails/reserva-cliente.ts`: `emailReservaConfirmada(reservaId)` — `responderReserva`
+  (agendamentos/actions) via `after()` quando confirma sem cobrança; `emailReservaCancelada(reservaId)`
+  — `cancelarReserva` (minhas-reservas/actions) via `after()`.
+- `src/lib/pagamentos/emails.ts`: `emailPagamentoRecusado` (botão "Tentar novamente" →
+  `/reservas/<id>/pagar`) e `emailReembolso` (`parcial`). Disparados em `aplicarCobranca`
+  (`webhook.ts`): recusa quando o status aplicado passa a `recusado` na parcela principal e o pedido
+  aguarda pagamento; reembolso quando o UPDATE do pedido realmente muda para
+  `reembolsado`/`reembolsado_parcial`. Helper `avisarCliente` nunca lança. `dadosParaEmail` passou a
+  trazer `status` e `expira_em`.
+
+### 64.4 Interface
+
+- `src/lib/notificacoes/apresentacao.ts` — tipo `Notificacao`, `VISUAL_NOTIFICACAO` (ícone lucide +
+  cores por tipo), `tituloNotificacao` (agrupadas: "N novas mensagens de…"), `quandoNotificacao`
+  ("agora", "há 5 min", "há 3 h", "há 2d", dd/mm).
+- `src/components/notificacoes/useNotificacoes(userId, { limite, apenasNaoLidas, onNova })` — lista
+  + contagem de não lidas (`count: 'exact'`), canal Realtime `postgres_changes` filtrado por
+  `user_id=eq.<id>` (após `authorizeRealtime`), `onNova` em INSERT ou UPDATE recente não lido;
+  `marcarLida(id)` e `marcarTodasLidas()` otimistas (UPDATE com a sessão do usuário).
+- `NotificacaoItem` (link + marca lida; `compacto` = 2 linhas) e `SinoNotificacoes` (botão 40px com
+  badge vermelho, dropdown `sm:w-[24rem]` / `fixed inset-x-3` no celular, skeleton, vazio, toast
+  `role=status` com `animate-aviso` e sino `animate-sino` — keyframes em `globals.css`, desligados em
+  `prefers-reduced-motion`).
+- `Header` — renderiza `SinoNotificacoes` para logados em todas as larguras; lê `users.name` e
+  `avatar_url` do próprio usuário (policy `user_read_own`) com fallback no metadata. Menu mobile
+  (logado): cartão `bg-slate-50` com foto/iniciais, nome e e-mail, depois Minha conta → Minhas
+  conversas → Minhas reservas → Favoritos → `<hr>` → Sair.
+- `UserMenu` — gatilho com iniciais + primeiro nome (`max-w-[7.5rem] truncate`), calculados por
+  `identificacaoUsuario(displayName, email)` (exportada; 1ª letra do primeiro e do último nome; sem
+  nome, a parte local do e-mail) — também usada no menu mobile. Itens: Minha conta, Minhas conversas,
+  Minhas reservas, Favoritos, Sair (sem "Notificações": o acesso é pelo sino).
+- `/notificacoes` (`src/app/notificacoes/page.tsx`, exige login) + `ListaNotificacoes` (abas
+  Todas/Não lidas, páginas de 20).
+- `/minhas-reservas`: cada card tem `id="reserva-<id>"`, `scroll-mt-24` e anel em `:target`.
+- `MinhaContaForm` — nota de que e-mails de reserva/pagamento são sempre enviados.
+
+Verificado: `tsc`/`eslint` limpos; páginas compilam; visual do dropdown e do menu conferido no
+navegador com dados de exemplo. Ponto de atenção: o cron de conversas está diário em `vercel.json`.

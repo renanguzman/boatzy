@@ -3,6 +3,18 @@ import type { ConfirmacaoTipo, DispositivoTipo, GeoGpsStatus } from '@/lib/termo
 export type UserRole = 'admin' | 'gestor' | 'cliente';
 /** Pedido de acesso de gestor — aprovado ou recusado pelo admin (SPEC §62). */
 export type SolicitacaoGestorStatus = 'pendente' | 'aprovada' | 'recusada';
+/** Tipos da central de notificações do cliente (SPEC §64). */
+export type NotificacaoTipo =
+  | 'reserva_confirmada'
+  | 'reserva_recusada'
+  | 'reserva_cancelada'
+  | 'reserva_expirada'
+  | 'reserva_concluida'
+  | 'aguardando_pagamento'
+  | 'pagamento_aprovado'
+  | 'pagamento_recusado'
+  | 'reembolso'
+  | 'mensagem';
 /** Status de publicação (embarcação e roteiro) — pipeline de aprovação, SPEC §45. */
 export type PublicacaoStatus = 'em_analise' | 'retorno' | 'ativo' | 'inativo' | 'em_manutencao';
 export type EmbarcacaoStatus = PublicacaoStatus;
@@ -383,6 +395,60 @@ export type Database = {
           updated_at?: string;
         };
         Relationships: [];
+      };
+      /** Central de notificações do cliente — gravada por triggers (SPEC §64). */
+      notificacao: {
+        Row: {
+          id: string;
+          user_id: string;
+          tipo: NotificacaoTipo;
+          titulo: string;
+          mensagem: string;
+          link: string | null;
+          reserva_id: string | null;
+          conversa_id: string | null;
+          chave: string | null;
+          quantidade: number;
+          lida_em: string | null;
+          criada_em: string;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          tipo: NotificacaoTipo;
+          titulo: string;
+          mensagem: string;
+          link?: string | null;
+          reserva_id?: string | null;
+          conversa_id?: string | null;
+          chave?: string | null;
+          quantidade?: number;
+          lida_em?: string | null;
+          criada_em?: string;
+        };
+        Update: {
+          id?: string;
+          user_id?: string;
+          tipo?: NotificacaoTipo;
+          titulo?: string;
+          mensagem?: string;
+          link?: string | null;
+          reserva_id?: string | null;
+          conversa_id?: string | null;
+          chave?: string | null;
+          quantidade?: number;
+          lida_em?: string | null;
+          criada_em?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'notificacao_user_id_fkey';
+            columns: ['user_id'];
+            isOneToOne: false;
+            referencedRelation: 'users';
+            referencedColumns: ['id'];
+          },
+        ];
       };
       solicitacao_gestor: {
         Row: {

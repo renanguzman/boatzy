@@ -4,7 +4,8 @@ import { supabaseAdmin } from '@/lib/supabase';
 import type { AsaasCobranca } from '@/lib/asaas/tipos';
 import type { EventoAsaasRow } from '@/lib/asaas/eventos';
 import type { Database, Json, PagamentoParcelaStatus, PagamentoStatus, PedidoStatus } from '@/types/supabase';
-import { confirmarPedidoPago } from './pedidos';
+import { confirmarPedidoPago, dadosParaEmail } from './pedidos';
+import { emailPagamentoRecusado, emailReembolso } from './emails';
 
 /**
  * Handler dos eventos `PAYMENT_*` do Asaas (registrado em
@@ -265,12 +266,51 @@ export async function aplicarCobranca(
       }
     }
   } else if (ehParcelaPrincipal && novoStatus && STATUS_PEDIDO[novoStatus]) {
-    await supabaseAdmin
+    const novoStatusPedido = STATUS_PEDIDO[novoStatus]!;
+    const { data: antes } = await supabaseAdmin.from('pedido').select('status').eq('id', pagamento.pedido_id).single();
+    const { data: alterado } = await supabaseAdmin
       .from('pedido')
-      .update({ status: STATUS_PEDIDO[novoStatus]! })
+      .update({ status: novoStatusPedido })
       .eq('id', pagamento.pedido_id)
-      .in('status', ['pago', 'reembolsado_parcial', 'em_disputa']);
+      .in('status', ['pago', 'reembolsado_parcial', 'em_disputa'])
+      .select('id')
+      .maybeSingle();
+    // Aviso de reembolso ao cliente (o in-app vem do trigger `notificacao_pedido`, SPEC §64).
+    if (alterado && antes?.status !== novoStatusPedido && (novoStatusPedido === 'reembolsado' || novoStatusPedido === 'reembolsado_parcial')) {
+      await avisarCliente(pagamento.pedido_id, (d, base) =>
+        emailReembolso({ ...base, para: d.cliente?.email ?? '', nome: d.cliente?.name ?? '', parcial: novoStatusPedido === 'reembolsado_parcial' }),
+      );
+    }
+  }
+
+  // Cartão negado / reprovado na análise: o cliente ainda pode pagar até o prazo.
+  if (ehParcelaPrincipal && statusAplicado === 'recusado' && statusAnterior !== 'recusado') {
+    await avisarCliente(pagamento.pedido_id, (d, base) =>
+      d.status === 'aguardando_pagamento'
+        ? emailPagamentoRecusado({ ...base, para: d.cliente?.email ?? '', nome: d.cliente?.name ?? '', expiraEm: d.expira_em })
+        : Promise.resolve(),
+    );
   }
 
   return { resultado: 'processado', pagamentoId: pagamento.id, statusAnterior, statusNovo: statusAplicado };
+}
+
+type DadosEmailPedido = NonNullable<Awaited<ReturnType<typeof dadosParaEmail>>>;
+type BaseEmailPedido = { reservaId: string; pedidoNumero: number; itemNome: string; dataReserva: string; valorTotal: number };
+
+/** Carrega o pedido e dispara um e-mail ao cliente — falha só é logada (o webhook não pode falhar por e-mail). */
+async function avisarCliente(pedidoId: string, enviar: (d: DadosEmailPedido, base: BaseEmailPedido) => Promise<void>) {
+  try {
+    const d = await dadosParaEmail(pedidoId);
+    if (!d?.reserva) return;
+    await enviar(d, {
+      reservaId: d.reserva_id,
+      pedidoNumero: d.numero,
+      itemNome: d.reserva.item_nome,
+      dataReserva: d.reserva.data_reserva,
+      valorTotal: Number(d.valor_total),
+    });
+  } catch (err) {
+    console.error('[pagamentos/webhook] falha ao avisar cliente', pedidoId, err instanceof Error ? err.message : err);
+  }
 }
