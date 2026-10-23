@@ -21,7 +21,7 @@ export default function PrivacyPage() {
               Política de Privacidade
             </h1>
             <p className="mt-3 text-sm text-slate-300">
-              Última atualização: 21/06/2026
+              Última atualização: 23/10/2026
             </p>
           </div>
         </section>
@@ -251,16 +251,124 @@ export default function PrivacyPage() {
             </section>
 
             {/* 6 */}
-            <section>
+            <section id="cookies" className="scroll-mt-24">
               <h2 className="text-xl font-semibold text-slate-900">
                 6. Cookies e tecnologias semelhantes
               </h2>
               <p className="mt-3">
-                Usamos cookies e tecnologias similares para manter você
-                conectado, lembrar preferências e entender como a plataforma é
-                usada. Você pode gerenciar os cookies nas configurações do seu
-                navegador — mas algumas funções podem deixar de operar
-                corretamente.
+                Cookies são pequenos arquivos guardados no seu navegador. Também
+                usamos o armazenamento local do navegador, que funciona de forma
+                parecida. Separamos o que usamos em duas categorias:
+              </p>
+              <ul className="mt-3 list-disc pl-6 space-y-2">
+                <li>
+                  <strong>Necessários</strong> — indispensáveis para a
+                  plataforma funcionar (manter você conectado, guardar sua
+                  escolha sobre cookies e preferências do site). Ficam sempre
+                  ativos, com base na execução do contrato e no legítimo
+                  interesse (art. 7º, V e IX, da LGPD).
+                </li>
+                <li>
+                  <strong>Medição</strong> — o Google Analytics, que nos mostra
+                  de forma estatística como o site é usado (páginas visitadas, de
+                  onde vêm os acessos, tipo de aparelho e região aproximada) para
+                  melhorarmos o Boatzy. Só gravamos esses cookies com o 
+                  <strong>seu consentimento</strong> (art. 7º, I, da LGPD). Não
+                  usamos cookies de publicidade.
+                </li>
+              </ul>
+
+              <h3 className="mt-6 font-semibold text-slate-900">Como funciona a sua escolha</h3>
+              <p className="mt-3">
+                No primeiro acesso, um aviso pergunta se você permite os cookies
+                de Medição. Você pode aceitar, recusar ou personalizar — recusar
+                não limita o uso da plataforma. Sem a sua permissão, o Google
+                Analytics funciona no modo restrito do Google (&quot;Consent Mode&quot;):
+                não grava cookies nem identifica você, apenas envia sinais
+                anônimos e agregados que o Google usa para estimar o volume de
+                visitas. Quando você está conectado e permitiu a Medição, as
+                estatísticas são associadas a um código interno da sua conta —
+                nunca ao seu nome ou e-mail.
+              </p>
+              <p className="mt-3">
+                Registramos cada escolha (data, categorias, versão desta política
+                e tipo de navegador, sem endereço IP) para comprovar o seu
+                consentimento. Você pode mudar de ideia a qualquer momento em 
+                <strong>Minha conta → Privacidade e cookies</strong>; ao retirar
+                a permissão, os cookies do Google Analytics são apagados deste
+                navegador. Você também pode apagar cookies nas configurações do
+                seu navegador.
+              </p>
+
+              <h3 className="mt-6 font-semibold text-slate-900">Cookies e itens que usamos</h3>
+              <div className="mt-3 overflow-x-auto rounded-lg border border-slate-200 bg-white">
+                <table className="w-full min-w-[640px] text-left text-sm">
+                  <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
+                    <tr>
+                      <th className="py-2 pl-3 pr-3 font-semibold">Nome</th>
+                      <th className="py-2 pr-3 font-semibold">De quem</th>
+                      <th className="py-2 pr-3 font-semibold">Categoria</th>
+                      <th className="py-2 pr-3 font-semibold">Para quê</th>
+                      <th className="py-2 pr-3 font-semibold">Duração</th>
+                    </tr>
+                  </thead>
+                  <tbody className="[&_td:first-child]:pl-3">
+                    <tr className="border-t border-slate-100 align-top">
+                      <td className="py-2 pr-3 font-mono text-xs text-slate-900">sb-…-auth-token</td>
+                      <td className="py-2 pr-3">Boatzy (Supabase)</td>
+                      <td className="py-2 pr-3">Necessário</td>
+                      <td className="py-2 pr-3">Mantém você conectado com segurança.</td>
+                      <td className="py-2">Sessão de login (renovada enquanto você usa)</td>
+                    </tr>
+                    <tr className="border-t border-slate-100 align-top">
+                      <td className="py-2 pr-3 font-mono text-xs text-slate-900">boatzy_consentimento</td>
+                      <td className="py-2 pr-3">Boatzy</td>
+                      <td className="py-2 pr-3">Necessário</td>
+                      <td className="py-2 pr-3">Guarda a sua escolha sobre cookies.</td>
+                      <td className="py-2">12 meses, renovado a cada visita</td>
+                    </tr>
+                    <tr className="border-t border-slate-100 align-top">
+                      <td className="py-2 pr-3 font-mono text-xs text-slate-900">boatzy_recent_locations</td>
+                      <td className="py-2 pr-3">Boatzy (armazenamento do navegador)</td>
+                      <td className="py-2 pr-3">Necessário</td>
+                      <td className="py-2 pr-3">Lembra os últimos destinos buscados neste aparelho.</td>
+                      <td className="py-2">Até você limpar os dados do navegador</td>
+                    </tr>
+                    <tr className="border-t border-slate-100 align-top">
+                      <td className="py-2 pr-3 font-mono text-xs text-slate-900">boatzy:tutorial-painel:v1</td>
+                      <td className="py-2 pr-3">Boatzy (armazenamento do navegador)</td>
+                      <td className="py-2 pr-3">Necessário</td>
+                      <td className="py-2 pr-3">Lembra que o tutorial do painel do anunciante já foi visto.</td>
+                      <td className="py-2">Até você limpar os dados do navegador</td>
+                    </tr>
+                    <tr className="border-t border-slate-100 align-top">
+                      <td className="py-2 pr-3 font-mono text-xs text-slate-900">ga:…</td>
+                      <td className="py-2 pr-3">Boatzy (armazenamento do navegador)</td>
+                      <td className="py-2 pr-3">Medição</td>
+                      <td className="py-2 pr-3">Evita contar duas vezes o mesmo evento estatístico.</td>
+                      <td className="py-2">Até você limpar os dados do navegador</td>
+                    </tr>
+                    <tr className="border-t border-slate-100 align-top">
+                      <td className="py-2 pr-3 font-mono text-xs text-slate-900">_ga</td>
+                      <td className="py-2 pr-3">Google Analytics</td>
+                      <td className="py-2 pr-3">Medição</td>
+                      <td className="py-2 pr-3">Distingue visitantes de forma estatística.</td>
+                      <td className="py-2">2 anos (só com sua permissão)</td>
+                    </tr>
+                    <tr className="border-t border-slate-100 align-top">
+                      <td className="py-2 pr-3 font-mono text-xs text-slate-900">_ga_4QJF8H6EDJ</td>
+                      <td className="py-2 pr-3">Google Analytics</td>
+                      <td className="py-2 pr-3">Medição</td>
+                      <td className="py-2 pr-3">Mantém o estado da visita para as estatísticas.</td>
+                      <td className="py-2">2 anos (só com sua permissão)</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+              <p className="mt-3 text-sm text-slate-500">
+                O Google Analytics é um serviço da Google LLC, que pode tratar
+                dados fora do Brasil conforme as garantias da sua própria
+                política de privacidade (policies.google.com/privacy).
               </p>
             </section>
 

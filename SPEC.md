@@ -6800,9 +6800,57 @@ nova → novo envio.
 
 **Limitações** — o 1º `page_view` sai antes do `set` de user_id/perfil (só os seguintes levam);
 `purchase` depende do cliente ver a tela de pedido pago (webhook confirma no servidor) — evolução:
-Measurement Protocol em `confirmarPedidoPago` com `client_id` capturado no checkout. Sem banner de
-consentimento (LGPD).
+Measurement Protocol em `confirmarPedidoPago` com `client_id` capturado no checkout. Consentimento
+de cookies (LGPD): §66.
 
 Verificado em dev forçando a tag (hits respondidos com 204 no navegador de teste): carregamento do
 roteiro → 1 `page_view` + 1 `view_item`; navegação interna para a busca → 1 `search` + 1 `page_view`.
 Sem a tag (dev normal), nenhum script do Google e nenhum erro. `tsc`/`eslint` limpos.
+
+## 66. Consentimento de cookies — LGPD + Consent Mode v2 (23/10/2026)
+
+**Cookie** `boatzy_consentimento` (1st party, `Path=/`, `SameSite=Lax`, `Secure` em https,
+`Max-Age` 365 d **renovado a cada visita** por `renovarConsentimento()` no banner) com JSON
+`{ id (uuid anônimo do navegador), medicao: boolean, v (versão da política), em (ISO) }`.
+`VERSAO_POLITICA_COOKIES = '2026-10-23'` (só registro; o banner não reaparece por troca de versão).
+
+**`src/lib/consentimento.ts`** (client-safe): `lerConsentimento`, `parseConsentimento`,
+`snapshotConsentimento`/`assinarConsentimento` (para `useSyncExternalStore`; evento de janela
+`boatzy:consentimento`), `salvarConsentimento(medicao)` → grava o cookie, `gtag('consent','update',
+{ analytics_storage })`, apaga `_ga`, `_ga_*`, `_gid` (host + cada domínio-pai) ao recusar e dispara o
+evento. **`src/lib/consentimento-actions.ts`** — server action `registrarConsentimento({ visitanteId,
+medicao, versaoPolitica, origem })`: valida uuid/origem, liga `user_id` da sessão, guarda `user-agent`
+(400 chars); nunca lança.
+
+**GA** (`GoogleAnalytics.tsx`): o script inline vem antes do gtag.js e faz `gtag('consent','default',
+{ analytics_storage, ad_storage, ad_user_data, ad_personalization: 'denied', wait_for_update: 500 })`,
+`set ads_data_redaction`, lê o cookie e, se `medicao === true`, `consent update granted` — tudo antes
+do `config` (1ª página já medida para quem aceitou). Modo **avançado**: negado → pings sem cookie
+(`gcs=G100`); concedido → `gcs=G101` e cookies `_ga*`. `IdentificarUsuario` só envia `user_id` com
+Medição aceita e reaplica no evento de consentimento.
+
+**Interface** — `src/components/consentimento/`: `useConsentimento()` (`pronto` false no
+servidor/hidratação → sem piscar; `escolher(medicao, origem)` salva e registra), `BannerCookies` (no
+`<body>` do layout raiz; oculto em `/administrator*` e para quem já tem o cookie; botões "Recusar
+opcionais" e "Aceitar todos" com o mesmo estilo; mobile: folha inferior, botões empilhados),
+`PreferenciasCookies` (modal `role=dialog`, Necessários travado, switch Medição, "Salvar escolhas" /
+"Aceitar todos"; ESC/clique fora fecham; bottom-sheet no celular). Minha conta:
+`src/app/minha-conta/_components/PrivacidadeCookies.tsx` (seção `#privacidade`, aba "Privacidade",
+status atual + "Gerenciar cookies", origem `minha_conta`).
+
+**Banco** — migration `20261023b_consentimento_cookies.sql`: `consentimento_cookies (id,
+visitante_id, user_id → users ON DELETE SET NULL, medicao, versao_politica, origem CHECK
+banner|minha_conta, user_agent, criado_em)`; índices por visitante e por usuário; RLS
+`service_role_all` + `user_select_own`; GRANTs da Data API. Histórico: a escolha vigente é a linha mais
+recente.
+
+**Política** — `src/app/privacy/page.tsx` §6 (`id="cookies"`, âncora usada pelo banner/modal):
+categorias e bases legais (art. 7º I, V, IX), Consent Mode, registro da escolha, revogação em Minha
+conta, tabela (`sb-…-auth-token`, `boatzy_consentimento`, `boatzy_recent_locations`,
+`boatzy:tutorial-painel:v1`, `ga:…`, `_ga`, `_ga_4QJF8H6EDJ`) e transferência internacional (Google).
+
+Verificado no navegador com a tag forçada em dev (hits respondidos com 204): antes da escolha —
+banner visível, nenhum cookie `_ga`, `page_view` com `gcs=G100`; "Aceitar todos" — banner some,
+`_ga`/`_ga_4QJF8H6EDJ` criados, hits `G101`; "Recusar opcionais" — só `boatzy_consentimento`, hits
+`G100`; `/administrator/login` — sem banner. Visual conferido em 1280 px e 390 px (banner e modal).
+`tsc`/`eslint` limpos. A revogação em Minha conta (exige login) não foi exercitada no navegador.

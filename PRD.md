@@ -2067,9 +2067,32 @@ sociais, campanhas, links diretos), quem navega e como o funil de reserva conver
 
 - **Configurações no painel do GA4** (feitas pelo time, fora do código): marcar eventos-chave,
   registrar as dimensões personalizadas, ativar o filtro de tráfego interno — ver `SPEC.md` §65.
-- **Pendências:** banner de consentimento de cookies (LGPD); registro da compra pelo servidor
-  (Measurement Protocol) para não depender de o cliente ver a tela de confirmação.
+- **Pendências:** registro da compra pelo servidor (Measurement Protocol) para não depender de o
+  cliente ver a tela de confirmação. (O consentimento de cookies foi feito — ver abaixo.)
 - Detalhes técnicos: `SPEC.md` §65.
+
+### ✅ Consentimento de cookies — LGPD (23/10/2026)
+
+- **Banner** no rodapé (site e painel; **não aparece no admin**), sem bloquear a navegação:
+  "Personalizar", "Recusar opcionais" e "Aceitar todos" — recusar tem o mesmo destaque de aceitar
+  (orientação da ANPD). No celular, vira uma folha inferior com botões em largura total.
+- **Aparece uma única vez:** depois da primeira escolha (aceitar, recusar ou personalizar) não volta
+  mais neste navegador. A escolha só é alterada em **Minha conta → Privacidade e cookies**
+  ("Gerenciar cookies"); não há link no rodapé.
+- **Categorias:** Necessários (sempre ativos: login, a própria escolha, preferências do site) e
+  Medição (Google Analytics, opcional). Sem categoria de Marketing (não há anúncios).
+- **Google Analytics em Consent Mode v2 avançado:** sem permissão, o GA não grava cookies nem
+  identifica a pessoa — só envia sinais anônimos que o Google usa para estimar o tráfego de quem
+  recusou. Com permissão, mede normalmente (inclusive o ID interno do usuário logado). Retirar a
+  permissão apaga os cookies do GA na hora.
+- **Prova do consentimento:** cada escolha é registrada no banco (categorias, data, versão da
+  política, origem banner/Minha conta, navegador; usuário quando logado; sem IP).
+- **Política de Privacidade, seção 6** reescrita (minuta para revisão jurídica): categorias, base
+  legal, funcionamento do Consent Mode, como revogar e tabela com cada cookie/item, quem grava,
+  finalidade e duração. Data de atualização: 23/10/2026.
+- **Observação:** quem não tem conta só escolhe pelo banner (não há outro ponto de alteração para
+  visitante, por decisão de produto).
+- Detalhes técnicos: `SPEC.md` §66.
 
 ## 11. Não Incluído no MVP
 

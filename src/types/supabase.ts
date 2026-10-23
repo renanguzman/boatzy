@@ -396,6 +396,40 @@ export type Database = {
         };
         Relationships: [];
       };
+      /** Evidência do consentimento de cookies (LGPD) — SPEC §66. */
+      consentimento_cookies: {
+        Row: {
+          id: string;
+          visitante_id: string;
+          user_id: string | null;
+          medicao: boolean;
+          versao_politica: string;
+          origem: 'banner' | 'minha_conta';
+          user_agent: string | null;
+          criado_em: string;
+        };
+        Insert: {
+          id?: string;
+          visitante_id: string;
+          user_id?: string | null;
+          medicao: boolean;
+          versao_politica: string;
+          origem: 'banner' | 'minha_conta';
+          user_agent?: string | null;
+          criado_em?: string;
+        };
+        Update: {
+          id?: string;
+          visitante_id?: string;
+          user_id?: string | null;
+          medicao?: boolean;
+          versao_politica?: string;
+          origem?: 'banner' | 'minha_conta';
+          user_agent?: string | null;
+          criado_em?: string;
+        };
+        Relationships: [];
+      };
       /** Central de notificações do cliente — gravada por triggers (SPEC §64). */
       notificacao: {
         Row: {
