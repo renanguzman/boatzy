@@ -1,18 +1,31 @@
 @import "tailwindcss";
 
+/* ── Paleta oficial Boatzy (PRD §5.3 / SPEC "Design system — paleta") ────────
+   marinho   #0E2F4F  cor principal: títulos, botões, fundos escuros, overlays
+   turquesa  #17B5B0  cor de apoio: ícones/realces sobre fundo escuro, tintas
+   destaque  #FFC844  amarelo de ênfase — uso EXTRAORDINÁRIO (~10% dos casos):
+                      só onde algo precisa saltar (estrelas de nota, palavra-chave)
+   areia     #FBF7EF  fundo claro alternativo das seções
+   grafite   #1C2B36  texto corrido
+   gradiente oficial: marinho → turquesa (bg-gradient-to-r from-marinho to-turquesa)
+   Variantes derivadas (não fazem parte da paleta, existem por acessibilidade):
+   turquesa-escuro #0D7A76 — texto pequeno turquesa sobre branco/areia (o
+   turquesa puro tem só 2,5:1 de contraste); marinho-escuro #0A2238 — hover. */
 :root {
   --background: #ffffff;
-  --foreground: #0B2447;
-  --primary: #0B3D91;
-  --primary-dark: #092E6E;
-  --accent: #00B4D8;
-  --accent-teal: #2EC4B6;
-  --navy: #0B2447;
+  --foreground: #1C2B36;
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
+  --color-marinho: #0E2F4F;
+  --color-marinho-escuro: #0A2238;
+  --color-turquesa: #17B5B0;
+  --color-turquesa-escuro: #0D7A76;
+  --color-destaque: #FFC844;
+  --color-areia: #FBF7EF;
+  --color-grafite: #1C2B36;
   --font-sans: var(--font-inter);
 }
 
@@ -25,12 +38,6 @@ body {
 }
 
 /* Custom animations */
-/* Seta do "Ver mais" do hero: flutua 3px, discreta (o bounce padrão é grande demais). */
-@keyframes ver-mais {
-  0%, 100% { transform: translateY(0); opacity: 0.75; }
-  50% { transform: translateY(3px); opacity: 1; }
-}
-
 @keyframes fade-in {
   from {
     opacity: 0;
@@ -98,7 +105,7 @@ html {
 
 /* Selection color */
 ::selection {
-  background-color: #0B3D91;
+  background-color: #0E2F4F;
   color: white;
 }
 

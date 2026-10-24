@@ -62,14 +62,14 @@ function Menu({ ativo }: { ativo: Item | null }) {
               aria-current={atual ? 'page' : undefined}
               aria-label={label}
               title={label}
-              className={`group flex items-center gap-2 rounded-full px-3 xl:px-4 py-1.5 text-sm font-medium transition-all duration-200 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#0B3D91] ${
+              className={`group flex items-center gap-2 rounded-full px-3 xl:px-4 py-1.5 text-sm font-medium transition-all duration-200 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-marinho ${
                 atual
-                  ? 'bg-white text-[#0B3D91] shadow-sm ring-1 ring-slate-200/70'
-                  : 'text-slate-600 hover:bg-white hover:text-[#0B3D91] hover:shadow-sm'
+                  ? 'bg-white text-marinho shadow-sm ring-1 ring-slate-200/70'
+                  : 'text-slate-600 hover:bg-white hover:text-marinho hover:shadow-sm'
               }`}
             >
               <Icone
-                className={`h-4 w-4 transition-colors ${atual ? 'text-cyan-600' : 'text-slate-400 group-hover:text-cyan-600'}`}
+                className={`h-4 w-4 transition-colors ${atual ? 'text-turquesa-escuro' : 'text-slate-400 group-hover:text-turquesa-escuro'}`}
                 strokeWidth={1.75}
               />
               {/* Tablet (md–lg): só ícones, para caber ao lado do logo e das ações. */}

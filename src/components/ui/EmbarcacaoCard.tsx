@@ -104,7 +104,7 @@ export default function EmbarcacaoCard({
         {/* Type badge */}
         {embarcacao.tipo && (
           <div className="absolute bottom-3 left-3">
-            <span className="bg-[#0B3D91]/90 backdrop-blur-sm text-white text-[10px] font-semibold px-2.5 py-1 rounded-full">
+            <span className="bg-marinho/90 backdrop-blur-sm text-white text-[10px] font-semibold px-2.5 py-1 rounded-full">
               {embarcacao.tipo}
             </span>
           </div>
@@ -138,7 +138,7 @@ export default function EmbarcacaoCard({
       <div className="p-4">
         <div className="flex items-start justify-between gap-2">
           <div className="min-w-0">
-            <h3 className="font-semibold text-slate-800 text-sm truncate group-hover:text-[#0B3D91] transition-colors">
+            <h3 className="font-semibold text-grafite text-sm truncate group-hover:text-marinho transition-colors">
               {embarcacao.nome}
             </h3>
             {embarcacao.localidade && (
@@ -159,8 +159,8 @@ export default function EmbarcacaoCard({
               className="flex items-center gap-1 shrink-0"
               title={`${avaliacaoResumo.total} ${avaliacaoResumo.total === 1 ? 'avaliação' : 'avaliações'}`}
             >
-              <Star className="h-3.5 w-3.5 fill-amber-400 text-amber-400" />
-              <span className="text-sm font-semibold text-slate-800">
+              <Star className="h-3.5 w-3.5 fill-destaque text-destaque" />
+              <span className="text-sm font-semibold text-grafite">
                 {avaliacaoResumo.media.toLocaleString('pt-BR', {
                   minimumFractionDigits: 1,
                   maximumFractionDigits: 1,
@@ -169,7 +169,7 @@ export default function EmbarcacaoCard({
               <span className="text-xs font-normal text-slate-400">({avaliacaoResumo.total})</span>
             </span>
           ) : (
-            <span className="inline-flex items-center gap-1 text-[10px] font-semibold bg-cyan-50 text-cyan-700 px-2 py-1 rounded-full shrink-0">
+            <span className="inline-flex items-center gap-1 text-[10px] font-semibold bg-turquesa/10 text-turquesa-escuro px-2 py-1 rounded-full shrink-0">
               Novo
             </span>
           )}

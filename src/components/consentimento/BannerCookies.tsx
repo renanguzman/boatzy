@@ -38,13 +38,13 @@ export default function BannerCookies() {
         <div className="mx-auto max-w-4xl rounded-t-3xl sm:rounded-2xl border border-slate-200 bg-white p-5 shadow-2xl shadow-slate-900/15 sm:p-6">
           <div className="flex flex-col gap-4 md:flex-row md:items-center md:gap-6">
             <div className="flex items-start gap-3 md:flex-1">
-              <span className="hidden sm:flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#0B3D91]/10 text-[#0B3D91]">
+              <span className="hidden sm:flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-marinho/10 text-marinho">
                 <Cookie className="h-5 w-5" />
               </span>
               <p className="text-sm leading-relaxed text-slate-600">
                 Usamos cookies necessários para o site funcionar e, com a sua permissão, cookies de medição para
                 entender como o Boatzy é usado e melhorar a plataforma.{' '}
-                <Link href="/privacy#cookies" className="font-semibold text-[#0B3D91] hover:underline">
+                <Link href="/privacy#cookies" className="font-semibold text-marinho hover:underline">
                   Política de Privacidade
                 </Link>
               </p>
@@ -53,21 +53,21 @@ export default function BannerCookies() {
               <button
                 type="button"
                 onClick={() => setPersonalizando(true)}
-                className={`${botao} order-3 sm:order-1 text-slate-600 hover:text-[#0B2447] hover:bg-slate-50`}
+                className={`${botao} order-3 sm:order-1 text-slate-600 hover:text-marinho hover:bg-slate-50`}
               >
                 Personalizar
               </button>
               <button
                 type="button"
                 onClick={() => escolher(false, 'banner')}
-                className={`${botao} order-2 bg-[#0B2447] text-white hover:bg-[#0B3D91]`}
+                className={`${botao} order-2 bg-marinho text-white hover:bg-marinho-escuro`}
               >
                 Recusar opcionais
               </button>
               <button
                 type="button"
                 onClick={() => escolher(true, 'banner')}
-                className={`${botao} order-1 sm:order-3 bg-[#0B2447] text-white hover:bg-[#0B3D91]`}
+                className={`${botao} order-1 sm:order-3 bg-marinho text-white hover:bg-marinho-escuro`}
               >
                 Aceitar todos
               </button>

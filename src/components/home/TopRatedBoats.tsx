@@ -10,14 +10,22 @@ export type TopRatedItem = EmbarcacaoCardData & {
 };
 
 /**
- * Grid da seção "Mais Bem Avaliadas". Recebe a lista global (SSR) e, se o
- * navegador já tem permissão de geolocalização concedida, troca silenciosamente
- * pela lista próxima ao usuário (sem disparar o prompt de permissão na home).
+ * Grid da seção de embarcações da home. Recebe a lista do servidor e, com
+ * `porProximidade` (ranking "Mais Bem Avaliadas"), se o navegador já tem
+ * permissão de geolocalização concedida, troca silenciosamente pela lista
+ * próxima ao usuário (sem disparar o prompt de permissão na home).
  */
-export default function TopRatedBoats({ inicial }: { inicial: TopRatedItem[] }) {
+export default function TopRatedBoats({
+  inicial,
+  porProximidade = true,
+}: {
+  inicial: TopRatedItem[];
+  porProximidade?: boolean;
+}) {
   const [items, setItems] = useState(inicial);
 
   useEffect(() => {
+    if (!porProximidade) return;
     if (!('geolocation' in navigator) || !('permissions' in navigator)) return;
     let cancelado = false;
 
@@ -47,7 +55,7 @@ export default function TopRatedBoats({ inicial }: { inicial: TopRatedItem[] }) 
     return () => {
       cancelado = true;
     };
-  }, []);
+  }, [porProximidade]);
 
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
@@ -56,7 +64,7 @@ export default function TopRatedBoats({ inicial }: { inicial: TopRatedItem[] }) 
           key={item.id}
           embarcacao={item}
           initialFavorito={item.favorito}
-          avaliacaoResumo={{ media: item.media, total: item.total }}
+          avaliacaoResumo={item.total > 0 ? { media: item.media, total: item.total } : null}
         />
       ))}
     </div>

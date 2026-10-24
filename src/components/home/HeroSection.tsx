@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import Image from 'next/image';
-import { Search, X, ChevronDown, Compass } from 'lucide-react';
+import { Search, X, Compass, ChevronRight, Ship, CreditCard } from 'lucide-react';
 import LocationPicker, { type LocationValue } from './search/LocationPicker';
 import DatePicker, { type DateValue } from './search/DatePicker';
 import GuestPicker from './search/GuestPicker';
@@ -17,6 +17,13 @@ import { buildVendaSearchUrl } from './search/venda/build-url';
 type ActivePanel = 'location' | 'date' | 'guests' | 'tipo' | 'tipo_venda' | 'localidade' | 'ano' | 'valor' | null;
 
 const HERO_VIDEOS = ['/videos/hero02.mp4', '/videos/hero03.mp4', '/videos/hero04.mp4'];
+
+// Instrução mínima para quem chega pela primeira vez: o caminho até a reserva.
+const PASSOS = [
+  { icon: Search, texto: 'Busque o destino' },
+  { icon: Ship, texto: 'Escolha o roteiro' },
+  { icon: CreditCard, texto: 'Reserve e pague online' },
+];
 
 type Props = {
   tiposEmbarcacao: TipoEmbarcacaoValue[];
@@ -77,16 +84,6 @@ export default function HeroSection({ tiposEmbarcacao, tiposVenda, locaisVenda }
     setActive((prev) => (prev === panel ? null : panel));
   }
 
-  /** Rola até "Roteiros Mais Bem Avaliados"; sem ela (nenhum roteiro avaliado), até a seção seguinte. */
-  function irParaConteudo() {
-    const alvo = document.getElementById('featured-charters-section')
-      ?? document.getElementById('hero-section')?.nextElementSibling;
-    if (!alvo) return;
-    const suave = !window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-    const topo = alvo.getBoundingClientRect().top + window.scrollY - 64; // header fixo (h-16)
-    window.scrollTo({ top: topo, behavior: suave ? 'smooth' : 'auto' });
-  }
-
   function clearLocation() {
     setLocation(null);
     setActive('location');
@@ -143,10 +140,10 @@ export default function HeroSection({ tiposEmbarcacao, tiposVenda, locaisVenda }
   }
 
   return (
-    // Altura: no computador, a tela menos 8rem (header de 64px + uma faixa do
-    // conteúdo seguinte à mostra, indicando que a página continua), entre 540 e
-    // 640px. No celular a busca empilhada precisa dos 600px.
-    <section className="relative z-10 h-[600px] md:h-[calc(100svh-8rem)] md:min-h-[540px] md:max-h-[640px]" id="hero-section">
+    // Altura: no computador, 77% de (tela menos 8rem — header de 64px + uma
+    // faixa do conteúdo seguinte à mostra), entre 416 e 493px. No celular a
+    // busca empilhada não cabe em altura fixa: acompanha o conteúdo, mínimo 462px.
+    <section className="relative z-10 min-h-[462px] md:h-[calc((100svh-8rem)*0.77)] md:min-h-[416px] md:max-h-[493px]" id="hero-section">
       {/* Background */}
       <div className="absolute inset-0 overflow-hidden">
         {!videoReady && (
@@ -169,23 +166,21 @@ export default function HeroSection({ tiposEmbarcacao, tiposVenda, locaisVenda }
             videoReady ? 'opacity-100' : 'opacity-0'
           }`}
         />}
-        <div className="absolute inset-0 bg-gradient-to-b from-[#0B2447]/70 via-[#0B2447]/55 to-[#0B2447]/80" />
+        <div className="absolute inset-0 bg-gradient-to-b from-marinho/70 via-marinho/55 to-marinho/80" />
       </div>
 
       {/* Content */}
-      <div className="relative z-10 flex flex-col items-center justify-center h-full px-4 text-center">
-        <p className="text-cyan-300 text-sm font-medium tracking-widest uppercase mb-3">
-          Bem-vindo ao Boatzy
+      <div className="relative z-10 flex flex-col items-center justify-center min-h-[462px] py-8 md:min-h-0 md:h-full md:py-0 px-4 text-center">
+        <p className="text-turquesa text-xs md:text-sm font-medium tracking-wider md:tracking-widest uppercase mb-2 md:mb-3">
+          Passeios de barco com reserva 100% online
         </p>
-        <h1 className="text-4xl md:text-6xl lg:text-7xl font-bold text-white mb-4 tracking-tight">
+        <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold text-white mb-3 tracking-tight">
           O horizonte é{' '}
-          <span className="bg-gradient-to-r from-cyan-300 to-teal-300 bg-clip-text text-transparent">
-            seu
-          </span>
+          <span className="text-destaque">seu</span>
           .
         </h1>
-        <p className="text-slate-200 text-base md:text-lg max-w-xl mb-10 leading-relaxed">
-          Explore embarcações pelo Brasil e encontre sua experiência perfeita no mar.
+        <p className="text-slate-200 text-sm md:text-lg max-w-xl mb-6 leading-relaxed">
+          Do roteiro ao embarque — faça tudo pelo site, com pagamento seguro, em poucos minutos.
         </p>
 
         {/* Tipo de busca */}
@@ -266,7 +261,7 @@ export default function HeroSection({ tiposEmbarcacao, tiposVenda, locaisVenda }
                 <button
                   type="button"
                   onClick={handleSearch}
-                  className="bg-[#0B3D91] hover:bg-[#092E6E] text-white rounded-xl p-3.5 flex items-center justify-center gap-2 transition-all hover:shadow-lg hover:scale-[1.03] active:scale-[0.97] cursor-pointer shrink-0 w-full md:w-auto"
+                  className="bg-marinho hover:bg-marinho-escuro text-white rounded-xl p-3.5 flex items-center justify-center gap-2 transition-all hover:shadow-lg hover:scale-[1.03] active:scale-[0.97] cursor-pointer shrink-0 w-full md:w-auto"
                   aria-label="Buscar embarcações à venda"
                 >
                   <Search className="h-5 w-5" />
@@ -313,6 +308,7 @@ export default function HeroSection({ tiposEmbarcacao, tiposVenda, locaisVenda }
                     isOpen={active === 'location'}
                     onOpen={() => open('location')}
                     onClose={() => setActive(null)}
+                    buscarRoteiros={searchType === 'roteiro'}
                   />
                   <button
                     type="button"
@@ -329,6 +325,7 @@ export default function HeroSection({ tiposEmbarcacao, tiposVenda, locaisVenda }
                   isOpen={active === 'location'}
                   onOpen={() => open('location')}
                   onClose={() => setActive(null)}
+                  buscarRoteiros={searchType === 'roteiro'}
                 />
               )}
 
@@ -399,7 +396,7 @@ export default function HeroSection({ tiposEmbarcacao, tiposVenda, locaisVenda }
               <button
                 type="button"
                 onClick={handleSearch}
-                className="bg-[#0B3D91] hover:bg-[#092E6E] text-white rounded-xl p-3.5 flex items-center justify-center gap-2 transition-all hover:shadow-lg hover:scale-[1.03] active:scale-[0.97] cursor-pointer shrink-0 w-full md:w-auto"
+                className="bg-marinho hover:bg-marinho-escuro text-white rounded-xl p-3.5 flex items-center justify-center gap-2 transition-all hover:shadow-lg hover:scale-[1.03] active:scale-[0.97] cursor-pointer shrink-0 w-full md:w-auto"
                 id="search-button"
                 aria-label="Buscar"
               >
@@ -411,17 +408,20 @@ export default function HeroSection({ tiposEmbarcacao, tiposVenda, locaisVenda }
             )}
           </div>
         </div>
-      </div>
 
-      {/* "Ver mais" — leva aos Roteiros Mais Bem Avaliados (ou à próxima seção, se ela não existir) */}
-      <button
-        type="button"
-        onClick={irParaConteudo}
-        className="group absolute bottom-5 left-1/2 z-10 hidden -translate-x-1/2 md:flex flex-col items-center gap-0.5 rounded-full px-4 py-1.5 text-[11px] font-medium uppercase tracking-[0.2em] text-white/75 transition-colors hover:text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white/70"
-      >
-        Ver mais
-        <ChevronDown className="h-4 w-4 motion-safe:animate-[ver-mais_2.2s_ease-in-out_infinite] group-hover:translate-y-0.5 transition-transform" />
-      </button>
+        {/* Como funciona, em uma linha */}
+        <ol className="mt-4 flex flex-wrap items-center justify-center gap-x-3 gap-y-2 text-xs md:text-sm text-white/80">
+          {PASSOS.map(({ icon: Icone, texto }, i) => (
+            <li key={texto} className="flex items-center gap-3">
+              {i > 0 && <ChevronRight aria-hidden className="hidden sm:block h-3.5 w-3.5 text-white/40" />}
+              <span className="flex items-center gap-1.5">
+                <Icone aria-hidden className="h-3.5 w-3.5 md:h-4 md:w-4 text-turquesa" />
+                {texto}
+              </span>
+            </li>
+          ))}
+        </ol>
+      </div>
     </section>
   );
 }

@@ -36,6 +36,38 @@ Asaas (Payments — cobrança, webhooks, repasses)
 
 ---
 
+### 2.3 Design system — paleta oficial (24/10/2026)
+
+Tokens de cor do Tailwind v4 declarados em `@theme inline` de `src/app/globals.css` — geram as
+classes `bg-*`, `text-*`, `border-*`, `ring-*`, `from-*`/`to-*`, `fill-*` etc., inclusive com
+opacidade (`bg-marinho/90`, `bg-turquesa/10`). **Não usar hex solto (`[#...]`) para cores da marca.**
+
+| Token | Hex | Uso |
+|---|---|---|
+| `marinho` | `#0E2F4F` | Títulos (`text-marinho`), botões principais (`bg-marinho`), links, Footer, overlays de foto (`from-marinho/70`), ícones ativos |
+| `turquesa` | `#17B5B0` | Ícones/eyebrow sobre fundo escuro (`text-turquesa`), fim do gradiente, tintas (`bg-turquesa/10`, `/15`, `/35`) |
+| `destaque` | `#FFC844` | Ênfase pontual (~10%): palavra de impacto do hero, estrelas de nota (`fill-destaque text-destaque`) |
+| `areia` | `#FBF7EF` | Fundo das seções alternadas (`bg-areia`) |
+| `grafite` | `#1C2B36` | Texto corrido; também é o `--foreground` (cor padrão do `body`) |
+| gradiente | — | `bg-gradient-to-r from-marinho to-turquesa` (texto com `bg-clip-text text-transparent`) |
+
+Variantes derivadas (fora da paleta, existem só por necessidade técnica):
+
+| Token | Hex | Motivo |
+|---|---|---|
+| `turquesa-escuro` | `#0D7A76` | Turquesa puro tem 2,5:1 sobre branco — reprova WCAG AA para texto. Usar em texto pequeno turquesa sobre branco/areia (eyebrows, links em hover, selo "Novo"): 5,2:1 no branco, 4,8:1 na areia |
+| `marinho-escuro` | `#0A2238` | `hover:` de botões/fundos `bg-marinho` |
+
+Contrastes de referência: branco sobre marinho 13,6:1; grafite sobre areia 13,6:1; turquesa sobre
+marinho 5,4:1; amarelo sobre marinho 8,8:1. Branco sobre turquesa (2,5:1) **não** deve ser usado
+para texto. Neutros continuam na escala `slate` do Tailwind; cores semânticas (vermelho de erro,
+âmbar de alerta, cores de status de reserva) ficam fora da paleta de marca.
+
+Variáveis CSS legadas `--primary`, `--primary-dark`, `--accent`, `--accent-teal` e `--navy` foram
+removidas (não tinham uso). `::selection` passou para `#0E2F4F`.
+
+---
+
 ## 3. Modelos de Dados
 
 ### Users
@@ -1293,6 +1325,7 @@ mapeando os itens marcados no formulário. Antes `embarcacao_equipamentos_segura
 | Parâmetro | Tipo | Descrição |
 |-----------|------|-----------|
 | `q` | string (≥ 2 letras) | Texto do autocomplete; menos de 2 letras → `[]` |
+| `populares` | `1` | **Desde 24/10/2026 (§67):** ignora `q` e devolve os 5 municípios com mais roteiros ativos (empate → A–Z) |
 
 Retorna até 8 `LocalResult`:
 ```ts
@@ -1304,6 +1337,7 @@ type LocalResult = {
   latitude: number | null;
   longitude: number | null;
   temOfertas: boolean; // roteiro ativo saindo daqui ou embarcação ativa localizada aqui
+  totalRoteiros: number; // roteiros ativos com ponto de saída aqui (§67)
 };
 ```
 
@@ -1334,6 +1368,8 @@ type Props = {
   onOpen: () => void;
   onClose: () => void;
   compact?: boolean;
+  semRotulo?: boolean;
+  buscarRoteiros?: boolean; // §67 — sugere roteiros pelo título (HeroSection, aba Roteiros)
 };
 ```
 
@@ -1954,7 +1990,8 @@ trocar a lista global pela localizada.
   `preco_base`/dia, "até N pessoas"), link para `/embarcacoes/[id]`, coração favoritável (ver
   §23.5). Os roteiros reutilizam o **`RoteiroCard`** da busca (favoritar já existente). O antigo
   `BoatCard` (mock) ficou órfão e foi removido.
-- **`TrustBadges`** (`src/components/home/TrustBadges.tsx`, Server Component estático): barra de 4
+- ~~**`TrustBadges`**~~ — **removido em 24/10/2026** (componente apagado; a home passa do hero direto
+  para "Roteiros Mais Bem Avaliados"; os mesmos pontos seguem no `BenefitsSection`). Histórico: barra de 4
   selos logo abaixo do hero (`grid-cols-2 md:grid-cols-4`, ícone circular + título + descrição de
   uma linha). Os 4 pontos e ícones (`Tag`, `ShieldCheck`, `CalendarX2`, `CalendarClock`, todos
   `lucide-react`) foram escolhidos entre os 6 do `BenefitsSection` como os de maior peso de
@@ -1971,6 +2008,26 @@ trocar a lista global pela localizada.
   Personalize seu passeio, Cancelamento sem dor de cabeça, Pagamento protegido. CTA "Buscar
   embarcações" → `/buscar`. Substituiu a antiga seção "Clube de Vantagens Boatzy" (assinatura/CTA
   "Assine Agora" sem destino — funcionalidade de assinatura nunca existiu no produto).
+  **Redesenho em 24/10/2026:** `py-16 bg-white overflow-hidden`, `max-w-6xl`. Tudo dentro de
+  `MontagemAoRolar` (ver abaixo). Bloco do título `rounded-3xl bg-gradient-to-br from-turquesa/10
+  to-marinho/[0.06]`, `lg:w-[46%]`, eyebrow + h2 "Navegue com tranquilidade" + link "Encontre seu
+  roteiro" (`#benefits-cta`, `/buscar`). Card `-mt-12 md:-mt-14 lg:ml-[12%] rounded-3xl bg-white
+  ring-1 ring-slate-100` + sombra navy, `<ul>` `sm:grid-cols-2 lg:grid-cols-4`; cada item: ícone
+  `lucide-react` `h-8 w-8 text-marinho strokeWidth 1.6` centralizado sobre círculo `from-turquesa/35
+  to-turquesa/15` (`inset-1 translate-x-1 translate-y-1` — mesmo deslocamento em todos; antes ficava
+  preso ao canto inferior direito e caía em partes diferentes de cada desenho), título `font-bold text-marinho`, texto
+  `text-sm text-slate-500`; no celular `flex gap-4` (ícone ao lado). Itens: `ReceiptText` "Preço
+  final, sem surpresa", `ShieldCheck` "Pagamento protegido", `CloudSunRain` "Cancelamento sem drama",
+  `CalendarCheck2` "Agenda de verdade". Animação: bloco `-translate-x-8 → 0`, card `translate-y-6 →
+  0` (`delay-150`), itens idem com `transitionDelay` 350 + i×110 ms, círculo `scale-0 → 100` em 500 +
+  i×110 ms; `duration-700 ease-out`, `motion-reduce:transition-none`. `benefits-bg.png` segue usado em
+  `/sobre`.
+- **`MontagemAoRolar`** (`src/components/ui/MontagemAoRolar.tsx`, `'use client'`): wrapper
+  `group/montagem` com `data-montado` (false → true quando o topo do bloco passa da linha dos 60% da
+  tela — `rootMargin: '0px 0px -40% 0px'`, `threshold: 0`; uma vez, depois desconecta o
+  `IntersectionObserver`). Antes era `threshold: 0.25` e disparava com o bloco ainda na borda de
+  baixo — a animação acabava antes de o usuário olhar. Sem IO ou com `prefers-reduced-motion: reduce` → `true`
+  direto. Os filhos animam com `group-data-[montado=true]/montagem:`. Reutilizável em outras seções.
 - **`MomentsSection`** (`src/components/home/MomentsSection.tsx`, `'use client'` — precisa de
   estado/refs para o carrossel): seção "Coleção de experiências" (eyebrow "Inspire-se" preservada;
   título trocado de "Curation of Moments"). Lista de cards (`h-64 md:h-80`) montada por `ITENS`:
@@ -2838,8 +2895,8 @@ quando há não lidas daquele gestor.
 
 **CTA "Anuncie sua embarcação" / "Minhas embarcações"** (`Header`): substituiu o antigo seletor de
 idioma (globo + "PT"). Link para `/painel` (login/cadastro de gestor), estilizado como pill —
-`bg-[#0B3D91]/10 text-[#0B3D91]` com hover sólido (`bg-[#0B3D91] text-white`) e ícone `Megaphone`
-(lucide-react), mesmo padrão de badge/tag usado em outras partes do design system. Renderizado no
+`bg-marinho text-white` com hover `bg-marinho-escuro` e ícone `Megaphone`/`Anchor` em `text-turquesa`
+(lucide-react) — paleta oficial, §2.3. Renderizado no
 bloco de ações à direita (desktop, ao lado do botão "Entrar") e também no menu mobile, logo abaixo
 dos 3 links de navegação.
 
@@ -2850,7 +2907,7 @@ auth.uid()`, migration `20260517_clerk_to_supabase_auth.sql`). Deslogado ou sem 
 "Anuncie sua embarcação". Logado com a role `gestor`: mostra "Minhas embarcações" — mesmo link
 (`/painel`) e ícone nos dois casos, só o texto muda.
 
-**Selo do link Vendas** (`Header`): círculo de 16px `bg-gradient-to-br from-[#0B3D91] to-cyan-400`
+**Selo do link Vendas** (`Header`): círculo de 16px `bg-gradient-to-br from-marinho to-turquesa`
 com o ícone `Tag` (lucide-react, `h-2.5 w-2.5`, branco) ao lado do texto "Vendas", nas duas versões
 do link (nav desktop e menu mobile) — mesmo ícone já usado para "Vendas" em `SearchTypeToggle` e no
 menu do painel (`Sidebar.tsx`), aqui como selo visual em vez de rótulo de aba.
@@ -2870,7 +2927,7 @@ rotacionando), com duas opções:
 
 Renderizado só no bloco desktop (`hidden md:flex`) do `Header`, no lugar do antigo `<Link id="auth-button">`.
 No mobile, em vez de dropdown, o `Header` renderiza as duas opções diretamente como botões sempre
-visíveis (sem interação extra para revelar) — "Entrar como Cliente" sólido azul (`bg-[#0B3D91]`) e
+visíveis (sem interação extra para revelar) — "Entrar como Cliente" sólido marinho (`bg-marinho`) e
 "Entrar como Proprietário" outline (`border border-slate-200`), abaixo do CTA "Anuncie sua embarcação"
 no menu hambúrguer.
 
@@ -6537,6 +6594,25 @@ divergir da hidratação) passou a `['/videos/hero02.mp4', '/videos/hero03.mp4',
   avaliações) com `window.scrollTo(top − 64px do header)`, `smooth` salvo `prefers-reduced-motion`.
   Medido no navegador: 1180×730 → hero 602px, 63px de conteúdo à mostra; 1440×900 e 1920×1080 → 640px;
   clique leva a seção a 64px do topo; 390px → botão oculto. `tsc`/`eslint` limpos.
+- **Hero 30% menor (24/10/2026):** `<section>` = `min-h-[420px] md:h-[calc((100svh-8rem)*0.7)]
+  md:min-h-[378px] md:max-h-[448px]`; o bloco de conteúdo = `min-h-[420px] py-8 md:min-h-0 md:h-full
+  md:py-0 md:pb-12` (o `pb-12` reserva o rodapé do "Ver mais", que foi para `bottom-3`). Kicker
+  `mb-2 md:mb-3`; `h1` `text-4xl md:text-5xl lg:text-6xl mb-3` (era `md:text-6xl lg:text-7xl mb-4`);
+  subtítulo `text-sm md:text-lg mb-6` (era `text-base … mb-10`). Medido: 1440×900 → hero 448px,
+  30px entre a barra e o "Ver mais"; 1280×720 → 414px, 13px; 390×844 → 532px, conteúdo inteiro
+  abaixo do header.
+- **Texto, passos e +10% (24/10/2026):** `<section>` = `min-h-[462px] md:h-[calc((100svh-8rem)*0.77)]
+  md:min-h-[416px] md:max-h-[493px]`; conteúdo `min-h-[462px] py-8 md:min-h-0 md:h-full md:py-0` (sem
+  o `pb-12`). Kicker "Passeios de barco com reserva 100% online" (`text-xs md:text-sm tracking-wider
+  md:tracking-widest`, cabe em 1 linha em 390px); subtítulo "Do roteiro ao embarque — faça tudo pelo
+  site, com pagamento seguro, em poucos minutos.". **"Ver mais" removido** (botão, `irParaConteudo`,
+  `ChevronDown` e o keyframe `ver-mais` de `globals.css`). No lugar, `<ol>` `PASSOS` (`Search` /
+  `Ship` / `CreditCard` em `text-cyan-300` + texto `text-white/80`, `ChevronRight` entre eles só a
+  partir de `sm`, `flex-wrap`). Balão do Destino mantido. Medido: 1440×900 → 493px; 1280×720 → 456px;
+  390×844 → 584px (passos em 2 linhas).
+- **Espaçamento das seções (24/10/2026):** `FeaturedChartersSection` `py-16` → `py-8` e
+  `TopRatedSection` `py-16` → `pt-8 pb-16`. Medido em 1440px: hero → kicker "Roteiros selecionados"
+  32px (era 64); fim dos roteiros → "Coleção de destaque" 64px (era 128).
 
 - **Balão do Destino (20/10/2026):** `HeroSection` — estado `dicaDestino` (timers: entra em 700 ms,
   sai em +15 s; limpos no unmount); `open(panel)` zera a dica. Elemento `absolute left-3 top-full mt-3`
@@ -6854,3 +6930,109 @@ banner visível, nenhum cookie `_ga`, `page_view` com `gcs=G100`; "Aceitar todos
 `_ga`/`_ga_4QJF8H6EDJ` criados, hits `G101`; "Recusar opcionais" — só `boatzy_consentimento`, hits
 `G100`; `/administrator/login` — sem banner. Visual conferido em 1280 px e 390 px (banner e modal).
 `tsc`/`eslint` limpos. A revogação em Minha conta (exige login) não foi exercitada no navegador.
+
+## 67. Campo Destino — destinos populares e busca por título do roteiro (24/10/2026)
+
+- **`GET /api/buscar/locais?populares=1`** (`src/app/api/buscar/locais/route.ts`): top 5 municípios
+  por nº de roteiros `ativo = true` (`municipio_id` = ponto de saída), empate → A–Z. O cache de
+  ofertas (5 min) passou a guardar `{ ids, roteirosPorMunicipio }`; `LocalResult` ganhou
+  `totalRoteiros` (também nas respostas de `?q=`).
+- **`GET /api/buscar/roteiros?q=`** (novo, `src/app/api/buscar/roteiros/route.ts`): `q` ≥ 2 letras
+  (senão `[]`); até 5 roteiros ativos cujo título normalizado (NFD, sem acento, minúsculo) contém
+  **todas** as palavras de `q`; ordem: título que começa com `q` → A–Z. Lê com `supabaseAdmin` (RLS
+  não libera `roteiro` ao público); índice `{ id, nome, chave, localidade }` em cache por instância
+  (5 min), carregado em páginas de 1.000. A imagem (`roteiro_imagens`, principal ou a primeira) é
+  buscada só para os 5 resultados. Erro → 500 `{ error }`.
+  ```ts
+  type RoteiroSugestao = { id: string; nome: string; localidade: string | null; imagem: string | null };
+  ```
+- **`LocationPicker`**: ao abrir, `carregarPopulares()` (promise em módulo — uma requisição por
+  visita; falha limpa a promise para tentar de novo) → seção "Destinos populares" (ícone
+  `TrendingUp`) quando a busca está vazia, antes de "Buscas recentes". Com `buscarRoteiros`, o
+  debounce de 300 ms consulta `/api/buscar/locais` e `/api/buscar/roteiros` em paralelo
+  (`buscarLista<T>`, erro → `[]`). Render ao digitar: cidades com `temOfertas` → seção "Roteiros"
+  (`<Link href="/roteiros/{id}">`, miniatura `next/image` 36 px ou ícone `Ship` — também quando a imagem falha, via `onError` → `imagensComErro`) → "Outras cidades"
+  (cabeçalho só quando há roteiros). Enter/escolha ao carregar (`escolherPrimeira`) segue essa ordem;
+  roteiro abre via `window.location.href`. Placeholder com `buscarRoteiros`: "Cidade ou nome do
+  roteiro". O dropdown ganhou `text-left` (herdava `text-center` do hero nos cabeçalhos de seção).
+- **`HeroSection`**: `buscarRoteiros={searchType === 'roteiro'}`. `FiltrosLaterais` não passa a prop
+  (só ganha os destinos populares).
+- **Testes:** navegador (dev, 1400 px): abrir o campo mostra "Florianópolis, SC · 4 roteiros"; "ilha"
+  → seção Roteiros (Ilha do Campeche, Ilha do Francês, com foto) antes de "Outras cidades";
+  "florian" → Florianópolis com passeios primeiro; "campeche" + Enter abre
+  `/roteiros/d9b5920c-…`. Sem erros no console. `tsc`/`eslint` limpos.
+
+## 68. Home — "Quem navegou, recomenda" (avaliações 5 estrelas) (24/10/2026)
+
+- **`getAvaliacoesCincoEstrelas(limit = 6)`** (`src/lib/avaliacoes.ts`, server-only): `avaliacao` com
+  `status = 'aprovada'`, `nota = 5`, `roteiro_id` e `comentario` não nulos, `created_at desc`,
+  `limit × 3` de folga; descarta comentário só com espaços; busca os roteiros (`ativo = true`,
+  `municipios ( nome, estados ( uf ) )`) numa segunda query (não há FK `avaliacao → roteiro` declarada
+  para embed) e descarta os inativos. Autor via `users!avaliacao_cliente_id_fkey ( name, avatar_url )`
+  reduzido por `nomeCurto` ("Ana Souza Lima" → "Ana L."; um nome só fica igual; vazio → "Cliente
+  Boatzy").
+  ```ts
+  type AvaliacaoDestaque = {
+    id: string; comentario: string; created_at: string;
+    autor: string; avatarUrl: string | null;
+    roteiro: { id: string; nome: string; localidade: string | null } | null;
+  };
+  ```
+- **`AvaliacoesHomeSection`** (`src/components/home/AvaliacoesHomeSection.tsx`, Server Component):
+  `null` sem avaliações; `#avaliacoes-section`, `bg-areia`, cabeçalho no padrão das seções da
+  home ("Avaliações reais" / "Quem navegou, recomenda"). Cards em `flex flex-wrap justify-center`
+  (`w-full md:w-[calc(50%-12px)] lg:w-[calc(33.333%-16px)]`): 5 `Star` `fill-destaque`, `Quote`, comentário
+  `line-clamp-6 whitespace-pre-line`, avatar (ou inicial), autor, mês/ano (`formatarData(…, { month:
+  'long', year: 'numeric' })`), rodapé `<Link href="/roteiros/{id}">` com nome · cidade (truncado,
+  `title` com o texto completo).
+- **`src/app/page.tsx`**: Hero → FeaturedCharters → TopRated → **AvaliacoesHome** → Benefits → Moments.
+- **Testes:** navegador (1440px) com a única avaliação 5★ aprovada da base: card centralizado, "Renan
+  G.", "julho de 2026", link para o roteiro. `tsc`/`eslint` limpos.
+
+## 69. Home — vitrines por "últimos cadastrados" enquanto não há avaliações (24/10/2026)
+
+- **`getRoteirosRecentes(limit = 3)`** (`src/lib/roteiros-top.ts`): `roteiro` `ativo = true`,
+  `created_at desc`, mesmo select do card da busca; agrega `getAvaliacoesResumoPorRoteiro` (sem
+  avaliação → `media 0, total 0`). Retorna `RoteiroTopCard[]`.
+- **`getEmbarcacoesRecentes(limit = 4)`** (`src/lib/embarcacoes-top.ts`): ids de `embarcacao_id` de
+  roteiros ativos → `embarcacao` nesses ids com `status = 'ativo'`, `created_at desc`; agrega
+  `getAvaliacoesResumoPorEmbarcacao`. Select e montagem do card extraídos para `DETALHE_SELECT` /
+  `paraCard` (compartilhados com `getEmbarcacoesTopAvaliadas`).
+- **`FeaturedChartersSection`** / **`TopRatedSection`**: usam as funções acima; títulos "Novos
+  Roteiros" / "Novas Embarcações" (kickers mantidos); `null` sem itens.
+- **`FeaturedRoteiros`** / **`TopRatedBoats`**: nova prop `porProximidade` (padrão `true`); as seções
+  passam `false` → não chamam `/api/roteiros/top-avaliados` / `/api/embarcacoes/top-avaliadas`.
+  `avaliacaoResumo` vai `null` quando `total = 0` (card mostra "Novo").
+- **TODO(avaliações) — como reverter:** nas duas seções, trocar `getRoteirosRecentes(3)` por
+  `getRoteirosTopAvaliados({ limit: 3 })` e `getEmbarcacoesRecentes(4)` por
+  `getEmbarcacoesTopAvaliadas({ limit: 4 })`, remover `porProximidade={false}` e restaurar os títulos
+  "… Mais Bem Avaliados/Avaliadas". RPCs, rotas de proximidade e funções do ranking continuam no código.
+- **Testes:** navegador (1440px) comparado ao banco: roteiros Ilha do Campeche, Tinguá, Ilha do
+  Francês (Itapema, inativo, fora); embarcações Dagarana, Danifer - Fairline Squadron 55, Luxury 52ft
+  (Danifer em análise e Blue Horizon Star sem roteiro, fora). `tsc`/`eslint` limpos.
+
+
+## 70. Paleta oficial aplicada à home (24/10/2026)
+
+Tokens e regras: §2.3. Arquivos migrados: `src/app/globals.css`, `src/components/home/**`
+(seções e pickers da busca, inclusive `search/venda/*`), `src/components/layout/{Header,Footer,NavPrincipal,EntrarMenu,UserMenu}.tsx`,
+`src/components/ui/EmbarcacaoCard.tsx` e `src/components/consentimento/BannerCookies.tsx`.
+Header, Footer, card e banner são compartilhados — a mudança aparece em todas as páginas que os usam.
+
+| Antes | Depois |
+|---|---|
+| `#0B2447` e `#0B3D91` (texto, fundo, borda, ring, overlay) | `marinho` |
+| `hover:bg-[#092E6E]`, `hover:bg-[#0B3D91]` sobre fundo navy | `hover:bg-marinho-escuro` |
+| Gradiente de título `from-[#0B3D91] to-cyan-500` / selo `to-cyan-400` | `from-marinho to-turquesa` |
+| `text-cyan-300` (sobre fundo escuro) | `text-turquesa` |
+| `text-cyan-600` / `text-cyan-700` / `text-emerald-600` (sobre claro) | `text-turquesa-escuro` |
+| `bg-cyan-50`, `from-cyan-50`, `from-cyan-200/80 to-teal-200/80` | `bg-turquesa/10`, `from-turquesa/10`, `from-turquesa/35 to-turquesa/15` |
+| `DatePicker` intervalo `bg-cyan-100 text-cyan-800` | `bg-turquesa/15 text-marinho` |
+| Estrelas `fill-amber-400 text-amber-400` | `fill-destaque text-destaque` |
+| Hero "seu" com gradiente `cyan-300 → teal-300` | `text-destaque` (único amarelo de texto da home) |
+| Seções `bg-slate-50/50` (Novos Roteiros, Avaliações, Inspire-se) | `bg-areia` |
+| `text-slate-800` (títulos de card) | `text-grafite` |
+
+Mantidos de propósito: escala `slate` para neutros, `amber-50/800` do aviso de geolocalização e
+`red-*` de erro (semânticos). **Testes:** navegador 1366px — hero, vitrines, avaliações, benefícios
+e Footer renderizados com os novos tokens (Footer `rgb(14, 47, 79)`), 0 erros de console.

@@ -1,104 +1,90 @@
 import Link from 'next/link';
-import Image from 'next/image';
-import { Tag, Images, CalendarClock, SlidersHorizontal, CalendarX2, ShieldCheck, ArrowRight } from 'lucide-react';
+import { ReceiptText, ShieldCheck, CloudSunRain, CalendarCheck2, ArrowRight } from 'lucide-react';
+import MontagemAoRolar from '@/components/ui/MontagemAoRolar';
 
+// Quatro garantias, texto curto: o ícone ilustra o assunto de cada uma.
 const BENEFICIOS = [
   {
-    icon: Tag,
-    titulo: 'Transparência no preço',
-    descricao: 'O valor da tela é o preço final. Sem taxas surpresas ou letras miúdas na hora de pagar.',
-  },
-  {
-    icon: Images,
-    titulo: 'Tudo sobre o barco em um só lugar',
-    descricao: 'Acesso imediato a fotos, capacidade, comodidades e perfil do dono — sem precisar de mensagens extras.',
-  },
-  {
-    icon: CalendarClock,
-    titulo: 'Calendário ao vivo',
-    descricao: 'Veja as datas livres na hora da busca. A agenda é atualizada em tempo real direto pelos proprietários.',
-  },
-  {
-    icon: SlidersHorizontal,
-    titulo: 'Personalize seu passeio',
-    descricao: 'Adicione serviços como bebidas, gelo e equipamentos de mergulho com um clique, na mesma reserva.',
-  },
-  {
-    icon: CalendarX2,
-    titulo: 'Cancelamento sem dor de cabeça',
-    descricao: 'Regras de cancelamento claras antes do pagamento — inclusive para imprevistos com o clima.',
+    icon: ReceiptText,
+    titulo: 'Preço final, sem surpresa',
+    descricao: 'O valor que você vê na tela é o que você paga. Sem taxas escondidas.',
   },
   {
     icon: ShieldCheck,
     titulo: 'Pagamento protegido',
-    descricao: 'Seu dinheiro fica protegido pela plataforma e só é repassado ao proprietário após o passeio.',
+    descricao: 'Seu dinheiro só é repassado ao dono do barco depois do passeio.',
+  },
+  {
+    icon: CloudSunRain,
+    titulo: 'Cancelamento sem drama',
+    descricao: 'Regras claras antes de pagar, inclusive para dias de mau tempo.',
+  },
+  {
+    icon: CalendarCheck2,
+    titulo: 'Agenda de verdade',
+    descricao: 'Datas atualizadas pelos donos. Viu livre, pode reservar.',
   },
 ];
 
+// Estados inicial → montado das peças (transições disparadas por MontagemAoRolar).
+const ENTRA_DA_ESQUERDA =
+  'opacity-0 -translate-x-8 group-data-[montado=true]/montagem:opacity-100 group-data-[montado=true]/montagem:translate-x-0';
+const SOBE =
+  'opacity-0 translate-y-6 group-data-[montado=true]/montagem:opacity-100 group-data-[montado=true]/montagem:translate-y-0';
+const TRANSICAO = 'transition-all duration-700 ease-out motion-reduce:transition-none';
+
 export default function BenefitsSection() {
   return (
-    <section className="py-16 bg-white" id="benefits-section">
-      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-        <div className="relative rounded-3xl overflow-hidden">
-          {/* Background */}
-          <div className="absolute inset-0">
-            <Image
-              src="/images/benefits-bg.png"
-              alt=""
-              fill
-              className="object-cover"
-            />
-            <div className="absolute inset-0 bg-gradient-to-b from-[#0B2447]/95 via-[#0B2447]/92 to-[#0B2447]/95" />
+    <section className="py-16 bg-white overflow-hidden" id="benefits-section">
+      <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
+        <MontagemAoRolar>
+          {/* Bloco do título (o card se encaixa sobre a parte de baixo dele) */}
+          <div className={`relative rounded-3xl bg-gradient-to-br from-turquesa/10 to-marinho/[0.06] px-6 pt-8 pb-20 md:px-10 md:pt-10 md:pb-24 lg:w-[46%] ${TRANSICAO} ${ENTRA_DA_ESQUERDA}`}>
+            <p className="text-xs font-semibold text-turquesa-escuro uppercase tracking-widest mb-2">
+              Por que reservar com o Boatzy
+            </p>
+            <h2 className="text-2xl md:text-3xl font-bold text-marinho leading-tight">
+              Navegue com{' '}
+              <span className="bg-gradient-to-r from-marinho to-turquesa bg-clip-text text-transparent">
+                tranquilidade
+              </span>
+            </h2>
+            <Link
+              href="/buscar"
+              className="group mt-4 inline-flex items-center gap-1.5 text-sm font-medium text-marinho hover:text-turquesa-escuro transition-colors"
+              id="benefits-cta"
+            >
+              Encontre seu roteiro
+              <ArrowRight className="h-4 w-4 group-hover:translate-x-0.5 transition-transform" />
+            </Link>
           </div>
 
-          <div className="relative z-10 p-8 md:p-12 lg:p-16">
-            {/* Header */}
-            <div className="max-w-2xl mx-auto text-center mb-10 md:mb-12">
-              <p className="text-xs font-semibold text-cyan-300 uppercase tracking-widest mb-2">
-                Por que reservar com o Boatzy
-              </p>
-              <h2 className="text-3xl md:text-4xl font-bold text-white mb-4 leading-tight">
-                Alugar um barco{' '}
-                <span className="bg-gradient-to-r from-cyan-300 to-teal-300 bg-clip-text text-transparent">
-                  nunca foi tão simples
-                </span>
-              </h2>
-              <p className="text-slate-300 text-sm leading-relaxed">
-                Da busca ao desembarque, cada etapa foi pensada para ser clara, rápida e sem surpresas.
-              </p>
-            </div>
-
-            {/* Benefits Grid */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-5 mb-10">
-              {BENEFICIOS.map(({ icon: Icon, titulo, descricao }) => (
-                <div
-                  key={titulo}
-                  className="group rounded-2xl border border-white/10 bg-white/5 backdrop-blur-sm p-6 hover:bg-white/10 hover:border-cyan-300/30 transition-all"
-                >
-                  <div className="flex items-center gap-3 mb-3">
-                    <div className="h-12 w-12 shrink-0 rounded-xl bg-gradient-to-br from-cyan-500/20 to-teal-500/20 flex items-center justify-center group-hover:from-cyan-500/30 group-hover:to-teal-500/30 transition-colors">
-                      <Icon className="h-6 w-6 text-cyan-300" />
-                    </div>
-                    <p className="text-white text-lg font-semibold leading-snug">{titulo}</p>
+          {/* Card das garantias */}
+          <div
+            className={`relative -mt-12 md:-mt-14 mx-2 md:mx-0 lg:ml-[12%] rounded-3xl bg-white ring-1 ring-slate-100 shadow-[0_24px_60px_-24px_rgba(11,36,71,0.28)] p-6 md:p-10 delay-150 ${TRANSICAO} ${SOBE}`}
+          >
+            <ul className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 sm:gap-8 lg:gap-10">
+              {BENEFICIOS.map(({ icon: Icone, titulo, descricao }, i) => (
+                <li key={titulo} className={`flex gap-4 sm:block ${TRANSICAO} ${SOBE}`} style={{ transitionDelay: `${350 + i * 110}ms` }}>
+                  {/* Ícone de traço sobre um círculo de destaque: centralizado nele
+                      com o mesmo leve deslocamento em todos (não depende do desenho) */}
+                  <div className="relative h-11 w-11 shrink-0 sm:mb-4 flex items-center justify-center">
+                    <span
+                      aria-hidden
+                      className="absolute inset-1 translate-x-1 translate-y-1 rounded-full bg-gradient-to-br from-turquesa/35 to-turquesa/15 scale-0 group-data-[montado=true]/montagem:scale-100 transition-transform duration-500 ease-out motion-reduce:transition-none"
+                      style={{ transitionDelay: `${500 + i * 110}ms` }}
+                    />
+                    <Icone aria-hidden className="relative h-8 w-8 text-marinho" strokeWidth={1.6} />
                   </div>
-                  <p className="text-slate-300 text-sm leading-relaxed">{descricao}</p>
-                </div>
+                  <div>
+                    <h3 className="text-base font-bold text-marinho leading-snug">{titulo}</h3>
+                    <p className="mt-1.5 text-sm text-slate-500 leading-relaxed">{descricao}</p>
+                  </div>
+                </li>
               ))}
-            </div>
-
-            {/* CTA */}
-            <div className="flex justify-center">
-              <Link
-                href="/buscar"
-                className="inline-flex items-center gap-2 bg-gradient-to-r from-cyan-500 to-teal-500 hover:from-cyan-400 hover:to-teal-400 text-white font-semibold text-sm px-8 py-3 rounded-xl transition-all hover:shadow-lg hover:shadow-cyan-500/25 hover:scale-[1.02] active:scale-[0.98]"
-                id="benefits-cta"
-              >
-                Buscar embarcações
-                <ArrowRight className="h-4 w-4" />
-              </Link>
-            </div>
+            </ul>
           </div>
-        </div>
+        </MontagemAoRolar>
       </div>
     </section>
   );

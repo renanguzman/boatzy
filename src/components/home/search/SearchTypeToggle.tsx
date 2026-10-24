@@ -31,7 +31,7 @@ export default function SearchTypeToggle({ value, onChange, variant = 'dark', sh
     <div className={`inline-flex items-center gap-1 rounded-full p-1 ${containerClass}`}>
       {options.map(({ id, label, icon: Icon }) => {
         const active = value === id;
-        const activeClass = 'bg-white text-[#0B2447] shadow-sm';
+        const activeClass = 'bg-white text-marinho shadow-sm';
         const inactiveClass =
           variant === 'dark'
             ? 'text-white/80 hover:text-white'

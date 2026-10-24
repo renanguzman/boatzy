@@ -59,17 +59,17 @@ export default function MomentsSection() {
   }
 
   return (
-    <section className="py-16 bg-slate-50/50" id="moments-section">
+    <section className="py-16 bg-areia" id="moments-section">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         {/* Header */}
         <div className="flex items-end justify-between gap-4 mb-10">
           <div className="flex-1 text-center">
-            <p className="text-xs font-semibold text-cyan-600 uppercase tracking-widest mb-1">
+            <p className="text-xs font-semibold text-turquesa-escuro uppercase tracking-widest mb-1">
               Inspire-se
             </p>
-            <h2 className="text-2xl md:text-3xl font-bold text-[#0B2447]">
+            <h2 className="text-2xl md:text-3xl font-bold text-marinho">
               Coleção de{' '}
-              <span className="bg-gradient-to-r from-[#0B3D91] to-cyan-500 bg-clip-text text-transparent">
+              <span className="bg-gradient-to-r from-marinho to-turquesa bg-clip-text text-transparent">
                 experiências
               </span>
             </h2>
@@ -114,7 +114,7 @@ export default function MomentsSection() {
                   className="object-cover group-hover:scale-110 transition-transform duration-700"
                 />
                 {/* Overlay */}
-                <div className="absolute inset-0 bg-gradient-to-t from-[#0B2447]/85 via-[#0B2447]/25 to-transparent" />
+                <div className="absolute inset-0 bg-gradient-to-t from-marinho/85 via-marinho/25 to-transparent" />
 
                 {/* Content */}
                 <div className="absolute inset-x-0 bottom-0 p-4 md:p-5">

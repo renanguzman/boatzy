@@ -43,6 +43,29 @@ Validar um marketplace de aluguel de embarcações, garantindo:
 - **Hospedagem:** Vercel
 - **Pagamentos:** Asaas — a plataforma recebe do cliente e repassa ao gestor (em implantação por fases, ver 6.6)
 
+### 4.1 Identidade visual — paleta oficial (24/10/2026)
+
+Paleta oficial da marca Boatzy. **Toda tela nova ou redesenhada deve usar só estas cores** (além de
+cinzas neutros e das cores semânticas de status — erro, alerta, sucesso). Detalhes de uso e tokens: `SPEC.md` §2.3.
+
+| Cor | Hex | Papel |
+|---|---|---|
+| Marinho | `#0E2F4F` | Cor principal: títulos, botões principais, rodapé, fundos escuros e overlays sobre foto |
+| Turquesa | `#17B5B0` | Cor de apoio: ícones e realces sobre fundo escuro, selos, tintas de fundo |
+| Amarelo destaque | `#FFC844` | **Uso extraordinário — ~10% das situações**, só para dar ênfase ou destaque quando necessário |
+| Gradiente | `#0E2F4F → #17B5B0` | Destaque de palavras nos títulos de seção e selos |
+| Areia | `#FBF7EF` | Fundo claro alternativo das seções |
+| Grafite | `#1C2B36` | Texto corrido |
+
+**Regra do amarelo:** é cor de exceção, nunca de base. Não usar em botões, fundos de seção ou
+texto corrido. Hoje aparece só na palavra de impacto do título do hero ("O horizonte é **seu**") e
+nas estrelas de nota. Qualquer novo uso deve substituir ou justificar a ênfase, não somar.
+
+- ✅ **Aplicada na página inicial** (hero, vitrines, avaliações, benefícios, "Inspire-se"), no
+  Header, no Footer, no card de embarcação e no banner de cookies.
+- ⏳ **Pendente:** demais páginas (busca, detalhe de roteiro/embarcação, institucionais, painel)
+  ainda usam as cores antigas (`#0B2447`, `#0B3D91`, ciano) e serão migradas aos poucos.
+
 ---
 
 ## 5. Escopo do MVP
@@ -82,7 +105,7 @@ Validar um marketplace de aluguel de embarcações, garantindo:
 
 - ✅ O `Header` (site público, desktop e mobile) tem 3 links de navegação: **Roteiros** (`/buscar`), **Embarcações** (`/buscar?tipo=embarcacao`) e **Vendas** (`/vendas`). Substituem os antigos rótulos "Charters"/"Destinos"/"Experiências", que apontavam para rotas inexistentes (`/charters`, `/destinations`, `/experiences`).
 - ✅ O `Footer`, bloco "Explorar", tem 4 links: **Roteiros** (`/buscar`), **Embarcações** (`/buscar?tipo=embarcacao`), **Vendas** (`/vendas`) e **Experiências** (`/experiencias`, ver 6.10).
-- ✅ No `Header`, o antigo seletor de idioma ("PT") foi substituído pelo CTA (ícone `Megaphone`, pill azul `#0B3D91`/10 com hover sólido) que leva a `/painel`. Presente tanto no desktop (ao lado do botão "Entrar") quanto no menu mobile (abaixo dos links de navegação). O rótulo muda conforme quem está logado: **"Anuncie sua embarcação"** para visitante/cliente, **"Minhas embarcações"** quando o usuário logado também tem o perfil de gestor (dono de embarcação) — checado no cliente via `user_roles` (RLS permite o próprio usuário ler suas roles).
+- ✅ No `Header`, o antigo seletor de idioma ("PT") foi substituído pelo CTA (ícone `Megaphone`, pill marinho `#0E2F4F` com ícone turquesa — paleta oficial, ver 4.1) que leva a `/painel`. Presente tanto no desktop (ao lado do botão "Entrar") quanto no menu mobile (abaixo dos links de navegação). O rótulo muda conforme quem está logado: **"Anuncie sua embarcação"** para visitante/cliente, **"Minhas embarcações"** quando o usuário logado também tem o perfil de gestor (dono de embarcação) — checado no cliente via `user_roles` (RLS permite o próprio usuário ler suas roles).
 - ✅ O link **Vendas** do `Header` (desktop e mobile) ganhou um selo circular pequeno com gradiente (azul → ciano) e o ícone `Tag`, ao lado do nome — o mesmo ícone já usado para "Vendas" em outros pontos do site (menu do painel, seletor de busca). O seletor de tipo de busca da Home (`SearchTypeToggle`, hero) deixou de mostrar a aba "Vendas" — quem quer anunciar/ver embarcações à venda usa o link do `Header`. O toggle da barra de busca compacta (`/buscar`) e o da própria página `/vendas` continuam mostrando as 3 abas normalmente.
 - ✅ O botão **"Entrar"** do `Header` (usuário deslogado) oferece duas portas de acesso, bem visíveis: **"Entrar como Cliente"** (`/entrar`) e **"Entrar como Proprietário"** (`/painel`). No desktop é um dropdown (mesmo padrão visual do menu do usuário logado); no mobile são dois botões sempre visíveis (sem precisar abrir submenu) dentro do menu hambúrguer.
 
@@ -149,6 +172,7 @@ Visualização:
 #### ✅ Implementado — Barra de Busca Inteligente (Hero Section)
 
 - `LocationPicker`: autocomplete de municípios com roteiros cadastrados, opção "Próximo de mim" via geolocalização do navegador, histórico de buscas recentes (localStorage). *(Corrigido em 19/10/2026 — ver "Campo Destino funcionando".)*
+- ✅ Ao abrir o campo Destino da home, aparecem os **5 destinos populares** (cidades com mais roteiros ativos) e, ao digitar, também os **roteiros pelo título** — ver "Campo Destino — destinos populares e busca por título" (24/10/2026).
 - `DatePicker`: calendário de 2 meses, datas passadas bloqueadas, opções de flexibilidade (Data exata, ±1, ±2, ±3, ±7 dias), totalmente em pt-BR.
 - `GuestPicker`: contador +/− com mínimo 0, dropdown.
 - Navegação para `/buscar?municipio=&data=&flex=&pessoas=` ao submeter.
@@ -615,6 +639,20 @@ Boatzy + repasse por Pix), regras de negócio, decisões pendentes e fases:
 - Grid de 6 diferenciais da plataforma, cada um com ícone, título e descrição curta: **Transparência no preço**, **Tudo sobre o barco em um só lugar**, **Calendário ao vivo**, **Personalize seu passeio**, **Cancelamento sem dor de cabeça** e **Pagamento protegido**.
 - CTA **"Buscar embarcações"** → `/buscar`.
 - Detalhes técnicos: SPEC §18.9.
+- **Redesenho (24/10/2026)** — mais limpo, leitura rápida, inspirado no "boatsetter promise":
+  - fundo claro; bloco do título em ciano bem suave ("Por que reservar com o Boatzy" / **"Navegue com
+    tranquilidade"** + link **"Encontre seu roteiro"** → `/buscar`), com um card branco encaixado
+    sobre a parte de baixo dele;
+  - **4 garantias** de texto curto, com ícones de traço que ilustram o assunto: **Preço final, sem
+    surpresa** (recibo), **Pagamento protegido** (escudo), **Cancelamento sem drama** (nuvem com sol
+    e chuva — mau tempo), **Agenda de verdade** (calendário com check). Saíram "Tudo sobre o barco em
+    um só lugar" e "Personalize seu passeio", e o botão "Buscar embarcações";
+  - **animação de montagem** ao rolar até a seção (uma vez): o bloco do título entra pela esquerda, o
+    card sobe e os 4 itens aparecem em sequência, com o círculo de destaque crescendo atrás de cada
+    ícone (~1,2 s no total). Dispara só quando a seção já está no campo de visão (topo dela passando
+    de 60% da altura da tela), não ao aparecer na borda de baixo. Quem pede menos movimento no sistema
+    vê a seção pronta, sem animação;
+  - no celular, ícone ao lado do texto (seção mais curta).
 
 ---
 
@@ -1900,6 +1938,29 @@ permissão de localização, não fazia nada.
   discreto **"VER MAIS"** com uma seta que flutua suavemente leva, rolando a página, até **"Roteiros
   Mais Bem Avaliados"** (ou à seção seguinte, se ainda não houver roteiro avaliado). No celular o hero
   mantém 600 px e o botão não aparece (a busca empilhada ocupa o espaço e rolar é natural).
+- **Hero 30% menor (24/10/2026):** no computador, 70% da altura anterior (entre 378 e 448 px); título
+  e espaçamentos um pouco menores para tudo caber e o "Ver mais" não encostar na busca. No celular a
+  altura acompanha o conteúdo (mínimo 420 px; ~530 px com a busca empilhada, antes 600 px) — uma altura
+  fixa 30% menor cortaria o título sob o header. Detalhes: `SPEC.md` §60.
+- **Faixa de vantagens removida (24/10/2026):** os 4 selos sob o hero (Transparência no preço,
+  Pagamento protegido, Cancelamento sem dor de cabeça, Calendário ao vivo) saíram da home para os
+  roteiros aparecerem logo abaixo do hero, sem rolagem. Os mesmos pontos continuam na seção "Por que
+  reservar com o Boatzy", mais abaixo.
+- **Hero explica o produto (24/10/2026):** inspirado na análise do concorrente boatz.com.br, o texto
+  do hero passou a dizer o que o site faz, mantendo o título da marca:
+  - linha de cima: **"PASSEIOS DE BARCO COM RESERVA 100% ONLINE"** (era "Bem-vindo ao Boatzy");
+  - título: "O horizonte é seu." (mantido);
+  - subtítulo: **"Do roteiro ao embarque — faça tudo pelo site, com pagamento seguro, em poucos
+    minutos."** (era "Explore embarcações pelo Brasil…");
+  - sob a busca, os 3 passos numa linha discreta: **Busque o destino › Escolha o roteiro › Reserve e
+    pague online** (no celular, sem as setas, em até 2 linhas). Substituiu o botão "Ver mais".
+  - O balão "Comece sua experiência por aqui" foi mantido (por decisão de produto); enquanto aparece
+    (15 s), cobre o primeiro passo no computador.
+  - Altura **+10%**: no computador entre 416 e 493 px; no celular mínimo 462 px (na prática ~584 px
+    com a busca empilhada e os passos).
+  - Fora do escopo (não aprovado agora): link "Como funciona" no menu.
+- **Seções mais próximas (24/10/2026):** menos espaço entre o hero e "Roteiros Mais Bem Avaliados"
+  (metade) e entre essa seção e "Embarcações Mais Bem Avaliadas" (metade).
 - **Balão no campo Destino (teste):** ao abrir a home, um balão preto translúcido (vidro fosco) com seta e um ícone de bússola — **"Comece sua experiência por aqui"** — aparece sob o campo Destino (~0,7 s depois de
   carregar) e some sozinho em 15 s, ou na hora se a pessoa clicar em qualquer campo da busca. Aparece a
   cada carregamento da home. No celular fica sobre o campo Data enquanto visível, sem bloquear o clique.
@@ -2094,6 +2155,50 @@ sociais, campanhas, links diretos), quem navega e como o funil de reserva conver
   visitante, por decisão de produto).
 - Detalhes técnicos: `SPEC.md` §66.
 
+### ✅ Campo Destino — destinos populares e busca por título do roteiro (24/10/2026)
+
+- **Destinos populares:** ao clicar no campo "Destino" (antes de digitar), aparecem as **5 cidades
+  com mais roteiros ativos** (ponto de saída), com a quantidade ("4 roteiros"). Um clique escolhe a
+  cidade, como uma sugestão comum. Vale também nos filtros laterais de `/buscar`, que usam o mesmo
+  campo. As buscas recentes continuam logo abaixo.
+- **Busca pelo título do roteiro (home, aba Roteiros):** ao digitar, além das cidades, aparece a
+  seção **"Roteiros"** com até 5 roteiros ativos cujo título contém o texto (foto, título e cidade).
+  Sem diferenciar acentos/maiúsculas e com as palavras em qualquer ordem ("mel ilha" acha "Ilha do
+  Mel"). O clique (ou Enter) **abre o roteiro** direto. Útil para destinos que não são município
+  (ilhas, praias), que a busca por cidade não acha.
+- **Ordem da lista ao digitar:** cidades com passeios no Boatzy → roteiros → "Outras cidades" (sem
+  passeios). Antes os roteiros ficariam abaixo de até 8 municípios sem oferta. Enter escolhe o
+  primeiro item nessa ordem.
+- O placeholder do campo na home passou a ser "Cidade ou nome do roteiro".
+- Fora do escopo: a aba Embarcações e os filtros de `/buscar` não sugerem roteiros pelo título; não
+  há página de resultados filtrada por texto (o clique leva ao roteiro).
+- Detalhes técnicos: `SPEC.md` §67.
+
+### ✅ Home — seção "Quem navegou, recomenda" com avaliações 5 estrelas (24/10/2026)
+
+- Nova seção na home, entre "Embarcações Mais Bem Avaliadas" e "Por que reservar com o Boatzy", com
+  **avaliações reais de nota 5** — só aprovadas pelo admin e **com comentário** (nota sem texto não
+  convence). Até 6, mais recentes primeiro.
+- Cada card: 5 estrelas, o comentário (até 6 linhas), autor como **primeiro nome + inicial do
+  sobrenome** ("Renan G.", privacidade na vitrine; o detalhe do roteiro segue com o nome como está),
+  mês/ano e o **roteiro avaliado** com cidade, que leva à página do roteiro.
+- Só entram avaliações de roteiros ativos. Sem nenhuma avaliação elegível, a seção não aparece. Com 1
+  ou 2, os cards ficam centralizados.
+- Detalhes técnicos: `SPEC.md` §68.
+
+### ✅ Home — "Novos Roteiros" e "Novas Embarcações" no lugar dos rankings de avaliação (24/10/2026)
+
+- **Motivo:** as seções "Roteiros Mais Bem Avaliados" e "Embarcações Mais Bem Avaliadas" só exibiam
+  itens com avaliação e sumiam sem nenhuma — no lançamento a home ficaria sem vitrine.
+- **Agora:** **"Novos Roteiros"** mostra os 3 últimos roteiros ativos cadastrados e **"Novas
+  Embarcações"** as 4 últimas embarcações ativas cadastradas que têm ao menos um roteiro ativo (o card
+  leva aos roteiros da embarcação). Mais novos primeiro. O card mostra a nota quando já houver
+  avaliação, senão o selo "Novo". A troca da lista pela região do usuário (quando o navegador já tem
+  localização liberada) fica desligada enquanto durar este modo.
+- **To-do:** voltar aos rankings "Mais Bem Avaliados" quando houver avaliações suficientes — ver
+  Roadmap (§12).
+- Detalhes técnicos: `SPEC.md` §69.
+
 ## 11. Não Incluído no MVP
 
 - Chat em tempo real
@@ -2113,6 +2218,10 @@ sociais, campanhas, links diretos), quem navega e como o funil de reserva conver
 - Seguro para locação
 - App mobile (React Native)
 - Sistema de reputação avançado
+- **TODO — Home de volta aos rankings de avaliação:** quando houver avaliações suficientes, trocar
+  "Novos Roteiros" / "Novas Embarcações" de volta para "Roteiros Mais Bem Avaliados" / "Embarcações
+  Mais Bem Avaliadas" (ranking bayesiano, com troca por proximidade). Passo a passo no `TODO(avaliações)`
+  de `FeaturedChartersSection` e `TopRatedSection` e em `SPEC.md` §69.
 - **Relatório de atendimentos da equipe** (§6.13): a nível de gestor, quantos atendimentos cada
   membro (incluindo o próprio gestor) fez num determinado mês — `reserva_atendente ⨝ reserva`
   agrupado por membro. Modelo de dados já preparado (índice `reserva_atendente_membro_idx`).

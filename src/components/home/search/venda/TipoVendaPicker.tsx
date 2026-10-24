@@ -56,12 +56,12 @@ export default function TipoVendaPicker({ options, value, onChange, isOpen, onOp
                     onClose();
                   }}
                   className={`w-full flex items-center gap-2.5 text-left rounded-xl px-3 py-2.5 text-sm transition-colors ${
-                    active ? 'bg-slate-100 font-semibold text-[#0B2447]' : 'text-slate-700 hover:bg-slate-50'
+                    active ? 'bg-slate-100 font-semibold text-marinho' : 'text-slate-700 hover:bg-slate-50'
                   }`}
                 >
-                  <Ship className={`h-4 w-4 shrink-0 ${active ? 'text-[#0B3D91]' : 'text-slate-400'}`} />
+                  <Ship className={`h-4 w-4 shrink-0 ${active ? 'text-marinho' : 'text-slate-400'}`} />
                   <span className="flex-1 truncate">{tipo.nome}</span>
-                  {active && <Check className="h-4 w-4 text-[#0B3D91] shrink-0" />}
+                  {active && <Check className="h-4 w-4 text-marinho shrink-0" />}
                 </button>
               );
             })

@@ -10,6 +10,8 @@ export type LocalResult = {
   longitude: number | null;
   /** Tem roteiro ativo saindo daqui ou embarcação ativa localizada aqui. */
   temOfertas: boolean;
+  /** Quantidade de roteiros ativos com ponto de saída aqui. */
+  totalRoteiros: number;
 };
 
 /**
@@ -20,6 +22,8 @@ export type LocalResult = {
  *    municípios do país: o cliente pode buscar um lugar onde ainda não há
  *    oferta — a busca então avisa "O Boatzy ainda não possui…". Os que têm
  *    roteiro (ponto de saída) ou embarcação (localização) ativos vêm primeiro.
+ *  - `?populares=1` — os 5 municípios com mais roteiros ativos (ponto de
+ *    saída), mostrados assim que o campo abre, antes de digitar.
  *
  * O "Próximo de mim" não passa por aqui: a busca usa a coordenada do usuário com
  * raio (o município de centro mais próximo nem sempre é o município onde ele
@@ -42,7 +46,8 @@ function normalizar(s: string): string {
 const TTL_MUNICIPIOS_MS = 24 * 60 * 60 * 1000;
 const TTL_OFERTAS_MS = 5 * 60 * 1000;
 let cacheMunicipios: { em: number; lista: Municipio[] } | null = null;
-let cacheOfertas: { em: number; ids: Set<number> } | null = null;
+type Ofertas = { ids: Set<number>; roteirosPorMunicipio: Map<number, number> };
+let cacheOfertas: { em: number; ofertas: Ofertas } | null = null;
 
 async function carregarMunicipios(): Promise<Municipio[]> {
   if (cacheMunicipios && Date.now() - cacheMunicipios.em < TTL_MUNICIPIOS_MS) return cacheMunicipios.lista;
@@ -84,42 +89,71 @@ async function carregarMunicipios(): Promise<Municipio[]> {
   return lista;
 }
 
-/** Municípios com roteiro ativo (ponto de saída) ou embarcação ativa (localização). */
-async function municipiosComOfertas(): Promise<Set<number>> {
-  if (cacheOfertas && Date.now() - cacheOfertas.em < TTL_OFERTAS_MS) return cacheOfertas.ids;
+/**
+ * Municípios com roteiro ativo (ponto de saída) ou embarcação ativa
+ * (localização), e quantos roteiros ativos saem de cada um.
+ */
+async function municipiosComOfertas(): Promise<Ofertas> {
+  if (cacheOfertas && Date.now() - cacheOfertas.em < TTL_OFERTAS_MS) return cacheOfertas.ofertas;
   const [roteiros, embarcacoes] = await Promise.all([
     supabaseAdmin.from('roteiro').select('municipio_id').eq('ativo', true).not('municipio_id', 'is', null),
     supabaseAdmin.from('embarcacao').select('municipio_id').eq('status', 'ativo').not('municipio_id', 'is', null),
   ]);
   const ids = new Set<number>();
-  for (const r of [...(roteiros.data ?? []), ...(embarcacoes.data ?? [])]) {
-    if (r.municipio_id != null) ids.add(r.municipio_id);
+  const roteirosPorMunicipio = new Map<number, number>();
+  for (const r of roteiros.data ?? []) {
+    if (r.municipio_id == null) continue;
+    ids.add(r.municipio_id);
+    roteirosPorMunicipio.set(r.municipio_id, (roteirosPorMunicipio.get(r.municipio_id) ?? 0) + 1);
   }
-  cacheOfertas = { em: Date.now(), ids };
-  return ids;
+  for (const e of embarcacoes.data ?? []) {
+    if (e.municipio_id != null) ids.add(e.municipio_id);
+  }
+  const ofertas = { ids, roteirosPorMunicipio };
+  cacheOfertas = { em: Date.now(), ofertas };
+  return ofertas;
 }
 
-function paraResultado(m: Municipio, ofertas: Set<number>): LocalResult {
+function paraResultado(m: Municipio, ofertas: Ofertas): LocalResult {
   return {
     id: m.id, nome: m.nome, uf: m.uf, estado: m.estado,
     latitude: m.latitude, longitude: m.longitude,
-    temOfertas: ofertas.has(m.id),
+    temOfertas: ofertas.ids.has(m.id),
+    totalRoteiros: ofertas.roteirosPorMunicipio.get(m.id) ?? 0,
   };
+}
+
+const TOTAL_POPULARES = 5;
+
+/** Os municípios com mais roteiros ativos; empate → A–Z. */
+async function populares(): Promise<LocalResult[]> {
+  const [municipios, ofertas] = await Promise.all([carregarMunicipios(), municipiosComOfertas()]);
+  const porId = new Map(municipios.map((m) => [m.id, m]));
+  return [...ofertas.roteirosPorMunicipio.keys()]
+    .flatMap((id) => {
+      const m = porId.get(id);
+      return m ? [paraResultado(m, ofertas)] : [];
+    })
+    .sort((a, b) => b.totalRoteiros - a.totalRoteiros || a.nome.localeCompare(b.nome, 'pt'))
+    .slice(0, TOTAL_POPULARES);
 }
 
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
   const q = normalizar(searchParams.get('q') ?? '');
-  if (q.length < 2) return NextResponse.json([]);
+  const querPopulares = searchParams.get('populares') === '1';
+  if (!querPopulares && q.length < 2) return NextResponse.json([]);
 
   try {
+    if (querPopulares) return NextResponse.json(await populares());
+
     const [municipios, ofertas] = await Promise.all([carregarMunicipios(), municipiosComOfertas()]);
 
     // Ordem: com oferta primeiro; depois quem começa com o texto; depois A–Z.
     const resultados = municipios
       .filter((m) => m.chave.includes(q))
       .sort((a, b) =>
-        Number(ofertas.has(b.id)) - Number(ofertas.has(a.id))
+        Number(ofertas.ids.has(b.id)) - Number(ofertas.ids.has(a.id))
         || Number(b.chave.startsWith(q)) - Number(a.chave.startsWith(q))
         || a.nome.localeCompare(b.nome, 'pt'))
       .slice(0, 8)

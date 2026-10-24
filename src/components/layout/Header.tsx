@@ -143,12 +143,12 @@ export default function Header() {
             <Link
               href="/painel"
               onClick={() => { if (!isGestor) rastrear('clique_anunciar', { posicao: 'header' }); }}
-              className="group hidden md:inline-flex items-center gap-2 rounded-full bg-[#0B2447] py-1.5 pl-1.5 pr-4 text-sm font-semibold text-white shadow-sm ring-1 ring-[#0B2447]/10 transition-all duration-200 hover:bg-[#0B3D91] hover:shadow-md hover:shadow-[#0B3D91]/25 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#0B3D91]"
+              className="group hidden md:inline-flex items-center gap-2 rounded-full bg-marinho py-1.5 pl-1.5 pr-4 text-sm font-semibold text-white shadow-sm ring-1 ring-marinho/10 transition-all duration-200 hover:bg-marinho-escuro hover:shadow-md hover:shadow-marinho/25 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-marinho"
             >
               <span className="flex h-7 w-7 items-center justify-center rounded-full bg-white/10 ring-1 ring-white/15 transition-colors group-hover:bg-white/15">
                 {isGestor
-                  ? <Anchor className="h-3.5 w-3.5 text-cyan-300" strokeWidth={2} />
-                  : <Megaphone className="h-3.5 w-3.5 text-cyan-300" strokeWidth={2} />}
+                  ? <Anchor className="h-3.5 w-3.5 text-turquesa" strokeWidth={2} />
+                  : <Megaphone className="h-3.5 w-3.5 text-turquesa" strokeWidth={2} />}
               </span>
               {isGestor ? 'Minhas embarcações' : 'Anuncie sua embarcação'}
               <ArrowUpRight className="-ml-0.5 h-3.5 w-3.5 -translate-x-1 opacity-0 transition-all duration-200 group-hover:translate-x-0 group-hover:opacity-80" />
@@ -196,16 +196,16 @@ export default function Header() {
               </Link>
               <Link href="/vendas" onClick={() => setMobileMenuOpen(false)} className="flex items-center gap-1.5 px-3 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-50 rounded-lg">
                 Vendas
-                <span className="flex h-4 w-4 items-center justify-center rounded-full bg-gradient-to-br from-[#0B3D91] to-cyan-400 text-white">
+                <span className="flex h-4 w-4 items-center justify-center rounded-full bg-gradient-to-br from-marinho to-turquesa text-white">
                   <Tag className="h-2.5 w-2.5" />
                 </span>
               </Link>
               <Link
                 href="/painel"
                 onClick={() => { setMobileMenuOpen(false); if (!isGestor) rastrear('clique_anunciar', { posicao: 'menu_mobile' }); }}
-                className="mx-3 mt-2 flex items-center justify-center gap-2 rounded-full bg-[#0B2447] px-4 py-2.5 text-sm font-semibold text-white"
+                className="mx-3 mt-2 flex items-center justify-center gap-2 rounded-full bg-marinho px-4 py-2.5 text-sm font-semibold text-white"
               >
-                {isGestor ? <Anchor className="h-4 w-4 text-cyan-300" /> : <Megaphone className="h-4 w-4 text-cyan-300" />}
+                {isGestor ? <Anchor className="h-4 w-4 text-turquesa" /> : <Megaphone className="h-4 w-4 text-turquesa" />}
                 {isGestor ? 'Minhas embarcações' : 'Anuncie sua embarcação'}
               </Link>
               <hr className="border-slate-100 my-1" />
@@ -217,7 +217,7 @@ export default function Header() {
                   <Link
                     href={entrarUrl}
                     onClick={() => setMobileMenuOpen(false)}
-                    className="flex items-center gap-3 rounded-xl bg-[#0B3D91] px-4 py-3 text-sm font-semibold text-white"
+                    className="flex items-center gap-3 rounded-xl bg-marinho px-4 py-3 text-sm font-semibold text-white"
                   >
                     <User className="h-4 w-4" />
                     Entrar como Cliente
@@ -225,7 +225,7 @@ export default function Header() {
                   <Link
                     href="/painel"
                     onClick={() => setMobileMenuOpen(false)}
-                    className="flex items-center gap-3 rounded-xl border border-slate-200 px-4 py-3 text-sm font-semibold text-[#0B2447]"
+                    className="flex items-center gap-3 rounded-xl border border-slate-200 px-4 py-3 text-sm font-semibold text-marinho"
                   >
                     <Briefcase className="h-4 w-4" />
                     Entrar como Proprietário
@@ -239,12 +239,12 @@ export default function Header() {
                     {avatarUrl ? (
                       <Image src={avatarUrl} alt={displayName} width={40} height={40} className="h-10 w-10 shrink-0 rounded-full object-cover" />
                     ) : (
-                      <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#0B2447] text-xs font-bold tracking-wide text-white">
+                      <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-marinho text-xs font-bold tracking-wide text-white">
                         {identificacaoUsuario(displayName, user.email ?? '').iniciais}
                       </span>
                     )}
                     <div className="min-w-0">
-                      <p className="truncate text-sm font-semibold text-[#0B2447]">{displayName || 'Minha conta'}</p>
+                      <p className="truncate text-sm font-semibold text-marinho">{displayName || 'Minha conta'}</p>
                       {user.email && <p className="truncate text-xs text-slate-400">{user.email}</p>}
                     </div>
                   </div>

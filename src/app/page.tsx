@@ -1,9 +1,9 @@
 import Header from '@/components/layout/Header';
 import Footer from '@/components/layout/Footer';
 import HeroSection from '@/components/home/HeroSection';
-import TrustBadges from '@/components/home/TrustBadges';
 import TopRatedSection from '@/components/home/TopRatedSection';
 import FeaturedChartersSection from '@/components/home/FeaturedChartersSection';
+import AvaliacoesHomeSection from '@/components/home/AvaliacoesHomeSection';
 import BenefitsSection from '@/components/home/BenefitsSection';
 import MomentsSection from '@/components/home/MomentsSection';
 import { getTiposEmbarcacaoComRoteiro } from '@/lib/tipos-embarcacao';
@@ -24,9 +24,9 @@ export default async function HomePage() {
           tiposVenda={filtrosVenda.tipos}
           locaisVenda={filtrosVenda.locais}
         />
-        <TrustBadges />
         <FeaturedChartersSection />
         <TopRatedSection />
+        <AvaliacoesHomeSection />
         <BenefitsSection />
         <MomentsSection />
       </main>

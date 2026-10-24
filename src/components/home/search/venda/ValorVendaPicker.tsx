@@ -18,8 +18,8 @@ type Props = {
 };
 
 const inputCls = `w-full rounded-xl border border-slate-200 pl-8 pr-3 py-2 text-sm text-slate-800
-  placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-[#0B2447]/20
-  focus:border-[#0B2447]/40 transition bg-white`;
+  placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-marinho/20
+  focus:border-marinho/40 transition bg-white`;
 
 export default function ValorVendaPicker({ value, onChange, isOpen, onOpen, onClose, compact }: Props) {
   const [draft, setDraft] = useState<ValorVendaValue>(value);
@@ -103,7 +103,7 @@ export default function ValorVendaPicker({ value, onChange, isOpen, onOpen, onCl
             <button
               type="button"
               onClick={aplicar}
-              className="px-4 py-2 rounded-xl bg-[#0B2447] hover:bg-[#0B3D91] text-white text-xs font-semibold transition-colors"
+              className="px-4 py-2 rounded-xl bg-marinho hover:bg-marinho-escuro text-white text-xs font-semibold transition-colors"
             >
               Aplicar
             </button>

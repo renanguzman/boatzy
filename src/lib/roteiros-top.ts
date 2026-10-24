@@ -1,6 +1,7 @@
 import 'server-only';
 
 import { supabaseAdmin } from '@/lib/supabase';
+import { getAvaliacoesResumoPorRoteiro } from '@/lib/avaliacoes';
 import type { RoteiroCardData } from '@/app/buscar/_components/RoteiroCard';
 
 /** Dados do card + agregado de avaliações do ranking. */
@@ -79,6 +80,34 @@ export async function getRoteirosTopAvaliados(opts: {
     if (!d) return [];
     return [{ ...d, media: Number(row.media), total: Number(row.total) }];
   });
+}
+
+/**
+ * Últimos roteiros ativos cadastrados (mais novos primeiro), com o agregado
+ * de avaliações quando houver (total 0 → card mostra "Novo"). Usado na home
+ * enquanto a plataforma ainda não tem avaliações — ver TODO em
+ * `FeaturedChartersSection`.
+ */
+export async function getRoteirosRecentes(limit = 3): Promise<RoteiroTopCard[]> {
+  const { data, error } = await supabaseAdmin
+    .from('roteiro')
+    .select(
+      `id, nome, descricao, quantidade_pessoas, preco_minimo_cliente, preco_minimo_modelo, duracao,
+       municipios ( nome, estados ( uf ) ),
+       roteiro_imagens ( url_imagem, principal ),
+       embarcacao ( embarcacao_tipo ( nome ) )`,
+    )
+    .eq('ativo', true)
+    .order('created_at', { ascending: false })
+    .limit(limit);
+  if (error) {
+    console.error('[roteiros-top] falha ao buscar roteiros recentes:', error);
+    return [];
+  }
+
+  const roteiros = (data ?? []) as unknown as RoteiroCardData[];
+  const resumo = await getAvaliacoesResumoPorRoteiro(roteiros.map((r) => r.id));
+  return roteiros.map((r) => ({ ...r, media: resumo.get(r.id)?.media ?? 0, total: resumo.get(r.id)?.total ?? 0 }));
 }
 
 /** Ids de roteiros favoritados pelo usuário dentre os listados. */

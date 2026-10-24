@@ -128,7 +128,7 @@ export default function GuestPicker({
             >
               <Minus className="h-4 w-4" />
             </button>
-            <div className="h-12 w-16 rounded-xl border-2 border-[#0B3D91] flex items-center justify-center">
+            <div className="h-12 w-16 rounded-xl border-2 border-marinho flex items-center justify-center">
               <span className="text-xl font-semibold text-slate-800">{value}</span>
             </div>
             <button

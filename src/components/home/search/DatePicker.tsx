@@ -132,9 +132,9 @@ function MonthCalendar({ year, month, selected, flexibility, today, onSelect, is
                   : isUnavailable
                   ? 'text-slate-300 line-through cursor-default'
                   : isSelected
-                  ? 'bg-[#0B3D91] text-white font-semibold shadow'
+                  ? 'bg-marinho text-white font-semibold shadow'
                   : inRange
-                  ? 'bg-cyan-100 text-cyan-800 hover:bg-cyan-200'
+                  ? 'bg-turquesa/15 text-marinho hover:bg-turquesa/25'
                   : 'text-slate-700 hover:bg-slate-100',
               ].join(' ')}
             >

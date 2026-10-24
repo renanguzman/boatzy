@@ -51,7 +51,7 @@ export default function UserMenu({ displayName, email, avatarUrl, naoLidas = 0, 
         aria-haspopup="menu"
         aria-expanded={open}
         aria-label={`Menu da conta de ${primeiroNome}`}
-        className="relative flex items-center gap-2 rounded-full border border-slate-200 p-1 pr-3 hover:border-[#0B3D91]/40 hover:shadow-sm transition-all"
+        className="relative flex items-center gap-2 rounded-full border border-slate-200 p-1 pr-3 hover:border-marinho/40 hover:shadow-sm transition-all"
       >
         {avatarUrl ? (
           <Image
@@ -62,11 +62,11 @@ export default function UserMenu({ displayName, email, avatarUrl, naoLidas = 0, 
             className="rounded-full w-8 h-8 object-cover"
           />
         ) : (
-          <div className="w-8 h-8 rounded-full bg-[#0B2447] flex items-center justify-center">
+          <div className="w-8 h-8 rounded-full bg-marinho flex items-center justify-center">
             <span className="text-white text-[11px] font-bold tracking-wide">{iniciais}</span>
           </div>
         )}
-        <span className="max-w-[7.5rem] truncate text-sm font-semibold text-[#0B2447]">{primeiroNome}</span>
+        <span className="max-w-[7.5rem] truncate text-sm font-semibold text-marinho">{primeiroNome}</span>
         <ChevronDown className={`h-3.5 w-3.5 text-slate-400 transition-transform ${open ? 'rotate-180' : ''}`} />
         {naoLidas > 0 && (
           <span
@@ -85,7 +85,7 @@ export default function UserMenu({ displayName, email, avatarUrl, naoLidas = 0, 
         >
           {/* Cabeçalho do usuário */}
           <div className="px-4 py-3 border-b border-slate-100">
-            <p className="text-sm font-semibold text-[#0B2447] truncate">{displayName || 'Minha conta'}</p>
+            <p className="text-sm font-semibold text-marinho truncate">{displayName || 'Minha conta'}</p>
             {email && <p className="text-xs text-slate-400 truncate">{email}</p>}
           </div>
 
@@ -94,7 +94,7 @@ export default function UserMenu({ displayName, email, avatarUrl, naoLidas = 0, 
               href="/minha-conta"
               onClick={() => setOpen(false)}
               role="menuitem"
-              className="flex items-center gap-3 px-4 py-2.5 text-sm text-slate-700 hover:bg-slate-50 hover:text-[#0B3D91] transition-colors"
+              className="flex items-center gap-3 px-4 py-2.5 text-sm text-slate-700 hover:bg-slate-50 hover:text-marinho transition-colors"
             >
               <UserCog className="h-4 w-4 text-slate-400" />
               Minha conta
@@ -103,7 +103,7 @@ export default function UserMenu({ displayName, email, avatarUrl, naoLidas = 0, 
               href="/minhas-conversas"
               onClick={() => setOpen(false)}
               role="menuitem"
-              className="flex items-center gap-3 px-4 py-2.5 text-sm text-slate-700 hover:bg-slate-50 hover:text-[#0B3D91] transition-colors"
+              className="flex items-center gap-3 px-4 py-2.5 text-sm text-slate-700 hover:bg-slate-50 hover:text-marinho transition-colors"
             >
               <MessageCircle className="h-4 w-4 text-slate-400" />
               Minhas conversas
@@ -117,7 +117,7 @@ export default function UserMenu({ displayName, email, avatarUrl, naoLidas = 0, 
               href="/minhas-reservas"
               onClick={() => setOpen(false)}
               role="menuitem"
-              className="flex items-center gap-3 px-4 py-2.5 text-sm text-slate-700 hover:bg-slate-50 hover:text-[#0B3D91] transition-colors"
+              className="flex items-center gap-3 px-4 py-2.5 text-sm text-slate-700 hover:bg-slate-50 hover:text-marinho transition-colors"
             >
               <CalendarCheck className="h-4 w-4 text-slate-400" />
               Minhas reservas
@@ -126,7 +126,7 @@ export default function UserMenu({ displayName, email, avatarUrl, naoLidas = 0, 
               href="/favoritos"
               onClick={() => setOpen(false)}
               role="menuitem"
-              className="flex items-center gap-3 px-4 py-2.5 text-sm text-slate-700 hover:bg-slate-50 hover:text-[#0B3D91] transition-colors"
+              className="flex items-center gap-3 px-4 py-2.5 text-sm text-slate-700 hover:bg-slate-50 hover:text-marinho transition-colors"
             >
               <Heart className="h-4 w-4 text-slate-400" />
               Favoritos
