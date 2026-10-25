@@ -16,7 +16,7 @@ function Estrelas({ nota, tamanho = 'h-4 w-4' }: { nota: number; tamanho?: strin
       {[1, 2, 3, 4, 5].map((n) => (
         <Star
           key={n}
-          className={`${tamanho} ${n <= Math.round(nota) ? 'fill-amber-400 text-amber-400' : 'text-slate-300'}`}
+          className={`${tamanho} ${n <= Math.round(nota) ? 'fill-destaque text-destaque' : 'text-slate-300'}`}
         />
       ))}
     </span>
@@ -43,11 +43,11 @@ export default function AvaliacoesSection({
   return (
     <div>
       <div className="flex items-center justify-between mb-6 flex-wrap gap-2">
-        <h2 className="text-xl font-bold text-[#0B2447]">Avaliações</h2>
+        <h2 className="text-xl font-bold text-marinho">Avaliações</h2>
         {avaliacoes.length > 0 && (
           <div className="flex items-center gap-2">
             <Estrelas nota={media} />
-            <span className="text-sm font-bold text-[#0B2447]">
+            <span className="text-sm font-bold text-marinho">
               {media.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}
             </span>
             <span className="text-sm text-slate-400">
@@ -85,7 +85,7 @@ export default function AvaliacoesSection({
                   )}
                 </div>
                 <div className="min-w-0 flex-1">
-                  <p className="text-sm font-semibold text-[#0B2447] truncate">
+                  <p className="text-sm font-semibold text-marinho truncate">
                     {a.cliente?.name ?? 'Cliente Boatzy'}
                   </p>
                   <p className="text-xs text-slate-400">

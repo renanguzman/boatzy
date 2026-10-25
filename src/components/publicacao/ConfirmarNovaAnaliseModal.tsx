@@ -22,7 +22,7 @@ export default function ConfirmarNovaAnaliseModal({ campos, onConfirmar, onCance
             <AlertTriangle className="h-5 w-5 text-amber-500" />
           </div>
           <div>
-            <h3 className="text-base font-bold text-[#0B2447]">Enviar para nova análise?</h3>
+            <h3 className="text-base font-bold text-marinho">Enviar para nova análise?</h3>
             <p className="mt-0.5 text-sm text-slate-500">
               Estas alterações precisam ser aprovadas pela equipe Boatzy. Ao salvar, o cadastro
               <strong> sai do site</strong> até a aprovação.

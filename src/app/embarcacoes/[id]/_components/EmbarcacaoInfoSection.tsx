@@ -41,16 +41,16 @@ export default function EmbarcacaoInfoSection({ embarcacao }: { embarcacao: Emba
     <>
       {/* Badges */}
       <div className="flex flex-wrap gap-2 mb-4">
-        <span className="inline-flex items-center gap-1 text-xs font-medium text-cyan-700 bg-cyan-50 px-3 py-1.5 rounded-full">
+        <span className="inline-flex items-center gap-1 text-xs font-medium text-turquesa-escuro bg-turquesa/10 px-3 py-1.5 rounded-full">
           <Award className="h-3 w-3" />
           Novo
         </span>
-        <span className="inline-flex items-center gap-1 text-xs font-medium text-emerald-700 bg-emerald-50 px-3 py-1.5 rounded-full">
+        <span className="inline-flex items-center gap-1 text-xs font-medium text-turquesa-escuro bg-turquesa/10 px-3 py-1.5 rounded-full">
           <BadgeCheck className="h-3 w-3" />
           Embarcação Verificada
         </span>
         {embarcacao.embarcacao_tipo && (
-          <span className="inline-flex items-center gap-1 text-xs font-medium text-[#0B3D91] bg-[#0B3D91]/10 px-3 py-1.5 rounded-full">
+          <span className="inline-flex items-center gap-1 text-xs font-medium text-marinho bg-marinho/10 px-3 py-1.5 rounded-full">
             <Anchor className="h-3 w-3" />
             {embarcacao.embarcacao_tipo.nome}
           </span>
@@ -58,7 +58,7 @@ export default function EmbarcacaoInfoSection({ embarcacao }: { embarcacao: Emba
       </div>
 
       {/* Title & location */}
-      <h1 className="text-3xl md:text-4xl font-bold text-[#0B2447] mb-2">
+      <h1 className="text-3xl md:text-4xl font-bold text-marinho mb-2">
         {embarcacao.nome}
       </h1>
       {localidade && (
@@ -81,11 +81,11 @@ export default function EmbarcacaoInfoSection({ embarcacao }: { embarcacao: Emba
           {specs.map(({ icon: Icon, label, value }) => (
             <div key={label} className="flex items-center gap-3 min-w-0">
               <div className="h-10 w-10 rounded-xl bg-slate-100 flex items-center justify-center shrink-0">
-                <Icon className="h-4 w-4 text-[#0B3D91]" />
+                <Icon className="h-4 w-4 text-marinho" />
               </div>
               <div className="min-w-0">
                 <p className="text-[10px] text-slate-500 uppercase tracking-wider font-medium">{label}</p>
-                <p className="text-sm font-semibold text-slate-800 truncate">{value}</p>
+                <p className="text-sm font-semibold text-grafite truncate">{value}</p>
               </div>
             </div>
           ))}
@@ -102,8 +102,8 @@ export function EmbarcacaoItensSection({ embarcacao }: { embarcacao: EmbarcacaoI
       {/* Equipamentos de segurança */}
       {embarcacao.embarcacao_equipamentos_seguranca.length > 0 && (
         <div className="mb-10">
-          <h2 className="text-xl font-bold text-[#0B2447] mb-4 flex items-center gap-2">
-            <ShieldCheck className="h-5 w-5 text-[#0B3D91]" />
+          <h2 className="text-xl font-bold text-marinho mb-4 flex items-center gap-2">
+            <ShieldCheck className="h-5 w-5 text-marinho" />
             Equipamentos de Segurança
           </h2>
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
@@ -113,7 +113,7 @@ export function EmbarcacaoItensSection({ embarcacao }: { embarcacao: EmbarcacaoI
                   key={i}
                   className="flex items-center gap-2.5 p-3 rounded-xl border border-slate-100 bg-slate-50/60"
                 >
-                  <CheckCircle2 className="h-4 w-4 text-[#0B3D91] shrink-0" />
+                  <CheckCircle2 className="h-4 w-4 text-marinho shrink-0" />
                   <span className="text-sm text-slate-700 leading-tight">{ee.equipamentos_seguranca.nome}</span>
                 </div>
               ) : null,
@@ -125,8 +125,8 @@ export function EmbarcacaoItensSection({ embarcacao }: { embarcacao: EmbarcacaoI
       {/* Acessórios */}
       {embarcacao.embarcacao_acessorios.length > 0 && (
         <div className="mb-10">
-          <h2 className="text-xl font-bold text-[#0B2447] mb-4 flex items-center gap-2">
-            <Waves className="h-5 w-5 text-[#0B3D91]" />
+          <h2 className="text-xl font-bold text-marinho mb-4 flex items-center gap-2">
+            <Waves className="h-5 w-5 text-marinho" />
             Acessórios da Embarcação
           </h2>
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
@@ -136,7 +136,7 @@ export function EmbarcacaoItensSection({ embarcacao }: { embarcacao: EmbarcacaoI
                   key={i}
                   className="flex items-center gap-2.5 p-3 rounded-xl border border-slate-100 bg-slate-50/60"
                 >
-                  <CheckCircle2 className="h-4 w-4 text-[#0B3D91] shrink-0" />
+                  <CheckCircle2 className="h-4 w-4 text-marinho shrink-0" />
                   <span className="text-sm text-slate-700 leading-tight">{ea.acessorios.nome}</span>
                 </div>
               ) : null,
@@ -148,7 +148,7 @@ export function EmbarcacaoItensSection({ embarcacao }: { embarcacao: EmbarcacaoI
       {/* Comodidades */}
       {embarcacao.embarcacao_comodidades.length > 0 && (
         <div className="mb-10">
-          <h2 className="text-xl font-bold text-[#0B2447] mb-4">Comodidades a bordo</h2>
+          <h2 className="text-xl font-bold text-marinho mb-4">Comodidades a bordo</h2>
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
             {embarcacao.embarcacao_comodidades.map((ec, i) =>
               ec.comodidade ? (
@@ -156,7 +156,7 @@ export function EmbarcacaoItensSection({ embarcacao }: { embarcacao: EmbarcacaoI
                   key={i}
                   className="flex items-center gap-2.5 p-3 rounded-xl border border-slate-100 bg-slate-50/60"
                 >
-                  <CheckCircle2 className="h-4 w-4 text-emerald-500 shrink-0" />
+                  <CheckCircle2 className="h-4 w-4 text-turquesa shrink-0" />
                   <span className="text-sm text-slate-700 leading-tight">{ec.comodidade.nome}</span>
                 </div>
               ) : null,

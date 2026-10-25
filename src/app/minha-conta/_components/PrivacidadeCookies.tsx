@@ -17,12 +17,12 @@ export default function PrivacidadeCookies() {
   return (
     <div id="privacidade" className="scroll-mt-32 rounded-2xl border border-slate-100 bg-white p-6 shadow-sm sm:p-8">
       <div className="flex items-center gap-2">
-        <Cookie className="h-5 w-5 text-[#0B3D91]" />
-        <h3 className="text-base font-bold text-[#0B2447]">Privacidade e cookies</h3>
+        <Cookie className="h-5 w-5 text-marinho" />
+        <h3 className="text-base font-bold text-marinho">Privacidade e cookies</h3>
       </div>
       <p className="mt-0.5 text-sm text-slate-500">
         Veja e altere o que o Boatzy pode usar neste navegador.{' '}
-        <Link href="/privacy#cookies" className="font-semibold text-[#0B3D91] hover:underline">
+        <Link href="/privacy#cookies" className="font-semibold text-marinho hover:underline">
           Política de Privacidade
         </Link>
       </p>
@@ -35,7 +35,7 @@ export default function PrivacidadeCookies() {
           <p className="text-slate-700">
             <span className="font-medium">Medição (Google Analytics):</span>{' '}
             {pronto && (
-              <span className={medicao ? 'font-semibold text-emerald-600' : 'text-slate-500'}>
+              <span className={medicao ? 'font-semibold text-turquesa-escuro' : 'text-slate-500'}>
                 {medicao ? 'permitida' : 'não permitida'}
               </span>
             )}
@@ -47,7 +47,7 @@ export default function PrivacidadeCookies() {
         <button
           type="button"
           onClick={() => setAberto(true)}
-          className="shrink-0 rounded-xl border border-[#0B3D91] px-5 py-2.5 text-sm font-semibold text-[#0B3D91] transition-colors hover:bg-[#0B3D91]/5"
+          className="shrink-0 rounded-xl border border-marinho px-5 py-2.5 text-sm font-semibold text-marinho transition-colors hover:bg-marinho/5"
         >
           Gerenciar cookies
         </button>

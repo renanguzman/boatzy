@@ -24,7 +24,7 @@ function Estrelas({ nota, tamanho = 'h-4 w-4' }: { nota: number; tamanho?: strin
       {[1, 2, 3, 4, 5].map((n) => (
         <Star
           key={n}
-          className={`${tamanho} ${n <= nota ? 'fill-amber-400 text-amber-400' : 'text-slate-300'}`}
+          className={`${tamanho} ${n <= nota ? 'fill-destaque text-destaque' : 'text-slate-300'}`}
         />
       ))}
     </span>
@@ -72,7 +72,7 @@ export default function AvaliacaoReserva({ reservaId, avaliacao }: Props) {
       <button
         type="button"
         onClick={() => setAberto(true)}
-        className="inline-flex items-center gap-1.5 rounded-xl bg-[#0B3D91] hover:bg-[#092E6E] text-white px-4 py-2 text-sm font-semibold transition-colors"
+        className="inline-flex items-center gap-1.5 rounded-xl bg-marinho hover:bg-marinho-escuro text-white px-4 py-2 text-sm font-semibold transition-colors"
       >
         <Star className="h-4 w-4" />
         Avaliar experiência
@@ -98,7 +98,7 @@ export default function AvaliacaoReserva({ reservaId, avaliacao }: Props) {
 
   return (
     <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
-      <p className="text-sm font-semibold text-[#0B2447] mb-2">Como foi sua experiência?</p>
+      <p className="text-sm font-semibold text-marinho mb-2">Como foi sua experiência?</p>
 
       <div className="flex items-center gap-1 mb-3" onMouseLeave={() => setHover(0)}>
         {[1, 2, 3, 4, 5].map((n) => (
@@ -112,7 +112,7 @@ export default function AvaliacaoReserva({ reservaId, avaliacao }: Props) {
           >
             <Star
               className={`h-7 w-7 transition-colors ${
-                n <= (hover || nota) ? 'fill-amber-400 text-amber-400' : 'text-slate-300'
+                n <= (hover || nota) ? 'fill-destaque text-destaque' : 'text-slate-300'
               }`}
             />
           </button>
@@ -128,7 +128,7 @@ export default function AvaliacaoReserva({ reservaId, avaliacao }: Props) {
         maxLength={2000}
         rows={3}
         placeholder="Conte como foi o passeio (opcional)"
-        className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-[#0B3D91]/30 resize-none"
+        className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-marinho/30 resize-none"
       />
 
       {erro && <p className="mt-2 text-xs font-medium text-red-600">{erro}</p>}
@@ -138,7 +138,7 @@ export default function AvaliacaoReserva({ reservaId, avaliacao }: Props) {
           type="button"
           onClick={submeter}
           disabled={pending}
-          className="inline-flex items-center gap-1.5 rounded-xl bg-[#0B3D91] hover:bg-[#092E6E] disabled:opacity-60 text-white px-4 py-2 text-sm font-semibold transition-colors"
+          className="inline-flex items-center gap-1.5 rounded-xl bg-marinho hover:bg-marinho-escuro disabled:opacity-60 text-white px-4 py-2 text-sm font-semibold transition-colors"
         >
           {pending && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
           Enviar avaliação

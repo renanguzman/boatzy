@@ -52,11 +52,11 @@ export default async function MinhaContaPage() {
     (user.email?.split('@')[0] ?? 'Cliente');
 
   return (
-    <div className="flex min-h-screen flex-col bg-slate-50">
+    <div className="flex min-h-screen flex-col bg-areia">
       <Header />
 
       <main className="mx-auto w-full max-w-2xl flex-1 px-4 py-10">
-        <h1 className="text-2xl font-bold text-[#0B2447]">Minha conta</h1>
+        <h1 className="text-2xl font-bold text-marinho">Minha conta</h1>
         <p className="mt-1 text-sm text-slate-500">Gerencie seus dados pessoais e preferências.</p>
 
         <MinhaContaForm

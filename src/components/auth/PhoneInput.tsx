@@ -104,7 +104,7 @@ export default function PhoneInput({ onChange, disabled, invalid, initialE164 }:
   return (
     <div className="relative" ref={containerRef}>
       <div
-        className={`flex items-stretch rounded-xl border bg-slate-50/50 transition-all focus-within:ring-2 focus-within:ring-[#0B3D91]/20 focus-within:border-[#0B3D91] ${
+        className={`flex items-stretch rounded-xl border bg-slate-50/50 transition-all focus-within:ring-2 focus-within:ring-marinho/20 focus-within:border-marinho ${
           invalid ? 'border-red-300' : 'border-slate-200'
         }`}
       >
@@ -132,7 +132,7 @@ export default function PhoneInput({ onChange, disabled, invalid, initialE164 }:
             placeholder={mask.replace(/#/g, '9')}
             disabled={disabled}
             required
-            className="w-full pl-9 pr-4 py-3.5 bg-transparent text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none rounded-r-xl"
+            className="w-full pl-9 pr-4 py-3.5 bg-transparent text-sm text-grafite placeholder:text-slate-400 focus:outline-none rounded-r-xl"
           />
         </div>
       </div>
@@ -148,7 +148,7 @@ export default function PhoneInput({ onChange, disabled, invalid, initialE164 }:
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 placeholder="Buscar país ou DDI"
-                className="w-full pl-9 pr-3 py-2 rounded-lg border border-slate-200 bg-slate-50 text-sm focus:outline-none focus:ring-2 focus:ring-[#0B3D91]/20 focus:border-[#0B3D91]"
+                className="w-full pl-9 pr-3 py-2 rounded-lg border border-slate-200 bg-slate-50 text-sm focus:outline-none focus:ring-2 focus:ring-marinho/20 focus:border-marinho"
               />
             </div>
           </div>

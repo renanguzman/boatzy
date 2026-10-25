@@ -181,10 +181,10 @@ export default function VendaSidebar({
         </p>
       )}
       <div className="flex items-baseline gap-2">
-        <span className="text-3xl font-bold text-[#0B2447]">{brl.format(preco)}</span>
+        <span className="text-3xl font-bold text-marinho">{brl.format(preco)}</span>
       </div>
       {precoAnterior != null && dataReducao && (
-        <p className="flex items-center gap-1 text-xs font-semibold text-emerald-600 mt-1">
+        <p className="mt-1 inline-flex items-center gap-1 rounded-full bg-destaque/30 px-2 py-0.5 text-xs font-semibold text-marinho">
           <ArrowDownRight className="h-3.5 w-3.5" />
           Preço reduzido em {dataReducao}
         </p>
@@ -200,7 +200,7 @@ export default function VendaSidebar({
           </p>
           <Link
             href={`/painel/vendas/${anuncioId}/editar`}
-            className="inline-flex items-center gap-1.5 mt-3 text-xs font-semibold text-[#0B3D91] hover:text-[#0B2447] transition-colors"
+            className="inline-flex items-center gap-1.5 mt-3 text-xs font-semibold text-marinho hover:text-turquesa-escuro transition-colors"
           >
             <Pencil className="h-3.5 w-3.5" />
             Gerenciar anúncio no painel
@@ -216,13 +216,13 @@ export default function VendaSidebar({
                 <User className="h-5 w-5 text-slate-400" />
               </div>
               <div className="min-w-0">
-                <p className={`text-sm font-semibold truncate ${vendedor ? 'text-slate-800' : 'text-slate-400 tracking-wider'}`}>
+                <p className={`text-sm font-semibold truncate ${vendedor ? 'text-grafite' : 'text-slate-400 tracking-wider'}`}>
                   {vendedor ? vendedor.nome : vendedorNomeMascarado}
                 </p>
                 {vendedor && (
                   <a
                     href={`mailto:${vendedor.email}`}
-                    className="flex items-center gap-1 text-xs text-[#0B3D91] hover:underline truncate"
+                    className="flex items-center gap-1 text-xs text-marinho hover:underline truncate"
                   >
                     <Mail className="h-3 w-3 shrink-0" />
                     {vendedor.email}
@@ -236,7 +236,7 @@ export default function VendaSidebar({
                 type="button"
                 onClick={handleRevelar}
                 disabled={revelando}
-                className="mt-3 w-full flex items-center justify-center gap-2 py-2.5 rounded-xl bg-[#0B2447] hover:bg-[#0B3D91] text-white text-xs font-semibold transition-colors disabled:opacity-60"
+                className="mt-3 w-full flex items-center justify-center gap-2 py-2.5 rounded-xl bg-marinho hover:bg-marinho-escuro text-white text-xs font-semibold transition-colors disabled:opacity-60"
               >
                 {revelando ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Eye className="h-3.5 w-3.5" />}
                 Revelar contato do vendedor
@@ -247,14 +247,14 @@ export default function VendaSidebar({
           {/* Chat */}
           <Link
             href={`/vendas/${anuncioId}/chat`}
-            className="mt-4 w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-[#0B3D91] hover:bg-[#092E6E] text-white text-sm font-semibold transition-colors"
+            className="mt-4 w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-marinho hover:bg-marinho-escuro text-white text-sm font-semibold transition-colors"
           >
             <MessageCircle className="h-4 w-4" />
             Conversar com o vendedor
           </Link>
 
           <p className="flex items-center justify-center gap-1.5 text-[11px] text-slate-400 mt-3">
-            <ShieldCheck className="h-3.5 w-3.5 text-emerald-500" />
+            <ShieldCheck className="h-3.5 w-3.5 text-turquesa" />
             Negocie por dentro da plataforma com mais segurança
           </p>
         </>
@@ -336,8 +336,8 @@ export default function VendaSidebar({
               >
                 {copiado ? (
                   <>
-                    <Check className="h-4 w-4 text-emerald-500" />
-                    <span className="text-emerald-600 font-medium">Link copiado!</span>
+                    <Check className="h-4 w-4 text-turquesa" />
+                    <span className="text-turquesa-escuro font-medium">Link copiado!</span>
                   </>
                 ) : (
                   <>

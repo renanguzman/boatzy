@@ -95,7 +95,7 @@ function MonthCalendar({ year, month, selected, flexibility, today, onSelect, is
 
   return (
     <div className="flex-1">
-      <p className="text-center text-sm font-semibold text-slate-800 mb-3">
+      <p className="text-center text-sm font-semibold text-grafite mb-3">
         {MESES[month]} {year}
       </p>
       <div className="grid grid-cols-7 gap-y-1">
@@ -221,7 +221,7 @@ export default function DatePicker({ value, onChange, isOpen, onOpen, onClose, c
         onClick={handleOpen}
         className={`w-full text-left rounded-2xl transition-all ${
           compact ? 'px-3 py-2' : 'px-4 py-3'
-        } ${isOpen ? 'ring-2 ring-slate-800 bg-white shadow-md' : 'hover:bg-slate-50'}`}
+        } ${isOpen ? 'ring-2 ring-marinho bg-white shadow-md' : 'hover:bg-slate-50'}`}
       >
         {!semRotulo && (
           <span className={`block font-bold text-slate-500 uppercase tracking-wider mb-0.5 ${compact ? 'text-[9px]' : 'text-[10px]'}`}>
@@ -229,7 +229,7 @@ export default function DatePicker({ value, onChange, isOpen, onOpen, onClose, c
           </span>
         )}
         {value ? (
-          <span className={`font-medium text-slate-800 truncate block ${compact ? 'text-xs' : 'text-sm'}`}>
+          <span className={`font-medium text-grafite truncate block ${compact ? 'text-xs' : 'text-sm'}`}>
             {formatDateDisplay(value)}
           </span>
         ) : (
@@ -305,7 +305,7 @@ export default function DatePicker({ value, onChange, isOpen, onOpen, onClose, c
                 onClick={() => handleFlexChange(opt.value)}
                 className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-colors ${
                   tempFlex === opt.value
-                    ? 'bg-slate-800 text-white border-slate-800'
+                    ? 'bg-marinho text-white border-marinho'
                     : 'bg-white text-slate-600 border-slate-300 hover:border-slate-500'
                 }`}
               >
@@ -316,7 +316,7 @@ export default function DatePicker({ value, onChange, isOpen, onOpen, onClose, c
             <button
               type="button"
               onClick={handleClear}
-              className="text-xs text-slate-500 underline hover:text-slate-800 transition-colors"
+              className="text-xs text-slate-500 underline hover:text-grafite transition-colors"
             >
               Limpar datas
             </button>

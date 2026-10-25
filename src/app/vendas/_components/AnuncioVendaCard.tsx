@@ -109,7 +109,7 @@ export default function AnuncioVendaCard({
         {/* Selo de preço reduzido */}
         {reduzido && (
           <div className="absolute top-3 left-3">
-            <span className="flex items-center gap-1 bg-emerald-600/95 backdrop-blur-sm text-white text-[10px] font-bold px-2.5 py-1 rounded-full">
+            <span className="flex items-center gap-1 bg-destaque text-marinho text-[10px] font-bold px-2.5 py-1 rounded-full">
               <ArrowDownRight className="h-3 w-3" />
               Preço reduzido
             </span>
@@ -119,7 +119,7 @@ export default function AnuncioVendaCard({
         {/* Badge de tipo */}
         {anuncio.tipo && (
           <div className="absolute bottom-3 left-3">
-            <span className="bg-[#0B3D91]/90 backdrop-blur-sm text-white text-[10px] font-semibold px-2.5 py-1 rounded-full">
+            <span className="bg-marinho/90 backdrop-blur-sm text-white text-[10px] font-semibold px-2.5 py-1 rounded-full">
               {anuncio.tipo}
             </span>
           </div>
@@ -151,7 +151,7 @@ export default function AnuncioVendaCard({
 
       {/* Content */}
       <div className="p-4">
-        <h3 className="font-semibold text-slate-800 text-sm truncate group-hover:text-[#0B3D91] transition-colors">
+        <h3 className="font-semibold text-grafite text-sm truncate group-hover:text-marinho transition-colors">
           {anuncio.nome}
         </h3>
         <p className="text-xs text-slate-500 mt-0.5 truncate">
@@ -182,7 +182,7 @@ export default function AnuncioVendaCard({
 
         {/* Preço */}
         <div className="flex items-baseline gap-2 mt-3">
-          <span className="text-base font-bold text-[#0B2447]">{brl.format(Number(anuncio.preco))}</span>
+          <span className="text-base font-bold text-marinho">{brl.format(Number(anuncio.preco))}</span>
           {reduzido && (
             <span className="text-xs text-slate-400 line-through">
               {brl.format(Number(anuncio.precoAnterior))}

@@ -56,7 +56,7 @@ export default function EmbarcacaoDetalheView({
             {!ehDono && (
               <Link
                 href={`/embarcacoes/${embarcacao.id}/chat`}
-                className="inline-flex items-center justify-center gap-2 px-5 py-3 rounded-xl bg-[#0B3D91] hover:bg-[#092E6E] text-white text-sm font-semibold transition-colors"
+                className="inline-flex items-center justify-center gap-2 px-5 py-3 rounded-xl bg-marinho hover:bg-marinho-escuro text-white text-sm font-semibold transition-colors"
               >
                 <MessageCircle className="h-4 w-4" />
                 Converse com o dono

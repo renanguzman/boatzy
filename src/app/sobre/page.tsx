@@ -11,7 +11,7 @@ export const metadata: Metadata = {
     'O Boatzy nasceu em Florianópolis para profissionalizar o aluguel de embarcações no Brasil: reserva online, preço claro e segurança para os dois lados.',
 };
 
-const headingClass = 'text-2xl sm:text-3xl md:text-4xl font-bold text-[#0B2447] leading-tight';
+const headingClass = 'text-2xl sm:text-3xl md:text-4xl font-bold text-marinho leading-tight';
 const proseClass = 'mt-6 space-y-5 text-slate-600 leading-relaxed text-base sm:text-lg';
 
 const PRINCIPIOS = [
@@ -50,7 +50,7 @@ export default function SobrePage() {
             priority
             className="object-cover"
           />
-          <div className="absolute inset-0 bg-gradient-to-r from-[#0B2447]/95 via-[#0B2447]/75 to-[#0B2447]/40" />
+          <div className="absolute inset-0 bg-gradient-to-r from-marinho/95 via-marinho/75 to-marinho/40" />
           <div className="relative z-10 mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-20">
             <div className="max-w-2xl">
               <h1 className="text-4xl sm:text-5xl font-bold text-white leading-tight">
@@ -102,16 +102,16 @@ export default function SobrePage() {
         </section>
 
         {/* Seção 2 */}
-        <section className="py-16 md:py-24 bg-slate-50">
+        <section className="py-16 md:py-24 bg-areia">
           <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
             <h2 className={`${headingClass} text-center`}>Dois lados, uma plataforma.</h2>
 
             <div className="mt-12 grid grid-cols-1 md:grid-cols-2 gap-6">
               <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-8">
-                <div className="h-12 w-12 rounded-xl bg-[#0B3D91]/10 flex items-center justify-center mb-5">
-                  <Compass className="h-6 w-6 text-[#0B3D91]" />
+                <div className="h-12 w-12 rounded-xl bg-marinho/10 flex items-center justify-center mb-5">
+                  <Compass className="h-6 w-6 text-marinho" />
                 </div>
-                <h3 className="text-lg font-bold text-[#0B2447] mb-3">Para quem quer navegar</h3>
+                <h3 className="text-lg font-bold text-marinho mb-3">Para quem quer navegar</h3>
                 <p className="text-slate-600 leading-relaxed">
                   Você compara embarcações, vê o preço final, conhece o proprietário e lê a
                   avaliação de quem já foi — tudo antes de decidir. Reserva pela plataforma, com
@@ -120,10 +120,10 @@ export default function SobrePage() {
               </div>
 
               <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-8">
-                <div className="h-12 w-12 rounded-xl bg-[#0B3D91]/10 flex items-center justify-center mb-5">
-                  <Ship className="h-6 w-6 text-[#0B3D91]" />
+                <div className="h-12 w-12 rounded-xl bg-marinho/10 flex items-center justify-center mb-5">
+                  <Ship className="h-6 w-6 text-marinho" />
                 </div>
-                <h3 className="text-lg font-bold text-[#0B2447] mb-3">Para quem tem embarcação</h3>
+                <h3 className="text-lg font-bold text-marinho mb-3">Para quem tem embarcação</h3>
                 <p className="text-slate-600 leading-relaxed">
                   Seu barco rendendo, sem dor de cabeça. Você define preço e disponibilidade, e
                   decide quem sobe a bordo. O Boatzy cuida da divulgação, da reserva, do pagamento
@@ -141,7 +141,7 @@ export default function SobrePage() {
             <div className="relative rounded-3xl overflow-hidden">
               <div className="absolute inset-0">
                 <Image src="/images/benefits-bg.png" alt="" fill className="object-cover" />
-                <div className="absolute inset-0 bg-gradient-to-b from-[#0B2447]/95 via-[#0B2447]/92 to-[#0B2447]/95" />
+                <div className="absolute inset-0 bg-gradient-to-b from-marinho/95 via-marinho/92 to-marinho/95" />
               </div>
 
               <div className="relative z-10 p-8 md:p-12 lg:p-16">
@@ -155,8 +155,8 @@ export default function SobrePage() {
                       key={titulo}
                       className="rounded-2xl border border-white/10 bg-white/5 backdrop-blur-sm p-6"
                     >
-                      <div className="h-11 w-11 rounded-xl bg-gradient-to-br from-cyan-500/20 to-teal-500/20 flex items-center justify-center mb-4">
-                        <Icon className="h-5 w-5 text-cyan-300" />
+                      <div className="h-11 w-11 rounded-xl bg-gradient-to-br from-turquesa/25 to-turquesa/10 flex items-center justify-center mb-4">
+                        <Icon className="h-5 w-5 text-turquesa" />
                       </div>
                       <p className="text-white text-base font-semibold mb-2">{titulo}</p>
                       <p className="text-slate-300 text-sm leading-relaxed">{texto}</p>
@@ -185,7 +185,7 @@ export default function SobrePage() {
                 verificação, o fluxo de reserva e a estrutura de pagamento funcionam da mesma
                 forma em qualquer cidade litorânea, e a expansão pelo Brasil já está no plano.
               </p>
-              <p className="font-semibold text-[#0B2447]">
+              <p className="font-semibold text-marinho">
                 O objetivo é simples de enunciar e exigente de executar: tornar o Boatzy a forma
                 padrão de alugar uma embarcação no Brasil.
               </p>
@@ -194,7 +194,7 @@ export default function SobrePage() {
         </section>
 
         {/* Chamada final */}
-        <section className="py-16 md:py-24 bg-[#0B2447]">
+        <section className="py-16 md:py-24 bg-marinho">
           <div className="mx-auto max-w-4xl px-4 sm:px-6 lg:px-8 text-center">
             <h2 className="text-3xl sm:text-4xl font-bold text-white mb-12">Vem com a gente.</h2>
 
@@ -205,7 +205,7 @@ export default function SobrePage() {
                 </p>
                 <Link
                   href="/buscar"
-                  className="mt-6 inline-flex items-center justify-center gap-2 rounded-xl bg-white hover:bg-slate-100 text-[#0B2447] text-sm font-semibold px-6 py-3 transition-colors"
+                  className="mt-6 inline-flex items-center justify-center gap-2 rounded-xl bg-white hover:bg-slate-100 text-marinho text-sm font-semibold px-6 py-3 transition-colors"
                 >
                   Ver embarcações
                   <ArrowRight className="h-4 w-4" />
@@ -218,7 +218,7 @@ export default function SobrePage() {
                 </p>
                 <Link
                   href="/painel"
-                  className="mt-6 inline-flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-cyan-500 to-teal-500 hover:from-cyan-400 hover:to-teal-400 text-white text-sm font-semibold px-6 py-3 transition-all"
+                  className="mt-6 inline-flex items-center justify-center gap-2 rounded-xl bg-turquesa hover:brightness-110 text-marinho text-sm font-semibold px-6 py-3 transition-all"
                 >
                   Quero anunciar
                   <ArrowRight className="h-4 w-4" />

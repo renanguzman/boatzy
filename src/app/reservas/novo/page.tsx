@@ -213,7 +213,7 @@ export default async function NovaReservaPage({
   ]);
 
   return (
-    <div className="min-h-screen flex flex-col bg-slate-50">
+    <div className="min-h-screen flex flex-col bg-areia">
       <Header />
 
       <main className="flex-1 max-w-3xl w-full mx-auto px-4 py-10">
@@ -221,7 +221,7 @@ export default async function NovaReservaPage({
           ← Voltar ao roteiro
         </Link>
 
-        <h1 className="mt-3 text-2xl font-bold text-[#0B2447]">Confirmar solicitação de reserva</h1>
+        <h1 className="mt-3 text-2xl font-bold text-marinho">Confirmar solicitação de reserva</h1>
         <p className="text-sm text-slate-500 mt-1">
           Revise os dados abaixo. Após o envio, o gestor analisará sua solicitação; se aceitar, você paga pelo Boatzy (Pix ou cartão) para garantir a data.
         </p>
@@ -245,7 +245,7 @@ export default async function NovaReservaPage({
             href={`/roteiros/${alvoId}/chat`}
             target="_blank"
             rel="noopener noreferrer"
-            className="mt-4 w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-[#0B3D91] hover:bg-[#092E6E] text-white text-sm font-semibold transition-colors"
+            className="mt-4 w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-marinho hover:bg-marinho-escuro text-white text-sm font-semibold transition-colors"
           >
             <MessageCircle className="h-4 w-4" />
             Converse com o dono da embarcação deste Roteiro
@@ -270,31 +270,31 @@ export default async function NovaReservaPage({
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 p-5 border-b border-slate-100">
             <div className="flex items-center gap-3">
               <div className="h-10 w-10 rounded-xl bg-slate-100 flex items-center justify-center shrink-0">
-                <CalendarDays className="h-4 w-4 text-[#0B3D91]" />
+                <CalendarDays className="h-4 w-4 text-marinho" />
               </div>
               <div>
                 <p className="text-[10px] text-slate-500 uppercase tracking-wider font-medium">
                   {modalidade === 'diaria' ? 'Período' : 'Data'}
                 </p>
                 {modalidade === 'diaria' && diarias ? (
-                  <p className="text-sm font-semibold text-slate-800">
+                  <p className="text-sm font-semibold text-grafite">
                     {formatDateLabel(data, 0)} → {formatDateLabel(somarDiasISO(data, diarias - 1), 0)}
                     <span className="block text-xs font-normal text-slate-400">
                       {diarias} diária{diarias > 1 ? 's' : ''}
                     </span>
                   </p>
                 ) : (
-                  <p className="text-sm font-semibold text-slate-800">{formatDateLabel(data, flex)}</p>
+                  <p className="text-sm font-semibold text-grafite">{formatDateLabel(data, flex)}</p>
                 )}
               </div>
             </div>
             <div className="flex items-center gap-3">
               <div className="h-10 w-10 rounded-xl bg-slate-100 flex items-center justify-center shrink-0">
-                <Users className="h-4 w-4 text-[#0B3D91]" />
+                <Users className="h-4 w-4 text-marinho" />
               </div>
               <div>
                 <p className="text-[10px] text-slate-500 uppercase tracking-wider font-medium">Pessoas</p>
-                <p className="text-sm font-semibold text-slate-800">
+                <p className="text-sm font-semibold text-grafite">
                   {pessoas} {pessoas === 1 ? 'pessoa' : 'pessoas'}
                 </p>
               </div>
@@ -305,8 +305,8 @@ export default async function NovaReservaPage({
           {adicionais.length > 0 && (
             <div className="p-5 border-b border-slate-100">
               <div className="flex items-center gap-1.5 mb-3">
-                <ShoppingCart className="h-4 w-4 text-[#0B3D91]" />
-                <span className="text-sm font-semibold text-[#0B2447]">Adicionais selecionados</span>
+                <ShoppingCart className="h-4 w-4 text-marinho" />
+                <span className="text-sm font-semibold text-marinho">Adicionais selecionados</span>
               </div>
               <div className="space-y-2">
                 {adicionais.map((a) => (
@@ -315,7 +315,7 @@ export default async function NovaReservaPage({
                       {a.descricao}
                       <span className="ml-2 text-[10px] uppercase tracking-wider text-slate-400">{a.tipo}</span>
                     </span>
-                    <span className="font-medium text-slate-800">{formatCurrency(precoComTaxa(Number(a.valor), taxaPercent))}</span>
+                    <span className="font-medium text-grafite">{formatCurrency(precoComTaxa(Number(a.valor), taxaPercent))}</span>
                   </div>
                 ))}
               </div>

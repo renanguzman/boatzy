@@ -106,15 +106,15 @@ export default function CheckoutPagamento({
   if (retornoCartao && !pix) {
     return (
       <div className="rounded-2xl border border-slate-200 bg-white shadow-sm p-6 text-center">
-        <Loader2 className="h-8 w-8 text-[#0B3D91] animate-spin mx-auto" />
-        <h2 className="mt-3 text-lg font-bold text-[#0B2447]">Confirmando seu pagamento…</h2>
+        <Loader2 className="h-8 w-8 text-marinho animate-spin mx-auto" />
+        <h2 className="mt-3 text-lg font-bold text-marinho">Confirmando seu pagamento…</h2>
         <p className="mt-1 text-sm text-slate-500">
           Assim que o Asaas confirmar, esta página é atualizada sozinha. Pode levar alguns instantes.
         </p>
         <button
           type="button"
           onClick={() => router.replace(`/reservas/${reservaId}/pagar`)}
-          className="mt-4 text-sm font-medium text-[#0B3D91] hover:underline"
+          className="mt-4 text-sm font-medium text-marinho hover:underline"
         >
           Voltar às formas de pagamento
         </button>
@@ -127,7 +127,7 @@ export default function CheckoutPagamento({
       <div className="p-5 border-b border-slate-100 flex items-center justify-between gap-3">
         <div>
           <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">Total a pagar</p>
-          <p className="text-2xl font-bold text-[#0B2447]">{formatCurrencyPrecise(valorTotal)}</p>
+          <p className="text-2xl font-bold text-marinho">{formatCurrencyPrecise(valorTotal)}</p>
         </div>
         <div className="text-right text-xs text-slate-500">
           <p className="flex items-center gap-1 justify-end"><Clock className="h-3.5 w-3.5" /> Prazo para pagar</p>
@@ -156,7 +156,7 @@ export default function CheckoutPagamento({
                   type="button"
                   onClick={() => { setForma(f.codigo); setErro(null); }}
                   className={`flex items-center justify-center gap-2 rounded-xl border px-4 py-3 text-sm font-semibold transition-colors ${
-                    ativo ? 'border-[#0B3D91] bg-[#0B3D91]/5 text-[#0B2447]' : 'border-slate-200 text-slate-500 hover:bg-slate-50'
+                    ativo ? 'border-marinho bg-marinho/5 text-marinho' : 'border-slate-200 text-slate-500 hover:bg-slate-50'
                   }`}
                 >
                   <Icon className="h-4 w-4" />
@@ -174,7 +174,7 @@ export default function CheckoutPagamento({
                 value={cpf}
                 onChange={(e) => setCpf(maskCPF(e.target.value))}
                 placeholder="000.000.000-00"
-                className={`mt-1 w-full rounded-xl border px-3.5 py-2.5 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-[#0B2447]/20 ${
+                className={`mt-1 w-full rounded-xl border px-3.5 py-2.5 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-marinho/20 ${
                   erro?.campo === 'cpf' ? 'border-red-300' : 'border-slate-200'
                 }`}
               />
@@ -188,7 +188,7 @@ export default function CheckoutPagamento({
               <select
                 value={parcelas}
                 onChange={(e) => setParcelas(Number(e.target.value))}
-                className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-[#0B2447]/20 cursor-pointer"
+                className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-marinho/20 cursor-pointer"
               >
                 {formaAtual.opcoesParcelas.map((n) => (
                   <option key={n} value={n}>
@@ -201,7 +201,7 @@ export default function CheckoutPagamento({
 
           {forma === 'cartao_credito' && (
             <p className="flex items-start gap-2 text-xs text-slate-500">
-              <ShieldCheck className="h-4 w-4 text-emerald-600 shrink-0" />
+              <ShieldCheck className="h-4 w-4 text-turquesa-escuro shrink-0" />
               Você vai digitar os dados do cartão no ambiente seguro do Asaas, nosso parceiro de pagamentos.
               O Boatzy não recebe nem guarda o número do cartão.
             </p>
@@ -213,7 +213,7 @@ export default function CheckoutPagamento({
             type="button"
             onClick={() => pagar(forma)}
             disabled={carregando || restante <= 0}
-            className="w-full inline-flex items-center justify-center gap-2 rounded-xl bg-[#0B3D91] hover:bg-[#0B2447] disabled:opacity-60 px-4 py-3 text-sm font-semibold text-white transition-colors"
+            className="w-full inline-flex items-center justify-center gap-2 rounded-xl bg-marinho hover:bg-marinho-escuro disabled:opacity-60 px-4 py-3 text-sm font-semibold text-white transition-colors"
           >
             {carregando ? <Loader2 className="h-4 w-4 animate-spin" /> : forma === 'pix' ? <QrCode className="h-4 w-4" /> : <CreditCard className="h-4 w-4" />}
             {forma === 'pix' ? 'Gerar QR Code Pix' : 'Pagar com cartão'}
@@ -240,9 +240,9 @@ export default function CheckoutPagamento({
               <button
                 type="button"
                 onClick={copiar}
-                className="inline-flex items-center gap-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 px-3 text-sm font-semibold text-[#0B2447]"
+                className="inline-flex items-center gap-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 px-3 text-sm font-semibold text-marinho"
               >
-                {copiado ? <Check className="h-4 w-4 text-emerald-600" /> : <Copy className="h-4 w-4" />}
+                {copiado ? <Check className="h-4 w-4 text-turquesa-escuro" /> : <Copy className="h-4 w-4" />}
                 {copiado ? 'Copiado' : 'Copiar'}
               </button>
             </div>
@@ -253,7 +253,7 @@ export default function CheckoutPagamento({
           <button
             type="button"
             onClick={() => { setPix(null); setErro(null); }}
-            className="text-sm font-medium text-[#0B3D91] hover:underline"
+            className="text-sm font-medium text-marinho hover:underline"
           >
             Escolher outra forma de pagamento
           </button>

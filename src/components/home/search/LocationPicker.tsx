@@ -237,7 +237,7 @@ export default function LocationPicker({ value, onChange, isOpen, onOpen, onClos
         <MapPin className="h-4 w-4 text-slate-500" />
       </div>
       <div>
-        <p className="text-sm font-medium text-slate-800">{r.nome}</p>
+        <p className="text-sm font-medium text-grafite">{r.nome}</p>
         <p className="text-xs text-slate-500">
           {r.estado}
           {r.temOfertas && <span className="text-turquesa-escuro font-medium"> · Com passeios no Boatzy</span>}
@@ -254,7 +254,7 @@ export default function LocationPicker({ value, onChange, isOpen, onOpen, onClos
         onClick={onOpen}
         className={`w-full text-left rounded-2xl transition-all ${
           compact ? 'px-3 py-2' : 'px-4 py-3'
-        } ${isOpen ? 'ring-2 ring-slate-800 bg-white shadow-md' : 'hover:bg-slate-50'}`}
+        } ${isOpen ? 'ring-2 ring-marinho bg-white shadow-md' : 'hover:bg-slate-50'}`}
       >
         {!semRotulo && (
           <span className={`block font-bold text-slate-500 uppercase tracking-wider mb-0.5 ${compact ? 'text-[9px]' : 'text-[10px]'}`}>
@@ -262,7 +262,7 @@ export default function LocationPicker({ value, onChange, isOpen, onOpen, onClos
           </span>
         )}
         {value ? (
-          <span className={`font-medium text-slate-800 truncate block ${compact ? 'text-xs' : 'text-sm'}`}>
+          <span className={`font-medium text-grafite truncate block ${compact ? 'text-xs' : 'text-sm'}`}>
             {locationLabel(value)}
           </span>
         ) : (
@@ -283,7 +283,7 @@ export default function LocationPicker({ value, onChange, isOpen, onOpen, onClos
               onChange={(e) => setQuery(e.target.value)}
               onKeyDown={handleKeyDown}
               placeholder={buscarRoteiros ? 'Cidade ou nome do roteiro' : 'Cidade de saída do passeio'}
-              className="flex-1 text-sm text-slate-800 outline-none placeholder:text-slate-400 bg-transparent"
+              className="flex-1 text-sm text-grafite outline-none placeholder:text-slate-400 bg-transparent"
             />
             {loading && (
               <div className="h-4 w-4 border-2 border-slate-200 border-t-slate-500 rounded-full animate-spin" />
@@ -305,7 +305,7 @@ export default function LocationPicker({ value, onChange, isOpen, onOpen, onClos
                   <Navigation className="h-4 w-4 text-slate-600" />
                 )}
               </div>
-              <span className="text-sm font-medium text-slate-800">{ROTULO_PROXIMO_DE_MIM}</span>
+              <span className="text-sm font-medium text-grafite">{ROTULO_PROXIMO_DE_MIM}</span>
             </button>
             {geoErro && (
               <p role="alert" className="mx-4 mb-2 flex items-start gap-2 rounded-xl bg-amber-50 px-3 py-2.5 text-xs leading-relaxed text-amber-800">
@@ -333,7 +333,7 @@ export default function LocationPicker({ value, onChange, isOpen, onOpen, onClos
                       <TrendingUp className="h-4 w-4 text-turquesa-escuro" />
                     </div>
                     <div>
-                      <p className="text-sm font-medium text-slate-800">{r.nome}, {r.uf}</p>
+                      <p className="text-sm font-medium text-grafite">{r.nome}, {r.uf}</p>
                       <p className="text-xs text-slate-500">{rotuloRoteiros(r.totalRoteiros)}</p>
                     </div>
                   </button>
@@ -406,7 +406,7 @@ export default function LocationPicker({ value, onChange, isOpen, onOpen, onClos
                       )}
                     </div>
                     <div className="min-w-0">
-                      <p className="text-sm font-medium text-slate-800 line-clamp-2">{r.nome}</p>
+                      <p className="text-sm font-medium text-grafite line-clamp-2">{r.nome}</p>
                       {r.localidade && <p className="text-xs text-slate-500 truncate">{r.localidade}</p>}
                     </div>
                   </Link>

@@ -36,13 +36,13 @@ export function CabecalhoRevisao({ voltarHref, voltarLabel, titulo, subtitulo, s
   ];
   return (
     <div className="mb-6">
-      <Link href={voltarHref} className="mb-4 inline-flex items-center gap-1.5 text-sm font-semibold text-slate-500 hover:text-[#0B2447]">
+      <Link href={voltarHref} className="mb-4 inline-flex items-center gap-1.5 text-sm font-semibold text-slate-500 hover:text-marinho">
         <ArrowLeft className="h-4 w-4" /> {voltarLabel}
       </Link>
       <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
         <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-2">
-            <h1 className="text-2xl font-bold text-[#0B2447]">{titulo}</h1>
+            <h1 className="text-2xl font-bold text-marinho">{titulo}</h1>
             <StatusPublicacaoBadge status={status} />
             {controle.revisao > 1 && (
               <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-semibold text-slate-500">
@@ -67,7 +67,7 @@ export function CabecalhoRevisao({ voltarHref, voltarLabel, titulo, subtitulo, s
         </div>
         {editarHref && (
           <Link href={editarHref}
-            className="inline-flex flex-shrink-0 items-center gap-2 rounded-xl border border-[#0B2447]/20 bg-white px-4 py-2.5 text-sm font-semibold text-[#0B2447] hover:bg-[#0B2447]/5 transition">
+            className="inline-flex flex-shrink-0 items-center gap-2 rounded-xl border border-marinho/20 bg-white px-4 py-2.5 text-sm font-semibold text-marinho hover:bg-marinho/5 transition">
             <Pencil className="h-4 w-4" /> Cadastro completo e pré-visualização
           </Link>
         )}
@@ -101,7 +101,7 @@ export function SecaoRevisao({ titulo, children }: { titulo: string; children: R
   return (
     <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
       <div className="px-6 py-4 border-b border-slate-100 bg-slate-50/50">
-        <h2 className="text-sm font-bold text-[#0B2447] tracking-wide uppercase">{titulo}</h2>
+        <h2 className="text-sm font-bold text-marinho tracking-wide uppercase">{titulo}</h2>
       </div>
       <div className="p-6">{children}</div>
     </div>
@@ -120,7 +120,7 @@ export function GaleriaRevisao({ fotos, destacar }: {
           className="group relative aspect-[4/3] overflow-hidden rounded-xl border border-slate-100 bg-slate-100">
           <Image src={f.url_imagem} alt={f.titulo ?? ''} fill sizes="240px" className="object-cover transition group-hover:scale-105" />
           {f.principal && (
-            <span className="absolute left-2 top-2 rounded-full bg-[#0B2447] px-2 py-0.5 text-[10px] font-semibold text-white">Principal</span>
+            <span className="absolute left-2 top-2 rounded-full bg-marinho px-2 py-0.5 text-[10px] font-semibold text-white">Principal</span>
           )}
           {f.titulo && (
             <span className="absolute inset-x-0 bottom-0 truncate bg-gradient-to-t from-black/60 to-transparent px-2 pb-1.5 pt-4 text-[11px] text-white">{f.titulo}</span>

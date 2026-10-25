@@ -59,7 +59,7 @@ export default function SinoNotificacoes({ userId }: { userId: string }) {
         aria-expanded={open}
         aria-label={naoLidas > 0 ? `Notificações: ${naoLidas} não lida${naoLidas !== 1 ? 's' : ''}` : 'Notificações'}
         className={`relative flex h-10 w-10 items-center justify-center rounded-full transition-colors ${
-          open ? 'bg-slate-100 text-[#0B2447]' : 'text-slate-500 hover:bg-slate-50 hover:text-[#0B2447]'
+          open ? 'bg-slate-100 text-marinho' : 'text-slate-500 hover:bg-slate-50 hover:text-turquesa-escuro'
         }`}
       >
         <Bell className={`h-5 w-5 ${toast ? 'animate-sino' : ''}`} />
@@ -76,12 +76,12 @@ export default function SinoNotificacoes({ userId }: { userId: string }) {
           className="fixed inset-x-3 top-[4.25rem] sm:absolute sm:inset-x-auto sm:top-auto sm:right-0 sm:mt-2 sm:w-[24rem] rounded-2xl border border-slate-100 bg-white shadow-xl shadow-slate-900/10 overflow-hidden z-50"
         >
           <div className="flex items-center justify-between gap-3 px-4 py-3 border-b border-slate-100">
-            <p className="text-sm font-bold text-[#0B2447]">Notificações</p>
+            <p className="text-sm font-bold text-marinho">Notificações</p>
             {naoLidas > 0 && (
               <button
                 type="button"
                 onClick={() => void marcarTodasLidas()}
-                className="inline-flex items-center gap-1 text-xs font-medium text-slate-400 hover:text-[#0B3D91] transition-colors"
+                className="inline-flex items-center gap-1 text-xs font-medium text-slate-400 hover:text-marinho transition-colors"
               >
                 <CheckCheck className="h-3.5 w-3.5" />
                 Marcar todas como lidas
@@ -120,7 +120,7 @@ export default function SinoNotificacoes({ userId }: { userId: string }) {
           <Link
             href="/notificacoes"
             onClick={() => setOpen(false)}
-            className="flex items-center justify-center gap-1 px-4 py-3 border-t border-slate-100 text-xs font-semibold text-[#0B3D91] hover:text-[#0B2447] hover:bg-slate-50 transition-colors"
+            className="flex items-center justify-center gap-1 px-4 py-3 border-t border-slate-100 text-xs font-semibold text-marinho hover:text-turquesa-escuro hover:bg-slate-50 transition-colors"
           >
             Ver todas as notificações
             <ChevronRight className="w-3.5 h-3.5" />
@@ -145,7 +145,7 @@ export default function SinoNotificacoes({ userId }: { userId: string }) {
                 <ToastIcone className="h-4 w-4" />
               </span>
               <span className="min-w-0">
-                <span className="block text-sm font-semibold text-[#0B2447]">{tituloNotificacao(toast)}</span>
+                <span className="block text-sm font-semibold text-marinho">{tituloNotificacao(toast)}</span>
                 <span className="mt-0.5 block text-xs text-slate-500 line-clamp-2">{toast.mensagem}</span>
               </span>
             </Link>

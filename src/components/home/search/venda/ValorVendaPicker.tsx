@@ -17,7 +17,7 @@ type Props = {
   compact?: boolean;
 };
 
-const inputCls = `w-full rounded-xl border border-slate-200 pl-8 pr-3 py-2 text-sm text-slate-800
+const inputCls = `w-full rounded-xl border border-slate-200 pl-8 pr-3 py-2 text-sm text-grafite
   placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-marinho/20
   focus:border-marinho/40 transition bg-white`;
 
@@ -46,13 +46,13 @@ export default function ValorVendaPicker({ value, onChange, isOpen, onOpen, onCl
         onClick={isOpen ? onClose : abrir}
         className={`w-full text-left rounded-2xl transition-all ${
           compact ? 'px-3 py-2' : 'px-4 py-3'
-        } ${isOpen ? 'ring-2 ring-slate-800 bg-white shadow-md' : 'hover:bg-slate-50'}`}
+        } ${isOpen ? 'ring-2 ring-marinho bg-white shadow-md' : 'hover:bg-slate-50'}`}
       >
         <span className={`block font-bold text-slate-500 uppercase tracking-wider mb-0.5 ${compact ? 'text-[9px]' : 'text-[10px]'}`}>
           Valor
         </span>
         {label ? (
-          <span className={`font-medium text-slate-800 whitespace-nowrap ${compact ? 'text-xs' : 'text-sm'}`}>
+          <span className={`font-medium text-grafite whitespace-nowrap ${compact ? 'text-xs' : 'text-sm'}`}>
             {label}
           </span>
         ) : (

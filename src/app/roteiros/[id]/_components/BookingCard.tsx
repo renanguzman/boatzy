@@ -255,7 +255,7 @@ export default function BookingCard({
                   setError(null);
                 }}
                 className={`flex-1 rounded-lg py-2 text-xs font-semibold transition-colors ${
-                  modalidade === m.id ? 'bg-white text-[#0B2447] shadow-sm' : 'text-slate-500 hover:text-slate-700'
+                  modalidade === m.id ? 'bg-white text-marinho shadow-sm' : 'text-slate-500 hover:text-slate-700'
                 }`}
               >
                 {m.label}
@@ -274,7 +274,7 @@ export default function BookingCard({
                 </span>
               )}
               <div className="flex items-baseline gap-1">
-                <span className="text-3xl font-bold text-[#0B2447]">{formatCurrency(precoCabecalho)}</span>
+                <span className="text-3xl font-bold text-marinho">{formatCurrency(precoCabecalho)}</span>
                 <span className="text-sm text-slate-500">{MODALIDADE_INFO[modalidade].unidade}</span>
               </div>
               {precoVariaPorData && (
@@ -295,11 +295,11 @@ export default function BookingCard({
           </p>
           <button type="button" onClick={() => open('date')} aria-expanded={active === 'date'}
             className={`w-full flex items-center gap-2 text-left rounded-xl border px-4 py-3 transition-all ${
-              active === 'date' ? 'border-slate-800 ring-2 ring-slate-800 bg-white' : 'border-slate-200 hover:bg-slate-50'
+              active === 'date' ? 'border-marinho ring-2 ring-marinho bg-white' : 'border-slate-200 hover:bg-slate-50'
             }`}>
             <CalendarDays className="h-4 w-4 text-slate-400 shrink-0" />
             {dateISO ? (
-              <span className="text-sm font-medium text-slate-800 truncate">
+              <span className="text-sm font-medium text-grafite truncate">
                 {formatarData(dateISO, { weekday: 'short', day: '2-digit', month: 'short' })}
                 {flex > 0 && <span className="text-slate-500"> · ±{flex} {flex === 1 ? 'dia' : 'dias'}</span>}
               </span>
@@ -392,12 +392,12 @@ export default function BookingCard({
                 {MODALIDADE_INFO[modalidade].linha}
                 {multiplicador > 1 ? ` × ${multiplicador}` : ''}
               </span>
-              <span className="font-medium text-slate-800">{formatCurrency(valores.passeio)}</span>
+              <span className="font-medium text-grafite">{formatCurrency(valores.passeio)}</span>
             </div>
             {totalAdicionais > 0 && (
               <div className="flex items-center justify-between text-sm">
                 <span className="text-slate-600">Adicionais</span>
-                <span className="font-medium text-slate-800">{formatCurrency(valores.adicionais)}</span>
+                <span className="font-medium text-grafite">{formatCurrency(valores.adicionais)}</span>
               </div>
             )}
           </div>
@@ -406,8 +406,8 @@ export default function BookingCard({
         {valores && (
           <div className="py-4 border-t border-slate-200">
             <div className="flex items-center justify-between">
-              <span className="text-base font-bold text-[#0B2447]">Total</span>
-              <span className="text-xl font-bold text-[#0B2447]">{formatCurrency(valores.total)}</span>
+              <span className="text-base font-bold text-marinho">Total</span>
+              <span className="text-xl font-bold text-marinho">{formatCurrency(valores.total)}</span>
             </div>
             <p className="mt-1 text-[11px] text-slate-400">
               Cupom de desconto pode ser aplicado na confirmação.
@@ -418,7 +418,7 @@ export default function BookingCard({
         {/* CTA */}
         <button
           onClick={handleReserve}
-          className="w-full bg-[#0B3D91] hover:bg-[#092E6E] text-white font-semibold py-3.5 rounded-xl transition-all hover:shadow-lg hover:shadow-[#0B3D91]/25 hover:scale-[1.01] active:scale-[0.99] flex items-center justify-center gap-2 cursor-pointer mt-4"
+          className="w-full bg-marinho hover:bg-marinho-escuro text-white font-semibold py-3.5 rounded-xl transition-all hover:shadow-lg hover:shadow-marinho/25 hover:scale-[1.01] active:scale-[0.99] flex items-center justify-center gap-2 cursor-pointer mt-4"
         >
           Solicitar Reserva →
         </button>
@@ -432,11 +432,11 @@ export default function BookingCard({
         {/* Trust badges */}
         <div className="mt-4 space-y-2">
           <div className="flex items-center gap-2 text-xs text-slate-500">
-            <ShieldCheck className="h-3.5 w-3.5 text-emerald-500 shrink-0" />
+            <ShieldCheck className="h-3.5 w-3.5 text-turquesa shrink-0" />
             <span>Garantia de pagamento seguro</span>
           </div>
           <div className="flex items-center gap-2 text-xs text-slate-500">
-            <Headphones className="h-3.5 w-3.5 text-cyan-500 shrink-0" />
+            <Headphones className="h-3.5 w-3.5 text-turquesa shrink-0" />
             <span>Suporte 24/7 durante sua experiência</span>
           </div>
         </div>
@@ -446,7 +446,7 @@ export default function BookingCard({
       {!ehDono && (
         <Link
           href={`/roteiros/${roteiroId}/chat`}
-          className="w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-[#0B3D91] hover:bg-[#092E6E] text-white text-sm font-semibold transition-colors"
+          className="w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-marinho hover:bg-marinho-escuro text-white text-sm font-semibold transition-colors"
         >
           <MessageCircle className="h-4 w-4" />
           Converse com o dono
@@ -454,7 +454,7 @@ export default function BookingCard({
       )}
 
       {/* Why Boatzy Card */}
-      <div className="rounded-2xl bg-gradient-to-br from-[#0B3D91] to-[#0B2447] p-6 text-white">
+      <div className="rounded-2xl bg-gradient-to-br from-marinho to-marinho-escuro p-6 text-white">
         <h3 className="text-base font-bold mb-4">Por que reservar no Boatzy?</h3>
         <div className="space-y-3">
           {[
@@ -463,8 +463,8 @@ export default function BookingCard({
             'Cancelamento flexível na maioria dos roteiros',
           ].map((item) => (
             <div key={item} className="flex items-center gap-2.5">
-              <div className="h-5 w-5 rounded-full bg-emerald-400/20 flex items-center justify-center shrink-0">
-                <div className="h-2 w-2 rounded-full bg-emerald-400" />
+              <div className="h-5 w-5 rounded-full bg-turquesa/20 flex items-center justify-center shrink-0">
+                <div className="h-2 w-2 rounded-full bg-turquesa" />
               </div>
               <span className="text-sm text-slate-200">{item}</span>
             </div>

@@ -187,8 +187,8 @@ export default function RoteiroAcoes({ roteiroId, roteiroNome, initialFavorito }
             >
               {copiado ? (
                 <>
-                  <Check className="h-4 w-4 text-emerald-500" />
-                  <span className="text-emerald-600 font-medium">Link copiado!</span>
+                  <Check className="h-4 w-4 text-turquesa" />
+                  <span className="text-turquesa-escuro font-medium">Link copiado!</span>
                 </>
               ) : (
                 <>

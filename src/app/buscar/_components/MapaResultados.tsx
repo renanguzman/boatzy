@@ -53,9 +53,9 @@ const MAP_OPTIONS: google.maps.MapOptions = {
   ],
 };
 
-/** Pin no azul do design; o ativo fica maior e no tom claro da marca. */
+/** Pin no marinho da paleta; o ativo fica maior e em turquesa. */
 function pinIcon(ativo: boolean): google.maps.Icon {
-  const fill = ativo ? '#0B3D91' : '#0B2447';
+  const fill = ativo ? '#17B5B0' : '#0E2F4F';
   const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="30" height="38" viewBox="0 0 30 38">
     <path d="M15 0C7.27 0 1 6.27 1 14c0 10.5 14 24 14 24s14-13.5 14-24C29 6.27 22.73 0 15 0z" fill="${fill}"/>
     <circle cx="15" cy="14" r="5.2" fill="#ffffff"/>
@@ -111,8 +111,8 @@ export default function MapaResultados({ pontos, totalResultados, itemLabelPlura
     <section className="mt-12 rounded-2xl border border-slate-200 bg-white shadow-sm overflow-hidden">
       <header className="flex items-center justify-between gap-3 px-5 py-3.5 border-b border-slate-100">
         <div className="flex items-center gap-2">
-          <MapIcon className="h-4 w-4 text-[#0B3D91]" />
-          <h2 className="text-sm font-semibold text-[#0B2447]">Mapa dos resultados</h2>
+          <MapIcon className="h-4 w-4 text-marinho" />
+          <h2 className="text-sm font-semibold text-marinho">Mapa dos resultados</h2>
         </div>
         <p className="text-xs text-slate-400">
           {pontos.length === totalResultados
@@ -176,7 +176,7 @@ export default function MapaResultados({ pontos, totalResultados, itemLabelPlura
                     </div>
                   )}
                   <div className="min-w-0 flex-1">
-                    <p className="text-sm font-semibold text-[#0B2447] truncate group-hover:text-[#0B3D91] transition-colors">
+                    <p className="text-sm font-semibold text-marinho truncate group-hover:text-turquesa-escuro transition-colors">
                       {ativo.nome}
                     </p>
                     {ativo.subtitulo && (
@@ -185,7 +185,7 @@ export default function MapaResultados({ pontos, totalResultados, itemLabelPlura
                     {ativo.localidade && (
                       <p className="text-[11px] text-slate-400 truncate">{ativo.localidade}</p>
                     )}
-                    <span className="mt-1 flex items-center gap-1 text-[11px] font-semibold text-[#0B3D91]">
+                    <span className="mt-1 flex items-center gap-1 text-[11px] font-semibold text-marinho">
                       {ativo.preco != null
                         ? `${ativo.preco.rotulo.charAt(0).toUpperCase()}${ativo.preco.rotulo.slice(1)} ${formatarPreco(ativo.preco.valor)}${ativo.preco.unidade}`
                         : 'Ver detalhes'}

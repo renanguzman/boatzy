@@ -39,7 +39,7 @@ export default function FiltroStatusPublicacao({ opcoes, atual }: {
             onClick={() => selecionar(value)}
             className={`inline-flex items-center gap-1.5 rounded-xl border px-3 py-1.5 text-xs font-semibold transition ${
               ativo
-                ? 'border-[#0B2447] bg-[#0B2447] text-white'
+                ? 'border-marinho bg-marinho text-white'
                 : fila
                   ? 'border-amber-300 bg-amber-50 text-amber-800 hover:bg-amber-100'
                   : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50'

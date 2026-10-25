@@ -179,12 +179,12 @@ function montarHtml({
       const label = qtd === 1 ? '1 nova mensagem' : `${qtd} novas mensagens`;
       // Selo do contexto (a que a conversa se refere), quando houver.
       const contexto = r.origem_label
-        ? `<span style="display:inline-block;margin-top:6px;padding:2px 10px;border-radius:999px;background:#e8eefb;color:#0B3D91;font-size:12px;font-weight:bold;">${esc(origemTipoLabel(r.origem_tipo))}: ${esc(r.origem_label)}</span>`
+        ? `<span style="display:inline-block;margin-top:6px;padding:2px 10px;border-radius:999px;background:#E3F6F6;color:#0D7A76;font-size:12px;font-weight:bold;">${esc(origemTipoLabel(r.origem_tipo))}: ${esc(r.origem_label)}</span>`
         : '';
       return `<tr>
         <td style="padding:12px 16px;border-bottom:1px solid #eef2f7;">
           <a href="${esc(linkConversa(r))}" style="text-decoration:none;color:inherit;display:block;">
-            <strong style="color:#0B2447;">${esc(r.remetente_nome)}</strong>
+            <strong style="color:#0E2F4F;">${esc(r.remetente_nome)}</strong>
             <div style="color:#64748b;font-size:13px;">${label}</div>
             ${contexto}
           </a>
@@ -198,16 +198,16 @@ function montarHtml({
   <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f1f5f9;padding:24px 0;">
     <tr><td align="center">
       <table role="presentation" width="480" cellpadding="0" cellspacing="0" style="background:#ffffff;border-radius:16px;overflow:hidden;border:1px solid #e2e8f0;">
-        <tr><td style="background:#0B2447;padding:20px 24px;color:#ffffff;font-size:18px;font-weight:bold;">Boatzy</td></tr>
+        <tr><td style="background:#0E2F4F;padding:20px 24px;color:#ffffff;font-size:18px;font-weight:bold;">Boatzy</td></tr>
         <tr><td style="padding:24px;">
-          <h1 style="margin:0 0 8px;color:#0B2447;font-size:18px;">Olá, ${primeiroNome}!</h1>
+          <h1 style="margin:0 0 8px;color:#0E2F4F;font-size:18px;">Olá, ${primeiroNome}!</h1>
           <p style="margin:0 0 16px;color:#475569;font-size:14px;line-height:1.5;">
             Você tem <strong>${totalMsgs}</strong> ${totalMsgs === 1 ? 'nova mensagem' : 'novas mensagens'} não ${totalMsgs === 1 ? 'lida' : 'lidas'} no chat da plataforma:
           </p>
           <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border:1px solid #eef2f7;border-radius:12px;overflow:hidden;margin-bottom:20px;">
             ${linhas}
           </table>
-          <a href="${esc(link)}" style="display:inline-block;background:#0B3D91;color:#ffffff;text-decoration:none;font-weight:bold;font-size:14px;padding:12px 24px;border-radius:12px;">Ver mensagens</a>
+          <a href="${esc(link)}" style="display:inline-block;background:#0E2F4F;color:#ffffff;text-decoration:none;font-weight:bold;font-size:14px;padding:12px 24px;border-radius:12px;">Ver mensagens</a>
         </td></tr>
         <tr><td style="padding:16px 24px;border-top:1px solid #eef2f7;color:#94a3b8;font-size:12px;line-height:1.5;">
           Você recebe este aviso porque a notificação de novas conversas está ativa.

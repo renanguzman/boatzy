@@ -109,7 +109,7 @@ function RodapeFonte() {
             href="https://open-meteo.com"
             target="_blank"
             rel="noopener noreferrer"
-            className="inline-flex items-center gap-1 font-medium text-slate-600 hover:text-[#0B3D91] underline underline-offset-2 transition-colors"
+            className="inline-flex items-center gap-1 font-medium text-slate-600 hover:text-marinho underline underline-offset-2 transition-colors"
           >
             Fonte: Open-Meteo.com
             <ExternalLink className="h-3 w-3" />
@@ -138,10 +138,10 @@ export default function PrevisaoTempoCard({ resultado, localidade, dataLabel }: 
           className="w-full flex items-center gap-4 p-5 sm:p-6 text-left hover:bg-slate-50/60 transition-colors"
         >
           <div className="h-11 w-11 rounded-xl bg-gradient-to-br from-sky-50 to-cyan-50 ring-1 ring-sky-100 flex items-center justify-center shrink-0">
-            <Hourglass className="h-5 w-5 text-[#0B3D91]" strokeWidth={1.75} />
+            <Hourglass className="h-5 w-5 text-marinho" strokeWidth={1.75} />
           </div>
           <div className="flex-1 min-w-0">
-            <p className="text-sm font-semibold text-[#0B2447] leading-snug">
+            <p className="text-sm font-semibold text-marinho leading-snug">
               A previsão do tempo estará disponível a partir dos 15 dias que antecedem seu passeio.
             </p>
             <p className="text-xs text-slate-400 mt-0.5">{dataLabel}</p>
@@ -179,7 +179,7 @@ export default function PrevisaoTempoCard({ resultado, localidade, dataLabel }: 
             <CloudOff className="h-5 w-5 text-slate-400" />
           </div>
           <div className="flex-1 min-w-0">
-            <p className="text-sm font-semibold text-[#0B2447]">Previsão do tempo indisponível</p>
+            <p className="text-sm font-semibold text-marinho">Previsão do tempo indisponível</p>
             <p className="text-xs text-slate-400 mt-0.5">{dataLabel}</p>
           </div>
           <ChevronDown
@@ -233,7 +233,7 @@ export default function PrevisaoTempoCard({ resultado, localidade, dataLabel }: 
           </div>
           <div className="min-w-0">
             <div className="flex items-baseline gap-2">
-              <span className="text-3xl font-bold text-[#0B2447]">{previsao.temperaturaMax}°</span>
+              <span className="text-3xl font-bold text-marinho">{previsao.temperaturaMax}°</span>
               <span className="text-base text-slate-400">/ {previsao.temperaturaMin}°</span>
             </div>
             <p className="text-sm font-medium text-slate-600 truncate">
@@ -255,27 +255,27 @@ export default function PrevisaoTempoCard({ resultado, localidade, dataLabel }: 
           {/* Estatísticas */}
           <div className="grid grid-cols-2 sm:grid-cols-4 divide-x divide-y sm:divide-y-0 divide-slate-100 border-t border-slate-100">
             <div className="p-4 text-center">
-              <Wind className="h-4 w-4 text-[#0B3D91] mx-auto mb-1.5" />
-              <p className="text-sm font-bold text-[#0B2447]">{previsao.ventoMaxKmh} km/h</p>
+              <Wind className="h-4 w-4 text-marinho mx-auto mb-1.5" />
+              <p className="text-sm font-bold text-marinho">{previsao.ventoMaxKmh} km/h</p>
               <p className="text-[10px] text-slate-400 uppercase tracking-wider mt-0.5">
                 Rajadas até {previsao.rajadaMaxKmh}
               </p>
             </div>
             <div className="p-4 text-center">
-              <Droplets className="h-4 w-4 text-[#0B3D91] mx-auto mb-1.5" />
-              <p className="text-sm font-bold text-[#0B2447]">
+              <Droplets className="h-4 w-4 text-marinho mx-auto mb-1.5" />
+              <p className="text-sm font-bold text-marinho">
                 {previsao.chanceChuvaPercent != null ? `${previsao.chanceChuvaPercent}%` : '—'}
               </p>
               <p className="text-[10px] text-slate-400 uppercase tracking-wider mt-0.5">Chance de chuva</p>
             </div>
             <div className="p-4 text-center">
-              <CloudRain className="h-4 w-4 text-[#0B3D91] mx-auto mb-1.5" />
-              <p className="text-sm font-bold text-[#0B2447]">{previsao.precipitacaoMm} mm</p>
+              <CloudRain className="h-4 w-4 text-marinho mx-auto mb-1.5" />
+              <p className="text-sm font-bold text-marinho">{previsao.precipitacaoMm} mm</p>
               <p className="text-[10px] text-slate-400 uppercase tracking-wider mt-0.5">Volume esperado</p>
             </div>
             <div className="p-4 text-center">
-              <ThermometerSun className="h-4 w-4 text-[#0B3D91] mx-auto mb-1.5" />
-              <p className="text-sm font-bold text-[#0B2447]">
+              <ThermometerSun className="h-4 w-4 text-marinho mx-auto mb-1.5" />
+              <p className="text-sm font-bold text-marinho">
                 {previsao.indiceUvMax != null ? labelIndiceUv(previsao.indiceUvMax) : '—'}
               </p>
               <p className="text-[10px] text-slate-400 uppercase tracking-wider mt-0.5">Índice UV</p>
@@ -307,7 +307,7 @@ export default function PrevisaoTempoCard({ resultado, localidade, dataLabel }: 
                 type="button"
                 onClick={() => setMostrarHoras((v) => !v)}
                 aria-expanded={mostrarHoras}
-                className="w-full flex items-center justify-between px-5 py-3 text-sm font-medium text-[#0B3D91] hover:bg-slate-50 transition-colors"
+                className="w-full flex items-center justify-between px-5 py-3 text-sm font-medium text-marinho hover:bg-slate-50 transition-colors"
               >
                 Ver previsão hora a hora
                 <ChevronDown
@@ -326,8 +326,8 @@ export default function PrevisaoTempoCard({ resultado, localidade, dataLabel }: 
                           className="shrink-0 min-w-[64px] rounded-xl border border-slate-100 bg-slate-50/60 px-2.5 py-3 text-center"
                         >
                           <p className="text-[10px] font-semibold text-slate-500">{item.hora}</p>
-                          <IconeHora className="h-4 w-4 text-[#0B3D91] mx-auto my-1.5" />
-                          <p className="text-xs font-bold text-[#0B2447]">{item.temperatura}°</p>
+                          <IconeHora className="h-4 w-4 text-marinho mx-auto my-1.5" />
+                          <p className="text-xs font-bold text-marinho">{item.temperatura}°</p>
                           {item.chanceChuva != null && item.chanceChuva > 0 && (
                             <p className="text-[9px] text-blue-500 mt-0.5">{item.chanceChuva}%</p>
                           )}

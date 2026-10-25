@@ -75,7 +75,7 @@ export default async function BoatDetailPage({ params }: any) {
                   fill
                   className="object-cover"
                 />
-                <button className="absolute bottom-3 right-3 bg-white/90 backdrop-blur-sm text-slate-800 text-xs font-medium px-4 py-2 rounded-lg flex items-center gap-1.5 hover:bg-white transition-colors">
+                <button className="absolute bottom-3 right-3 bg-white/90 backdrop-blur-sm text-grafite text-xs font-medium px-4 py-2 rounded-lg flex items-center gap-1.5 hover:bg-white transition-colors">
                   <Camera className="h-3.5 w-3.5" />
                   Ver todas fotos
                 </button>
@@ -96,24 +96,24 @@ export default async function BoatDetailPage({ params }: any) {
                 {boat.badges?.map((badge, i) => (
                   <span
                     key={i}
-                    className="inline-flex items-center gap-1 bg-[#0B3D91]/10 text-[#0B3D91] text-xs font-semibold px-3 py-1.5 rounded-full"
+                    className="inline-flex items-center gap-1 bg-marinho/10 text-marinho text-xs font-semibold px-3 py-1.5 rounded-full"
                   >
                     <Award className="h-3 w-3" />
                     {badge}
                   </span>
                 ))}
                 <span className="inline-flex items-center gap-1 text-xs font-medium text-slate-600 bg-slate-100 px-3 py-1.5 rounded-full">
-                  <Star className="h-3 w-3 fill-amber-400 text-amber-400" />
+                  <Star className="h-3 w-3 fill-destaque text-destaque" />
                   {boat.rating} ({boat.reviewCount} reviews)
                 </span>
-                <span className="inline-flex items-center gap-1 text-xs font-medium text-emerald-700 bg-emerald-50 px-3 py-1.5 rounded-full">
+                <span className="inline-flex items-center gap-1 text-xs font-medium text-turquesa-escuro bg-turquesa/10 px-3 py-1.5 rounded-full">
                   <BadgeCheck className="h-3 w-3" />
                   Embarcação Verificada
                 </span>
               </div>
 
               {/* Title */}
-              <h1 className="text-3xl md:text-4xl font-bold text-[#0B2447] mb-3">
+              <h1 className="text-3xl md:text-4xl font-bold text-marinho mb-3">
                 The {boat.name}
               </h1>
               <p className="text-slate-600 text-sm leading-relaxed mb-8 max-w-2xl">
@@ -126,42 +126,42 @@ export default async function BoatDetailPage({ params }: any) {
                 {boat.length && (
                   <div className="flex items-center gap-3">
                     <div className="h-10 w-10 rounded-xl bg-slate-100 flex items-center justify-center">
-                      <Ruler className="h-4 w-4 text-[#0B3D91]" />
+                      <Ruler className="h-4 w-4 text-marinho" />
                     </div>
                     <div>
                       <p className="text-[10px] text-slate-500 uppercase tracking-wider font-medium">Comprimento</p>
-                      <p className="text-sm font-semibold text-slate-800">{boat.length} Metros</p>
+                      <p className="text-sm font-semibold text-grafite">{boat.length} Metros</p>
                     </div>
                   </div>
                 )}
                 <div className="flex items-center gap-3">
                   <div className="h-10 w-10 rounded-xl bg-slate-100 flex items-center justify-center">
-                    <Users className="h-4 w-4 text-[#0B3D91]" />
+                    <Users className="h-4 w-4 text-marinho" />
                   </div>
                   <div>
                     <p className="text-[10px] text-slate-500 uppercase tracking-wider font-medium">Capacidade</p>
-                    <p className="text-sm font-semibold text-slate-800">{boat.capacity} Pessoas</p>
+                    <p className="text-sm font-semibold text-grafite">{boat.capacity} Pessoas</p>
                   </div>
                 </div>
                 {boat.cabins && (
                   <div className="flex items-center gap-3">
                     <div className="h-10 w-10 rounded-xl bg-slate-100 flex items-center justify-center">
-                      <Bed className="h-4 w-4 text-[#0B3D91]" />
+                      <Bed className="h-4 w-4 text-marinho" />
                     </div>
                     <div>
                       <p className="text-[10px] text-slate-500 uppercase tracking-wider font-medium">Cabines</p>
-                      <p className="text-sm font-semibold text-slate-800">{boat.cabins} Cabines</p>
+                      <p className="text-sm font-semibold text-grafite">{boat.cabins} Cabines</p>
                     </div>
                   </div>
                 )}
                 {boat.crew && (
                   <div className="flex items-center gap-3">
                     <div className="h-10 w-10 rounded-xl bg-slate-100 flex items-center justify-center">
-                      <Shield className="h-4 w-4 text-[#0B3D91]" />
+                      <Shield className="h-4 w-4 text-marinho" />
                     </div>
                     <div>
                       <p className="text-[10px] text-slate-500 uppercase tracking-wider font-medium">Tripulação</p>
-                      <p className="text-sm font-semibold text-slate-800">{boat.crew} Profissionais</p>
+                      <p className="text-sm font-semibold text-grafite">{boat.crew} Profissionais</p>
                     </div>
                   </div>
                 )}
@@ -169,25 +169,25 @@ export default async function BoatDetailPage({ params }: any) {
 
               {/* Additional Packages */}
               <div className="mb-10">
-                <h2 className="text-xl font-bold text-[#0B2447] mb-4">
+                <h2 className="text-xl font-bold text-marinho mb-4">
                   Pacotes Adicionais
                 </h2>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   {packages.map((pkg, i) => (
                     <div
                       key={i}
-                      className="flex items-center justify-between p-4 rounded-xl border border-slate-200 hover:border-[#0B3D91]/30 hover:bg-slate-50/50 transition-all cursor-pointer group"
+                      className="flex items-center justify-between p-4 rounded-xl border border-slate-200 hover:border-marinho/30 hover:bg-slate-50/50 transition-all cursor-pointer group"
                     >
                       <div className="flex items-center gap-3">
                         <span className="text-2xl">{pkg.icon}</span>
                         <div>
-                          <p className="text-sm font-semibold text-slate-800 group-hover:text-[#0B3D91] transition-colors">
+                          <p className="text-sm font-semibold text-grafite group-hover:text-marinho transition-colors">
                             {pkg.name}
                           </p>
                           <p className="text-xs text-slate-500">{pkg.description}</p>
                         </div>
                       </div>
-                      <span className="text-sm font-bold text-[#0B3D91] bg-[#0B3D91]/10 px-3 py-1 rounded-lg">
+                      <span className="text-sm font-bold text-marinho bg-marinho/10 px-3 py-1 rounded-lg">
                         {formatCurrency(pkg.price)}
                       </span>
                     </div>
@@ -199,16 +199,16 @@ export default async function BoatDetailPage({ params }: any) {
               <div>
                 <div className="flex items-center justify-between mb-6">
                   <div>
-                    <h2 className="text-xl font-bold text-[#0B2447]">
+                    <h2 className="text-xl font-bold text-marinho">
                       Avaliações dos Hóspedes
                     </h2>
                     <div className="flex items-center gap-2 mt-1">
                       <div className="flex items-center gap-0.5">
                         {[...Array(5)].map((_, i) => (
-                          <Star key={i} className="h-4 w-4 fill-amber-400 text-amber-400" />
+                          <Star key={i} className="h-4 w-4 fill-destaque text-destaque" />
                         ))}
                       </div>
-                      <span className="text-sm font-semibold text-slate-800">
+                      <span className="text-sm font-semibold text-grafite">
                         {boat.rating} / 5
                       </span>
                       <span className="text-sm text-slate-500">
@@ -216,7 +216,7 @@ export default async function BoatDetailPage({ params }: any) {
                       </span>
                     </div>
                   </div>
-                  <button className="text-sm font-medium text-[#0B3D91] border border-[#0B3D91]/20 px-4 py-2 rounded-lg hover:bg-[#0B3D91]/5 transition-colors">
+                  <button className="text-sm font-medium text-marinho border border-marinho/20 px-4 py-2 rounded-lg hover:bg-marinho/5 transition-colors">
                     Escreva uma Review
                   </button>
                 </div>
@@ -229,14 +229,14 @@ export default async function BoatDetailPage({ params }: any) {
                     >
                       <div className="flex items-center justify-between mb-3">
                         <div className="flex items-center gap-3">
-                          <div className="h-10 w-10 rounded-full bg-[#0B3D91] flex items-center justify-center text-white text-sm font-semibold">
+                          <div className="h-10 w-10 rounded-full bg-marinho flex items-center justify-center text-white text-sm font-semibold">
                             {review.userName
                               .split(' ')
                               .map((n) => n[0])
                               .join('')}
                           </div>
                           <div>
-                            <p className="text-sm font-semibold text-slate-800">
+                            <p className="text-sm font-semibold text-grafite">
                               {review.userName}
                             </p>
                             <p className="text-xs text-slate-500">
@@ -249,7 +249,7 @@ export default async function BoatDetailPage({ params }: any) {
                         </div>
                         <div className="flex items-center gap-0.5">
                           {[...Array(review.rating)].map((_, i) => (
-                            <Star key={i} className="h-3.5 w-3.5 fill-amber-400 text-amber-400" />
+                            <Star key={i} className="h-3.5 w-3.5 fill-destaque text-destaque" />
                           ))}
                         </div>
                       </div>
@@ -272,7 +272,7 @@ export default async function BoatDetailPage({ params }: any) {
                 {/* Price Card */}
                 <div className="rounded-2xl border border-slate-200 p-6 shadow-sm" id="booking-card">
                   <div className="flex items-baseline gap-1 mb-6">
-                    <span className="text-3xl font-bold text-[#0B2447]">
+                    <span className="text-3xl font-bold text-marinho">
                       {formatCurrency(boat.pricePerDay)}
                     </span>
                     <span className="text-sm text-slate-500">/dia</span>
@@ -287,7 +287,7 @@ export default async function BoatDetailPage({ params }: any) {
                       <input
                         type="text"
                         placeholder="Out 12 — Out 15"
-                        className="w-full border border-slate-200 rounded-xl px-4 py-3 text-sm text-slate-800 placeholder:text-slate-400 focus:border-[#0B3D91] focus:ring-1 focus:ring-[#0B3D91] outline-none transition-colors"
+                        className="w-full border border-slate-200 rounded-xl px-4 py-3 text-sm text-grafite placeholder:text-slate-400 focus:border-marinho focus:ring-1 focus:ring-marinho outline-none transition-colors"
                         readOnly
                       />
                     </div>
@@ -298,7 +298,7 @@ export default async function BoatDetailPage({ params }: any) {
                     <label className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider mb-1.5 block">
                       Hóspedes
                     </label>
-                    <select className="w-full border border-slate-200 rounded-xl px-4 py-3 text-sm text-slate-800 focus:border-[#0B3D91] focus:ring-1 focus:ring-[#0B3D91] outline-none bg-white transition-colors appearance-none cursor-pointer">
+                    <select className="w-full border border-slate-200 rounded-xl px-4 py-3 text-sm text-grafite focus:border-marinho focus:ring-1 focus:ring-marinho outline-none bg-white transition-colors appearance-none cursor-pointer">
                       {[...Array(boat.capacity)].map((_, i) => (
                         <option key={i} value={i + 1}>
                           {i + 1} {i === 0 ? 'hóspede' : 'hóspedes'}
@@ -311,22 +311,22 @@ export default async function BoatDetailPage({ params }: any) {
                   <div className="space-y-2 py-4 border-t border-slate-100">
                     <div className="flex items-center justify-between text-sm">
                       <span className="text-slate-600">Diária x 3</span>
-                      <span className="text-slate-800 font-medium">
+                      <span className="text-grafite font-medium">
                         {formatCurrency(boat.pricePerDay * 3 + Math.round(boat.pricePerDay * 0.15))}
                       </span>
                     </div>
                   </div>
 
                   <div className="flex items-center justify-between py-4 border-t border-slate-200">
-                    <span className="text-base font-bold text-[#0B2447]">Total</span>
-                    <span className="text-xl font-bold text-[#0B2447]">
+                    <span className="text-base font-bold text-marinho">Total</span>
+                    <span className="text-xl font-bold text-marinho">
                       {formatCurrency(boat.pricePerDay * 3 + Math.round(boat.pricePerDay * 0.15))}
                     </span>
                   </div>
 
                   {/* CTA */}
                   <button
-                    className="w-full bg-[#0B3D91] hover:bg-[#092E6E] text-white font-semibold py-3.5 rounded-xl transition-all hover:shadow-lg hover:shadow-[#0B3D91]/25 hover:scale-[1.01] active:scale-[0.99] flex items-center justify-center gap-2 cursor-pointer"
+                    className="w-full bg-marinho hover:bg-marinho-escuro text-white font-semibold py-3.5 rounded-xl transition-all hover:shadow-lg hover:shadow-marinho/25 hover:scale-[1.01] active:scale-[0.99] flex items-center justify-center gap-2 cursor-pointer"
                     id="reserve-button"
                   >
                     Reservar Experiência →
@@ -335,37 +335,37 @@ export default async function BoatDetailPage({ params }: any) {
                   {/* Trust */}
                   <div className="mt-4 space-y-2">
                     <div className="flex items-center gap-2 text-xs text-slate-500">
-                      <ShieldCheck className="h-3.5 w-3.5 text-emerald-500" />
+                      <ShieldCheck className="h-3.5 w-3.5 text-turquesa" />
                       <span>Garantia de Pagamento Seguro</span>
                     </div>
                     <div className="flex items-center gap-2 text-xs text-slate-500">
-                      <Headphones className="h-3.5 w-3.5 text-cyan-500" />
+                      <Headphones className="h-3.5 w-3.5 text-turquesa" />
                       <span>Suporte 24/7 durante sua experiência</span>
                     </div>
                   </div>
                 </div>
 
                 {/* Why Book Card */}
-                <div className="rounded-2xl bg-gradient-to-br from-[#0B3D91] to-[#0B2447] p-6 text-white">
+                <div className="rounded-2xl bg-gradient-to-br from-marinho to-marinho-escuro p-6 text-white">
                   <h3 className="text-base font-bold mb-4">
                     Por que reservar no Boatzy?
                   </h3>
                   <div className="space-y-3">
                     <div className="flex items-center gap-2.5">
-                      <div className="h-5 w-5 rounded-full bg-emerald-400/20 flex items-center justify-center shrink-0">
-                        <div className="h-2 w-2 rounded-full bg-emerald-400" />
+                      <div className="h-5 w-5 rounded-full bg-turquesa/20 flex items-center justify-center shrink-0">
+                        <div className="h-2 w-2 rounded-full bg-turquesa" />
                       </div>
                       <span className="text-sm text-slate-200">Inspeções verificadas</span>
                     </div>
                     <div className="flex items-center gap-2.5">
-                      <div className="h-5 w-5 rounded-full bg-emerald-400/20 flex items-center justify-center shrink-0">
-                        <div className="h-2 w-2 rounded-full bg-emerald-400" />
+                      <div className="h-5 w-5 rounded-full bg-turquesa/20 flex items-center justify-center shrink-0">
+                        <div className="h-2 w-2 rounded-full bg-turquesa" />
                       </div>
                       <span className="text-sm text-slate-200">Antecedentes da tripulação</span>
                     </div>
                     <div className="flex items-center gap-2.5">
-                      <div className="h-5 w-5 rounded-full bg-emerald-400/20 flex items-center justify-center shrink-0">
-                        <div className="h-2 w-2 rounded-full bg-emerald-400" />
+                      <div className="h-5 w-5 rounded-full bg-turquesa/20 flex items-center justify-center shrink-0">
+                        <div className="h-2 w-2 rounded-full bg-turquesa" />
                       </div>
                       <span className="text-sm text-slate-200">Programa de fidelidade exclusivo</span>
                     </div>

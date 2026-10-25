@@ -73,7 +73,7 @@ export default function GaleriaReserva({
         ) : (
           <div className="h-full flex items-center justify-center"><MapPin className="h-10 w-10 text-slate-300" /></div>
         )}
-        <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-[#0B2447]/85 via-[#0B2447]/20 to-transparent" />
+        <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-marinho/85 via-marinho/20 to-transparent" />
         {capa && (
           <span className="pointer-events-none absolute top-4 right-4 inline-flex items-center gap-1.5 rounded-full bg-black/40 backdrop-blur-sm px-3 py-1.5 text-xs font-semibold text-white">
             <Camera className="h-3.5 w-3.5" />
@@ -107,7 +107,7 @@ export default function GaleriaReserva({
                 type="button"
                 onClick={() => setAberta(i + 1)}
                 aria-label={`Ver foto ${i + 2} de ${fotos.length} em tela cheia`}
-                className="group relative shrink-0 snap-start w-[30%] sm:w-[23%] aspect-[4/3] overflow-hidden rounded-xl bg-slate-100 cursor-zoom-in focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#0B3D91]"
+                className="group relative shrink-0 snap-start w-[30%] sm:w-[23%] aspect-[4/3] overflow-hidden rounded-xl bg-slate-100 cursor-zoom-in focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-marinho"
               >
                 <Image
                   src={f.url_imagem}
@@ -116,7 +116,7 @@ export default function GaleriaReserva({
                   sizes="200px"
                   className="object-cover transition-transform duration-300 group-hover:scale-105"
                 />
-                <span className="absolute inset-0 flex items-center justify-center bg-[#0B2447]/0 transition-colors group-hover:bg-[#0B2447]/35">
+                <span className="absolute inset-0 flex items-center justify-center bg-marinho/0 transition-colors group-hover:bg-marinho/35">
                   <Expand className="h-5 w-5 text-white opacity-0 transition-opacity group-hover:opacity-100" />
                 </span>
               </button>
@@ -128,7 +128,7 @@ export default function GaleriaReserva({
             type="button"
             onClick={() => rolar(-1)}
             aria-label="Fotos anteriores"
-            className={`hidden sm:flex absolute left-2 top-1/2 mt-2 -translate-y-1/2 h-9 w-9 items-center justify-center rounded-full bg-white/95 text-[#0B2447] shadow-md ring-1 ring-slate-200 transition-opacity hover:bg-white ${podeVoltar ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}
+            className={`hidden sm:flex absolute left-2 top-1/2 mt-2 -translate-y-1/2 h-9 w-9 items-center justify-center rounded-full bg-white/95 text-marinho shadow-md ring-1 ring-slate-200 transition-opacity hover:bg-white ${podeVoltar ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}
           >
             <ChevronLeft className="h-4 w-4" />
           </button>
@@ -136,7 +136,7 @@ export default function GaleriaReserva({
             type="button"
             onClick={() => rolar(1)}
             aria-label="Próximas fotos"
-            className={`hidden sm:flex absolute right-2 top-1/2 mt-2 -translate-y-1/2 h-9 w-9 items-center justify-center rounded-full bg-white/95 text-[#0B2447] shadow-md ring-1 ring-slate-200 transition-opacity hover:bg-white ${podeAvancar ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}
+            className={`hidden sm:flex absolute right-2 top-1/2 mt-2 -translate-y-1/2 h-9 w-9 items-center justify-center rounded-full bg-white/95 text-marinho shadow-md ring-1 ring-slate-200 transition-opacity hover:bg-white ${podeAvancar ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}
           >
             <ChevronRight className="h-4 w-4" />
           </button>

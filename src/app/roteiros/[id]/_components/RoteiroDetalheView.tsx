@@ -171,16 +171,16 @@ export default function RoteiroDetalheView({
             <div className="lg:col-span-2">
               {/* Badges */}
               <div className="flex flex-wrap gap-2 mb-4">
-                <span className="inline-flex items-center gap-1 text-xs font-medium text-cyan-700 bg-cyan-50 px-3 py-1.5 rounded-full">
+                <span className="inline-flex items-center gap-1 text-xs font-medium text-turquesa-escuro bg-turquesa/10 px-3 py-1.5 rounded-full">
                   <Award className="h-3 w-3" />
                   Novo
                 </span>
-                <span className="inline-flex items-center gap-1 text-xs font-medium text-emerald-700 bg-emerald-50 px-3 py-1.5 rounded-full">
+                <span className="inline-flex items-center gap-1 text-xs font-medium text-turquesa-escuro bg-turquesa/10 px-3 py-1.5 rounded-full">
                   <BadgeCheck className="h-3 w-3" />
                   Roteiro Verificado
                 </span>
                 {roteiro.embarcacao && (
-                  <span className="inline-flex items-center gap-1 text-xs font-medium text-[#0B3D91] bg-[#0B3D91]/10 px-3 py-1.5 rounded-full">
+                  <span className="inline-flex items-center gap-1 text-xs font-medium text-marinho bg-marinho/10 px-3 py-1.5 rounded-full">
                     <Anchor className="h-3 w-3" />
                     {roteiro.embarcacao.embarcacao_tipo?.nome ?? 'Embarcação'} incluída
                   </span>
@@ -188,7 +188,7 @@ export default function RoteiroDetalheView({
               </div>
 
               {/* Title & location */}
-              <h1 className="text-3xl md:text-4xl font-bold text-[#0B2447] mb-2">
+              <h1 className="text-3xl md:text-4xl font-bold text-marinho mb-2">
                 {roteiro.nome}
               </h1>
               {localidade && (
@@ -208,22 +208,22 @@ export default function RoteiroDetalheView({
                 {roteiro.duracao && (
                   <div className="flex items-center gap-3 min-w-0">
                     <div className="h-10 w-10 rounded-xl bg-slate-100 flex items-center justify-center shrink-0">
-                      <Clock className="h-4 w-4 text-[#0B3D91]" />
+                      <Clock className="h-4 w-4 text-marinho" />
                     </div>
                     <div className="min-w-0">
                       <p className="text-[10px] text-slate-500 uppercase tracking-wider font-medium">Duração</p>
-                      <p className="text-sm font-semibold text-slate-800 truncate">{roteiro.duracao}</p>
+                      <p className="text-sm font-semibold text-grafite truncate">{roteiro.duracao}</p>
                     </div>
                   </div>
                 )}
                 {roteiro.horario_saida && (
                   <div className="flex items-center gap-3 min-w-0">
                     <div className="h-10 w-10 rounded-xl bg-slate-100 flex items-center justify-center shrink-0">
-                      <AlarmClock className="h-4 w-4 text-[#0B3D91]" />
+                      <AlarmClock className="h-4 w-4 text-marinho" />
                     </div>
                     <div className="min-w-0">
                       <p className="text-[10px] text-slate-500 uppercase tracking-wider font-medium">Saída</p>
-                      <p className="text-sm font-semibold text-slate-800 truncate">
+                      <p className="text-sm font-semibold text-grafite truncate">
                         {roteiro.horario_saida.slice(0, 5)}
                       </p>
                     </div>
@@ -233,11 +233,11 @@ export default function RoteiroDetalheView({
                 {retorno && (
                   <div className="flex items-center gap-3 min-w-0">
                     <div className="h-10 w-10 rounded-xl bg-slate-100 flex items-center justify-center shrink-0">
-                      <AlarmClockCheck className="h-4 w-4 text-[#0B3D91]" />
+                      <AlarmClockCheck className="h-4 w-4 text-marinho" />
                     </div>
                     <div className="min-w-0">
                       <p className="text-[10px] text-slate-500 uppercase tracking-wider font-medium">Retorno Aproximado</p>
-                      <p className="text-sm font-semibold text-slate-800 truncate" title={retornoTexto(retorno)}>
+                      <p className="text-sm font-semibold text-grafite truncate" title={retornoTexto(retorno)}>
                         {retorno.horario}
                         {retorno.diasDepois > 0 && (
                           <span className="ml-1 text-xs font-medium text-slate-500">
@@ -251,22 +251,22 @@ export default function RoteiroDetalheView({
                 {roteiro.quantidade_pessoas && (
                   <div className="flex items-center gap-3 min-w-0">
                     <div className="h-10 w-10 rounded-xl bg-slate-100 flex items-center justify-center shrink-0">
-                      <Users className="h-4 w-4 text-[#0B3D91]" />
+                      <Users className="h-4 w-4 text-marinho" />
                     </div>
                     <div className="min-w-0">
                       <p className="text-[10px] text-slate-500 uppercase tracking-wider font-medium">Capacidade</p>
-                      <p className="text-sm font-semibold text-slate-800 truncate">{roteiro.quantidade_pessoas} pessoas</p>
+                      <p className="text-sm font-semibold text-grafite truncate">{roteiro.quantidade_pessoas} pessoas</p>
                     </div>
                   </div>
                 )}
                 {(roteiro.origem || roteiro.destino) && (
                   <div className="flex items-center gap-3 min-w-0">
                     <div className="h-10 w-10 rounded-xl bg-slate-100 flex items-center justify-center shrink-0">
-                      <Navigation className="h-4 w-4 text-[#0B3D91]" />
+                      <Navigation className="h-4 w-4 text-marinho" />
                     </div>
                     <div className="min-w-0">
                       <p className="text-[10px] text-slate-500 uppercase tracking-wider font-medium">Local de partida</p>
-                      <p className="text-sm font-semibold text-slate-800 truncate">
+                      <p className="text-sm font-semibold text-grafite truncate">
                         {roteiro.origem && roteiro.destino
                           ? `${roteiro.origem} → ${roteiro.destino}`
                           : roteiro.origem ?? roteiro.destino}
@@ -277,11 +277,11 @@ export default function RoteiroDetalheView({
                 {roteiro.embarcacao && (
                   <div className="flex items-center gap-3 min-w-0">
                     <div className="h-10 w-10 rounded-xl bg-slate-100 flex items-center justify-center shrink-0">
-                      <Anchor className="h-4 w-4 text-[#0B3D91]" />
+                      <Anchor className="h-4 w-4 text-marinho" />
                     </div>
                     <div className="min-w-0">
                       <p className="text-[10px] text-slate-500 uppercase tracking-wider font-medium">Embarcação</p>
-                      <p className="text-sm font-semibold text-slate-800 truncate">{roteiro.embarcacao.nome}</p>
+                      <p className="text-sm font-semibold text-grafite truncate">{roteiro.embarcacao.nome}</p>
                     </div>
                   </div>
                 )}
@@ -290,7 +290,7 @@ export default function RoteiroDetalheView({
               {/* Embarcação details */}
               {roteiro.embarcacao && (
                 <div className="mb-10">
-                  <h2 className="text-xl font-bold text-[#0B2447] mb-4">
+                  <h2 className="text-xl font-bold text-marinho mb-4">
                     Sobre a Embarcação
                   </h2>
                   <div className="rounded-2xl border border-slate-100 p-5 bg-slate-50/50">
@@ -300,12 +300,12 @@ export default function RoteiroDetalheView({
                       <div className="min-w-0 flex-1 flex flex-col">
                         <div className="flex items-start justify-between gap-3">
                           <div className="min-w-0">
-                            <p className="text-lg font-semibold text-slate-800 leading-snug">{roteiro.embarcacao.nome}</p>
+                            <p className="text-lg font-semibold text-grafite leading-snug">{roteiro.embarcacao.nome}</p>
                             {roteiro.embarcacao.embarcacao_tipo && (
                               <p className="text-xs text-slate-500 mt-0.5">{roteiro.embarcacao.embarcacao_tipo.nome}</p>
                             )}
                           </div>
-                          <span className="shrink-0 text-xs font-medium bg-[#0B3D91]/10 text-[#0B3D91] px-3 py-1 rounded-full whitespace-nowrap">
+                          <span className="shrink-0 text-xs font-medium bg-marinho/10 text-marinho px-3 py-1 rounded-full whitespace-nowrap">
                             {modalidadeLabel[roteiro.embarcacao.modalidade_capitao] ?? roteiro.embarcacao.modalidade_capitao}
                           </span>
                         </div>
@@ -314,7 +314,7 @@ export default function RoteiroDetalheView({
                             href={hrefRoteirosEmbarcacao}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="group mt-4 sm:mt-auto inline-flex w-fit items-center gap-1.5 text-sm font-semibold text-[#0B3D91] hover:underline underline-offset-4 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#0B3D91] rounded"
+                            className="group mt-4 sm:mt-auto inline-flex w-fit items-center gap-1.5 text-sm font-semibold text-marinho hover:underline underline-offset-4 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-marinho rounded"
                           >
                             <Ship className="h-4 w-4" />
                             Veja outros roteiros desta embarcação
@@ -326,31 +326,31 @@ export default function RoteiroDetalheView({
                     <div className="grid grid-cols-3 sm:grid-cols-5 gap-3">
                       {roteiro.embarcacao.capacidade && (
                         <div className="text-center p-3 bg-white rounded-xl border border-slate-100">
-                          <p className="text-lg font-bold text-[#0B2447]">{roteiro.embarcacao.capacidade}</p>
+                          <p className="text-lg font-bold text-marinho">{roteiro.embarcacao.capacidade}</p>
                           <p className="text-[10px] text-slate-500 uppercase tracking-wider mt-0.5">Pessoas</p>
                         </div>
                       )}
                       {roteiro.embarcacao.tripulacao && (
                         <div className="text-center p-3 bg-white rounded-xl border border-slate-100">
-                          <p className="text-lg font-bold text-[#0B2447]">{roteiro.embarcacao.tripulacao}</p>
+                          <p className="text-lg font-bold text-marinho">{roteiro.embarcacao.tripulacao}</p>
                           <p className="text-[10px] text-slate-500 uppercase tracking-wider mt-0.5">Tripulação</p>
                         </div>
                       )}
                       {roteiro.embarcacao.quartos && (
                         <div className="text-center p-3 bg-white rounded-xl border border-slate-100">
-                          <p className="text-lg font-bold text-[#0B2447]">{roteiro.embarcacao.quartos}</p>
+                          <p className="text-lg font-bold text-marinho">{roteiro.embarcacao.quartos}</p>
                           <p className="text-[10px] text-slate-500 uppercase tracking-wider mt-0.5">Quartos</p>
                         </div>
                       )}
                       {roteiro.embarcacao.banheiros && (
                         <div className="text-center p-3 bg-white rounded-xl border border-slate-100">
-                          <p className="text-lg font-bold text-[#0B2447]">{roteiro.embarcacao.banheiros}</p>
+                          <p className="text-lg font-bold text-marinho">{roteiro.embarcacao.banheiros}</p>
                           <p className="text-[10px] text-slate-500 uppercase tracking-wider mt-0.5">Banheiros</p>
                         </div>
                       )}
                       {roteiro.embarcacao.comprimento && (
                         <div className="text-center p-3 bg-white rounded-xl border border-slate-100">
-                          <p className="text-lg font-bold text-[#0B2447]">{formatarComprimento(roteiro.embarcacao.comprimento, roteiro.embarcacao.comprimento_unidade)}</p>
+                          <p className="text-lg font-bold text-marinho">{formatarComprimento(roteiro.embarcacao.comprimento, roteiro.embarcacao.comprimento_unidade)}</p>
                           <p className="text-[10px] text-slate-500 uppercase tracking-wider mt-0.5">Comprimento</p>
                         </div>
                       )}
@@ -362,8 +362,8 @@ export default function RoteiroDetalheView({
               {/* Equipamentos de segurança da embarcação */}
               {roteiro.embarcacao && roteiro.embarcacao.embarcacao_equipamentos_seguranca.length > 0 && (
                 <div className="mb-10">
-                  <h2 className="text-xl font-bold text-[#0B2447] mb-4 flex items-center gap-2">
-                    <ShieldCheck className="h-5 w-5 text-[#0B3D91]" />
+                  <h2 className="text-xl font-bold text-marinho mb-4 flex items-center gap-2">
+                    <ShieldCheck className="h-5 w-5 text-marinho" />
                     Equipamentos de Segurança
                   </h2>
                   <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
@@ -373,7 +373,7 @@ export default function RoteiroDetalheView({
                           key={i}
                           className="flex items-center gap-2.5 p-3 rounded-xl border border-slate-100 bg-slate-50/60"
                         >
-                          <CheckCircle2 className="h-4 w-4 text-[#0B3D91] shrink-0" />
+                          <CheckCircle2 className="h-4 w-4 text-marinho shrink-0" />
                           <span className="text-sm text-slate-700 leading-tight">{ee.equipamentos_seguranca.nome}</span>
                         </div>
                       ) : null,
@@ -385,8 +385,8 @@ export default function RoteiroDetalheView({
               {/* Acessórios da embarcação */}
               {roteiro.embarcacao && roteiro.embarcacao.embarcacao_acessorios.length > 0 && (
                 <div className="mb-10">
-                  <h2 className="text-xl font-bold text-[#0B2447] mb-4 flex items-center gap-2">
-                    <Waves className="h-5 w-5 text-[#0B3D91]" />
+                  <h2 className="text-xl font-bold text-marinho mb-4 flex items-center gap-2">
+                    <Waves className="h-5 w-5 text-marinho" />
                     Acessórios da Embarcação
                   </h2>
                   <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
@@ -396,7 +396,7 @@ export default function RoteiroDetalheView({
                           key={i}
                           className="flex items-center gap-2.5 p-3 rounded-xl border border-slate-100 bg-slate-50/60"
                         >
-                          <CheckCircle2 className="h-4 w-4 text-[#0B3D91] shrink-0" />
+                          <CheckCircle2 className="h-4 w-4 text-marinho shrink-0" />
                           <span className="text-sm text-slate-700 leading-tight">{ea.acessorios.nome}</span>
                         </div>
                       ) : null,
@@ -408,7 +408,7 @@ export default function RoteiroDetalheView({
               {/* Comodidades da embarcação */}
               {roteiro.embarcacao && roteiro.embarcacao.embarcacao_comodidades.length > 0 && (
                 <div className="mb-10">
-                  <h2 className="text-xl font-bold text-[#0B2447] mb-4">Comodidades a bordo</h2>
+                  <h2 className="text-xl font-bold text-marinho mb-4">Comodidades a bordo</h2>
                   <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
                     {roteiro.embarcacao.embarcacao_comodidades.map((ec, i) =>
                       ec.comodidade ? (
@@ -416,7 +416,7 @@ export default function RoteiroDetalheView({
                           key={i}
                           className="flex items-center gap-2.5 p-3 rounded-xl border border-slate-100 bg-slate-50/60"
                         >
-                          <CheckCircle2 className="h-4 w-4 text-emerald-500 shrink-0" />
+                          <CheckCircle2 className="h-4 w-4 text-turquesa shrink-0" />
                           <span className="text-sm text-slate-700 leading-tight">{ec.comodidade.nome}</span>
                         </div>
                       ) : null,
@@ -428,30 +428,30 @@ export default function RoteiroDetalheView({
               {/* Itinerary */}
               {(roteiro.origem || roteiro.destino || roteiro.roteiro_parada.length > 0) && (
                 <div className="mb-10">
-                  <h2 className="text-xl font-bold text-[#0B2447] mb-4">Itinerário</h2>
+                  <h2 className="text-xl font-bold text-marinho mb-4">Itinerário</h2>
                   <div className="relative pl-6">
-                    <div className="absolute left-2 top-2 bottom-2 w-0.5 bg-gradient-to-b from-[#0B3D91] to-cyan-400 rounded-full" />
+                    <div className="absolute left-2 top-2 bottom-2 w-0.5 bg-gradient-to-b from-marinho to-turquesa rounded-full" />
                     {roteiro.origem && (
                       <div className="relative mb-6">
-                        <div className="absolute -left-6 top-1 h-3 w-3 rounded-full bg-[#0B3D91] ring-2 ring-white" />
+                        <div className="absolute -left-6 top-1 h-3 w-3 rounded-full bg-marinho ring-2 ring-white" />
                         <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-0.5">Saída</p>
-                        <p className="text-sm font-semibold text-slate-800">{roteiro.origem}</p>
+                        <p className="text-sm font-semibold text-grafite">{roteiro.origem}</p>
                       </div>
                     )}
                     {roteiro.roteiro_parada.map((parada, i) => (
                       <div key={i} className="relative mb-6">
-                        <div className="absolute -left-6 top-1 h-3 w-3 rounded-full bg-[#5B8DEF] ring-2 ring-white" />
+                        <div className="absolute -left-6 top-1 h-3 w-3 rounded-full bg-turquesa/60 ring-2 ring-white" />
                         <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-0.5">
                           Parada {i + 1}
                         </p>
-                        <p className="text-sm font-semibold text-slate-800">{parada.nome}</p>
+                        <p className="text-sm font-semibold text-grafite">{parada.nome}</p>
                       </div>
                     ))}
                     {roteiro.destino && (
                       <div className="relative">
-                        <div className="absolute -left-6 top-1 h-3 w-3 rounded-full bg-cyan-400 ring-2 ring-white" />
+                        <div className="absolute -left-6 top-1 h-3 w-3 rounded-full bg-turquesa ring-2 ring-white" />
                         <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-0.5">Chegada</p>
-                        <p className="text-sm font-semibold text-slate-800">{roteiro.destino}</p>
+                        <p className="text-sm font-semibold text-grafite">{roteiro.destino}</p>
                       </div>
                     )}
                   </div>
@@ -461,16 +461,16 @@ export default function RoteiroDetalheView({
               {/* Localização */}
               {roteiro.latitude && roteiro.longitude && (
                 <div className="mb-10">
-                  <h2 className="text-xl font-bold text-[#0B2447] mb-4">Localização</h2>
+                  <h2 className="text-xl font-bold text-marinho mb-4">Localização</h2>
 
                   <LocalizacaoMap lat={Number(roteiro.latitude)} lng={Number(roteiro.longitude)} />
 
                   {/* Endereço textual */}
                   <div className="mt-4 flex items-start gap-3 p-4 rounded-xl bg-slate-50 border border-slate-100">
-                    <MapPin className="h-4 w-4 text-[#0B3D91] mt-0.5 shrink-0" />
+                    <MapPin className="h-4 w-4 text-marinho mt-0.5 shrink-0" />
                     <div className="text-sm text-slate-700 leading-relaxed">
                       {roteiro.logradouro && (
-                        <p className="font-medium text-slate-800">
+                        <p className="font-medium text-grafite">
                           {roteiro.logradouro}
                           {roteiro.logradouro_numero && `, ${roteiro.logradouro_numero}`}
                           {roteiro.complemento && ` — ${roteiro.complemento}`}
@@ -484,7 +484,7 @@ export default function RoteiroDetalheView({
                         </p>
                       )}
                       {!roteiro.logradouro && !roteiro.bairro && roteiro.origem && (
-                        <p className="font-medium text-slate-800">{roteiro.origem}</p>
+                        <p className="font-medium text-grafite">{roteiro.origem}</p>
                       )}
                     </div>
                   </div>

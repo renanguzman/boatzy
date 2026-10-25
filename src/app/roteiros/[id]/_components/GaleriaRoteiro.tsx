@@ -167,7 +167,7 @@ export default function GaleriaRoteiro({ images, nome, voltarHref = '/buscar' }:
                         e.stopPropagation();
                         openModal(current);
                       }}
-                      className="absolute bottom-3 right-3 z-10 bg-white/90 backdrop-blur-sm text-slate-800 text-xs font-semibold px-4 py-2 rounded-lg flex items-center gap-1.5 hover:bg-white transition-all shadow-md hover:shadow-lg hover:scale-[1.02] active:scale-[0.98]"
+                      className="absolute bottom-3 right-3 z-10 bg-white/90 backdrop-blur-sm text-grafite text-xs font-semibold px-4 py-2 rounded-lg flex items-center gap-1.5 hover:bg-white transition-all shadow-md hover:shadow-lg hover:scale-[1.02] active:scale-[0.98]"
                     >
                       <Camera className="h-3.5 w-3.5" />
                       Ver todas ({total})
@@ -181,7 +181,7 @@ export default function GaleriaRoteiro({ images, nome, voltarHref = '/buscar' }:
             {mainImg && (total <= 2 || !hasSides) && total > 0 && (
               <button
                 onClick={() => openModal(current)}
-                className="absolute bottom-4 right-4 z-10 bg-white/90 backdrop-blur-sm text-slate-800 text-xs font-semibold px-4 py-2 rounded-lg flex items-center gap-1.5 hover:bg-white transition-all shadow-md lg:hidden"
+                className="absolute bottom-4 right-4 z-10 bg-white/90 backdrop-blur-sm text-grafite text-xs font-semibold px-4 py-2 rounded-lg flex items-center gap-1.5 hover:bg-white transition-all shadow-md lg:hidden"
               >
                 <Camera className="h-3.5 w-3.5" />
                 Ver todas ({total})

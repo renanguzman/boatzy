@@ -14,9 +14,9 @@ export default function TermsPage() {
     <>
       <Header />
 
-      <main className="flex-1 bg-slate-50">
+      <main className="flex-1 bg-areia">
         {/* Hero */}
-        <section className="bg-[#0B2447] text-white">
+        <section className="bg-marinho text-white">
           <div className="mx-auto max-w-3xl px-4 sm:px-6 lg:px-8 py-16">
             <h1 className="text-3xl sm:text-4xl font-bold tracking-tight">
               Termos de Uso
@@ -43,7 +43,7 @@ export default function TermsPage() {
           <article className="mt-10 space-y-10 text-slate-700 leading-relaxed">
             {/* 1 */}
             <section>
-              <h2 className="text-xl font-semibold text-slate-900">
+              <h2 className="text-xl font-semibold text-grafite">
                 1. Aceitação destes Termos
               </h2>
               <p className="mt-3">
@@ -54,7 +54,7 @@ export default function TermsPage() {
                 entendeu e concorda com estes Termos e com a nossa{' '}
                 <Link
                   href="/privacy"
-                  className="text-[#0B2447] underline hover:no-underline"
+                  className="text-marinho underline hover:no-underline"
                 >
                   Política de Privacidade
                 </Link>
@@ -74,7 +74,7 @@ export default function TermsPage() {
 
             {/* 2 */}
             <section>
-              <h2 className="text-xl font-semibold text-slate-900">
+              <h2 className="text-xl font-semibold text-grafite">
                 2. O que é o Boatzy (e o que não é)
               </h2>
               <p className="mt-3">
@@ -106,7 +106,7 @@ export default function TermsPage() {
 
             {/* 3 */}
             <section>
-              <h2 className="text-xl font-semibold text-slate-900">
+              <h2 className="text-xl font-semibold text-grafite">
                 3. Cadastro e conta
               </h2>
               <p className="mt-3">Para usar a plataforma, você deve:</p>
@@ -133,10 +133,10 @@ export default function TermsPage() {
 
             {/* 4 */}
             <section>
-              <h2 className="text-xl font-semibold text-slate-900">
+              <h2 className="text-xl font-semibold text-grafite">
                 4. Responsabilidades dos usuários
               </h2>
-              <p className="mt-3 font-medium text-slate-900">
+              <p className="mt-3 font-medium text-grafite">
                 Anunciantes são responsáveis por:
               </p>
               <ul className="mt-2 list-disc space-y-1 pl-5">
@@ -152,7 +152,7 @@ export default function TermsPage() {
                 </li>
                 <li>Prestar informações verdadeiras sobre a embarcação.</li>
               </ul>
-              <p className="mt-3 font-medium text-slate-900">
+              <p className="mt-3 font-medium text-grafite">
                 Locatários são responsáveis por:
               </p>
               <ul className="mt-2 list-disc space-y-1 pl-5">
@@ -166,7 +166,7 @@ export default function TermsPage() {
 
             {/* 5 */}
             <section>
-              <h2 className="text-xl font-semibold text-slate-900">
+              <h2 className="text-xl font-semibold text-grafite">
                 5. Condutas proibidas
               </h2>
               <p className="mt-3">
@@ -196,7 +196,7 @@ export default function TermsPage() {
 
             {/* 6 */}
             <section>
-              <h2 className="text-xl font-semibold text-slate-900">
+              <h2 className="text-xl font-semibold text-grafite">
                 6. Pagamentos
               </h2>
               <blockquote className="mt-3 border-l-4 border-slate-300 pl-4 italic text-slate-600">
@@ -211,7 +211,7 @@ export default function TermsPage() {
 
             {/* 7 */}
             <section>
-              <h2 className="text-xl font-semibold text-slate-900">
+              <h2 className="text-xl font-semibold text-grafite">
                 7. Isenção de responsabilidade
               </h2>
               <p className="mt-3">Como o Boatzy é apenas intermediário:</p>
@@ -237,7 +237,7 @@ export default function TermsPage() {
 
             {/* 8 */}
             <section>
-              <h2 className="text-xl font-semibold text-slate-900">
+              <h2 className="text-xl font-semibold text-grafite">
                 8. Limitação de responsabilidade
               </h2>
               <p className="mt-3">
@@ -251,7 +251,7 @@ export default function TermsPage() {
 
             {/* 9 */}
             <section>
-              <h2 className="text-xl font-semibold text-slate-900">
+              <h2 className="text-xl font-semibold text-grafite">
                 9. Propriedade intelectual
               </h2>
               <p className="mt-3">
@@ -264,14 +264,14 @@ export default function TermsPage() {
 
             {/* 10 */}
             <section>
-              <h2 className="text-xl font-semibold text-slate-900">
+              <h2 className="text-xl font-semibold text-grafite">
                 10. Privacidade
               </h2>
               <p className="mt-3">
                 O tratamento dos seus dados pessoais é regido pela nossa{' '}
                 <Link
                   href="/privacy"
-                  className="text-[#0B2447] underline hover:no-underline"
+                  className="text-marinho underline hover:no-underline"
                 >
                   Política de Privacidade
                 </Link>
@@ -281,7 +281,7 @@ export default function TermsPage() {
 
             {/* 11 */}
             <section>
-              <h2 className="text-xl font-semibold text-slate-900">
+              <h2 className="text-xl font-semibold text-grafite">
                 11. Suspensão e encerramento
               </h2>
               <p className="mt-3">
@@ -295,7 +295,7 @@ export default function TermsPage() {
 
             {/* 12 */}
             <section>
-              <h2 className="text-xl font-semibold text-slate-900">
+              <h2 className="text-xl font-semibold text-grafite">
                 12. Alterações destes Termos
               </h2>
               <p className="mt-3">
@@ -309,7 +309,7 @@ export default function TermsPage() {
 
             {/* 13 */}
             <section>
-              <h2 className="text-xl font-semibold text-slate-900">
+              <h2 className="text-xl font-semibold text-grafite">
                 13. Lei aplicável e foro
               </h2>
               <p className="mt-3">
@@ -323,7 +323,7 @@ export default function TermsPage() {
 
             {/* 14 */}
             <section>
-              <h2 className="text-xl font-semibold text-slate-900">
+              <h2 className="text-xl font-semibold text-grafite">
                 14. Contato
               </h2>
               <p className="mt-3">Dúvidas sobre estes Termos de Uso:</p>
@@ -331,7 +331,7 @@ export default function TermsPage() {
                 📧{' '}
                 <a
                   href="mailto:adm@boatzy.app"
-                  className="font-semibold text-[#0B2447] underline hover:no-underline"
+                  className="font-semibold text-marinho underline hover:no-underline"
                 >
                   adm@boatzy.app
                 </a>

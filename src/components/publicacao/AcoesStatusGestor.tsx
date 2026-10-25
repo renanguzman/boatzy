@@ -47,7 +47,7 @@ export default function AcoesStatusGestor({ entidade, id, nome, status, roteiros
             <button
               type="button"
               onClick={() => abrir(acoes.length === 1 ? acoes[0] : null)}
-              className="text-[11px] font-semibold text-[#0B3D91] hover:underline whitespace-nowrap"
+              className="text-[11px] font-semibold text-marinho hover:underline whitespace-nowrap"
             >
               Alterar
             </button>
@@ -62,7 +62,7 @@ export default function AcoesStatusGestor({ entidade, id, nome, status, roteiros
               onClick={() => abrir(a)}
               className={a.tiraDoAr
                 ? 'inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-sm font-semibold text-slate-600 hover:border-slate-300 hover:bg-slate-50 transition'
-                : 'inline-flex items-center gap-1.5 rounded-xl bg-[#0B2447] px-3.5 py-2 text-sm font-semibold text-white hover:bg-[#0B3D91] transition'}
+                : 'inline-flex items-center gap-1.5 rounded-xl bg-marinho px-3.5 py-2 text-sm font-semibold text-white hover:bg-marinho-escuro transition'}
             >
               {!a.tiraDoAr && <Send className="h-3.5 w-3.5" />}
               {a.label}
@@ -127,7 +127,7 @@ function ModalAcao({ entidade, id, nome, status, acoes, acaoInicial, roteirosVin
         <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
           {ENTIDADE_LABEL[entidade].singular}
         </p>
-        <h3 className="mt-0.5 pr-6 text-base font-bold text-[#0B2447]">{nome}</h3>
+        <h3 className="mt-0.5 pr-6 text-base font-bold text-marinho">{nome}</h3>
         <div className="mt-2 flex items-center gap-2">
           <StatusPublicacaoBadge status={status} />
         </div>
@@ -137,7 +137,7 @@ function ModalAcao({ entidade, id, nome, status, acoes, acaoInicial, roteirosVin
           <div className="mt-5 space-y-2">
             {acoes.map(a => (
               <button key={a.para} type="button" onClick={() => setAcao(a)}
-                className="w-full rounded-xl border border-slate-200 px-4 py-3 text-left text-sm font-semibold text-slate-700 hover:border-[#0B2447]/30 hover:bg-slate-50 transition">
+                className="w-full rounded-xl border border-slate-200 px-4 py-3 text-left text-sm font-semibold text-slate-700 hover:border-marinho/30 hover:bg-slate-50 transition">
                 {a.label}
               </button>
             ))}
@@ -151,7 +151,7 @@ function ModalAcao({ entidade, id, nome, status, acoes, acaoInicial, roteirosVin
               </button>
             )}
             <div className={`rounded-xl border p-4 ${acao.tiraDoAr ? 'border-amber-200 bg-amber-50/60' : 'border-sky-200 bg-sky-50/60'}`}>
-              <p className="text-sm font-bold text-slate-800">{acao.label}</p>
+              <p className="text-sm font-bold text-grafite">{acao.label}</p>
               <p className="mt-1 text-sm text-slate-600">{acao.confirmacao}</p>
             </div>
 
@@ -187,7 +187,7 @@ function ModalAcao({ entidade, id, nome, status, acoes, acaoInicial, roteirosVin
                 </span>
                 <textarea rows={3} value={mensagem} onChange={e => setMensagem(e.target.value)} maxLength={1000}
                   placeholder="Ex.: troquei as fotos e corrigi a capacidade."
-                  className="w-full resize-none rounded-xl border border-slate-200 px-3.5 py-2.5 text-sm text-slate-800 placeholder:text-slate-400 focus:border-[#0B2447]/40 focus:outline-none focus:ring-2 focus:ring-[#0B2447]/20" />
+                  className="w-full resize-none rounded-xl border border-slate-200 px-3.5 py-2.5 text-sm text-grafite placeholder:text-slate-400 focus:border-marinho/40 focus:outline-none focus:ring-2 focus:ring-marinho/20" />
               </label>
             )}
 
@@ -204,7 +204,7 @@ function ModalAcao({ entidade, id, nome, status, acoes, acaoInicial, roteirosVin
               </button>
               <button type="button" disabled={pendente} onClick={confirmar}
                 className={`flex items-center gap-1.5 rounded-xl px-4 py-2 text-sm font-semibold text-white transition disabled:cursor-not-allowed disabled:opacity-60 ${
-                  acao.terminal ? 'bg-red-600 hover:bg-red-700' : acao.tiraDoAr ? 'bg-amber-600 hover:bg-amber-700' : 'bg-[#0B2447] hover:bg-[#0B3D91]'}`}>
+                  acao.terminal ? 'bg-red-600 hover:bg-red-700' : acao.tiraDoAr ? 'bg-amber-600 hover:bg-amber-700' : 'bg-marinho hover:bg-marinho-escuro'}`}>
                 {pendente && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
                 Confirmar
               </button>

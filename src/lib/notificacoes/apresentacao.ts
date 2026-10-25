@@ -32,7 +32,7 @@ export const VISUAL_NOTIFICACAO: Record<NotificacaoTipo, Visual> = {
   pagamento_aprovado: { icone: BadgeCheck, cor: 'bg-emerald-50 text-emerald-600', rotulo: 'Pagamento aprovado' },
   pagamento_recusado: { icone: CreditCard, cor: 'bg-rose-50 text-rose-500', rotulo: 'Pagamento recusado' },
   reembolso: { icone: RotateCcw, cor: 'bg-sky-50 text-sky-600', rotulo: 'Reembolso' },
-  mensagem: { icone: MessageCircle, cor: 'bg-[#0B3D91]/10 text-[#0B3D91]', rotulo: 'Mensagem' },
+  mensagem: { icone: MessageCircle, cor: 'bg-marinho/10 text-marinho', rotulo: 'Mensagem' },
 };
 
 export function visualNotificacao(tipo: string): Visual {

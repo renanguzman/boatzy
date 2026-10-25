@@ -141,7 +141,7 @@ export default async function PagarReservaPage({
   const sandbox = cfg.ok && cfg.config.ambiente === 'sandbox';
 
   return (
-    <div className="min-h-screen flex flex-col bg-slate-50">
+    <div className="min-h-screen flex flex-col bg-areia">
       <Header />
 
       <main className="flex-1 max-w-3xl w-full mx-auto px-4 py-10">
@@ -149,7 +149,7 @@ export default async function PagarReservaPage({
           ← Minhas reservas
         </Link>
 
-        <h1 className="mt-3 text-2xl font-bold text-[#0B2447]">Pagamento da reserva</h1>
+        <h1 className="mt-3 text-2xl font-bold text-marinho">Pagamento da reserva</h1>
         <p className="text-sm text-slate-500 mt-1">
           O pagamento é feito pelo Boatzy e garante a sua data. O gestor recebe depois do passeio.
         </p>
@@ -160,7 +160,7 @@ export default async function PagarReservaPage({
             <div className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-slate-400">
               <TipoIcon className="h-3 w-3" /> {reserva.tipo === 'embarcacao' ? 'Embarcação' : 'Roteiro'}
             </div>
-            <h2 className="mt-0.5 text-base font-bold text-[#0B2447]">{reserva.roteiro?.nome ?? reserva.item_nome}</h2>
+            <h2 className="mt-0.5 text-base font-bold text-marinho">{reserva.roteiro?.nome ?? reserva.item_nome}</h2>
             {localidade && <p className="text-xs text-slate-500 mt-0.5">{localidade}</p>}
 
             <div className="mt-4 space-y-2 text-sm text-slate-600">
@@ -183,12 +183,12 @@ export default async function PagarReservaPage({
                   <span className="text-slate-700">{formatCurrencyPrecise(Number(pedido.valor_itens) + Number(pedido.valor_comissao))}</span>
                 </div>
                 {Number(pedido.valor_desconto) > 0 && (
-                  <div className="flex justify-between text-emerald-600">
+                  <div className="flex justify-between text-turquesa-escuro">
                     <span>Desconto{cupom ? ` (${cupom})` : ''}</span>
                     <span>-{formatCurrencyPrecise(Number(pedido.valor_desconto))}</span>
                   </div>
                 )}
-                <div className="flex justify-between border-t border-slate-100 pt-2 font-bold text-[#0B2447]">
+                <div className="flex justify-between border-t border-slate-100 pt-2 font-bold text-marinho">
                   <span>Total</span><span>{formatCurrencyPrecise(Number(pedido.valor_total))}</span>
                 </div>
                 <p className="text-[11px] text-slate-400">Pedido #{pedido.numero}</p>
@@ -201,7 +201,7 @@ export default async function PagarReservaPage({
             {!pedido ? (
               <div className="rounded-2xl border border-slate-200 bg-white shadow-sm p-6 text-sm text-slate-600">
                 Esta reserva não tem pagamento pendente. Acompanhe o status em{' '}
-                <Link href="/minhas-reservas" className="font-medium text-[#0B3D91] hover:underline">Minhas reservas</Link>.
+                <Link href="/minhas-reservas" className="font-medium text-marinho hover:underline">Minhas reservas</Link>.
               </div>
             ) : pedido.status === 'aguardando_pagamento' && pedido.expira_em ? (
               formas.length === 0 ? (
@@ -222,7 +222,7 @@ export default async function PagarReservaPage({
                 />
               )
             ) : pedido.status === 'pago' || pedido.status === 'reembolsado_parcial' || pedido.status === 'em_disputa' || pedido.status === 'reembolsado' ? (
-              <div className="rounded-2xl border border-emerald-200 bg-white shadow-sm p-6">
+              <div className="rounded-2xl border border-turquesa/40 bg-white shadow-sm p-6">
                 {/* GA4: compra concluída — 1x por navegador; transaction_id deduplica no GA (SPEC §65) */}
                 {pedido.status === 'pago' && (
                   <EventoAnalytics
@@ -245,8 +245,8 @@ export default async function PagarReservaPage({
                     }}
                   />
                 )}
-                <BadgeCheck className="h-9 w-9 text-emerald-600" />
-                <h2 className="mt-3 text-lg font-bold text-[#0B2447]">
+                <BadgeCheck className="h-9 w-9 text-turquesa-escuro" />
+                <h2 className="mt-3 text-lg font-bold text-marinho">
                   {pedido.status === 'pago' ? 'Pagamento confirmado!' : 'Pagamento recebido'}
                 </h2>
                 <p className="mt-1 text-sm text-slate-600">
@@ -261,11 +261,11 @@ export default async function PagarReservaPage({
                 <div className="mt-5 flex flex-wrap gap-3">
                   {pago?.comprovante && (
                     <a href={pago.comprovante} target="_blank" rel="noopener noreferrer"
-                      className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-semibold text-[#0B2447] hover:bg-slate-50">
+                      className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-semibold text-marinho hover:bg-slate-50">
                       <Receipt className="h-4 w-4" /> Ver comprovante
                     </a>
                   )}
-                  <Link href="/minhas-reservas" className="inline-flex items-center rounded-xl bg-[#0B3D91] hover:bg-[#0B2447] px-4 py-2.5 text-sm font-semibold text-white">
+                  <Link href="/minhas-reservas" className="inline-flex items-center rounded-xl bg-marinho hover:bg-marinho-escuro px-4 py-2.5 text-sm font-semibold text-white">
                     Minhas reservas
                   </Link>
                 </div>
@@ -273,13 +273,13 @@ export default async function PagarReservaPage({
             ) : (
               <div className="rounded-2xl border border-slate-200 bg-white shadow-sm p-6">
                 <TimerOff className="h-9 w-9 text-slate-400" />
-                <h2 className="mt-3 text-lg font-bold text-[#0B2447]">
+                <h2 className="mt-3 text-lg font-bold text-marinho">
                   {pedido.status === 'expirado' ? 'O prazo de pagamento terminou' : 'Pagamento cancelado'}
                 </h2>
                 <p className="mt-1 text-sm text-slate-600">
                   Nenhum valor foi cobrado. Se ainda quiser o passeio, faça uma nova solicitação — a data pode continuar disponível.
                 </p>
-                <Link href="/buscar" className="mt-5 inline-flex items-center rounded-xl bg-[#0B3D91] hover:bg-[#0B2447] px-4 py-2.5 text-sm font-semibold text-white">
+                <Link href="/buscar" className="mt-5 inline-flex items-center rounded-xl bg-marinho hover:bg-marinho-escuro px-4 py-2.5 text-sm font-semibold text-white">
                   Buscar passeios
                 </Link>
               </div>

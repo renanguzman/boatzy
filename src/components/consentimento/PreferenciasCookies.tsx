@@ -46,7 +46,7 @@ export default function PreferenciasCookies({
       >
         <div className="flex items-start justify-between gap-4 px-6 pt-6">
           <div>
-            <h2 id="preferencias-cookies-titulo" className="text-lg font-bold text-[#0B2447]">Preferências de cookies</h2>
+            <h2 id="preferencias-cookies-titulo" className="text-lg font-bold text-marinho">Preferências de cookies</h2>
             <p className="mt-1 text-sm text-slate-500">
               Escolha quais cookies o Boatzy pode usar. Você pode mudar isso quando quiser em Minha conta.
             </p>
@@ -60,10 +60,10 @@ export default function PreferenciasCookies({
           <div className="rounded-2xl border border-slate-100 bg-slate-50/60 p-4">
             <div className="flex items-center justify-between gap-3">
               <div className="flex items-center gap-2">
-                <Lock className="h-4 w-4 text-[#0B3D91]" />
-                <p className="text-sm font-semibold text-[#0B2447]">Necessários</p>
+                <Lock className="h-4 w-4 text-marinho" />
+                <p className="text-sm font-semibold text-marinho">Necessários</p>
               </div>
-              <span className="rounded-full bg-[#0B3D91]/10 px-2.5 py-0.5 text-[11px] font-semibold text-[#0B3D91]">Sempre ativos</span>
+              <span className="rounded-full bg-marinho/10 px-2.5 py-0.5 text-[11px] font-semibold text-marinho">Sempre ativos</span>
             </div>
             <p className="mt-1.5 text-xs leading-relaxed text-slate-500">
               Mantêm você conectado, guardam esta escolha e preferências do site (como buscas recentes). Sem eles a
@@ -74,8 +74,8 @@ export default function PreferenciasCookies({
           <div className="rounded-2xl border border-slate-100 p-4">
             <div className="flex items-center justify-between gap-3">
               <div className="flex items-center gap-2">
-                <BarChart3 className="h-4 w-4 text-[#0B3D91]" />
-                <p className="text-sm font-semibold text-[#0B2447]">Medição</p>
+                <BarChart3 className="h-4 w-4 text-marinho" />
+                <p className="text-sm font-semibold text-marinho">Medição</p>
               </div>
               <button
                 type="button"
@@ -83,7 +83,7 @@ export default function PreferenciasCookies({
                 aria-checked={medicao}
                 aria-label="Permitir cookies de medição"
                 onClick={() => setMedicao((m) => !m)}
-                className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors ${medicao ? 'bg-[#0B3D91]' : 'bg-slate-300'}`}
+                className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors ${medicao ? 'bg-marinho' : 'bg-slate-300'}`}
               >
                 <span className={`inline-block h-5 w-5 transform rounded-full bg-white shadow transition-transform ${medicao ? 'translate-x-5' : 'translate-x-0.5'}`} />
               </button>
@@ -96,7 +96,7 @@ export default function PreferenciasCookies({
 
           <p className="text-xs text-slate-400">
             Detalhes de cada cookie na{' '}
-            <Link href="/privacy#cookies" className="font-semibold text-[#0B3D91] hover:underline" onClick={onFechar}>
+            <Link href="/privacy#cookies" className="font-semibold text-marinho hover:underline" onClick={onFechar}>
               Política de Privacidade
             </Link>
             .
@@ -107,14 +107,14 @@ export default function PreferenciasCookies({
           <button
             type="button"
             onClick={() => onSalvar(medicao)}
-            className="rounded-xl border border-[#0B3D91] px-5 py-2.5 text-sm font-semibold text-[#0B3D91] hover:bg-[#0B3D91]/5"
+            className="rounded-xl border border-marinho px-5 py-2.5 text-sm font-semibold text-marinho hover:bg-marinho/5"
           >
             Salvar escolhas
           </button>
           <button
             type="button"
             onClick={() => onSalvar(true)}
-            className="rounded-xl bg-[#0B3D91] px-5 py-2.5 text-sm font-semibold text-white hover:bg-[#0B2447]"
+            className="rounded-xl bg-marinho px-5 py-2.5 text-sm font-semibold text-white hover:bg-marinho-escuro"
           >
             Aceitar todos
           </button>

@@ -288,7 +288,7 @@ export default function MinhaContaForm({
   }
 
   const inputBase =
-    'w-full py-3.5 rounded-xl border bg-slate-50/50 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-[#0B3D91]/20 focus:border-[#0B3D91] transition-all';
+    'w-full py-3.5 rounded-xl border bg-slate-50/50 text-sm text-grafite placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-marinho/20 focus:border-marinho transition-all';
   const inputClass = `${inputBase} pl-11 pr-4`; // campos com ícone à esquerda
   const inputField = `${inputBase} px-4`; // campos sem ícone (endereço)
 
@@ -343,7 +343,7 @@ export default function MinhaContaForm({
             aria-current={secaoAtiva === s.id ? 'true' : undefined}
             className={`whitespace-nowrap rounded-xl px-3.5 py-2 text-sm font-medium transition-colors ${
               secaoAtiva === s.id
-                ? 'bg-[#0B2447] text-white shadow-sm'
+                ? 'bg-marinho text-white shadow-sm'
                 : 'text-slate-500 hover:bg-slate-100 hover:text-slate-700'
             }`}
           >
@@ -364,12 +364,12 @@ export default function MinhaContaForm({
               className="h-16 w-16 rounded-2xl object-cover"
             />
           ) : (
-            <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-[#0B2447] text-xl font-bold text-white">
+            <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-marinho text-xl font-bold text-white">
               {name.trim().charAt(0).toUpperCase() || 'B'}
             </div>
           )}
           <div className="min-w-0">
-            <h2 className="truncate text-lg font-bold text-[#0B2447]">{name}</h2>
+            <h2 className="truncate text-lg font-bold text-marinho">{name}</h2>
             <p className="truncate text-sm text-slate-500">{email}</p>
             <p className="mt-0.5 text-xs text-slate-400">
               Cliente desde{' '}
@@ -396,12 +396,12 @@ export default function MinhaContaForm({
 
       {/* Dados pessoais */}
       <form id="dados-pessoais" onSubmit={handleProfileSubmit} className="scroll-mt-32 rounded-2xl border border-slate-100 bg-white p-6 shadow-sm sm:p-8">
-        <h3 className="text-base font-bold text-[#0B2447]">Dados pessoais</h3>
+        <h3 className="text-base font-bold text-marinho">Dados pessoais</h3>
         <p className="mt-0.5 text-sm text-slate-500">Atualize suas informações de contato.</p>
 
         <div className="mt-6 space-y-4">
           <div>
-            <label htmlFor="name" className="mb-2 block text-xs font-bold uppercase tracking-wider text-[#0B2447]">
+            <label htmlFor="name" className="mb-2 block text-xs font-bold uppercase tracking-wider text-marinho">
               Nome completo
             </label>
             <div className="relative">
@@ -418,7 +418,7 @@ export default function MinhaContaForm({
           </div>
 
           <div>
-            <label className="mb-2 block text-xs font-bold uppercase tracking-wider text-[#0B2447]">
+            <label className="mb-2 block text-xs font-bold uppercase tracking-wider text-marinho">
               E-mail
             </label>
             <div className="relative">
@@ -434,7 +434,7 @@ export default function MinhaContaForm({
           </div>
 
           <div>
-            <label htmlFor="cpf" className="mb-2 block text-xs font-bold uppercase tracking-wider text-[#0B2447]">
+            <label htmlFor="cpf" className="mb-2 block text-xs font-bold uppercase tracking-wider text-marinho">
               CPF
             </label>
             <div className="relative">
@@ -453,14 +453,14 @@ export default function MinhaContaForm({
           </div>
 
           <div>
-            <label className="mb-2 block text-xs font-bold uppercase tracking-wider text-[#0B2447]">
+            <label className="mb-2 block text-xs font-bold uppercase tracking-wider text-marinho">
               Celular
             </label>
             <PhoneInput onChange={setPhone} initialE164={initialPhone ?? undefined} disabled={savingProfile} />
           </div>
 
           <div>
-            <label htmlFor="birthday" className="mb-2 block text-xs font-bold uppercase tracking-wider text-[#0B2447]">
+            <label htmlFor="birthday" className="mb-2 block text-xs font-bold uppercase tracking-wider text-marinho">
               Data de nascimento <span className="font-normal normal-case text-slate-400">(opcional)</span>
             </label>
             <div className="relative">
@@ -482,7 +482,7 @@ export default function MinhaContaForm({
           <div
             className={`mt-4 flex items-center gap-2 rounded-xl px-4 py-3 text-sm ${
               profileMsg.type === 'ok'
-                ? 'bg-green-50 text-green-700'
+                ? 'bg-turquesa/10 text-turquesa-escuro'
                 : 'border border-red-200 bg-red-50 text-red-700'
             }`}
           >
@@ -494,7 +494,7 @@ export default function MinhaContaForm({
         <button
           type="submit"
           disabled={savingProfile}
-          className="mt-6 flex items-center justify-center gap-2 rounded-xl bg-[#0B2447] px-6 py-3 text-sm font-semibold text-white shadow-lg shadow-[#0B2447]/20 transition-all hover:bg-[#0B3D91] disabled:cursor-not-allowed disabled:opacity-60"
+          className="mt-6 flex items-center justify-center gap-2 rounded-xl bg-marinho px-6 py-3 text-sm font-semibold text-white shadow-lg shadow-marinho/20 transition-all hover:bg-marinho-escuro disabled:cursor-not-allowed disabled:opacity-60"
         >
           {savingProfile ? <Loader2 className="h-5 w-5 animate-spin" /> : 'Salvar alterações'}
         </button>
@@ -503,8 +503,8 @@ export default function MinhaContaForm({
       {/* Meu endereço (opcional) */}
       <form id="meu-endereco" onSubmit={handleEnderecoSubmit} className="scroll-mt-32 rounded-2xl border border-slate-100 bg-white p-6 shadow-sm sm:p-8">
         <div className="flex items-center gap-2">
-          <MapPin className="h-5 w-5 text-[#0B3D91]" />
-          <h3 className="text-base font-bold text-[#0B2447]">Meu endereço</h3>
+          <MapPin className="h-5 w-5 text-marinho" />
+          <h3 className="text-base font-bold text-marinho">Meu endereço</h3>
         </div>
         <p className="mt-0.5 text-sm text-slate-500">
           Opcional. Informe o CEP para preencher automaticamente.
@@ -513,7 +513,7 @@ export default function MinhaContaForm({
         <div className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-6">
           {/* CEP */}
           <div className="sm:col-span-2">
-            <label htmlFor="cep" className="mb-2 block text-xs font-bold uppercase tracking-wider text-[#0B2447]">
+            <label htmlFor="cep" className="mb-2 block text-xs font-bold uppercase tracking-wider text-marinho">
               CEP
             </label>
             <div className="relative">
@@ -535,7 +535,7 @@ export default function MinhaContaForm({
 
           {/* Estado */}
           <div className="sm:col-span-2">
-            <label htmlFor="estado" className="mb-2 block text-xs font-bold uppercase tracking-wider text-[#0B2447]">
+            <label htmlFor="estado" className="mb-2 block text-xs font-bold uppercase tracking-wider text-marinho">
               Estado
             </label>
             <select
@@ -555,7 +555,7 @@ export default function MinhaContaForm({
 
           {/* Município */}
           <div className="sm:col-span-2">
-            <label htmlFor="municipio" className="mb-2 block text-xs font-bold uppercase tracking-wider text-[#0B2447]">
+            <label htmlFor="municipio" className="mb-2 block text-xs font-bold uppercase tracking-wider text-marinho">
               Município
             </label>
             <select
@@ -576,7 +576,7 @@ export default function MinhaContaForm({
 
           {/* Bairro */}
           <div className="sm:col-span-3">
-            <label htmlFor="bairro" className="mb-2 block text-xs font-bold uppercase tracking-wider text-[#0B2447]">
+            <label htmlFor="bairro" className="mb-2 block text-xs font-bold uppercase tracking-wider text-marinho">
               Bairro
             </label>
             <input
@@ -590,7 +590,7 @@ export default function MinhaContaForm({
 
           {/* Logradouro */}
           <div className="sm:col-span-3">
-            <label htmlFor="logradouro" className="mb-2 block text-xs font-bold uppercase tracking-wider text-[#0B2447]">
+            <label htmlFor="logradouro" className="mb-2 block text-xs font-bold uppercase tracking-wider text-marinho">
               Logradouro
             </label>
             <input
@@ -605,7 +605,7 @@ export default function MinhaContaForm({
 
           {/* Número */}
           <div className="sm:col-span-2">
-            <label htmlFor="numero" className="mb-2 block text-xs font-bold uppercase tracking-wider text-[#0B2447]">
+            <label htmlFor="numero" className="mb-2 block text-xs font-bold uppercase tracking-wider text-marinho">
               Número
             </label>
             <input
@@ -619,7 +619,7 @@ export default function MinhaContaForm({
 
           {/* Complemento */}
           <div className="sm:col-span-4">
-            <label htmlFor="complemento" className="mb-2 block text-xs font-bold uppercase tracking-wider text-[#0B2447]">
+            <label htmlFor="complemento" className="mb-2 block text-xs font-bold uppercase tracking-wider text-marinho">
               Complemento
             </label>
             <input
@@ -637,7 +637,7 @@ export default function MinhaContaForm({
           <div
             className={`mt-4 flex items-center gap-2 rounded-xl px-4 py-3 text-sm ${
               endMsg.type === 'ok'
-                ? 'bg-green-50 text-green-700'
+                ? 'bg-turquesa/10 text-turquesa-escuro'
                 : 'border border-red-200 bg-red-50 text-red-700'
             }`}
           >
@@ -649,7 +649,7 @@ export default function MinhaContaForm({
         <button
           type="submit"
           disabled={savingEndereco}
-          className="mt-6 flex items-center justify-center gap-2 rounded-xl bg-[#0B2447] px-6 py-3 text-sm font-semibold text-white shadow-lg shadow-[#0B2447]/20 transition-all hover:bg-[#0B3D91] disabled:cursor-not-allowed disabled:opacity-60"
+          className="mt-6 flex items-center justify-center gap-2 rounded-xl bg-marinho px-6 py-3 text-sm font-semibold text-white shadow-lg shadow-marinho/20 transition-all hover:bg-marinho-escuro disabled:cursor-not-allowed disabled:opacity-60"
         >
           {savingEndereco ? <Loader2 className="h-5 w-5 animate-spin" /> : 'Salvar endereço'}
         </button>
@@ -658,8 +658,8 @@ export default function MinhaContaForm({
       {/* Notificações */}
       <div id="notificacoes" className="scroll-mt-32 rounded-2xl border border-slate-100 bg-white p-6 shadow-sm sm:p-8">
         <div className="flex items-center gap-2">
-          <Bell className="h-5 w-5 text-[#0B3D91]" />
-          <h3 className="text-base font-bold text-[#0B2447]">Notificações</h3>
+          <Bell className="h-5 w-5 text-marinho" />
+          <h3 className="text-base font-bold text-marinho">Notificações</h3>
         </div>
         <p className="mt-0.5 text-sm text-slate-500">Escolha o que deseja receber por e-mail.</p>
 
@@ -680,7 +680,7 @@ export default function MinhaContaForm({
             onClick={handleToggleNotifConversas}
             disabled={savingNotif}
             className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors disabled:opacity-60 ${
-              notifConversas ? 'bg-[#0B3D91]' : 'bg-slate-300'
+              notifConversas ? 'bg-marinho' : 'bg-slate-300'
             }`}
           >
             <span
@@ -694,7 +694,7 @@ export default function MinhaContaForm({
         <p className="mt-6 rounded-xl bg-slate-50 px-4 py-3 text-xs leading-relaxed text-slate-500">
           Avisos sobre suas reservas e pagamentos (confirmação, cancelamento, pagamento aprovado ou
           recusado, prazo para pagar e reembolso) são sempre enviados por e-mail e ficam no sino de{' '}
-          <a href="/notificacoes" className="font-semibold text-[#0B3D91] hover:underline">Notificações</a>.
+          <a href="/notificacoes" className="font-semibold text-marinho hover:underline">Notificações</a>.
         </p>
       </div>
 
@@ -704,8 +704,8 @@ export default function MinhaContaForm({
       {/* Segurança / senha */}
       <div id="seguranca" className="scroll-mt-32 rounded-2xl border border-slate-100 bg-white p-6 shadow-sm sm:p-8">
         <div className="flex items-center gap-2">
-          <ShieldCheck className="h-5 w-5 text-[#0B3D91]" />
-          <h3 className="text-base font-bold text-[#0B2447]">Segurança</h3>
+          <ShieldCheck className="h-5 w-5 text-marinho" />
+          <h3 className="text-base font-bold text-marinho">Segurança</h3>
         </div>
 
         {canChangePassword ? (
@@ -713,7 +713,7 @@ export default function MinhaContaForm({
             <p className="mt-0.5 text-sm text-slate-500">Altere a senha da sua conta.</p>
             <form onSubmit={handlePasswordSubmit} className="mt-6 space-y-4">
               <div>
-                <label htmlFor="current" className="mb-2 block text-xs font-bold uppercase tracking-wider text-[#0B2447]">
+                <label htmlFor="current" className="mb-2 block text-xs font-bold uppercase tracking-wider text-marinho">
                   Senha atual
                 </label>
                 <div className="relative">
@@ -737,7 +737,7 @@ export default function MinhaContaForm({
               </div>
 
               <div>
-                <label htmlFor="nova" className="mb-2 block text-xs font-bold uppercase tracking-wider text-[#0B2447]">
+                <label htmlFor="nova" className="mb-2 block text-xs font-bold uppercase tracking-wider text-marinho">
                   Nova senha
                 </label>
                 <div className="relative">
@@ -757,7 +757,7 @@ export default function MinhaContaForm({
               </div>
 
               <div>
-                <label htmlFor="confirm" className="mb-2 block text-xs font-bold uppercase tracking-wider text-[#0B2447]">
+                <label htmlFor="confirm" className="mb-2 block text-xs font-bold uppercase tracking-wider text-marinho">
                   Confirmar nova senha
                 </label>
                 <div className="relative">
@@ -779,7 +779,7 @@ export default function MinhaContaForm({
                 <div
                   className={`flex items-center gap-2 rounded-xl px-4 py-3 text-sm ${
                     pwMsg.type === 'ok'
-                      ? 'bg-green-50 text-green-700'
+                      ? 'bg-turquesa/10 text-turquesa-escuro'
                       : 'border border-red-200 bg-red-50 text-red-700'
                   }`}
                 >
@@ -791,7 +791,7 @@ export default function MinhaContaForm({
               <button
                 type="submit"
                 disabled={savingPw}
-                className="flex items-center justify-center gap-2 rounded-xl bg-[#0B2447] px-6 py-3 text-sm font-semibold text-white shadow-lg shadow-[#0B2447]/20 transition-all hover:bg-[#0B3D91] disabled:cursor-not-allowed disabled:opacity-60"
+                className="flex items-center justify-center gap-2 rounded-xl bg-marinho px-6 py-3 text-sm font-semibold text-white shadow-lg shadow-marinho/20 transition-all hover:bg-marinho-escuro disabled:cursor-not-allowed disabled:opacity-60"
               >
                 {savingPw ? <Loader2 className="h-5 w-5 animate-spin" /> : 'Alterar senha'}
               </button>

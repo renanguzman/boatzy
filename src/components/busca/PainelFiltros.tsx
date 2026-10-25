@@ -43,12 +43,12 @@ export default function PainelFiltros({ ativos, limparHref, totalResultados, chi
   const cabecalho = (
     <div className="flex items-center justify-between gap-3 px-5 py-4 border-b border-slate-100">
       <div className="flex items-center gap-2.5">
-        <span className="h-8 w-8 rounded-lg bg-[#0B2447]/[0.06] flex items-center justify-center">
-          <SlidersHorizontal className="h-4 w-4 text-[#0B2447]" />
+        <span className="h-8 w-8 rounded-lg bg-marinho/[0.06] flex items-center justify-center">
+          <SlidersHorizontal className="h-4 w-4 text-marinho" />
         </span>
-        <h2 className="text-base font-bold text-[#0B2447]">Filtros</h2>
+        <h2 className="text-base font-bold text-marinho">Filtros</h2>
         {ativos > 0 && (
-          <span className="h-5 min-w-5 px-1.5 rounded-full bg-[#0B2447] text-white text-[11px] font-bold flex items-center justify-center">
+          <span className="h-5 min-w-5 px-1.5 rounded-full bg-marinho text-white text-[11px] font-bold flex items-center justify-center">
             {ativos}
           </span>
         )}
@@ -60,7 +60,7 @@ export default function PainelFiltros({ ativos, limparHref, totalResultados, chi
             href={limparHref}
             scroll={false}
             onClick={(e) => { e.preventDefault(); ir(limparHref); }}
-            className="text-xs font-semibold text-[#0B3D91] hover:text-[#0B2447] px-2 py-1.5 rounded-lg hover:bg-slate-50"
+            className="text-xs font-semibold text-marinho hover:text-turquesa-escuro px-2 py-1.5 rounded-lg hover:bg-slate-50"
           >
             Limpar tudo
           </Link>
@@ -84,12 +84,12 @@ export default function PainelFiltros({ ativos, limparHref, totalResultados, chi
         type="button"
         onClick={() => setAberto(true)}
         className="lg:hidden w-full mb-4 flex items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-3
-          text-sm font-semibold text-[#0B2447] shadow-sm hover:bg-slate-50"
+          text-sm font-semibold text-marinho shadow-sm hover:bg-slate-50"
       >
         <SlidersHorizontal className="h-4 w-4" />
         Filtros
         {ativos > 0 && (
-          <span className="h-5 min-w-5 px-1.5 rounded-full bg-[#0B2447] text-white text-[11px] font-bold flex items-center justify-center">
+          <span className="h-5 min-w-5 px-1.5 rounded-full bg-marinho text-white text-[11px] font-bold flex items-center justify-center">
             {ativos}
           </span>
         )}
@@ -113,7 +113,7 @@ export default function PainelFiltros({ ativos, limparHref, totalResultados, chi
               <button
                 type="button"
                 onClick={() => setAberto(false)}
-                className="w-full h-12 rounded-xl bg-[#0B2447] hover:bg-[#0B3D91] text-white text-sm font-semibold flex items-center justify-center gap-2"
+                className="w-full h-12 rounded-xl bg-marinho hover:bg-marinho-escuro text-white text-sm font-semibold flex items-center justify-center gap-2"
               >
                 {pendente && <Loader2 className="h-4 w-4 animate-spin" />}
                 {totalResultados > 0

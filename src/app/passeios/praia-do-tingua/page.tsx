@@ -11,7 +11,7 @@ export const metadata: Metadata = {
     'Descubra por que a Praia do Tinguá, em Governador Celso Ramos, é o destino mais desejado e o ponto de encontro perfeito para lanchas no verão catarinense.',
 };
 
-const headingClass = 'text-2xl sm:text-3xl font-bold text-[#0B2447]';
+const headingClass = 'text-2xl sm:text-3xl font-bold text-marinho';
 const bulletListClass = 'mt-4 space-y-3 list-disc pl-5';
 
 export default function PraiaDoTinguaPage() {
@@ -29,7 +29,7 @@ export default function PraiaDoTinguaPage() {
             priority
             className="object-cover"
           />
-          <div className="absolute inset-0 bg-gradient-to-t from-[#0B2447]/90 via-[#0B2447]/30 to-transparent" />
+          <div className="absolute inset-0 bg-gradient-to-t from-marinho/90 via-marinho/30 to-transparent" />
           <div className="relative z-10 mx-auto max-w-3xl px-4 sm:px-6 lg:px-8 py-10">
             <h1 className="text-2xl sm:text-4xl font-bold text-white leading-tight">
               O Refúgio Exclusivo dos Barcos: A Magia da Praia do Tinguá
@@ -139,7 +139,7 @@ export default function PraiaDoTinguaPage() {
           </section>
 
           {/* CTA final */}
-          <div className="rounded-2xl bg-[#0B2447] text-center px-6 py-10 sm:px-12">
+          <div className="rounded-2xl bg-marinho text-center px-6 py-10 sm:px-12">
             <p className="text-white text-lg font-semibold italic">
               Pronto para viver o auge do verão catarinense?
             </p>
@@ -149,7 +149,7 @@ export default function PraiaDoTinguaPage() {
             </p>
             <Link
               href="/buscar"
-              className="mt-6 inline-flex items-center gap-2 rounded-xl bg-white hover:bg-slate-100 text-[#0B2447] text-sm font-semibold px-6 py-3 transition-colors"
+              className="mt-6 inline-flex items-center gap-2 rounded-xl bg-white hover:bg-slate-100 text-marinho text-sm font-semibold px-6 py-3 transition-colors"
             >
               Buscar embarcações
               <ArrowRight className="h-4 w-4" />

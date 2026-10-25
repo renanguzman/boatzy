@@ -135,16 +135,16 @@ function EntrarForm() {
   if (success) {
     return (
       <div className="text-center">
-        <div className="w-16 h-16 bg-green-50 rounded-full flex items-center justify-center mx-auto mb-4">
-          <Mail className="w-8 h-8 text-green-500" />
+        <div className="w-16 h-16 bg-turquesa/10 rounded-full flex items-center justify-center mx-auto mb-4">
+          <Mail className="w-8 h-8 text-turquesa" />
         </div>
-        <h2 className="text-xl font-bold text-[#0B2447] mb-2">Verifique seu e-mail</h2>
+        <h2 className="text-xl font-bold text-marinho mb-2">Verifique seu e-mail</h2>
         <p className="text-slate-500 text-sm mb-6">
           Enviamos um link de confirmação para <strong>{email}</strong>. Clique no link para ativar sua conta.
         </p>
         <button
           onClick={() => { setMode('login'); resetForm(); }}
-          className="text-[#0B3D91] text-sm font-medium hover:underline"
+          className="text-marinho text-sm font-medium hover:underline"
         >
           Já confirmei — fazer login
         </button>
@@ -160,7 +160,7 @@ function EntrarForm() {
           onClick={() => { setMode('login'); resetForm(); }}
           className={`flex-1 py-2 text-sm font-semibold rounded-lg transition-all ${
             mode === 'login'
-              ? 'bg-[#0B2447] text-white shadow-sm'
+              ? 'bg-marinho text-white shadow-sm'
               : 'text-slate-500 hover:text-slate-700'
           }`}
         >
@@ -170,7 +170,7 @@ function EntrarForm() {
           onClick={() => { setMode('cadastro'); resetForm(); }}
           className={`flex-1 py-2 text-sm font-semibold rounded-lg transition-all ${
             mode === 'cadastro'
-              ? 'bg-[#0B2447] text-white shadow-sm'
+              ? 'bg-marinho text-white shadow-sm'
               : 'text-slate-500 hover:text-slate-700'
           }`}
         >
@@ -194,7 +194,7 @@ function EntrarForm() {
       <form onSubmit={mode === 'login' ? handleLogin : handleCadastro} className="space-y-4">
         {mode === 'cadastro' && (
           <div>
-            <label htmlFor="name" className="block text-xs font-bold text-[#0B2447] tracking-wider uppercase mb-2">
+            <label htmlFor="name" className="block text-xs font-bold text-marinho tracking-wider uppercase mb-2">
               Nome completo
             </label>
             <div className="relative">
@@ -206,14 +206,14 @@ function EntrarForm() {
                 onChange={(e) => setName(e.target.value)}
                 placeholder="João Silva"
                 required
-                className="w-full pl-11 pr-4 py-3.5 rounded-xl border border-slate-200 bg-slate-50/50 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-[#0B3D91]/20 focus:border-[#0B3D91] transition-all"
+                className="w-full pl-11 pr-4 py-3.5 rounded-xl border border-slate-200 bg-slate-50/50 text-sm text-grafite placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-marinho/20 focus:border-marinho transition-all"
               />
             </div>
           </div>
         )}
 
         <div>
-          <label htmlFor="email" className="block text-xs font-bold text-[#0B2447] tracking-wider uppercase mb-2">
+          <label htmlFor="email" className="block text-xs font-bold text-marinho tracking-wider uppercase mb-2">
             E-mail
           </label>
           <div className="relative">
@@ -225,7 +225,7 @@ function EntrarForm() {
               onChange={(e) => setEmail(e.target.value)}
               placeholder="joao@exemplo.com"
               required
-              className="w-full pl-11 pr-4 py-3.5 rounded-xl border border-slate-200 bg-slate-50/50 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-[#0B3D91]/20 focus:border-[#0B3D91] transition-all"
+              className="w-full pl-11 pr-4 py-3.5 rounded-xl border border-slate-200 bg-slate-50/50 text-sm text-grafite placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-marinho/20 focus:border-marinho transition-all"
             />
           </div>
         </div>
@@ -233,7 +233,7 @@ function EntrarForm() {
         {mode === 'cadastro' && (
           <>
             <div>
-              <label htmlFor="cpf" className="block text-xs font-bold text-[#0B2447] tracking-wider uppercase mb-2">
+              <label htmlFor="cpf" className="block text-xs font-bold text-marinho tracking-wider uppercase mb-2">
                 CPF
               </label>
               <div className="relative">
@@ -246,7 +246,7 @@ function EntrarForm() {
                   onChange={(e) => setCpf(maskCPF(e.target.value))}
                   placeholder="000.000.000-00"
                   required
-                  className={`w-full pl-11 pr-4 py-3.5 rounded-xl border bg-slate-50/50 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-[#0B3D91]/20 focus:border-[#0B3D91] transition-all ${
+                  className={`w-full pl-11 pr-4 py-3.5 rounded-xl border bg-slate-50/50 text-sm text-grafite placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-marinho/20 focus:border-marinho transition-all ${
                     attemptedSubmit && cpf && !isValidCPF(cpf) ? 'border-red-300' : 'border-slate-200'
                   }`}
                 />
@@ -257,7 +257,7 @@ function EntrarForm() {
             </div>
 
             <div>
-              <label className="block text-xs font-bold text-[#0B2447] tracking-wider uppercase mb-2">
+              <label className="block text-xs font-bold text-marinho tracking-wider uppercase mb-2">
                 Celular
               </label>
               <PhoneInput
@@ -274,11 +274,11 @@ function EntrarForm() {
 
         <div>
           <div className="flex items-center justify-between mb-2">
-            <label htmlFor="password" className="block text-xs font-bold text-[#0B2447] tracking-wider uppercase">
+            <label htmlFor="password" className="block text-xs font-bold text-marinho tracking-wider uppercase">
               Senha
             </label>
             {mode === 'login' && (
-              <Link href="/recuperar-senha" className="text-xs font-medium text-[#0B3D91] hover:underline">
+              <Link href="/recuperar-senha" className="text-xs font-medium text-marinho hover:underline">
                 Esqueceu a senha?
               </Link>
             )}
@@ -293,7 +293,7 @@ function EntrarForm() {
               placeholder={mode === 'cadastro' ? 'Crie uma senha segura' : '••••••••'}
               minLength={mode === 'cadastro' ? 8 : undefined}
               required
-              className="w-full pl-11 pr-12 py-3.5 rounded-xl border border-slate-200 bg-slate-50/50 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-[#0B3D91]/20 focus:border-[#0B3D91] transition-all"
+              className="w-full pl-11 pr-12 py-3.5 rounded-xl border border-slate-200 bg-slate-50/50 text-sm text-grafite placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-marinho/20 focus:border-marinho transition-all"
             />
             <button
               type="button"
@@ -315,7 +315,7 @@ function EntrarForm() {
         <button
           type="submit"
           disabled={loading}
-          className="w-full flex items-center justify-center gap-2 bg-[#0B2447] hover:bg-[#0B3D91] text-white font-semibold py-3.5 rounded-xl transition-all duration-200 disabled:opacity-60 disabled:cursor-not-allowed shadow-lg shadow-[#0B2447]/20"
+          className="w-full flex items-center justify-center gap-2 bg-marinho hover:bg-marinho-escuro text-white font-semibold py-3.5 rounded-xl transition-all duration-200 disabled:opacity-60 disabled:cursor-not-allowed shadow-lg shadow-marinho/20"
         >
           {loading ? (
             <Loader2 className="w-5 h-5 animate-spin" />
@@ -333,7 +333,7 @@ function EntrarForm() {
 
 export default function EntrarPage() {
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center bg-slate-50 px-4 py-12">
+    <div className="min-h-screen flex flex-col items-center justify-center bg-areia px-4 py-12">
       <div className="w-full max-w-md">
         {/* Logo */}
         <div className="text-center mb-8">
@@ -359,7 +359,7 @@ export default function EntrarPage() {
 
         <p className="text-center text-xs text-slate-400 mt-6">
           É gestor de embarcações?{' '}
-          <Link href="/painel/login" className="text-[#0B3D91] font-medium hover:underline">
+          <Link href="/painel/login" className="text-marinho font-medium hover:underline">
             Acesse o Painel
           </Link>
         </p>

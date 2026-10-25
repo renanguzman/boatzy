@@ -60,7 +60,7 @@ export default function RoteirosCarousel({
   return (
     <div>
       <div className="flex items-center justify-between gap-4 mb-6">
-        {title && <h2 className="text-xl font-bold text-[#0B2447]">{title}</h2>}
+        {title && <h2 className="text-xl font-bold text-marinho">{title}</h2>}
         {items.length > 1 && (
           <div className="hidden sm:flex items-center gap-2 shrink-0">
             <button

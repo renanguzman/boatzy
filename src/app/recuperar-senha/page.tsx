@@ -42,15 +42,15 @@ function RecuperarSenhaForm() {
   if (success) {
     return (
       <div className="text-center">
-        <div className="w-16 h-16 bg-green-50 rounded-full flex items-center justify-center mx-auto mb-4">
-          <Mail className="w-8 h-8 text-green-500" />
+        <div className="w-16 h-16 bg-turquesa/10 rounded-full flex items-center justify-center mx-auto mb-4">
+          <Mail className="w-8 h-8 text-turquesa" />
         </div>
-        <h2 className="text-xl font-bold text-[#0B2447] mb-2">Verifique seu e-mail</h2>
+        <h2 className="text-xl font-bold text-marinho mb-2">Verifique seu e-mail</h2>
         <p className="text-slate-500 text-sm mb-6">
           Se existir uma conta para <strong>{email}</strong>, enviamos um link para redefinir sua
           senha. Confira também a caixa de spam.
         </p>
-        <Link href="/entrar" className="text-[#0B3D91] text-sm font-medium hover:underline">
+        <Link href="/entrar" className="text-marinho text-sm font-medium hover:underline">
           Voltar para o login
         </Link>
       </div>
@@ -59,14 +59,14 @@ function RecuperarSenhaForm() {
 
   return (
     <>
-      <h1 className="text-xl font-bold text-[#0B2447] mb-2">Recuperar senha</h1>
+      <h1 className="text-xl font-bold text-marinho mb-2">Recuperar senha</h1>
       <p className="text-slate-500 text-sm mb-6">
         Informe o e-mail da sua conta e enviaremos um link para você redefinir a senha.
       </p>
 
       <form onSubmit={handleSubmit} className="space-y-4">
         <div>
-          <label htmlFor="email" className="block text-xs font-bold text-[#0B2447] tracking-wider uppercase mb-2">
+          <label htmlFor="email" className="block text-xs font-bold text-marinho tracking-wider uppercase mb-2">
             E-mail
           </label>
           <div className="relative">
@@ -78,7 +78,7 @@ function RecuperarSenhaForm() {
               onChange={(e) => setEmail(e.target.value)}
               placeholder="joao@exemplo.com"
               required
-              className="w-full pl-11 pr-4 py-3.5 rounded-xl border border-slate-200 bg-slate-50/50 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-[#0B3D91]/20 focus:border-[#0B3D91] transition-all"
+              className="w-full pl-11 pr-4 py-3.5 rounded-xl border border-slate-200 bg-slate-50/50 text-sm text-grafite placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-marinho/20 focus:border-marinho transition-all"
             />
           </div>
         </div>
@@ -92,7 +92,7 @@ function RecuperarSenhaForm() {
         <button
           type="submit"
           disabled={loading}
-          className="w-full flex items-center justify-center gap-2 bg-[#0B2447] hover:bg-[#0B3D91] text-white font-semibold py-3.5 rounded-xl transition-all duration-200 disabled:opacity-60 disabled:cursor-not-allowed shadow-lg shadow-[#0B2447]/20"
+          className="w-full flex items-center justify-center gap-2 bg-marinho hover:bg-marinho-escuro text-white font-semibold py-3.5 rounded-xl transition-all duration-200 disabled:opacity-60 disabled:cursor-not-allowed shadow-lg shadow-marinho/20"
         >
           {loading ? (
             <Loader2 className="w-5 h-5 animate-spin" />
@@ -108,7 +108,7 @@ function RecuperarSenhaForm() {
       <div className="mt-6 text-center">
         <Link
           href="/entrar"
-          className="inline-flex items-center gap-1 text-sm text-[#0B3D91] font-medium hover:underline"
+          className="inline-flex items-center gap-1 text-sm text-marinho font-medium hover:underline"
         >
           <ArrowLeft className="w-4 h-4" />
           Voltar para o login
@@ -120,7 +120,7 @@ function RecuperarSenhaForm() {
 
 export default function RecuperarSenhaPage() {
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center bg-slate-50 px-4 py-12">
+    <div className="min-h-screen flex flex-col items-center justify-center bg-areia px-4 py-12">
       <div className="w-full max-w-md">
         {/* Logo */}
         <div className="text-center mb-8">

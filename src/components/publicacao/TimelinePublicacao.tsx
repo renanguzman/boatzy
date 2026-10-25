@@ -18,8 +18,8 @@ export default function TimelinePublicacao({ eventos, titulo = 'Histórico de st
   return (
     <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
       <div className="flex items-center gap-2.5 px-6 py-4 border-b border-slate-100 bg-slate-50/50">
-        <History className="w-4 h-4 text-[#0B2447]" />
-        <h2 className="text-sm font-bold text-[#0B2447] tracking-wide uppercase">{titulo}</h2>
+        <History className="w-4 h-4 text-marinho" />
+        <h2 className="text-sm font-bold text-marinho tracking-wide uppercase">{titulo}</h2>
       </div>
 
       {eventos.length === 0 ? (
@@ -35,7 +35,7 @@ export default function TimelinePublicacao({ eventos, titulo = 'Histórico de st
                 <span className={`relative mt-1.5 h-[11px] w-[11px] flex-shrink-0 rounded-full ring-4 ring-white ${STATUS_INFO[status]?.dot ?? 'bg-slate-400'}`} />
                 <div className="min-w-0 flex-1">
                   <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-                    <p className="text-sm font-semibold text-slate-800">{TIPO_EVENTO_LABEL[e.tipo] ?? e.tipo}</p>
+                    <p className="text-sm font-semibold text-grafite">{TIPO_EVENTO_LABEL[e.tipo] ?? e.tipo}</p>
                     {STATUS_INFO[status] && <StatusPublicacaoBadge status={status} />}
                   </div>
                   <p className="mt-0.5 text-xs text-slate-400">

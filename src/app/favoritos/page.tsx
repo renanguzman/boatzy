@@ -176,11 +176,11 @@ export default async function FavoritosPage() {
     (favoritosAnuncio.length > 0 ? 1 : 0);
 
   return (
-    <div className="min-h-screen flex flex-col bg-slate-50">
+    <div className="min-h-screen flex flex-col bg-areia">
       <Header />
 
       <main className="flex-1 max-w-6xl w-full mx-auto px-4 py-10">
-        <h1 className="text-2xl font-bold text-[#0B2447]">Favoritos</h1>
+        <h1 className="text-2xl font-bold text-marinho">Favoritos</h1>
         <p className="text-sm text-slate-500 mt-1">
           Os roteiros e embarcações que você salvou para decidir com calma.
         </p>
@@ -196,7 +196,7 @@ export default async function FavoritosPage() {
             </p>
             <Link
               href="/buscar"
-              className="mt-6 px-5 py-2.5 bg-[#0B3D91] hover:bg-[#0B2447] text-white text-sm font-semibold rounded-xl transition-colors"
+              className="mt-6 px-5 py-2.5 bg-marinho hover:bg-marinho-escuro text-white text-sm font-semibold rounded-xl transition-colors"
             >
               Explorar roteiros
             </Link>
@@ -206,7 +206,7 @@ export default async function FavoritosPage() {
             {favoritosRoteiro.length > 0 && (
               <section className="mt-6">
                 {tiposPresentes > 1 && (
-                  <h2 className="text-lg font-semibold text-[#0B2447] mb-4">Roteiros</h2>
+                  <h2 className="text-lg font-semibold text-marinho mb-4">Roteiros</h2>
                 )}
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
                   {favoritosRoteiro.map((f) => (
@@ -226,7 +226,7 @@ export default async function FavoritosPage() {
             {favoritosEmbarcacao.length > 0 && (
               <section className="mt-8">
                 {tiposPresentes > 1 && (
-                  <h2 className="text-lg font-semibold text-[#0B2447] mb-4">Embarcações</h2>
+                  <h2 className="text-lg font-semibold text-marinho mb-4">Embarcações</h2>
                 )}
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
                   {favoritosEmbarcacao.map((f) => (
@@ -246,7 +246,7 @@ export default async function FavoritosPage() {
             {favoritosAnuncio.length > 0 && (
               <section className="mt-8">
                 {tiposPresentes > 1 && (
-                  <h2 className="text-lg font-semibold text-[#0B2447] mb-4">À venda</h2>
+                  <h2 className="text-lg font-semibold text-marinho mb-4">À venda</h2>
                 )}
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
                   {favoritosAnuncio.map((f) => (

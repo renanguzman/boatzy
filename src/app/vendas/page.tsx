@@ -213,7 +213,7 @@ export default async function VendasPage({ searchParams }: { searchParams: Promi
   const fimFaixa = Math.min(from + POR_PAGINA, total);
 
   return (
-    <div className="min-h-screen flex flex-col bg-slate-50">
+    <div className="min-h-screen flex flex-col bg-areia">
       <Header />
 
       <NavegacaoBuscaProvider>
@@ -221,7 +221,7 @@ export default async function VendasPage({ searchParams }: { searchParams: Promi
           {/* Título + abas */}
           <div className="mb-6 flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
             <div className="min-w-0">
-              <h1 className="text-2xl md:text-3xl font-bold text-[#0B2447]">{titulo}</h1>
+              <h1 className="text-2xl md:text-3xl font-bold text-marinho">{titulo}</h1>
               <p className="text-sm text-slate-500 mt-1">
                 {total > 0
                   ? `${total} anúncio${total !== 1 ? 's' : ''} encontrado${total !== 1 ? 's' : ''}`
@@ -261,10 +261,10 @@ export default async function VendasPage({ searchParams }: { searchParams: Promi
                           href={buildPageUrl(removeParams, {})}
                           scroll={false}
                           aria-label={`Remover filtro ${chip.label}`}
-                          className="flex items-center gap-1.5 text-xs font-medium text-[#0B2447] bg-[#0B2447]/[0.06] border border-[#0B2447]/10 rounded-full pl-3 pr-2 py-1.5 hover:bg-[#0B2447]/10 transition-colors group"
+                          className="flex items-center gap-1.5 text-xs font-medium text-marinho bg-marinho/[0.06] border border-marinho/10 rounded-full pl-3 pr-2 py-1.5 hover:bg-marinho/10 transition-colors group"
                         >
                           {chip.label}
-                          <X className="h-3 w-3 text-[#0B2447]/50 group-hover:text-[#0B2447] transition-colors" />
+                          <X className="h-3 w-3 text-marinho/50 group-hover:text-marinho transition-colors" />
                         </Link>
                       );
                     })}
@@ -288,7 +288,7 @@ export default async function VendasPage({ searchParams }: { searchParams: Promi
                     {chips.length > 0 && (
                       <Link
                         href="/vendas"
-                        className="mt-6 px-5 py-2.5 bg-[#0B3D91] hover:bg-[#0B2447] text-white text-sm font-semibold rounded-xl transition-colors"
+                        className="mt-6 px-5 py-2.5 bg-marinho hover:bg-marinho-escuro text-white text-sm font-semibold rounded-xl transition-colors"
                       >
                         Limpar filtros
                       </Link>
@@ -327,7 +327,7 @@ export default async function VendasPage({ searchParams }: { searchParams: Promi
                           href={buildPageUrl(params, { pagina: String(n) })}
                           className={`h-9 w-9 flex items-center justify-center rounded-xl text-sm font-semibold transition-all ${
                             n === pagina
-                              ? 'bg-[#0B2447] text-white shadow-md'
+                              ? 'bg-marinho text-white shadow-md'
                               : 'border border-slate-200 text-slate-600 hover:bg-white hover:shadow-sm'
                           }`}
                         >

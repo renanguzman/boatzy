@@ -39,7 +39,7 @@ export default function OrdenarSelect({ params, valor, abaEmbarcacao }: Props) {
         value={valor}
         onChange={handleChange}
         className="rounded-xl border border-slate-300 bg-white px-2.5 py-1.5 text-sm font-medium text-slate-700
-          focus:outline-none focus:ring-2 focus:ring-[#0B2447]/20 focus:border-[#0B2447]/40 transition cursor-pointer"
+          focus:outline-none focus:ring-2 focus:ring-marinho/20 focus:border-marinho/40 transition cursor-pointer"
       >
         {ordenacoesDaAba(abaEmbarcacao).map((o) => (
           <option key={o.value} value={o.value}>

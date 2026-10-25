@@ -28,8 +28,8 @@ export default function AddonsAccordion() {
   return (
     <div className={`mb-4 rounded-2xl border overflow-hidden transition-shadow ${
       hasSelection
-        ? 'border-[#0B3D91]/40 bg-[#0B3D91]/[0.04]'
-        : 'border-cyan-200 bg-gradient-to-br from-cyan-50 via-white to-[#0B3D91]/[0.06] shadow-sm hover:shadow-md'
+        ? 'border-marinho/40 bg-marinho/[0.04]'
+        : 'border-turquesa/40 bg-gradient-to-br from-turquesa/10 via-white to-marinho/[0.06] shadow-sm hover:shadow-md'
     }`}>
       <button
         type="button"
@@ -38,25 +38,25 @@ export default function AddonsAccordion() {
         className="w-full flex items-center gap-3 px-4 py-4 text-left transition-colors hover:bg-white/60"
       >
         {/* Ícone cheio na cor da marca — o "ponto focal" do card */}
-        <div className="relative h-11 w-11 rounded-xl bg-gradient-to-br from-[#0B3D91] to-cyan-500 shadow-md shadow-[#0B3D91]/25 flex items-center justify-center shrink-0">
+        <div className="relative h-11 w-11 rounded-xl bg-gradient-to-br from-marinho to-turquesa shadow-md shadow-marinho/25 flex items-center justify-center shrink-0">
           <Sparkles className="h-5 w-5 text-white" />
           {!hasSelection && (
             <span className="absolute -top-1 -right-1 flex h-3 w-3">
-              <span className="absolute inline-flex h-full w-full rounded-full bg-cyan-400 opacity-70 motion-safe:animate-ping" />
-              <span className="relative inline-flex h-3 w-3 rounded-full bg-cyan-500 ring-2 ring-white" />
+              <span className="absolute inline-flex h-full w-full rounded-full bg-turquesa opacity-70 motion-safe:animate-ping" />
+              <span className="relative inline-flex h-3 w-3 rounded-full bg-turquesa ring-2 ring-white" />
             </span>
           )}
         </div>
         <div className="min-w-0 flex-1">
-          <p className="text-sm font-bold text-[#0B2447] leading-snug">
+          <p className="text-sm font-bold text-marinho leading-snug">
             {hasSelection ? 'Seu passeio está ficando inesquecível' : 'Deixe seu passeio inesquecível!'}
           </p>
-          <p className={`text-xs leading-snug mt-0.5 ${hasSelection ? 'font-semibold text-[#0B3D91]' : 'text-slate-600'}`}>
+          <p className={`text-xs leading-snug mt-0.5 ${hasSelection ? 'font-semibold text-marinho' : 'text-slate-600'}`}>
             {hasSelection
               ? `${selectedAddons.length} selecionado${selectedAddons.length > 1 ? 's' : ''} · ${formatCurrency(totalSelecionado)}`
               : `${addons.length} ${addons.length > 1 ? 'opcionais' : 'opcional'} para turbinar a experiência${menorPreco != null ? ` · a partir de ${formatCurrency(precoCliente(menorPreco))}` : ''}`}
           </p>
-          <span className="mt-1.5 inline-flex items-center gap-1 text-xs font-semibold text-[#0B3D91]">
+          <span className="mt-1.5 inline-flex items-center gap-1 text-xs font-semibold text-marinho">
             {open ? 'Ocultar opcionais' : hasSelection ? 'Editar opcionais' : 'Clique para ver os opcionais'}
             <ChevronDown className={`h-3.5 w-3.5 transition-transform duration-200 ${open ? 'rotate-180' : ''}`} />
           </span>
@@ -82,22 +82,22 @@ export default function AddonsAccordion() {
                   onClick={() => toggle(item.id)}
                   className={`w-full flex items-center gap-3 p-3 rounded-xl border-2 text-left transition-all cursor-pointer ${
                     selected
-                      ? 'border-[#0B3D91] bg-white shadow-sm'
+                      ? 'border-marinho bg-white shadow-sm'
                       : 'border-slate-200 bg-white hover:border-slate-300'
                   }`}
                 >
                   <div
                     className={`h-8 w-8 rounded-lg flex items-center justify-center shrink-0 ${
-                      selected ? 'bg-[#0B3D91]/10' : 'bg-slate-100'
+                      selected ? 'bg-marinho/10' : 'bg-slate-100'
                     }`}
                   >
-                    <Icon className={`h-3.5 w-3.5 ${selected ? 'text-[#0B3D91]' : 'text-slate-500'}`} />
+                    <Icon className={`h-3.5 w-3.5 ${selected ? 'text-marinho' : 'text-slate-500'}`} />
                   </div>
 
                   <div className="min-w-0 flex-1">
                     <p
                       className={`text-xs font-semibold leading-snug ${
-                        selected ? 'text-[#0B2447]' : 'text-slate-700'
+                        selected ? 'text-marinho' : 'text-slate-700'
                       }`}
                     >
                       {item.descricao}
@@ -108,12 +108,12 @@ export default function AddonsAccordion() {
                   </div>
 
                   <div className="flex flex-col items-end gap-1.5 shrink-0">
-                    <span className={`text-xs font-bold ${selected ? 'text-[#0B3D91]' : 'text-slate-700'}`}>
+                    <span className={`text-xs font-bold ${selected ? 'text-marinho' : 'text-slate-700'}`}>
                       {item.preco > 0 ? formatCurrency(precoCliente(item.preco)) : 'Incluso'}
                     </span>
                     <div
                       className={`h-5 w-5 rounded-full flex items-center justify-center transition-all ${
-                        selected ? 'bg-[#0B3D91] text-white scale-110' : 'bg-slate-100 text-slate-400'
+                        selected ? 'bg-marinho text-white scale-110' : 'bg-slate-100 text-slate-400'
                       }`}
                     >
                       {selected ? <Check className="h-3 w-3" /> : <Plus className="h-3 w-3" />}

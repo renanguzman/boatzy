@@ -71,8 +71,8 @@ export default function PainelDecisaoAdmin({ entidade, id, status, aviso }: {
   return (
     <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
       <div className="flex items-center gap-2.5 px-6 py-4 border-b border-slate-100 bg-slate-50/50">
-        <Gavel className="w-4 h-4 text-[#0B2447]" />
-        <h2 className="text-sm font-bold text-[#0B2447] tracking-wide uppercase">Decisão</h2>
+        <Gavel className="w-4 h-4 text-marinho" />
+        <h2 className="text-sm font-bold text-marinho tracking-wide uppercase">Decisão</h2>
       </div>
       <div className="p-6 space-y-4">
         {aviso && (
@@ -97,7 +97,7 @@ export default function PainelDecisaoAdmin({ entidade, id, status, aviso }: {
                 return (
                   <button key={d} type="button" onClick={() => { setDecisao(sel ? null : d); setErro(null); setOk(null); }}
                     className={`inline-flex items-center gap-1.5 rounded-xl border px-3.5 py-2 text-sm font-semibold transition ${
-                      sel ? 'border-[#0B2447] bg-[#0B2447] text-white' : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50'}`}>
+                      sel ? 'border-marinho bg-marinho text-white' : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50'}`}>
                     <Icon className="h-4 w-4" /> {label}
                   </button>
                 );
@@ -116,7 +116,7 @@ export default function PainelDecisaoAdmin({ entidade, id, status, aviso }: {
                   </span>
                   <textarea rows={3} value={observacao} onChange={e => setObservacao(e.target.value)} maxLength={2000}
                     placeholder={decisao === 'aprovar' ? 'Ex.: cadastro aprovado, obrigado!' : 'Explique o que precisa ser ajustado.'}
-                    className="w-full resize-none rounded-xl border border-slate-200 px-3.5 py-2.5 text-sm text-slate-800 placeholder:text-slate-400 focus:border-[#0B2447]/40 focus:outline-none focus:ring-2 focus:ring-[#0B2447]/20" />
+                    className="w-full resize-none rounded-xl border border-slate-200 px-3.5 py-2.5 text-sm text-grafite placeholder:text-slate-400 focus:border-marinho/40 focus:outline-none focus:ring-2 focus:ring-marinho/20" />
                 </label>
                 <label className="block">
                   <span className="mb-1.5 flex items-center gap-1 text-sm font-medium text-slate-700">
@@ -125,7 +125,7 @@ export default function PainelDecisaoAdmin({ entidade, id, status, aviso }: {
                   </span>
                   <textarea rows={2} value={interna} onChange={e => setInterna(e.target.value)} maxLength={2000}
                     placeholder="Anotações da análise, documentos conferidos…"
-                    className="w-full resize-none rounded-xl border border-violet-200 bg-violet-50/30 px-3.5 py-2.5 text-sm text-slate-800 placeholder:text-slate-400 focus:border-violet-400 focus:outline-none focus:ring-2 focus:ring-violet-200" />
+                    className="w-full resize-none rounded-xl border border-violet-200 bg-violet-50/30 px-3.5 py-2.5 text-sm text-grafite placeholder:text-slate-400 focus:border-violet-400 focus:outline-none focus:ring-2 focus:ring-violet-200" />
                 </label>
 
                 {erro && (

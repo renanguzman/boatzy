@@ -18,8 +18,8 @@ type Props = {
   totalResultados: number;
 };
 
-const selectCls = `w-full appearance-none rounded-xl border border-slate-200 bg-white pl-3 pr-9 py-2.5 text-sm text-slate-800
-  focus:outline-none focus:ring-2 focus:ring-[#0B2447]/20 focus:border-[#0B2447]/40 transition disabled:bg-slate-50 disabled:text-slate-400`;
+const selectCls = `w-full appearance-none rounded-xl border border-slate-200 bg-white pl-3 pr-9 py-2.5 text-sm text-grafite
+  focus:outline-none focus:ring-2 focus:ring-marinho/20 focus:border-marinho/40 transition disabled:bg-slate-50 disabled:text-slate-400`;
 
 /**
  * Painel lateral de /vendas: tipo, localização (estado → cidade), ano do

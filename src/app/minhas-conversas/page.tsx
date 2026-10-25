@@ -33,11 +33,11 @@ export default async function MinhasConversasPage() {
   const lista = conversas ?? [];
 
   return (
-    <div className="min-h-screen flex flex-col bg-slate-50">
+    <div className="min-h-screen flex flex-col bg-areia">
       <Header />
 
       <main className="flex-1 max-w-3xl w-full mx-auto px-4 py-10">
-        <h1 className="text-2xl font-bold text-[#0B2447]">Minhas conversas</h1>
+        <h1 className="text-2xl font-bold text-marinho">Minhas conversas</h1>
         <p className="text-sm text-slate-500 mt-1">
           Suas conversas com os gestores — reservas de roteiros, embarcações e anúncios de venda.
         </p>
@@ -54,7 +54,7 @@ export default async function MinhasConversasPage() {
             </p>
             <Link
               href="/buscar"
-              className="mt-6 px-5 py-2.5 bg-[#0B3D91] hover:bg-[#0B2447] text-white text-sm font-semibold rounded-xl transition-colors"
+              className="mt-6 px-5 py-2.5 bg-marinho hover:bg-marinho-escuro text-white text-sm font-semibold rounded-xl transition-colors"
             >
               Explorar o Boatzy
             </Link>
@@ -76,14 +76,14 @@ export default async function MinhasConversasPage() {
                     className="h-11 w-11 rounded-full object-cover shrink-0"
                   />
                 ) : (
-                  <div className="h-11 w-11 rounded-full bg-[#0B2447] flex items-center justify-center shrink-0">
+                  <div className="h-11 w-11 rounded-full bg-marinho flex items-center justify-center shrink-0">
                     <User className="h-5 w-5 text-white" />
                   </div>
                 )}
 
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center justify-between gap-2">
-                    <p className="text-sm font-semibold text-[#0B2447] truncate">{c.gestor_nome}</p>
+                    <p className="text-sm font-semibold text-marinho truncate">{c.gestor_nome}</p>
                     <span className="text-[11px] text-slate-400 shrink-0">
                       {c.ultima_em ? tempoRelativo(c.ultima_em) : ''}
                     </span>

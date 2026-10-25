@@ -144,7 +144,7 @@ export default function ChatBox({
       <div className="flex items-center gap-3 px-6 py-4 bg-white border-b border-slate-200">
         <Link
           href={voltarHref}
-          className="w-9 h-9 flex items-center justify-center rounded-lg text-slate-400 hover:text-[#0B2447] hover:bg-slate-100 transition-colors"
+          className="w-9 h-9 flex items-center justify-center rounded-lg text-slate-400 hover:text-marinho hover:bg-slate-100 transition-colors"
           title={voltarLabel}
         >
           <ArrowLeft className="w-5 h-5" />
@@ -165,12 +165,12 @@ export default function ChatBox({
           )}
         </div>
         <div className="min-w-0">
-          <p className="text-sm font-semibold text-[#0B2447] leading-tight truncate">{interlocutor.name}</p>
+          <p className="text-sm font-semibold text-marinho leading-tight truncate">{interlocutor.name}</p>
           <p className="text-xs text-slate-400 truncate">{interlocutor.email}</p>
         </div>
         {contexto && (
           <span
-            className="ml-auto hidden sm:inline-flex items-center gap-1.5 rounded-full bg-[#0B3D91]/10 px-3 py-1.5 text-xs font-medium text-[#0B3D91] max-w-[45%]"
+            className="ml-auto hidden sm:inline-flex items-center gap-1.5 rounded-full bg-marinho/10 px-3 py-1.5 text-xs font-medium text-marinho max-w-[45%]"
             title={`Referente a: ${contexto.label} (${origemTipoLabel(contexto.tipo)})`}
           >
             <Tag className="w-3.5 h-3.5 flex-shrink-0" />
@@ -182,7 +182,7 @@ export default function ChatBox({
       </div>
       {/* Selo de contexto no mobile (abaixo do header) */}
       {contexto && (
-        <div className="sm:hidden flex items-center gap-1.5 px-6 py-2 bg-[#0B3D91]/5 border-b border-slate-100 text-xs font-medium text-[#0B3D91]">
+        <div className="sm:hidden flex items-center gap-1.5 px-6 py-2 bg-marinho/5 border-b border-slate-100 text-xs font-medium text-marinho">
           <Tag className="w-3.5 h-3.5 flex-shrink-0" />
           <span className="truncate">
             {origemTipoLabel(contexto.tipo)}: {contexto.label}
@@ -216,7 +216,7 @@ export default function ChatBox({
                   <div
                     className={`max-w-[75%] rounded-2xl px-4 py-2 shadow-sm ${
                       mine
-                        ? 'bg-[#0B2447] text-white rounded-br-md'
+                        ? 'bg-marinho text-white rounded-br-md'
                         : 'bg-white text-slate-700 border border-slate-100 rounded-bl-md'
                     }`}
                   >
@@ -243,14 +243,14 @@ export default function ChatBox({
             rows={1}
             disabled={avisoPendente}
             placeholder="Escreva uma mensagem..."
-            className="flex-1 resize-none max-h-32 px-4 py-2.5 rounded-2xl border border-slate-200 bg-white text-sm text-slate-700 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-[#0B2447]/20 focus:border-[#0B2447]/40 transition disabled:bg-slate-50 disabled:cursor-not-allowed"
+            className="flex-1 resize-none max-h-32 px-4 py-2.5 rounded-2xl border border-slate-200 bg-white text-sm text-slate-700 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-marinho/20 focus:border-marinho/40 transition disabled:bg-slate-50 disabled:cursor-not-allowed"
           />
           <button
             type="button"
             onClick={handleEnviar}
             disabled={enviando || !texto.trim() || avisoPendente}
             title="Enviar"
-            className="w-11 h-11 flex-shrink-0 flex items-center justify-center rounded-full bg-[#0B2447] hover:bg-[#0B3D91] text-white transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+            className="w-11 h-11 flex-shrink-0 flex items-center justify-center rounded-full bg-marinho hover:bg-marinho-escuro text-white transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
           >
             {enviando ? <Loader2 className="w-5 h-5 animate-spin" /> : <Send className="w-5 h-5" />}
           </button>
@@ -263,10 +263,10 @@ export default function ChatBox({
           <div className="absolute inset-0 bg-slate-900/50 backdrop-blur-sm" />
           <div className="relative bg-white rounded-2xl shadow-xl border border-slate-100 w-full max-w-lg p-6">
             <div className="flex items-start gap-3 mb-4">
-              <div className="w-10 h-10 rounded-xl bg-[#0B3D91]/10 flex items-center justify-center flex-shrink-0">
-                <ShieldAlert className="w-5 h-5 text-[#0B3D91]" />
+              <div className="w-10 h-10 rounded-xl bg-marinho/10 flex items-center justify-center flex-shrink-0">
+                <ShieldAlert className="w-5 h-5 text-marinho" />
               </div>
-              <h3 className="text-base font-bold text-[#0B2447] mt-1.5">
+              <h3 className="text-base font-bold text-marinho mt-1.5">
                 Comunicação exclusiva pela plataforma
               </h3>
             </div>
@@ -298,7 +298,7 @@ export default function ChatBox({
               type="button"
               onClick={handleConfirmarAviso}
               disabled={confirmandoAviso}
-              className="mt-5 w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-[#0B3D91] hover:bg-[#092E6E] text-white text-sm font-semibold transition-colors disabled:opacity-60"
+              className="mt-5 w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-marinho hover:bg-marinho-escuro text-white text-sm font-semibold transition-colors disabled:opacity-60"
             >
               {confirmandoAviso && <Loader2 className="w-4 h-4 animate-spin" />}
               Estou ciente

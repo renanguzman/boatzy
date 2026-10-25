@@ -7,9 +7,9 @@ import { ASSUNTOS_CONTATO } from '../constants';
 import type { DesafioCaptcha } from '@/lib/contato-captcha';
 
 const inputClass =
-  'w-full px-4 py-3 rounded-xl border border-slate-200 bg-slate-50/50 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-[#0B3D91]/20 focus:border-[#0B3D91] transition-all';
+  'w-full px-4 py-3 rounded-xl border border-slate-200 bg-slate-50/50 text-sm text-grafite placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-marinho/20 focus:border-marinho transition-all';
 
-const labelClass = 'block text-xs font-bold text-[#0B2447] tracking-wider uppercase mb-2';
+const labelClass = 'block text-xs font-bold text-marinho tracking-wider uppercase mb-2';
 
 export default function ContactForm({ desafioInicial }: { desafioInicial: DesafioCaptcha }) {
   const [nome, setNome] = useState('');
@@ -68,10 +68,10 @@ export default function ContactForm({ desafioInicial }: { desafioInicial: Desafi
   if (success) {
     return (
       <div className="text-center py-8">
-        <div className="w-16 h-16 bg-green-50 rounded-full flex items-center justify-center mx-auto mb-4">
-          <CheckCircle2 className="w-8 h-8 text-green-500" />
+        <div className="w-16 h-16 bg-turquesa/10 rounded-full flex items-center justify-center mx-auto mb-4">
+          <CheckCircle2 className="w-8 h-8 text-turquesa" />
         </div>
-        <h2 className="text-xl font-bold text-[#0B2447] mb-2">Mensagem enviada!</h2>
+        <h2 className="text-xl font-bold text-marinho mb-2">Mensagem enviada!</h2>
         <p className="text-slate-500 text-sm">
           Obrigado por entrar em contato, {nome.split(' ')[0]}. Nossa equipe vai responder em breve
           no e-mail informado.
@@ -82,7 +82,7 @@ export default function ContactForm({ desafioInicial }: { desafioInicial: Desafi
 
   return (
     <form onSubmit={handleSubmit} className="space-y-5">
-      <h2 className="text-lg font-bold text-[#0B2447]">Envie sua mensagem</h2>
+      <h2 className="text-lg font-bold text-marinho">Envie sua mensagem</h2>
 
       {/* Honeypot — invisível para humanos, campo-armadilha para bots */}
       <input
@@ -178,7 +178,7 @@ export default function ContactForm({ desafioInicial }: { desafioInicial: Desafi
             onClick={trocarDesafio}
             disabled={refreshingCaptcha}
             aria-label="Gerar nova conta"
-            className="h-11 w-11 flex items-center justify-center rounded-xl border border-slate-200 text-slate-500 hover:text-[#0B3D91] hover:border-[#0B3D91] transition-colors disabled:opacity-60"
+            className="h-11 w-11 flex items-center justify-center rounded-xl border border-slate-200 text-slate-500 hover:text-marinho hover:border-marinho transition-colors disabled:opacity-60"
           >
             <RefreshCw className={`h-4 w-4 ${refreshingCaptcha ? 'animate-spin' : ''}`} />
           </button>
@@ -194,7 +194,7 @@ export default function ContactForm({ desafioInicial }: { desafioInicial: Desafi
       <button
         type="submit"
         disabled={loading}
-        className="w-full flex items-center justify-center gap-2 bg-[#0B3D91] hover:bg-[#092E6E] text-white font-semibold py-3.5 rounded-xl transition-all disabled:opacity-60 disabled:cursor-not-allowed"
+        className="w-full flex items-center justify-center gap-2 bg-marinho hover:bg-marinho-escuro text-white font-semibold py-3.5 rounded-xl transition-all disabled:opacity-60 disabled:cursor-not-allowed"
       >
         {loading ? (
           <Loader2 className="w-5 h-5 animate-spin" />

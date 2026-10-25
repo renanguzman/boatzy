@@ -82,7 +82,7 @@ export default function PreviewPublicacaoModal({ aberto, onFechar, tipo, dados }
       className="fixed inset-0 z-[400] flex flex-col bg-slate-900/85 backdrop-blur-sm"
     >
       {/* Barra superior */}
-      <div className="flex items-center gap-3 border-b border-white/10 bg-[#0B2447] px-4 py-3 text-white sm:px-6">
+      <div className="flex items-center gap-3 border-b border-white/10 bg-marinho px-4 py-3 text-white sm:px-6">
         <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-white/10">
           <Eye className="h-4 w-4" />
         </div>
@@ -105,7 +105,7 @@ export default function PreviewPublicacaoModal({ aberto, onFechar, tipo, dados }
               aria-checked={dispositivo === v}
               onClick={() => setDispositivo(v)}
               className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold transition ${
-                dispositivo === v ? 'bg-white text-[#0B2447] shadow-sm' : 'text-white/70 hover:text-white'
+                dispositivo === v ? 'bg-white text-marinho shadow-sm' : 'text-white/70 hover:text-white'
               }`}
             >
               <Icon className="h-3.5 w-3.5" /> {label}

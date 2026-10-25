@@ -52,7 +52,7 @@ export default function FotosLightbox({
           {/* Header */}
           <div className="flex items-center justify-between px-5 py-4 shrink-0 border-b border-white/10">
             <div className="flex items-center gap-3">
-              <div className="h-8 w-8 rounded-lg bg-gradient-to-br from-[#0B3D91] to-[#0B2447] flex items-center justify-center shrink-0">
+              <div className="h-8 w-8 rounded-lg bg-gradient-to-br from-marinho to-marinho-escuro flex items-center justify-center shrink-0">
                 <Camera className="h-4 w-4 text-white" />
               </div>
               <div>
@@ -126,7 +126,7 @@ export default function FotosLightbox({
                     aria-label={img.titulo ?? `Foto ${i + 1}`}
                     className={`relative h-14 w-20 rounded-lg overflow-hidden shrink-0 transition-all duration-150 ${
                       i === indice
-                        ? 'ring-2 ring-cyan-400 ring-offset-1 ring-offset-black opacity-100 scale-105'
+                        ? 'ring-2 ring-turquesa ring-offset-1 ring-offset-black opacity-100 scale-105'
                         : 'opacity-45 hover:opacity-75'
                     }`}
                   >

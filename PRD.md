@@ -59,12 +59,28 @@ cinzas neutros e das cores semânticas de status — erro, alerta, sucesso). Det
 
 **Regra do amarelo:** é cor de exceção, nunca de base. Não usar em botões, fundos de seção ou
 texto corrido. Hoje aparece só na palavra de impacto do título do hero ("O horizonte é **seu**") e
-nas estrelas de nota. Qualquer novo uso deve substituir ou justificar a ênfase, não somar.
+nas estrelas de nota e no selo **"Preço reduzido"** dos anúncios de venda (fundo amarelo, texto marinho).
+Qualquer novo uso deve substituir ou justificar a ênfase, não somar.
 
 - ✅ **Aplicada na página inicial** (hero, vitrines, avaliações, benefícios, "Inspire-se"), no
   Header, no Footer, no card de embarcação e no banner de cookies.
-- ⏳ **Pendente:** demais páginas (busca, detalhe de roteiro/embarcação, institucionais, painel)
-  ainda usam as cores antigas (`#0B2447`, `#0B3D91`, ciano) e serão migradas aos poucos.
+- ✅ **Aplicada em todo o site público (24/10/2026):** busca, detalhe de roteiro e embarcação,
+  reserva e pagamento, vendas, área do cliente (minha conta, reservas, favoritos, conversas,
+  notificações), login/cadastro/recuperação de senha, páginas institucionais (sobre, ajuda, contato,
+  termos, privacidade, experiências, passeios), termos de aceite, chat e e-mails transacionais.
+  Cada cor antiga foi trocada pela mais próxima da paleta: navy e azul royal → marinho; ciano/teal
+  → turquesa; fundo cinza-claro das páginas → areia; estrelas de nota → amarelo destaque; pin
+  ativo do mapa da busca → turquesa. Cores com significado (erro, sucesso, alerta, status de
+  reserva, previsão do tempo, ícones de redes sociais) foram mantidas.
+- ✅ **Ajuste nas páginas de roteiro, embarcação e checkout (24/10/2026):** o verde usado como
+  cor decorativa (selo "Verificado", checks de itens inclusos, escudo de pagamento seguro, legenda
+  "menor preço" do calendário) e nas confirmações (solicitação enviada, cupom/desconto, pagamento
+  confirmado, termos aceitos, link copiado) passou para turquesa; campos ativos (data, pessoas, busca)
+  ganharam contorno marinho. Mesmo critério aplicado às telas de sucesso de login/senha/contato, às
+  mensagens de "salvo" de Minha Conta, aos requisitos de senha e ao detalhe de vendas. Continuam
+  verdes só o status "Confirmada" de Minhas reservas (legenda de status) e o ícone do WhatsApp.
+- ⏳ **Pendente:** painel do gestor (`/painel`) e admin (`/administrator`) ainda usam as cores
+  antigas.
 
 ---
 

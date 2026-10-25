@@ -19,9 +19,9 @@ export default function ContactPage() {
     <div className="min-h-screen flex flex-col">
       <Header />
 
-      <main className="flex-1 bg-slate-50">
+      <main className="flex-1 bg-areia">
         {/* Hero */}
-        <section className="bg-[#0B2447] text-white">
+        <section className="bg-marinho text-white">
           <div className="mx-auto max-w-3xl px-4 sm:px-6 lg:px-8 py-16 text-center">
             <h1 className="text-3xl sm:text-4xl font-bold tracking-tight">Fale com a gente</h1>
             <p className="mt-3 text-slate-300 max-w-xl mx-auto">
@@ -42,11 +42,11 @@ export default function ContactPage() {
             <div className="md:col-span-2 space-y-4">
               <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-6">
                 <div className="flex items-start gap-3">
-                  <div className="h-10 w-10 rounded-xl bg-[#0B3D91]/10 flex items-center justify-center shrink-0">
-                    <Phone className="h-5 w-5 text-[#0B3D91]" />
+                  <div className="h-10 w-10 rounded-xl bg-marinho/10 flex items-center justify-center shrink-0">
+                    <Phone className="h-5 w-5 text-marinho" />
                   </div>
                   <div>
-                    <p className="text-sm font-semibold text-[#0B2447]">Suporte</p>
+                    <p className="text-sm font-semibold text-marinho">Suporte</p>
                     <p className="text-sm text-slate-500 mt-0.5">Respondemos em até 2 dias úteis.</p>
                   </div>
                 </div>
@@ -54,11 +54,11 @@ export default function ContactPage() {
 
               <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-6">
                 <div className="flex items-start gap-3">
-                  <div className="h-10 w-10 rounded-xl bg-[#0B3D91]/10 flex items-center justify-center shrink-0">
-                    <MapPin className="h-5 w-5 text-[#0B3D91]" />
+                  <div className="h-10 w-10 rounded-xl bg-marinho/10 flex items-center justify-center shrink-0">
+                    <MapPin className="h-5 w-5 text-marinho" />
                   </div>
                   <div>
-                    <p className="text-sm font-semibold text-[#0B2447]">Boatzy</p>
+                    <p className="text-sm font-semibold text-marinho">Boatzy</p>
                     <p className="text-sm text-slate-500 mt-0.5">Navegue com Elegância.</p>
                   </div>
                 </div>

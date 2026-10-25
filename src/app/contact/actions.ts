@@ -64,7 +64,7 @@ export async function enviarContato(input: EnviarContatoInput): Promise<EnviarCo
 
   const html = `
     <div style="font-family: sans-serif; max-width: 560px; margin: 0 auto;">
-      <h2 style="color: #0B2447;">Novo contato pelo site — ${escapeHtml(assunto)}</h2>
+      <h2 style="color: #0E2F4F;">Novo contato pelo site — ${escapeHtml(assunto)}</h2>
       <p><strong>Nome:</strong> ${escapeHtml(nome)}</p>
       <p><strong>E-mail:</strong> ${escapeHtml(email)}</p>
       <p><strong>Assunto:</strong> ${escapeHtml(assunto)}</p>

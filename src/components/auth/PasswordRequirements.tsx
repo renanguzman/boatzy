@@ -24,7 +24,7 @@ export default function PasswordRequirements({ password }: PasswordRequirementsP
             <span
               className={`flex h-4 w-4 items-center justify-center rounded-full transition-colors ${
                 ok
-                  ? 'bg-green-100 text-green-600'
+                  ? 'bg-turquesa/15 text-turquesa-escuro'
                   : touched
                     ? 'bg-red-50 text-red-400'
                     : 'bg-slate-100 text-slate-300'
@@ -32,7 +32,7 @@ export default function PasswordRequirements({ password }: PasswordRequirementsP
             >
               {ok ? <Check className="h-3 w-3" /> : <X className="h-3 w-3" />}
             </span>
-            <span className={ok ? 'text-green-700' : touched ? 'text-slate-600' : 'text-slate-400'}>
+            <span className={ok ? 'text-turquesa-escuro' : touched ? 'text-slate-600' : 'text-slate-400'}>
               {rule.label}
             </span>
           </li>

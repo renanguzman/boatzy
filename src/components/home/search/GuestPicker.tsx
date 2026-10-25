@@ -63,12 +63,12 @@ export default function GuestPicker({
             className={`h-8 w-8 rounded-full border-2 flex items-center justify-center transition-colors ${
               !podeDecrementar
                 ? 'border-slate-200 text-slate-300 cursor-default'
-                : 'border-slate-400 text-slate-700 hover:border-slate-800 hover:text-slate-800'
+                : 'border-slate-400 text-slate-700 hover:border-marinho hover:text-marinho'
             }`}
           >
             <Minus className="h-4 w-4" />
           </button>
-          <span className="w-5 text-center text-base font-semibold text-slate-800 tabular-nums">
+          <span className="w-5 text-center text-base font-semibold text-grafite tabular-nums">
             {value}
           </span>
           <button
@@ -79,7 +79,7 @@ export default function GuestPicker({
             className={`h-8 w-8 rounded-full border-2 flex items-center justify-center transition-colors ${
               !podeIncrementar
                 ? 'border-slate-200 text-slate-300 cursor-default'
-                : 'border-slate-400 text-slate-700 hover:border-slate-800 hover:text-slate-800'
+                : 'border-slate-400 text-slate-700 hover:border-marinho hover:text-marinho'
             }`}
           >
             <Plus className="h-4 w-4" />
@@ -97,13 +97,13 @@ export default function GuestPicker({
         onClick={isOpen ? onClose : onOpen}
         className={`w-full text-left rounded-2xl transition-all ${
           compact ? 'px-3 py-2' : 'px-4 py-3'
-        } ${isOpen ? 'ring-2 ring-slate-800 bg-white shadow-md' : 'hover:bg-slate-50'}`}
+        } ${isOpen ? 'ring-2 ring-marinho bg-white shadow-md' : 'hover:bg-slate-50'}`}
       >
         <span className={`block font-bold text-slate-500 uppercase tracking-wider mb-0.5 ${compact ? 'text-[9px]' : 'text-[10px]'}`}>
           {label}
         </span>
         {value > 0 ? (
-          <span className={`font-medium text-slate-800 whitespace-nowrap ${compact ? 'text-xs' : 'text-sm'}`}>
+          <span className={`font-medium text-grafite whitespace-nowrap ${compact ? 'text-xs' : 'text-sm'}`}>
             {value} {value === 1 ? singular : plural}
           </span>
         ) : (
@@ -114,7 +114,7 @@ export default function GuestPicker({
       {/* Dropdown */}
       {isOpen && (
         <div className="absolute top-full right-0 mt-2 bg-white rounded-2xl shadow-2xl border border-slate-100 z-50 w-56 p-5">
-          <p className="text-sm font-semibold text-slate-800 mb-4 text-center">Tamanho do grupo</p>
+          <p className="text-sm font-semibold text-grafite mb-4 text-center">Tamanho do grupo</p>
           <div className="flex items-center justify-center gap-4">
             <button
               type="button"
@@ -123,13 +123,13 @@ export default function GuestPicker({
               className={`h-9 w-9 rounded-full border-2 flex items-center justify-center transition-colors ${
                 !podeDecrementar
                   ? 'border-slate-200 text-slate-300 cursor-default'
-                  : 'border-slate-400 text-slate-700 hover:border-slate-800 hover:text-slate-800'
+                  : 'border-slate-400 text-slate-700 hover:border-marinho hover:text-marinho'
               }`}
             >
               <Minus className="h-4 w-4" />
             </button>
             <div className="h-12 w-16 rounded-xl border-2 border-marinho flex items-center justify-center">
-              <span className="text-xl font-semibold text-slate-800">{value}</span>
+              <span className="text-xl font-semibold text-grafite">{value}</span>
             </div>
             <button
               type="button"
@@ -138,7 +138,7 @@ export default function GuestPicker({
               className={`h-9 w-9 rounded-full border-2 flex items-center justify-center transition-colors ${
                 !podeIncrementar
                   ? 'border-slate-200 text-slate-300 cursor-default'
-                  : 'border-slate-400 text-slate-700 hover:border-slate-800 hover:text-slate-800'
+                  : 'border-slate-400 text-slate-700 hover:border-marinho hover:text-marinho'
               }`}
             >
               <Plus className="h-4 w-4" />

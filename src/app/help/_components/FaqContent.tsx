@@ -17,7 +17,7 @@ const FAQ_ITEMS: FaqItem[] = [
     resposta: (
       <>
         Busque por local, data e número de pessoas na página inicial ou em{' '}
-        <Link href="/buscar" className="text-[#0B3D91] underline hover:no-underline">
+        <Link href="/buscar" className="text-marinho underline hover:no-underline">
           Roteiros
         </Link>
         . Ao encontrar o roteiro ou a embarcação ideal, abra os detalhes, escolha a data, a
@@ -38,7 +38,7 @@ const FAQ_ITEMS: FaqItem[] = [
         (Pix ou cartão) dentro do prazo informado — a data fica reservada para você enquanto isso, e
         a reserva é <strong>Confirmada</strong> assim que o pagamento é aprovado. Você acompanha o
         status e a resposta em{' '}
-        <Link href="/minhas-reservas" className="text-[#0B3D91] underline hover:no-underline">
+        <Link href="/minhas-reservas" className="text-marinho underline hover:no-underline">
           Minhas Reservas
         </Link>
         .
@@ -51,7 +51,7 @@ const FAQ_ITEMS: FaqItem[] = [
     resposta: (
       <>
         Sim. Em{' '}
-        <Link href="/minhas-reservas" className="text-[#0B3D91] underline hover:no-underline">
+        <Link href="/minhas-reservas" className="text-marinho underline hover:no-underline">
           Minhas Reservas
         </Link>{' '}
         você encontra o botão &quot;Cancelar reserva&quot;, disponível enquanto ela estiver{' '}
@@ -108,7 +108,7 @@ const FAQ_ITEMS: FaqItem[] = [
       <>
         Sim, é necessário estar logado para solicitar uma reserva, favoritar itens ou conversar
         com o proprietário. Você pode criar uma conta em{' '}
-        <Link href="/entrar" className="text-[#0B3D91] underline hover:no-underline">
+        <Link href="/entrar" className="text-marinho underline hover:no-underline">
           Entrar
         </Link>{' '}
         com e-mail e senha ou usando Google, Facebook ou Apple.
@@ -121,7 +121,7 @@ const FAQ_ITEMS: FaqItem[] = [
     resposta: (
       <>
         Acesse{' '}
-        <Link href="/minha-conta" className="text-[#0B3D91] underline hover:no-underline">
+        <Link href="/minha-conta" className="text-marinho underline hover:no-underline">
           Minha Conta
         </Link>{' '}
         pelo menu do seu avatar. Lá você edita nome, CPF, celular, data de nascimento, endereço
@@ -148,7 +148,7 @@ const FAQ_ITEMS: FaqItem[] = [
     resposta: (
       <>
         Clique em &quot;Anuncie sua embarcação&quot; no topo do site, ou acesse diretamente o{' '}
-        <Link href="/painel" className="text-[#0B3D91] underline hover:no-underline">
+        <Link href="/painel" className="text-marinho underline hover:no-underline">
           Painel do Proprietário
         </Link>
         . Crie sua conta de gestor, cadastre sua embarcação com fotos, comodidades e preços e
@@ -176,7 +176,7 @@ const FAQ_ITEMS: FaqItem[] = [
       <>
         Sim. Nas páginas de roteiro e de embarcação existe o botão &quot;Converse com o dono&quot;,
         que abre um chat direto dentro da plataforma. Você acompanha todas as conversas em{' '}
-        <Link href="/minhas-conversas" className="text-[#0B3D91] underline hover:no-underline">
+        <Link href="/minhas-conversas" className="text-marinho underline hover:no-underline">
           Minhas Conversas
         </Link>
         .
@@ -189,7 +189,7 @@ const FAQ_ITEMS: FaqItem[] = [
     resposta: (
       <>
         Em{' '}
-        <Link href="/buscar" className="text-[#0B3D91] underline hover:no-underline">
+        <Link href="/buscar" className="text-marinho underline hover:no-underline">
           Roteiros e Embarcações
         </Link>
         , use o botão &quot;Filtros&quot; para definir faixa de preço e duração do passeio, e
@@ -206,7 +206,7 @@ const FAQ_ITEMS: FaqItem[] = [
       <>
         Clique no ícone de coração no card ou na página de detalhes — é necessário estar logado.
         Todos os itens favoritados ficam reunidos em{' '}
-        <Link href="/favoritos" className="text-[#0B3D91] underline hover:no-underline">
+        <Link href="/favoritos" className="text-marinho underline hover:no-underline">
           Favoritos
         </Link>
         , acessível pelo menu do seu avatar.
@@ -219,7 +219,7 @@ const FAQ_ITEMS: FaqItem[] = [
     resposta: (
       <>
         Assim que a data do passeio passa, a reserva vira <strong>Concluída</strong> em{' '}
-        <Link href="/minhas-reservas" className="text-[#0B3D91] underline hover:no-underline">
+        <Link href="/minhas-reservas" className="text-marinho underline hover:no-underline">
           Minhas Reservas
         </Link>{' '}
         e o botão &quot;Avaliar experiência&quot; aparece no card: dê uma nota de 1 a 5 estrelas e,
@@ -247,7 +247,7 @@ const FAQ_ITEMS: FaqItem[] = [
         locatários — não somos donos, operadores nem seguradores das embarcações anunciadas. A
         relação de aluguel (condições, uso, devolução) é estabelecida diretamente entre você e o
         proprietário. Mais detalhes estão nos{' '}
-        <Link href="/terms" className="text-[#0B3D91] underline hover:no-underline">
+        <Link href="/terms" className="text-marinho underline hover:no-underline">
           Termos de Uso
         </Link>
         .
@@ -260,7 +260,7 @@ const FAQ_ITEMS: FaqItem[] = [
     resposta: (
       <>
         Seus dados são tratados conforme a nossa{' '}
-        <Link href="/privacy" className="text-[#0B3D91] underline hover:no-underline">
+        <Link href="/privacy" className="text-marinho underline hover:no-underline">
           Política de Privacidade
         </Link>
         , que explica quais informações coletamos, para que usamos e como você pode solicitar
@@ -274,7 +274,7 @@ const FAQ_ITEMS: FaqItem[] = [
     resposta: (
       <>
         Sim. Em{' '}
-        <Link href="/vendas" className="text-[#0B3D91] underline hover:no-underline">
+        <Link href="/vendas" className="text-marinho underline hover:no-underline">
           Vendas
         </Link>{' '}
         você encontra anúncios de embarcações à venda, com fotos, especificações e contato direto
@@ -335,7 +335,7 @@ export default function FaqContent() {
           onChange={(e) => setBusca(e.target.value)}
           placeholder="Busque por uma palavra-chave: reserva, pagamento, cancelamento…"
           aria-label="Buscar nas perguntas frequentes"
-          className="w-full rounded-xl border border-slate-200 bg-white py-3.5 pl-12 pr-11 text-sm text-slate-900 placeholder:text-slate-400 shadow-sm focus:border-[#0B3D91] focus:outline-none focus:ring-2 focus:ring-[#0B3D91]/20 transition-all"
+          className="w-full rounded-xl border border-slate-200 bg-white py-3.5 pl-12 pr-11 text-sm text-grafite placeholder:text-slate-400 shadow-sm focus:border-marinho focus:outline-none focus:ring-2 focus:ring-marinho/20 transition-all"
         />
         {busca && (
           <button
@@ -361,7 +361,7 @@ export default function FaqContent() {
       <div className="mt-8 space-y-10">
         {porCategoria.map(({ categoria, itens }) => (
           <div key={categoria}>
-            <h2 className="text-sm font-semibold uppercase tracking-wider text-[#0B3D91] mb-3">
+            <h2 className="text-sm font-semibold uppercase tracking-wider text-marinho mb-3">
               {categoria}
             </h2>
             <div className="space-y-3">
@@ -378,12 +378,12 @@ export default function FaqContent() {
                       aria-expanded={aberto}
                       className="w-full flex items-center justify-between gap-4 px-5 py-4 text-left"
                     >
-                      <span className="text-sm sm:text-base font-medium text-[#0B2447]">
+                      <span className="text-sm sm:text-base font-medium text-marinho">
                         {item.pergunta}
                       </span>
                       <ChevronDown
                         className={`h-5 w-5 shrink-0 text-slate-400 transition-transform duration-200 ${
-                          aberto ? 'rotate-180 text-[#0B3D91]' : ''
+                          aberto ? 'rotate-180 text-marinho' : ''
                         }`}
                       />
                     </button>
@@ -416,7 +416,7 @@ export default function FaqContent() {
       </div>
 
       {/* CTA de contato */}
-      <div className="mt-12 rounded-2xl bg-[#0B2447] text-white p-6 sm:p-8 flex flex-col sm:flex-row items-center justify-between gap-4">
+      <div className="mt-12 rounded-2xl bg-marinho text-white p-6 sm:p-8 flex flex-col sm:flex-row items-center justify-between gap-4">
         <div className="flex items-center gap-3 text-center sm:text-left">
           <div className="h-11 w-11 rounded-xl bg-white/10 flex items-center justify-center shrink-0">
             <MessageCircle className="h-5 w-5" />
@@ -428,7 +428,7 @@ export default function FaqContent() {
         </div>
         <Link
           href="/contact"
-          className="shrink-0 bg-white text-[#0B2447] font-semibold text-sm px-5 py-3 rounded-xl hover:bg-slate-100 transition-colors"
+          className="shrink-0 bg-white text-marinho font-semibold text-sm px-5 py-3 rounded-xl hover:bg-slate-100 transition-colors"
         >
           Fale conosco
         </Link>

@@ -21,14 +21,14 @@ export default function ExperienciasPage() {
 
       <main className="flex-1 bg-white">
         {/* Hero */}
-        <section className="bg-[#0B2447] text-white">
+        <section className="bg-marinho text-white">
           <div className="mx-auto max-w-5xl px-4 sm:px-6 lg:px-8 py-16 text-center">
-            <p className="text-xs font-semibold text-cyan-400 uppercase tracking-widest mb-2">
+            <p className="text-xs font-semibold text-turquesa uppercase tracking-widest mb-2">
               Inspire-se
             </p>
             <h1 className="text-3xl sm:text-4xl font-bold tracking-tight">
               Experiências{' '}
-              <span className="bg-gradient-to-r from-cyan-400 to-teal-300 bg-clip-text text-transparent">
+              <span className="text-turquesa">
                 para navegar
               </span>
             </h1>
@@ -56,15 +56,15 @@ export default function ExperienciasPage() {
                 />
               </div>
               <div className="pr-2 md:pr-6 pb-2 md:pb-4">
-                <span className="inline-flex items-center gap-1 text-xs font-semibold text-[#0B3D91] bg-[#0B3D91]/10 px-3 py-1 rounded-full">
+                <span className="inline-flex items-center gap-1 text-xs font-semibold text-marinho bg-marinho/10 px-3 py-1 rounded-full">
                   <MapPin className="h-3.5 w-3.5" />
                   {destaque.local}
                 </span>
-                <h2 className="mt-4 text-xl sm:text-2xl md:text-3xl font-bold text-[#0B2447] leading-snug group-hover:text-[#0B3D91] transition-colors">
+                <h2 className="mt-4 text-xl sm:text-2xl md:text-3xl font-bold text-marinho leading-snug group-hover:text-turquesa-escuro transition-colors">
                   {destaque.titulo}
                 </h2>
                 <p className="mt-3 text-slate-600 leading-relaxed">{destaque.resumo}</p>
-                <span className="mt-5 inline-flex items-center gap-1.5 text-sm font-semibold text-[#0B3D91]">
+                <span className="mt-5 inline-flex items-center gap-1.5 text-sm font-semibold text-marinho">
                   Ler experiência
                   <ArrowRight className="h-4 w-4 group-hover:translate-x-1 transition-transform" />
                 </span>
@@ -89,17 +89,17 @@ export default function ExperienciasPage() {
                   />
                 </div>
                 <div className="flex flex-1 flex-col p-5">
-                  <span className="inline-flex items-center gap-1 text-xs font-semibold text-[#0B3D91] bg-[#0B3D91]/10 px-2.5 py-1 rounded-full self-start">
+                  <span className="inline-flex items-center gap-1 text-xs font-semibold text-marinho bg-marinho/10 px-2.5 py-1 rounded-full self-start">
                     <MapPin className="h-3 w-3" />
                     {passeio.local}
                   </span>
-                  <h3 className="mt-3 text-base font-bold text-[#0B2447] leading-snug group-hover:text-[#0B3D91] transition-colors">
+                  <h3 className="mt-3 text-base font-bold text-marinho leading-snug group-hover:text-turquesa-escuro transition-colors">
                     {passeio.titulo}
                   </h3>
                   <p className="mt-2 text-sm text-slate-600 leading-relaxed flex-1">
                     {passeio.resumo}
                   </p>
-                  <span className="mt-4 inline-flex items-center gap-1.5 text-sm font-semibold text-[#0B3D91]">
+                  <span className="mt-4 inline-flex items-center gap-1.5 text-sm font-semibold text-marinho">
                     Ler experiência
                     <ArrowRight className="h-4 w-4 group-hover:translate-x-1 transition-transform" />
                   </span>
@@ -109,7 +109,7 @@ export default function ExperienciasPage() {
           </div>
 
           {/* CTA final */}
-          <div className="mt-16 rounded-3xl bg-[#0B2447] text-white p-8 sm:p-10 text-center">
+          <div className="mt-16 rounded-3xl bg-marinho text-white p-8 sm:p-10 text-center">
             <h2 className="text-xl sm:text-2xl font-bold">Pronto para viver a sua?</h2>
             <p className="mt-2 text-slate-300 max-w-lg mx-auto">
               Encontre a embarcação certa e reserve o roteiro que combina com a experiência que
@@ -117,7 +117,7 @@ export default function ExperienciasPage() {
             </p>
             <Link
               href="/buscar"
-              className="mt-6 inline-flex items-center gap-2 bg-gradient-to-r from-[#0B3D91] to-cyan-500 text-white font-semibold text-sm px-6 py-3 rounded-xl hover:brightness-110 transition-all"
+              className="mt-6 inline-flex items-center gap-2 bg-gradient-to-r from-marinho to-turquesa text-white font-semibold text-sm px-6 py-3 rounded-xl hover:brightness-110 transition-all"
             >
               Buscar embarcações
               <ArrowRight className="h-4 w-4" />

@@ -113,7 +113,7 @@ export default function RoteiroCard({
         {/* Location tag */}
         {localidade && (
           <div className="absolute bottom-3 left-3">
-            <span className="bg-[#0B2447]/85 backdrop-blur-sm text-white text-[10px] font-semibold px-2.5 py-1 rounded-full">
+            <span className="bg-marinho/85 backdrop-blur-sm text-white text-[10px] font-semibold px-2.5 py-1 rounded-full">
               {localidade}
             </span>
           </div>
@@ -163,7 +163,7 @@ export default function RoteiroCard({
           )}
         </div>
 
-        <h3 className="text-sm font-semibold text-[#0B2447] leading-snug line-clamp-2 group-hover:text-[#0B3D91] transition-colors mb-3">
+        <h3 className="text-sm font-semibold text-marinho leading-snug line-clamp-2 group-hover:text-turquesa-escuro transition-colors mb-3">
           {roteiro.nome}
         </h3>
 
@@ -172,7 +172,7 @@ export default function RoteiroCard({
           {precoInfo ? (
             <div>
               <span className="block text-[9px] text-slate-400 uppercase tracking-wide">{precoInfo.rotulo}</span>
-              <span className="text-base font-bold text-[#0B3D91]">
+              <span className="text-base font-bold text-marinho">
                 {formatarPreco(precoInfo.valor)}
               </span>
               <span className="text-xs text-slate-400 ml-1">{precoInfo.unidade}</span>
@@ -182,10 +182,10 @@ export default function RoteiroCard({
           )}
           {avaliacaoResumo ? (
             <span
-              className="inline-flex items-center gap-1 text-xs font-semibold text-[#0B2447]"
+              className="inline-flex items-center gap-1 text-xs font-semibold text-marinho"
               title={`${avaliacaoResumo.total} ${avaliacaoResumo.total === 1 ? 'avaliação' : 'avaliações'}`}
             >
-              <Star className="h-3.5 w-3.5 fill-amber-400 text-amber-400" />
+              <Star className="h-3.5 w-3.5 fill-destaque text-destaque" />
               {avaliacaoResumo.media.toLocaleString('pt-BR', {
                 minimumFractionDigits: 1,
                 maximumFractionDigits: 1,
@@ -193,7 +193,7 @@ export default function RoteiroCard({
               <span className="font-normal text-slate-400">({avaliacaoResumo.total})</span>
             </span>
           ) : (
-            <span className="inline-flex items-center gap-1 text-[10px] font-semibold bg-cyan-50 text-cyan-700 px-2 py-1 rounded-full">
+            <span className="inline-flex items-center gap-1 text-[10px] font-semibold bg-turquesa/10 text-turquesa-escuro px-2 py-1 rounded-full">
               Novo
             </span>
           )}

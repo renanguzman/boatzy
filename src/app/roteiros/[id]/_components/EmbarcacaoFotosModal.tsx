@@ -82,7 +82,7 @@ export default function EmbarcacaoFotosModal({ capa, embarcacao }: Props) {
           type="button"
           onClick={() => { setOpen(true); setCurrent(Math.max(0, imagens.findIndex((i) => i.url_imagem === capa))); }}
           aria-label={`Ver ${total} ${total === 1 ? 'foto' : 'fotos'} da embarcação ${embarcacao.nome}`}
-          className="group relative block aspect-[16/10] w-full sm:w-60 shrink-0 overflow-hidden rounded-xl bg-slate-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#0B3D91]"
+          className="group relative block aspect-[16/10] w-full sm:w-60 shrink-0 overflow-hidden rounded-xl bg-slate-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-marinho"
         >
           <Image
             src={capa}
@@ -92,14 +92,14 @@ export default function EmbarcacaoFotosModal({ capa, embarcacao }: Props) {
             className="object-cover transition-transform duration-300 group-hover:scale-105"
           />
           <span className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent" />
-          <span className="absolute bottom-2.5 left-2.5 inline-flex items-center gap-1.5 rounded-full bg-white/95 px-3 py-1 text-xs font-semibold text-[#0B3D91] shadow-sm transition-colors group-hover:bg-[#0B3D91] group-hover:text-white">
+          <span className="absolute bottom-2.5 left-2.5 inline-flex items-center gap-1.5 rounded-full bg-white/95 px-3 py-1 text-xs font-semibold text-marinho shadow-sm transition-colors group-hover:bg-marinho group-hover:text-white">
             <Camera className="h-3.5 w-3.5" />
             {total} {total === 1 ? 'foto' : 'fotos'}
           </span>
         </button>
       ) : (
-        <div className="flex aspect-[16/10] w-full sm:w-60 shrink-0 items-center justify-center rounded-xl bg-[#0B3D91]/10">
-          <Anchor className="h-10 w-10 text-[#0B3D91]/60" />
+        <div className="flex aspect-[16/10] w-full sm:w-60 shrink-0 items-center justify-center rounded-xl bg-marinho/10">
+          <Anchor className="h-10 w-10 text-marinho/60" />
         </div>
       )}
 
@@ -114,7 +114,7 @@ export default function EmbarcacaoFotosModal({ capa, embarcacao }: Props) {
             onClick={(e) => e.stopPropagation()}
           >
             {/* ── Header ── */}
-            <div className="flex items-center gap-3 px-6 py-4 bg-gradient-to-r from-[#0B2447] to-[#0B3D91]">
+            <div className="flex items-center gap-3 px-6 py-4 bg-gradient-to-r from-marinho-escuro to-marinho">
               <div className="h-9 w-9 rounded-xl bg-white/10 flex items-center justify-center shrink-0">
                 <Anchor className="h-4 w-4 text-white" />
               </div>
@@ -201,7 +201,7 @@ export default function EmbarcacaoFotosModal({ capa, embarcacao }: Props) {
                     aria-label={img.titulo ?? `Foto ${i + 1}`}
                     className={`relative h-14 w-20 rounded-lg overflow-hidden shrink-0 transition-all duration-150 ${
                       i === current
-                        ? 'ring-2 ring-cyan-400 ring-offset-1 ring-offset-slate-950 opacity-100 scale-105'
+                        ? 'ring-2 ring-turquesa ring-offset-1 ring-offset-slate-950 opacity-100 scale-105'
                         : 'opacity-50 hover:opacity-80'
                     }`}
                   >
@@ -222,7 +222,7 @@ export default function EmbarcacaoFotosModal({ capa, embarcacao }: Props) {
               <div className="flex items-center justify-center gap-6 flex-wrap px-6 py-4 bg-slate-50 border-t border-slate-100">
                 {specs.map(({ icon: Icon, label }) => (
                   <div key={label} className="flex items-center gap-1.5 text-sm text-slate-600">
-                    <Icon className="h-4 w-4 text-[#0B3D91] shrink-0" />
+                    <Icon className="h-4 w-4 text-marinho shrink-0" />
                     <span>{label}</span>
                   </div>
                 ))}

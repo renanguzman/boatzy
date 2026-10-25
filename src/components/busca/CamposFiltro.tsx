@@ -20,7 +20,7 @@ export function FiltroSecao({ titulo, icone: Icone, children, acao }: {
         </h3>
         {acao && (
           <button type="button" onClick={acao.onClick}
-            className="text-[11px] font-semibold text-slate-400 hover:text-[#0B3D91]">
+            className="text-[11px] font-semibold text-slate-400 hover:text-marinho">
             {acao.label}
           </button>
         )}
@@ -41,7 +41,7 @@ export function ChipFiltro({ ativo, onClick, children }: {
       aria-pressed={ativo}
       className={`inline-flex items-center gap-1 text-xs font-medium rounded-full px-3 py-1.5 border transition-colors
         ${ativo
-          ? 'border-[#0B2447] bg-[#0B2447] text-white'
+          ? 'border-marinho bg-marinho text-white'
           : 'border-slate-200 bg-white text-slate-600 hover:border-slate-300 hover:bg-slate-50'}`}
     >
       {children}
@@ -62,7 +62,7 @@ export function CheckFiltro({ marcado, onClick, children }: {
       className="w-full flex items-center gap-2.5 rounded-lg px-2 py-1.5 -mx-2 text-left text-sm text-slate-700 hover:bg-slate-50"
     >
       <span className={`h-[18px] w-[18px] shrink-0 rounded-[5px] border flex items-center justify-center transition-colors
-        ${marcado ? 'bg-[#0B2447] border-[#0B2447]' : 'border-slate-300 bg-white'}`}>
+        ${marcado ? 'bg-marinho border-marinho' : 'border-slate-300 bg-white'}`}>
         {marcado && <Check className="h-3 w-3 text-white" strokeWidth={3} />}
       </span>
       <span className="leading-tight">{children}</span>
@@ -78,18 +78,18 @@ export function ContadorFiltro({ valor, onChange, singular, plural, max = 99 }: 
     disabled:border-slate-200 disabled:text-slate-300 disabled:cursor-default`;
   return (
     <div className="flex items-center justify-between gap-3 rounded-xl border border-slate-200 bg-white px-3 py-2">
-      <span className={`text-sm ${valor > 0 ? 'font-medium text-slate-800' : 'text-slate-400'}`} aria-live="polite">
+      <span className={`text-sm ${valor > 0 ? 'font-medium text-grafite' : 'text-slate-400'}`} aria-live="polite">
         {valor > 0 ? `${valor} ${valor === 1 ? singular : plural}` : 'Qualquer'}
       </span>
       <div className="flex items-center gap-2">
         <button type="button" onClick={() => onChange(Math.max(0, valor - 1))} disabled={valor === 0}
           aria-label={`Remover ${singular}`}
-          className={`${btn} border-slate-300 text-slate-600 hover:border-[#0B2447] hover:text-[#0B2447]`}>
+          className={`${btn} border-slate-300 text-slate-600 hover:border-marinho hover:text-marinho`}>
           <Minus className="h-4 w-4" />
         </button>
         <button type="button" onClick={() => onChange(Math.min(max, valor + 1))} disabled={valor >= max}
           aria-label={`Adicionar ${singular}`}
-          className={`${btn} border-slate-300 text-slate-600 hover:border-[#0B2447] hover:text-[#0B2447]`}>
+          className={`${btn} border-slate-300 text-slate-600 hover:border-marinho hover:text-marinho`}>
           <Plus className="h-4 w-4" />
         </button>
       </div>
@@ -139,8 +139,8 @@ export function FiltroMultiSelect({
             value={busca}
             onChange={(e) => setBusca(e.target.value)}
             placeholder={placeholder}
-            className="w-full rounded-xl border border-slate-200 bg-slate-50 pl-8 pr-8 py-2 text-sm text-slate-800
-              placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-[#0B2447]/20 focus:bg-white"
+            className="w-full rounded-xl border border-slate-200 bg-slate-50 pl-8 pr-8 py-2 text-sm text-grafite
+              placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-marinho/20 focus:bg-white"
           />
           {busca && (
             <button type="button" onClick={() => setBusca('')} aria-label="Limpar busca"
@@ -162,7 +162,7 @@ export function FiltroMultiSelect({
       </div>
       {!busca.trim() && itens.length > visiveis && (
         <button type="button" onClick={() => setVerTodas((v) => !v)}
-          className="mt-2 text-xs font-semibold text-[#0B3D91] hover:text-[#0B2447]">
+          className="mt-2 text-xs font-semibold text-marinho hover:text-turquesa-escuro">
           {verTodas ? 'Ver menos' : `Ver todas (${itens.length})`}
         </button>
       )}
@@ -179,8 +179,8 @@ export function CampoFiltro({ children }: { children: React.ReactNode }) {
   );
 }
 
-const inputCls = `w-full rounded-xl border border-slate-200 bg-white py-2 pr-2.5 text-sm text-slate-800
-  placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-[#0B2447]/20 focus:border-[#0B2447]/40 transition
+const inputCls = `w-full rounded-xl border border-slate-200 bg-white py-2 pr-2.5 text-sm text-grafite
+  placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-marinho/20 focus:border-marinho/40 transition
   [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none`;
 
 /**
@@ -253,7 +253,7 @@ export function FaixaNumerica({
       </div>
       {alterado && (
         <button type="button" onMouseDown={(e) => e.preventDefault()} onClick={aplicar}
-          className="mt-2 w-full rounded-lg bg-[#0B2447] hover:bg-[#0B3D91] py-2 text-xs font-semibold text-white transition-colors">
+          className="mt-2 w-full rounded-lg bg-marinho hover:bg-marinho-escuro py-2 text-xs font-semibold text-white transition-colors">
           Aplicar
         </button>
       )}

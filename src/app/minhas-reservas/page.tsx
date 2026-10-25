@@ -188,11 +188,11 @@ export default async function MinhasReservasPage() {
   );
 
   return (
-    <div className="min-h-screen flex flex-col bg-slate-50">
+    <div className="min-h-screen flex flex-col bg-areia">
       <Header />
 
       <main className="flex-1 max-w-4xl w-full mx-auto px-4 py-10">
-        <h1 className="text-2xl font-bold text-[#0B2447]">Minhas reservas</h1>
+        <h1 className="text-2xl font-bold text-marinho">Minhas reservas</h1>
         <p className="text-sm text-slate-500 mt-1">
           Acompanhe o status das suas solicitações e a resposta do gestor.
         </p>
@@ -208,7 +208,7 @@ export default async function MinhasReservasPage() {
             </p>
             <Link
               href="/buscar"
-              className="mt-6 px-5 py-2.5 bg-[#0B3D91] hover:bg-[#0B2447] text-white text-sm font-semibold rounded-xl transition-colors"
+              className="mt-6 px-5 py-2.5 bg-marinho hover:bg-marinho-escuro text-white text-sm font-semibold rounded-xl transition-colors"
             >
               Explorar roteiros
             </Link>
@@ -243,7 +243,7 @@ export default async function MinhasReservasPage() {
                 (r.status === 'confirmada' || r.status === 'concluida') && atendentes.length > 0;
 
               return (
-                <article key={r.id} id={`reserva-${r.id}`} className="scroll-mt-24 rounded-2xl border border-slate-200 bg-white shadow-sm overflow-hidden target:ring-2 target:ring-[#0B3D91]/40">
+                <article key={r.id} id={`reserva-${r.id}`} className="scroll-mt-24 rounded-2xl border border-slate-200 bg-white shadow-sm overflow-hidden target:ring-2 target:ring-marinho/40">
                   {/* Topo: imagem + título + status */}
                   <div className="flex items-stretch gap-4 p-4 border-b border-slate-100">
                     <div className="relative h-20 w-28 shrink-0 rounded-xl overflow-hidden bg-slate-100 hidden sm:block">
@@ -262,7 +262,7 @@ export default async function MinhasReservasPage() {
                             <TipoIcon className="h-3 w-3" />
                             {r.tipo === 'embarcacao' ? 'Embarcação' : 'Roteiro'}
                           </div>
-                          <h2 className="mt-0.5 text-base font-bold text-[#0B2447] truncate">
+                          <h2 className="mt-0.5 text-base font-bold text-marinho truncate">
                             {r.roteiro?.nome ?? r.item_nome}
                           </h2>
                           {localidade && (
@@ -318,10 +318,10 @@ export default async function MinhasReservasPage() {
                   {/* Desconto (cupom) */}
                   {r.desconto_valor > 0 && (
                     <div className="px-4 pb-2 flex items-center justify-between">
-                      <span className="text-sm text-emerald-600">
+                      <span className="text-sm text-turquesa-escuro">
                         Desconto{r.cupom_codigo ? ` (${r.cupom_codigo})` : ''}
                       </span>
-                      <span className="text-sm font-medium text-emerald-600">-{formatCurrency(r.desconto_valor)}</span>
+                      <span className="text-sm font-medium text-turquesa-escuro">-{formatCurrency(r.desconto_valor)}</span>
                     </div>
                   )}
 
@@ -329,7 +329,7 @@ export default async function MinhasReservasPage() {
                   {r.total_estimado != null && (
                     <div className="px-4 pb-4 flex items-center justify-between">
                       <span className="text-sm text-slate-500">Total estimado</span>
-                      <span className="text-base font-bold text-[#0B2447]">{formatCurrency(r.total_estimado)}</span>
+                      <span className="text-base font-bold text-marinho">{formatCurrency(r.total_estimado)}</span>
                     </div>
                   )}
 
@@ -347,7 +347,7 @@ export default async function MinhasReservasPage() {
                         </div>
                         <Link
                           href={`/reservas/${r.id}/pagar`}
-                          className="inline-flex items-center justify-center gap-1.5 rounded-xl bg-[#0B3D91] hover:bg-[#0B2447] px-4 py-2.5 text-sm font-semibold text-white transition-colors whitespace-nowrap"
+                          className="inline-flex items-center justify-center gap-1.5 rounded-xl bg-marinho hover:bg-marinho-escuro px-4 py-2.5 text-sm font-semibold text-white transition-colors whitespace-nowrap"
                         >
                           <CreditCard className="h-4 w-4" />
                           Pagar {formatCurrency(Number(pedido.valor_total))}
@@ -357,7 +357,7 @@ export default async function MinhasReservasPage() {
                   )}
                   {pedido?.status === 'pago' && (
                     <div className="px-4 pb-4">
-                      <div className="flex items-center gap-2 text-xs text-emerald-700">
+                      <div className="flex items-center gap-2 text-xs text-turquesa-escuro">
                         <BadgeCheck className="h-4 w-4" />
                         Pagamento confirmado · Pedido #{pedido.numero}
                         {pedido.pago_em && ` · ${formatarDataHoraBR(pedido.pago_em)}`}
@@ -388,8 +388,8 @@ export default async function MinhasReservasPage() {
                     <div className="px-4 pb-4">
                       <div className="rounded-xl border border-slate-200 bg-slate-50/70 p-3.5">
                         <div className="flex items-center gap-1.5 mb-2.5">
-                          <Users className="h-4 w-4 text-[#0B3D91]" />
-                          <span className="text-sm font-semibold text-[#0B2447]">Quem vai te atender</span>
+                          <Users className="h-4 w-4 text-marinho" />
+                          <span className="text-sm font-semibold text-marinho">Quem vai te atender</span>
                         </div>
                         <div className="flex flex-wrap gap-3">
                           {atendentes.map((m, i) => {
@@ -445,7 +445,7 @@ export default async function MinhasReservasPage() {
                     ) : (
                       <Link
                         href={`/minhas-reservas/${r.id}/chat`}
-                        className="inline-flex items-center gap-2 text-sm font-medium text-[#0B3D91] hover:text-[#0B2447] transition-colors"
+                        className="inline-flex items-center gap-2 text-sm font-medium text-marinho hover:text-turquesa-escuro transition-colors"
                       >
                         <span className="relative inline-flex">
                           <MessageCircle className="h-4 w-4" />
@@ -463,7 +463,7 @@ export default async function MinhasReservasPage() {
                       {r.roteiro_id && (
                         <Link
                           href={`/roteiros/${r.roteiro_id}`}
-                          className="text-sm font-medium text-[#0B3D91] hover:text-[#0B2447] transition-colors"
+                          className="text-sm font-medium text-marinho hover:text-turquesa-escuro transition-colors"
                         >
                           Ver roteiro →
                         </Link>

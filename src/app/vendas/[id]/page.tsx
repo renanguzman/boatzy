@@ -138,20 +138,20 @@ export default async function VendaDetalhePage({ params }: { params: Promise<{ i
             <div className="max-w-2xl">
               <div className="flex flex-wrap gap-2 mb-4">
                 {reduzido && (
-                  <span className="inline-flex items-center gap-1 text-xs font-bold text-white bg-emerald-600 px-3 py-1.5 rounded-full">
+                  <span className="inline-flex items-center gap-1 text-xs font-bold text-marinho bg-destaque px-3 py-1.5 rounded-full">
                     <ArrowDownRight className="h-3 w-3" />
                     Preço reduzido
                   </span>
                 )}
                 {emb.embarcacao_tipo && (
-                  <span className="inline-flex items-center gap-1 text-xs font-medium text-[#0B3D91] bg-[#0B3D91]/10 px-3 py-1.5 rounded-full">
+                  <span className="inline-flex items-center gap-1 text-xs font-medium text-marinho bg-marinho/10 px-3 py-1.5 rounded-full">
                     <Anchor className="h-3 w-3" />
                     {emb.embarcacao_tipo.nome}
                   </span>
                 )}
               </div>
 
-              <h1 className="text-3xl md:text-4xl font-bold text-[#0B2447] mb-2">{emb.nome}</h1>
+              <h1 className="text-3xl md:text-4xl font-bold text-marinho mb-2">{emb.nome}</h1>
               {localidade && (
                 <div className="flex items-center gap-1.5 text-slate-500 text-sm mb-4">
                   <MapPin className="h-4 w-4 shrink-0" />
@@ -160,7 +160,7 @@ export default async function VendaDetalhePage({ params }: { params: Promise<{ i
               )}
 
               <div className="flex items-baseline gap-3 mb-8">
-                <span className="text-3xl font-bold text-[#0B2447]">{brl.format(Number(anuncio.preco))}</span>
+                <span className="text-3xl font-bold text-marinho">{brl.format(Number(anuncio.preco))}</span>
                 {reduzido && (
                   <span className="text-base text-slate-400 line-through">
                     {brl.format(Number(anterior!.preco))}
@@ -170,10 +170,10 @@ export default async function VendaDetalhePage({ params }: { params: Promise<{ i
 
               {/* Gate de login */}
               <div className="rounded-2xl border border-slate-200 bg-slate-50 p-8 text-center">
-                <div className="h-14 w-14 rounded-2xl bg-[#0B2447] flex items-center justify-center mx-auto mb-4">
+                <div className="h-14 w-14 rounded-2xl bg-marinho flex items-center justify-center mx-auto mb-4">
                   <LogIn className="h-6 w-6 text-white" />
                 </div>
-                <h2 className="text-lg font-bold text-[#0B2447]">
+                <h2 className="text-lg font-bold text-marinho">
                   Entre para ver os detalhes deste anúncio
                 </h2>
                 <p className="text-sm text-slate-500 mt-2 max-w-md mx-auto">
@@ -182,7 +182,7 @@ export default async function VendaDetalhePage({ params }: { params: Promise<{ i
                 </p>
                 <Link
                   href={`/entrar?redirect_to=${encodeURIComponent(`/vendas/${id}`)}`}
-                  className="inline-flex items-center gap-2 mt-6 px-6 py-3 rounded-xl bg-[#0B3D91] hover:bg-[#0B2447] text-white text-sm font-semibold transition-colors"
+                  className="inline-flex items-center gap-2 mt-6 px-6 py-3 rounded-xl bg-marinho hover:bg-marinho-escuro text-white text-sm font-semibold transition-colors"
                 >
                   <LogIn className="h-4 w-4" />
                   Entrar ou criar conta
@@ -248,13 +248,13 @@ export default async function VendaDetalhePage({ params }: { params: Promise<{ i
               {/* Badges */}
               <div className="flex flex-wrap gap-2 mb-4">
                 {reduzido && (
-                  <span className="inline-flex items-center gap-1 text-xs font-bold text-white bg-emerald-600 px-3 py-1.5 rounded-full">
+                  <span className="inline-flex items-center gap-1 text-xs font-bold text-marinho bg-destaque px-3 py-1.5 rounded-full">
                     <ArrowDownRight className="h-3 w-3" />
                     Preço reduzido
                   </span>
                 )}
                 {emb.embarcacao_tipo && (
-                  <span className="inline-flex items-center gap-1 text-xs font-medium text-[#0B3D91] bg-[#0B3D91]/10 px-3 py-1.5 rounded-full">
+                  <span className="inline-flex items-center gap-1 text-xs font-medium text-marinho bg-marinho/10 px-3 py-1.5 rounded-full">
                     <Anchor className="h-3 w-3" />
                     {emb.embarcacao_tipo.nome}
                   </span>
@@ -262,7 +262,7 @@ export default async function VendaDetalhePage({ params }: { params: Promise<{ i
               </div>
 
               {/* Title & location */}
-              <h1 className="text-3xl md:text-4xl font-bold text-[#0B2447] mb-2">{emb.nome}</h1>
+              <h1 className="text-3xl md:text-4xl font-bold text-marinho mb-2">{emb.nome}</h1>
               {localidade && (
                 <div className="flex items-center gap-1.5 text-slate-500 text-sm mb-6">
                   <MapPin className="h-4 w-4 shrink-0" />
@@ -273,7 +273,7 @@ export default async function VendaDetalhePage({ params }: { params: Promise<{ i
               {/* Detalhes da venda */}
               {anuncio.descricao_venda && (
                 <div className="mb-8">
-                  <h2 className="text-xl font-bold text-[#0B2447] mb-3">Sobre esta venda</h2>
+                  <h2 className="text-xl font-bold text-marinho mb-3">Sobre esta venda</h2>
                   <p className="text-slate-600 text-sm leading-relaxed max-w-2xl whitespace-pre-line">
                     {anuncio.descricao_venda}
                   </p>
@@ -285,11 +285,11 @@ export default async function VendaDetalhePage({ params }: { params: Promise<{ i
                 {specs.map(({ icon: Icon, label, value }) => (
                   <div key={label} className="flex items-center gap-3 min-w-0">
                     <div className="h-10 w-10 rounded-xl bg-slate-100 flex items-center justify-center shrink-0">
-                      <Icon className="h-4 w-4 text-[#0B3D91]" />
+                      <Icon className="h-4 w-4 text-marinho" />
                     </div>
                     <div className="min-w-0">
                       <p className="text-[10px] text-slate-500 uppercase tracking-wider font-medium">{label}</p>
-                      <p className="text-sm font-semibold text-slate-800 truncate">{value}</p>
+                      <p className="text-sm font-semibold text-grafite truncate">{value}</p>
                     </div>
                   </div>
                 ))}
@@ -298,7 +298,7 @@ export default async function VendaDetalhePage({ params }: { params: Promise<{ i
               {/* Descrição da embarcação */}
               {emb.descricao && (
                 <div className="mb-10">
-                  <h2 className="text-xl font-bold text-[#0B2447] mb-3">Sobre a embarcação</h2>
+                  <h2 className="text-xl font-bold text-marinho mb-3">Sobre a embarcação</h2>
                   <p className="text-slate-600 text-sm leading-relaxed max-w-2xl">{emb.descricao}</p>
                 </div>
               )}
@@ -306,7 +306,7 @@ export default async function VendaDetalhePage({ params }: { params: Promise<{ i
               {/* Comodidades */}
               {emb.embarcacao_comodidades.length > 0 && (
                 <div className="mb-10">
-                  <h2 className="text-xl font-bold text-[#0B2447] mb-4">Comodidades a bordo</h2>
+                  <h2 className="text-xl font-bold text-marinho mb-4">Comodidades a bordo</h2>
                   <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
                     {emb.embarcacao_comodidades.map((ec, i) =>
                       ec.comodidade ? (
@@ -314,7 +314,7 @@ export default async function VendaDetalhePage({ params }: { params: Promise<{ i
                           key={i}
                           className="flex items-center gap-2.5 p-3 rounded-xl border border-slate-100 bg-slate-50/60"
                         >
-                          <CheckCircle2 className="h-4 w-4 text-emerald-500 shrink-0" />
+                          <CheckCircle2 className="h-4 w-4 text-turquesa shrink-0" />
                           <span className="text-sm text-slate-700 leading-tight">{ec.comodidade.nome}</span>
                         </div>
                       ) : null,
@@ -326,10 +326,10 @@ export default async function VendaDetalhePage({ params }: { params: Promise<{ i
               {/* Localização (cidade/bairro — endereço exato não é exposto na venda) */}
               {emb.latitude && emb.longitude && (
                 <div className="mb-10">
-                  <h2 className="text-xl font-bold text-[#0B2447] mb-4">Localização</h2>
+                  <h2 className="text-xl font-bold text-marinho mb-4">Localização</h2>
                   <LocalizacaoMap lat={Number(emb.latitude)} lng={Number(emb.longitude)} />
                   <div className="mt-4 flex items-start gap-3 p-4 rounded-xl bg-slate-50 border border-slate-100">
-                    <MapPin className="h-4 w-4 text-[#0B3D91] mt-0.5 shrink-0" />
+                    <MapPin className="h-4 w-4 text-marinho mt-0.5 shrink-0" />
                     <div className="text-sm text-slate-700 leading-relaxed">
                       {emb.bairro && <p>{emb.bairro}</p>}
                       {localidade && <p>{localidade}</p>}

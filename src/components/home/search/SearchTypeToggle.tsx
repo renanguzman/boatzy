@@ -35,7 +35,7 @@ export default function SearchTypeToggle({ value, onChange, variant = 'dark', sh
         const inactiveClass =
           variant === 'dark'
             ? 'text-white/80 hover:text-white'
-            : 'text-slate-500 hover:text-slate-800';
+            : 'text-slate-500 hover:text-grafite';
 
         return (
           <button

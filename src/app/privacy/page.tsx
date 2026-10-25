@@ -13,9 +13,9 @@ export default function PrivacyPage() {
     <>
       <Header />
 
-      <main className="flex-1 bg-slate-50">
+      <main className="flex-1 bg-areia">
         {/* Hero */}
-        <section className="bg-[#0B2447] text-white">
+        <section className="bg-marinho text-white">
           <div className="mx-auto max-w-3xl px-4 sm:px-6 lg:px-8 py-16">
             <h1 className="text-3xl sm:text-4xl font-bold tracking-tight">
               Política de Privacidade
@@ -42,7 +42,7 @@ export default function PrivacyPage() {
           <article className="mt-10 space-y-10 text-slate-700 leading-relaxed">
             {/* 1 */}
             <section>
-              <h2 className="text-xl font-semibold text-slate-900">
+              <h2 className="text-xl font-semibold text-grafite">
                 1. Quem somos
               </h2>
               <p className="mt-3">
@@ -81,7 +81,7 @@ export default function PrivacyPage() {
                   <strong>Canal de contato para assuntos de privacidade:</strong>{' '}
                   <a
                     href="mailto:adm@boatzy.app"
-                    className="text-[#0B2447] underline hover:no-underline"
+                    className="text-marinho underline hover:no-underline"
                   >
                     adm@boatzy.app
                   </a>
@@ -94,14 +94,14 @@ export default function PrivacyPage() {
 
             {/* 2 */}
             <section>
-              <h2 className="text-xl font-semibold text-slate-900">
+              <h2 className="text-xl font-semibold text-grafite">
                 2. Quais dados coletamos
               </h2>
               <p className="mt-3">
                 Nesta fase, coletamos os dados estritamente necessários para
                 criar e identificar sua conta:
               </p>
-              <p className="mt-3 font-medium text-slate-900">
+              <p className="mt-3 font-medium text-grafite">
                 a) Dados que você nos fornece ao se cadastrar via login do
                 Facebook:
               </p>
@@ -112,7 +112,7 @@ export default function PrivacyPage() {
                 <li>Cidade</li>
                 <li>Foto de perfil</li>
               </ul>
-              <p className="mt-3 font-medium text-slate-900">
+              <p className="mt-3 font-medium text-grafite">
                 b) Dados coletados automaticamente quando você usa a plataforma:
               </p>
               <ul className="mt-2 list-disc space-y-1 pl-5">
@@ -132,7 +132,7 @@ export default function PrivacyPage() {
 
             {/* 3 */}
             <section>
-              <h2 className="text-xl font-semibold text-slate-900">
+              <h2 className="text-xl font-semibold text-grafite">
                 3. Como e por que usamos seus dados
               </h2>
               <p className="mt-3">
@@ -143,10 +143,10 @@ export default function PrivacyPage() {
                 <table className="w-full border-collapse text-sm">
                   <thead>
                     <tr className="bg-slate-100 text-left">
-                      <th className="border border-slate-200 px-3 py-2 font-semibold text-slate-900">
+                      <th className="border border-slate-200 px-3 py-2 font-semibold text-grafite">
                         Finalidade
                       </th>
-                      <th className="border border-slate-200 px-3 py-2 font-semibold text-slate-900">
+                      <th className="border border-slate-200 px-3 py-2 font-semibold text-grafite">
                         Base legal (LGPD)
                       </th>
                     </tr>
@@ -201,7 +201,7 @@ export default function PrivacyPage() {
 
             {/* 4 */}
             <section>
-              <h2 className="text-xl font-semibold text-slate-900">
+              <h2 className="text-xl font-semibold text-grafite">
                 4. Com quem compartilhamos
               </h2>
               <p className="mt-3">
@@ -232,7 +232,7 @@ export default function PrivacyPage() {
 
             {/* 5 */}
             <section>
-              <h2 className="text-xl font-semibold text-slate-900">
+              <h2 className="text-xl font-semibold text-grafite">
                 5. Por quanto tempo guardamos
               </h2>
               <p className="mt-3">
@@ -242,7 +242,7 @@ export default function PrivacyPage() {
                 e-mail{' '}
                 <a
                   href="mailto:adm@boatzy.app"
-                  className="text-[#0B2447] underline hover:no-underline"
+                  className="text-marinho underline hover:no-underline"
                 >
                   adm@boatzy.app
                 </a>
@@ -252,7 +252,7 @@ export default function PrivacyPage() {
 
             {/* 6 */}
             <section id="cookies" className="scroll-mt-24">
-              <h2 className="text-xl font-semibold text-slate-900">
+              <h2 className="text-xl font-semibold text-grafite">
                 6. Cookies e tecnologias semelhantes
               </h2>
               <p className="mt-3">
@@ -278,7 +278,7 @@ export default function PrivacyPage() {
                 </li>
               </ul>
 
-              <h3 className="mt-6 font-semibold text-slate-900">Como funciona a sua escolha</h3>
+              <h3 className="mt-6 font-semibold text-grafite">Como funciona a sua escolha</h3>
               <p className="mt-3">
                 No primeiro acesso, um aviso pergunta se você permite os cookies
                 de Medição. Você pode aceitar, recusar ou personalizar — recusar
@@ -300,7 +300,7 @@ export default function PrivacyPage() {
                 seu navegador.
               </p>
 
-              <h3 className="mt-6 font-semibold text-slate-900">Cookies e itens que usamos</h3>
+              <h3 className="mt-6 font-semibold text-grafite">Cookies e itens que usamos</h3>
               <div className="mt-3 overflow-x-auto rounded-lg border border-slate-200 bg-white">
                 <table className="w-full min-w-[640px] text-left text-sm">
                   <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
@@ -314,49 +314,49 @@ export default function PrivacyPage() {
                   </thead>
                   <tbody className="[&_td:first-child]:pl-3">
                     <tr className="border-t border-slate-100 align-top">
-                      <td className="py-2 pr-3 font-mono text-xs text-slate-900">sb-…-auth-token</td>
+                      <td className="py-2 pr-3 font-mono text-xs text-grafite">sb-…-auth-token</td>
                       <td className="py-2 pr-3">Boatzy (Supabase)</td>
                       <td className="py-2 pr-3">Necessário</td>
                       <td className="py-2 pr-3">Mantém você conectado com segurança.</td>
                       <td className="py-2">Sessão de login (renovada enquanto você usa)</td>
                     </tr>
                     <tr className="border-t border-slate-100 align-top">
-                      <td className="py-2 pr-3 font-mono text-xs text-slate-900">boatzy_consentimento</td>
+                      <td className="py-2 pr-3 font-mono text-xs text-grafite">boatzy_consentimento</td>
                       <td className="py-2 pr-3">Boatzy</td>
                       <td className="py-2 pr-3">Necessário</td>
                       <td className="py-2 pr-3">Guarda a sua escolha sobre cookies.</td>
                       <td className="py-2">12 meses, renovado a cada visita</td>
                     </tr>
                     <tr className="border-t border-slate-100 align-top">
-                      <td className="py-2 pr-3 font-mono text-xs text-slate-900">boatzy_recent_locations</td>
+                      <td className="py-2 pr-3 font-mono text-xs text-grafite">boatzy_recent_locations</td>
                       <td className="py-2 pr-3">Boatzy (armazenamento do navegador)</td>
                       <td className="py-2 pr-3">Necessário</td>
                       <td className="py-2 pr-3">Lembra os últimos destinos buscados neste aparelho.</td>
                       <td className="py-2">Até você limpar os dados do navegador</td>
                     </tr>
                     <tr className="border-t border-slate-100 align-top">
-                      <td className="py-2 pr-3 font-mono text-xs text-slate-900">boatzy:tutorial-painel:v1</td>
+                      <td className="py-2 pr-3 font-mono text-xs text-grafite">boatzy:tutorial-painel:v1</td>
                       <td className="py-2 pr-3">Boatzy (armazenamento do navegador)</td>
                       <td className="py-2 pr-3">Necessário</td>
                       <td className="py-2 pr-3">Lembra que o tutorial do painel do anunciante já foi visto.</td>
                       <td className="py-2">Até você limpar os dados do navegador</td>
                     </tr>
                     <tr className="border-t border-slate-100 align-top">
-                      <td className="py-2 pr-3 font-mono text-xs text-slate-900">ga:…</td>
+                      <td className="py-2 pr-3 font-mono text-xs text-grafite">ga:…</td>
                       <td className="py-2 pr-3">Boatzy (armazenamento do navegador)</td>
                       <td className="py-2 pr-3">Medição</td>
                       <td className="py-2 pr-3">Evita contar duas vezes o mesmo evento estatístico.</td>
                       <td className="py-2">Até você limpar os dados do navegador</td>
                     </tr>
                     <tr className="border-t border-slate-100 align-top">
-                      <td className="py-2 pr-3 font-mono text-xs text-slate-900">_ga</td>
+                      <td className="py-2 pr-3 font-mono text-xs text-grafite">_ga</td>
                       <td className="py-2 pr-3">Google Analytics</td>
                       <td className="py-2 pr-3">Medição</td>
                       <td className="py-2 pr-3">Distingue visitantes de forma estatística.</td>
                       <td className="py-2">2 anos (só com sua permissão)</td>
                     </tr>
                     <tr className="border-t border-slate-100 align-top">
-                      <td className="py-2 pr-3 font-mono text-xs text-slate-900">_ga_4QJF8H6EDJ</td>
+                      <td className="py-2 pr-3 font-mono text-xs text-grafite">_ga_4QJF8H6EDJ</td>
                       <td className="py-2 pr-3">Google Analytics</td>
                       <td className="py-2 pr-3">Medição</td>
                       <td className="py-2 pr-3">Mantém o estado da visita para as estatísticas.</td>
@@ -374,7 +374,7 @@ export default function PrivacyPage() {
 
             {/* 7 */}
             <section>
-              <h2 className="text-xl font-semibold text-slate-900">
+              <h2 className="text-xl font-semibold text-grafite">
                 7. Segurança
               </h2>
               <p className="mt-3">
@@ -387,7 +387,7 @@ export default function PrivacyPage() {
 
             {/* 8 */}
             <section>
-              <h2 className="text-xl font-semibold text-slate-900">
+              <h2 className="text-xl font-semibold text-grafite">
                 8. Transferência internacional
               </h2>
               <p className="mt-3">
@@ -399,7 +399,7 @@ export default function PrivacyPage() {
 
             {/* 9 */}
             <section>
-              <h2 className="text-xl font-semibold text-slate-900">
+              <h2 className="text-xl font-semibold text-grafite">
                 9. Seus direitos como titular
               </h2>
               <p className="mt-3">
@@ -427,7 +427,7 @@ export default function PrivacyPage() {
                 Para exercer qualquer um desses direitos, escreva para{' '}
                 <a
                   href="mailto:adm@boatzy.app"
-                  className="text-[#0B2447] underline hover:no-underline"
+                  className="text-marinho underline hover:no-underline"
                 >
                   adm@boatzy.app
                 </a>
@@ -437,7 +437,7 @@ export default function PrivacyPage() {
 
             {/* 10 */}
             <section>
-              <h2 className="text-xl font-semibold text-slate-900">
+              <h2 className="text-xl font-semibold text-grafite">
                 10. Menores de idade
               </h2>
               <p className="mt-3">
@@ -449,7 +449,7 @@ export default function PrivacyPage() {
 
             {/* 11 */}
             <section>
-              <h2 className="text-xl font-semibold text-slate-900">
+              <h2 className="text-xl font-semibold text-grafite">
                 11. Alterações desta Política
               </h2>
               <p className="mt-3">
@@ -462,7 +462,7 @@ export default function PrivacyPage() {
 
             {/* 12 */}
             <section>
-              <h2 className="text-xl font-semibold text-slate-900">
+              <h2 className="text-xl font-semibold text-grafite">
                 12. Contato
               </h2>
               <p className="mt-3">
@@ -473,7 +473,7 @@ export default function PrivacyPage() {
                 📧{' '}
                 <a
                   href="mailto:adm@boatzy.app"
-                  className="font-semibold text-[#0B2447] underline hover:no-underline"
+                  className="font-semibold text-marinho underline hover:no-underline"
                 >
                   adm@boatzy.app
                 </a>

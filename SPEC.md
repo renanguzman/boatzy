@@ -46,7 +46,7 @@ opacidade (`bg-marinho/90`, `bg-turquesa/10`). **Não usar hex solto (`[#...]`) 
 |---|---|---|
 | `marinho` | `#0E2F4F` | Títulos (`text-marinho`), botões principais (`bg-marinho`), links, Footer, overlays de foto (`from-marinho/70`), ícones ativos |
 | `turquesa` | `#17B5B0` | Ícones/eyebrow sobre fundo escuro (`text-turquesa`), fim do gradiente, tintas (`bg-turquesa/10`, `/15`, `/35`) |
-| `destaque` | `#FFC844` | Ênfase pontual (~10%): palavra de impacto do hero, estrelas de nota (`fill-destaque text-destaque`) |
+| `destaque` | `#FFC844` | Ênfase pontual (~10%): palavra de impacto do hero, estrelas de nota (`fill-destaque text-destaque`), selo "Preço reduzido" de vendas (`bg-destaque text-marinho`; na sidebar `bg-destaque/30 text-marinho`) |
 | `areia` | `#FBF7EF` | Fundo das seções alternadas (`bg-areia`) |
 | `grafite` | `#1C2B36` | Texto corrido; também é o `--foreground` (cor padrão do `body`) |
 | gradiente | — | `bg-gradient-to-r from-marinho to-turquesa` (texto com `bg-clip-text text-transparent`) |
@@ -65,6 +65,10 @@ para texto. Neutros continuam na escala `slate` do Tailwind; cores semânticas (
 
 Variáveis CSS legadas `--primary`, `--primary-dark`, `--accent`, `--accent-teal` e `--navy` foram
 removidas (não tinham uso). `::selection` passou para `#0E2F4F`.
+
+**Referências antigas:** seções deste SPEC escritas antes de 24/10/2026 citam `#0B2447`, `#0B3D91`,
+`#092E6E` e `cyan-*`/`teal-*`. No site público elas foram trocadas pelos tokens acima (mapeamento
+completo em §70 e §71); no painel e no admin continuam valendo até a migração deles.
 
 ---
 
@@ -1551,7 +1555,7 @@ type Props = { pontos: PontoMapa[]; totalResultados: number; itemLabelPlural: st
 - **Sem coordenada, sem ponto:** itens sem `latitude`/`longitude` ficam de fora e o cabeçalho informa "X de Y com localização" (quando todos têm, mostra "N <itens> nesta página"). Com zero pontos o componente retorna `null` — nenhuma moldura vazia.
 - **Enquadramento:** `onLoad` faz `fitBounds` com padding 64 sobre todos os pontos; com um único ponto, `setCenter` + `zoom` 14 (o `fitBounds` daria zoom máximo).
 - **Interação:** `onMouseOver` no pin abre o `InfoWindowF` (imagem, nome, subtítulo, localidade, preço e seta) que é um `<Link>` inteiro para o detalhe. O card **não** fecha ao sair do pin — só no X ou num clique no mapa (`onClick` do `GoogleMap`) — senão seria impossível clicar no link. `disableAutoPan: true` para o mapa não saltar a cada hover.
-- **Pin:** SVG inline (data URI) nas cores da marca — `#0B2447`, e `#0B3D91` com escala 1.15 no ativo. `MAP_OPTIONS` desliga POIs e transporte (`styles`), `gestureHandling: 'cooperative'`, sem street view nem controle de tipo de mapa.
+- **Pin:** SVG inline (data URI) nas cores da paleta (§2.3) — marinho `#0E2F4F`; ativo em turquesa `#17B5B0` com escala 1.15. `MAP_OPTIONS` desliga POIs e transporte (`styles`), `gestureHandling: 'cooperative'`, sem street view nem controle de tipo de mapa.
 - **Libraries:** `['places']`, idênticas às de `LocalizacaoMap` — o loader do `@react-google-maps/api` é singleton por sessão e alerta se for chamado com opções diferentes numa navegação client-side.
 - **CSS:** `src/app/globals.css` ajusta o `InfoWindow` ao design system (`.gm-style-iw-c`: raio 1rem, padding compacto, sombra da marca, `outline: none` no container — que o Maps foca ao abrir — e botão de fechar reduzido).
 
@@ -7036,3 +7040,78 @@ Header, Footer, card e banner são compartilhados — a mudança aparece em toda
 Mantidos de propósito: escala `slate` para neutros, `amber-50/800` do aviso de geolocalização e
 `red-*` de erro (semânticos). **Testes:** navegador 1366px — hero, vitrines, avaliações, benefícios
 e Footer renderizados com os novos tokens (Footer `rgb(14, 47, 79)`), 0 erros de console.
+
+## 71. Paleta oficial aplicada a todo o site público (24/10/2026)
+
+Escopo: `src/app/**` e `src/components/**` exceto `src/app/{administrator,painel,api}` e
+`src/components/{painel,administrator}`; mais `src/lib/notificacoes/apresentacao.ts` (ícone
+"Mensagem" da central de notificações), `src/lib/emails/layout.ts` e `src/lib/notificacoes-conversa.ts`
+(e-mails). Componentes compartilhados com o painel (ex.: `chat/`, `publicacao/`) também mudaram lá.
+79 arquivos `.tsx/.ts` migrados por script (mapeamento abaixo, aplicado linha a linha).
+
+Mapeamento, além do de §70:
+
+| Antes | Depois |
+|---|---|
+| `from-[#0B3D91] to-[#0B2447]` / `from-[#0B2447] to-[#0B3D91]` (fundos escuros com texto branco: cards "Por que reservar", cabeçalho do modal de fotos, ícone do lightbox) | `from-marinho to-marinho-escuro` / `from-marinho-escuro to-marinho` |
+| `hover:X-marinho` igual à base `X-marinho` após a troca (antes navy → royal) | `hover:bg/border-marinho-escuro`, `hover:text-turquesa-escuro` |
+| `[#092E6E]` | `marinho-escuro` |
+| `shadow-[#0B3D91]/25` | `shadow-marinho/25` |
+| `border-cyan-200` | `border-turquesa/40` |
+| `bg-cyan-400/500`, `ring-cyan-400` (pontos, anel da miniatura ativa) | `bg-turquesa`, `ring-turquesa` |
+| `text-cyan-200…500` / `text-cyan-600…800` | `text-turquesa` / `text-turquesa-escuro` |
+| Título em gradiente `from-cyan-300/400 to-teal-300/400` sobre fundo escuro (`/experiencias`) | `text-turquesa` (gradiente oficial some sobre marinho) |
+| `/sobre` CTA `from-cyan-500 to-teal-500 … text-white` | `bg-turquesa hover:brightness-110 text-marinho` (branco sobre turquesa = 2,5:1) |
+| `/sobre` ícones `from-cyan-500/20 to-teal-500/20` | `from-turquesa/25 to-turquesa/10` |
+| Itinerário do roteiro: paradas `bg-[#5B8DEF]` | `bg-turquesa/60` (entre o marinho da saída e o turquesa da chegada) |
+| Estrelas `fill-amber-400 text-amber-400` (busca, `/boats/[id]`, avaliações, avaliar reserva) | `fill-destaque text-destaque` |
+| `text-slate-800` / `text-slate-900` (texto) | `text-grafite` |
+| Fundo de página `min-h-screen … bg-slate-50`, `<main className="flex-1 bg-slate-50">`, `<section … bg-slate-50>` | `bg-areia` |
+| `MapaResultados` pin `#0B2447` / ativo `#0B3D91` | `#0E2F4F` / ativo `#17B5B0` |
+| E-mails: `#0B2447` e `#0B3D91` (cabeçalho, títulos, botão) | `#0E2F4F` |
+| E-mail de conversa: selo `background:#e8eefb;color:#0B3D91` | `background:#E3F6F6;color:#0D7A76` |
+| Contato (`contact/actions.ts`): título do e-mail interno `#0B2447` | `#0E2F4F` |
+
+Mantidos de propósito: `slate-*` neutros (inclusive `bg-slate-50` de inputs, hovers e cartões
+internos), vermelho/verde/âmbar semânticos, violeta/céu/índigo dos status em `minhas-reservas` e
+da `PrevisaoTempoCard` (inclusive `to-cyan-50` do degradê de céu), laranja de "devolvido para
+ajustes" (`publicacao/`), cores oficiais de Google/Facebook/Instagram e `bg-[#F8F9FB]` do `ChatBox`.
+
+**Testes:** `tsc --noEmit` e `eslint` nos arquivos alterados limpos; navegador 1366px em `/buscar`,
+`/roteiros/[id]`, `/sobre`, `/help`, `/vendas`, `/entrar`, `/contact` — todas 200, sem erro de
+console, cores da paleta aplicadas (fundo areia, botões/abas marinho, selos turquesa).
+
+## 72. Paleta — verde decorativo/sucesso e campos ativos no site público (24/10/2026)
+
+Complemento de §71, que tinha mantido `emerald-*`/`green-*` como semântico. Nas páginas de roteiro
+(`roteiros/[id]/_components/*`), embarcação (`embarcacoes/[id]/*`, `boats/[id]`), checkout
+(`reservas/novo/*`, `reservas/[id]/pagar/*`), `termos/TermoAceite`, vendas, Minha Conta, Minhas
+reservas, telas de login/senha/contato e `auth/PasswordRequirements`, o verde era cor de marca ou de
+confirmação e foi trocado:
+
+| Antes | Depois |
+|---|---|
+| `bg-emerald-50`, `bg-emerald-50/70`, `bg-green-50` | `bg-turquesa/10` |
+| `bg-green-100` | `bg-turquesa/15` |
+| `bg-emerald-400/20` | `bg-turquesa/20` |
+| `border-emerald-200` | `border-turquesa/40` |
+| `bg-emerald-400/500` (pontos, legenda "menor preço") | `bg-turquesa` |
+| `text-emerald-500`, `text-green-500` (ícones) | `text-turquesa` |
+| `text-emerald-600/700`, `text-green-600/700` (texto) | `text-turquesa-escuro` |
+| `text-emerald-800/900` (texto sobre tinta clara) | `text-marinho` |
+| `TermoAceite` barra de leitura: andamento `bg-turquesa` / concluída `bg-emerald-500` | `bg-turquesa` / `bg-turquesa-escuro` |
+| Vendas "Preço reduzido" `bg-emerald-600 text-white` (selo) / `text-emerald-600` (sidebar) | `bg-destaque text-marinho` / pílula `bg-destaque/30 text-marinho` |
+| Campo ativo `border-slate-800 ring-slate-800` (`BookingCard`) e `ring-slate-800` (pickers da busca) | `border-marinho ring-marinho` / `ring-marinho` |
+| `DatePicker` flexibilidade selecionada `bg-slate-800 border-slate-800` | `bg-marinho border-marinho` |
+| `GuestPicker` `hover:border-slate-800 hover:text-grafite` | `hover:border-marinho hover:text-marinho` |
+
+Mantidos: `STATUS_CONFIG` "Confirmada" de `minhas-reservas/page.tsx` (`bg-emerald-100 text-emerald-700`
+— legenda de status), ícone do WhatsApp (`MessageCircle text-emerald-500` em `RoteiroAcoes` e
+`VendaSidebar`), âmbar de alerta, vermelho de erro, `PrevisaoTempoCard`, véus de modal
+(`bg-slate-900/40…85`) e fundo do visualizador de fotos (`bg-slate-900/950`).
+
+**Testes:** `tsc`/`eslint` limpos; navegador 1366px em `/roteiros/[id]` (campo de data ativo com
+contorno marinho, selos turquesa) e `/embarcacoes/[id]` sem erro de console. Checkout não
+renderizado no teste (exige sessão e reserva), conferido por código: nenhuma cor fora da paleta
+além das semânticas listadas.
+

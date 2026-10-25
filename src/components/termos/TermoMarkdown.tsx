@@ -8,19 +8,19 @@ import clsx from 'clsx';
  * Usado na pré-visualização do admin e, nas próximas fases, na tela de aceite.
  */
 const components: Components = {
-  h1: ({ children }) => <h2 className="text-xl font-bold text-[#0B2447] mt-8 mb-3 first:mt-0">{children}</h2>,
+  h1: ({ children }) => <h2 className="text-xl font-bold text-marinho mt-8 mb-3 first:mt-0">{children}</h2>,
   h2: ({ children }) => (
-    <h3 className="text-base font-bold text-[#0B2447] mt-7 mb-2.5 pb-1.5 border-b border-slate-200 first:mt-0">
+    <h3 className="text-base font-bold text-marinho mt-7 mb-2.5 pb-1.5 border-b border-slate-200 first:mt-0">
       {children}
     </h3>
   ),
-  h3: ({ children }) => <h4 className="text-sm font-bold text-[#0B2447] mt-5 mb-2 first:mt-0">{children}</h4>,
-  h4: ({ children }) => <h5 className="text-sm font-semibold text-slate-800 mt-4 mb-1.5">{children}</h5>,
+  h3: ({ children }) => <h4 className="text-sm font-bold text-marinho mt-5 mb-2 first:mt-0">{children}</h4>,
+  h4: ({ children }) => <h5 className="text-sm font-semibold text-grafite mt-4 mb-1.5">{children}</h5>,
   p: ({ children }) => <p className="text-sm leading-relaxed text-slate-700 mb-3 text-justify">{children}</p>,
   ul: ({ children }) => <ul className="list-disc pl-6 mb-3 space-y-1 text-sm text-slate-700">{children}</ul>,
   ol: ({ children }) => <ol className="list-decimal pl-6 mb-3 space-y-1 text-sm text-slate-700">{children}</ol>,
   li: ({ children }) => <li className="leading-relaxed pl-1">{children}</li>,
-  strong: ({ children }) => <strong className="font-semibold text-slate-900">{children}</strong>,
+  strong: ({ children }) => <strong className="font-semibold text-grafite">{children}</strong>,
   // Citação = cláusula em destaque (CDC art. 54, §4º: cláusulas que limitam direitos devem se destacar).
   blockquote: ({ children }) => (
     <blockquote className="my-4 rounded-r-lg border-l-4 border-amber-400 bg-amber-50 px-4 pt-3 pb-0.5 text-amber-950 [&_p]:text-amber-950">
@@ -28,7 +28,7 @@ const components: Components = {
     </blockquote>
   ),
   a: ({ href, children }) => (
-    <a href={href} target="_blank" rel="noopener noreferrer" className="text-[#0B3D91] underline underline-offset-2">
+    <a href={href} target="_blank" rel="noopener noreferrer" className="text-marinho underline underline-offset-2">
       {children}
     </a>
   ),

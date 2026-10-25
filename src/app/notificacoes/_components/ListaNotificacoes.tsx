@@ -33,7 +33,7 @@ export default function ListaNotificacoes({ userId }: { userId: string }) {
               onClick={() => { setFiltro(a.valor); setLimite(PAGINA); }}
               aria-pressed={filtro === a.valor}
               className={`rounded-full px-4 py-1.5 text-xs font-semibold transition-colors ${
-                filtro === a.valor ? 'bg-[#0B2447] text-white' : 'text-slate-500 hover:text-[#0B2447]'
+                filtro === a.valor ? 'bg-marinho text-white' : 'text-slate-500 hover:text-marinho'
               }`}
             >
               {a.rotulo}
@@ -44,7 +44,7 @@ export default function ListaNotificacoes({ userId }: { userId: string }) {
           <button
             type="button"
             onClick={() => void marcarTodasLidas()}
-            className="inline-flex items-center gap-1.5 text-xs font-semibold text-[#0B3D91] hover:text-[#0B2447]"
+            className="inline-flex items-center gap-1.5 text-xs font-semibold text-marinho hover:text-turquesa-escuro"
           >
             <CheckCheck className="h-4 w-4" />
             Marcar todas como lidas
@@ -72,7 +72,7 @@ export default function ListaNotificacoes({ userId }: { userId: string }) {
           {filtro === 'todas' && (
             <Link
               href="/buscar"
-              className="mt-6 px-5 py-2.5 bg-[#0B3D91] hover:bg-[#0B2447] text-white text-sm font-semibold rounded-xl transition-colors"
+              className="mt-6 px-5 py-2.5 bg-marinho hover:bg-marinho-escuro text-white text-sm font-semibold rounded-xl transition-colors"
             >
               Explorar passeios
             </Link>
@@ -90,7 +90,7 @@ export default function ListaNotificacoes({ userId }: { userId: string }) {
               <button
                 type="button"
                 onClick={() => setLimite((l) => l + PAGINA)}
-                className="rounded-xl border border-slate-200 bg-white px-5 py-2.5 text-sm font-semibold text-[#0B3D91] hover:border-[#0B3D91]/40"
+                className="rounded-xl border border-slate-200 bg-white px-5 py-2.5 text-sm font-semibold text-marinho hover:border-marinho/40"
               >
                 Carregar mais
               </button>

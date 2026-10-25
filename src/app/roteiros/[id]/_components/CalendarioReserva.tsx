@@ -112,7 +112,7 @@ export default function CalendarioReserva({
         {modalidade === 'roteiro' ? (
           <>
             <span>Valores em R$ por dia</span>
-            <span className="flex items-center gap-1.5"><span className="h-2 w-2 rounded-full bg-emerald-500" /> Menor preço do mês</span>
+            <span className="flex items-center gap-1.5"><span className="h-2 w-2 rounded-full bg-turquesa" /> Menor preço do mês</span>
           </>
         ) : (
           <span>Escolha o dia de saída — o período das diárias aparece destacado.</span>
@@ -140,7 +140,7 @@ function Mes({ ano, mes, hoje, porData, dataMaxima, selecionada, fimPeriodo, mod
 
   return (
     <div>
-      <p className="mb-2 text-center text-sm font-semibold text-slate-800">{MESES[mes]} {ano}</p>
+      <p className="mb-2 text-center text-sm font-semibold text-grafite">{MESES[mes]} {ano}</p>
       <div className="grid grid-cols-7 gap-0.5">
         {DOW.map((d, i) => (
           <div key={i} className="pb-1 text-center text-[10px] font-semibold text-slate-400">{d}</div>
@@ -165,19 +165,19 @@ function Mes({ ano, mes, hoje, porData, dataMaxima, selecionada, fimPeriodo, mod
             <button key={iso} type="button" disabled={!podeIniciar} onClick={() => onSelecionar(iso)} title={titulo}
               aria-pressed={selecionado}
               className={`flex h-12 flex-col items-center justify-center rounded-lg transition-colors ${
-                selecionado ? 'bg-[#0B2447] text-white'
+                selecionado ? 'bg-marinho text-white'
                   : conflito ? 'bg-red-50 ring-1 ring-red-300'
-                  : noPeriodo ? 'bg-[#0B2447]/10'
+                  : noPeriodo ? 'bg-marinho/10'
                   : podeIniciar ? 'hover:bg-slate-100' : 'cursor-default'
               }`}>
               <span className={`text-sm leading-none ${
-                selecionado ? 'font-bold' : podeIniciar ? 'font-medium text-slate-800' : `text-slate-300 ${riscado ? 'line-through' : ''}`
+                selecionado ? 'font-bold' : podeIniciar ? 'font-medium text-grafite' : `text-slate-300 ${riscado ? 'line-through' : ''}`
               }`}>
                 {dia}
               </span>
               {modalidade === 'roteiro' && podeIniciar && d?.total != null && (
                 <span className={`mt-1 text-[10px] leading-none tabular-nums ${
-                  selecionado ? 'text-white/80' : d.total === menor ? 'font-semibold text-emerald-600' : 'text-slate-500'
+                  selecionado ? 'text-white/80' : d.total === menor ? 'font-semibold text-turquesa-escuro' : 'text-slate-500'
                 }`}>
                   {compacto(d.total)}
                 </span>

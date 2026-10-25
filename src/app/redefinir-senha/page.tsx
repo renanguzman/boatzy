@@ -68,13 +68,13 @@ function RedefinirSenhaForm() {
         <div className="w-16 h-16 bg-red-50 rounded-full flex items-center justify-center mx-auto mb-4">
           <TriangleAlert className="w-8 h-8 text-red-500" />
         </div>
-        <h2 className="text-xl font-bold text-[#0B2447] mb-2">Link inválido ou expirado</h2>
+        <h2 className="text-xl font-bold text-marinho mb-2">Link inválido ou expirado</h2>
         <p className="text-slate-500 text-sm mb-6">
           O link de redefinição não é mais válido. Solicite um novo para continuar.
         </p>
         <Link
           href="/recuperar-senha"
-          className="w-full flex items-center justify-center gap-2 bg-[#0B2447] hover:bg-[#0B3D91] text-white font-semibold py-3.5 rounded-xl transition-all duration-200 shadow-lg shadow-[#0B2447]/20"
+          className="w-full flex items-center justify-center gap-2 bg-marinho hover:bg-marinho-escuro text-white font-semibold py-3.5 rounded-xl transition-all duration-200 shadow-lg shadow-marinho/20"
         >
           Solicitar novo link
           <ArrowRight className="w-4 h-4" />
@@ -86,16 +86,16 @@ function RedefinirSenhaForm() {
   if (status === 'success') {
     return (
       <div className="text-center">
-        <div className="w-16 h-16 bg-green-50 rounded-full flex items-center justify-center mx-auto mb-4">
-          <CheckCircle2 className="w-8 h-8 text-green-500" />
+        <div className="w-16 h-16 bg-turquesa/10 rounded-full flex items-center justify-center mx-auto mb-4">
+          <CheckCircle2 className="w-8 h-8 text-turquesa" />
         </div>
-        <h2 className="text-xl font-bold text-[#0B2447] mb-2">Senha redefinida!</h2>
+        <h2 className="text-xl font-bold text-marinho mb-2">Senha redefinida!</h2>
         <p className="text-slate-500 text-sm mb-6">
           Sua senha foi alterada com sucesso. Você já está conectado.
         </p>
         <Link
           href="/"
-          className="w-full flex items-center justify-center gap-2 bg-[#0B2447] hover:bg-[#0B3D91] text-white font-semibold py-3.5 rounded-xl transition-all duration-200 shadow-lg shadow-[#0B2447]/20"
+          className="w-full flex items-center justify-center gap-2 bg-marinho hover:bg-marinho-escuro text-white font-semibold py-3.5 rounded-xl transition-all duration-200 shadow-lg shadow-marinho/20"
         >
           Ir para o início
           <ArrowRight className="w-4 h-4" />
@@ -106,14 +106,14 @@ function RedefinirSenhaForm() {
 
   return (
     <>
-      <h1 className="text-xl font-bold text-[#0B2447] mb-2">Redefinir senha</h1>
+      <h1 className="text-xl font-bold text-marinho mb-2">Redefinir senha</h1>
       <p className="text-slate-500 text-sm mb-6">
         Escolha uma nova senha para a sua conta.
       </p>
 
       <form onSubmit={handleSubmit} className="space-y-4">
         <div>
-          <label htmlFor="password" className="block text-xs font-bold text-[#0B2447] tracking-wider uppercase mb-2">
+          <label htmlFor="password" className="block text-xs font-bold text-marinho tracking-wider uppercase mb-2">
             Nova senha
           </label>
           <div className="relative">
@@ -126,7 +126,7 @@ function RedefinirSenhaForm() {
               placeholder="Mínimo 6 caracteres"
               minLength={6}
               required
-              className="w-full pl-11 pr-12 py-3.5 rounded-xl border border-slate-200 bg-slate-50/50 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-[#0B3D91]/20 focus:border-[#0B3D91] transition-all"
+              className="w-full pl-11 pr-12 py-3.5 rounded-xl border border-slate-200 bg-slate-50/50 text-sm text-grafite placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-marinho/20 focus:border-marinho transition-all"
             />
             <button
               type="button"
@@ -139,7 +139,7 @@ function RedefinirSenhaForm() {
         </div>
 
         <div>
-          <label htmlFor="confirm" className="block text-xs font-bold text-[#0B2447] tracking-wider uppercase mb-2">
+          <label htmlFor="confirm" className="block text-xs font-bold text-marinho tracking-wider uppercase mb-2">
             Confirmar nova senha
           </label>
           <div className="relative">
@@ -152,7 +152,7 @@ function RedefinirSenhaForm() {
               placeholder="Repita a nova senha"
               minLength={6}
               required
-              className="w-full pl-11 pr-4 py-3.5 rounded-xl border border-slate-200 bg-slate-50/50 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-[#0B3D91]/20 focus:border-[#0B3D91] transition-all"
+              className="w-full pl-11 pr-4 py-3.5 rounded-xl border border-slate-200 bg-slate-50/50 text-sm text-grafite placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-marinho/20 focus:border-marinho transition-all"
             />
           </div>
         </div>
@@ -166,7 +166,7 @@ function RedefinirSenhaForm() {
         <button
           type="submit"
           disabled={loading}
-          className="w-full flex items-center justify-center gap-2 bg-[#0B2447] hover:bg-[#0B3D91] text-white font-semibold py-3.5 rounded-xl transition-all duration-200 disabled:opacity-60 disabled:cursor-not-allowed shadow-lg shadow-[#0B2447]/20"
+          className="w-full flex items-center justify-center gap-2 bg-marinho hover:bg-marinho-escuro text-white font-semibold py-3.5 rounded-xl transition-all duration-200 disabled:opacity-60 disabled:cursor-not-allowed shadow-lg shadow-marinho/20"
         >
           {loading ? (
             <Loader2 className="w-5 h-5 animate-spin" />
@@ -184,7 +184,7 @@ function RedefinirSenhaForm() {
 
 export default function RedefinirSenhaPage() {
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center bg-slate-50 px-4 py-12">
+    <div className="min-h-screen flex flex-col items-center justify-center bg-areia px-4 py-12">
       <div className="w-full max-w-md">
         {/* Logo */}
         <div className="text-center mb-8">

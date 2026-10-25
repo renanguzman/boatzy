@@ -14,9 +14,9 @@ export default function HelpPage() {
     <div className="min-h-screen flex flex-col">
       <Header />
 
-      <main className="flex-1 bg-slate-50">
+      <main className="flex-1 bg-areia">
         {/* Hero */}
-        <section className="bg-[#0B2447] text-white">
+        <section className="bg-marinho text-white">
           <div className="mx-auto max-w-3xl px-4 sm:px-6 lg:px-8 py-16 text-center">
             <h1 className="text-3xl sm:text-4xl font-bold tracking-tight">Central de Ajuda</h1>
             <p className="mt-3 text-slate-300 max-w-xl mx-auto">
