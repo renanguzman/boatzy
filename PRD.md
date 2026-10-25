@@ -57,10 +57,11 @@ cinzas neutros e das cores semânticas de status — erro, alerta, sucesso). Det
 | Areia | `#FBF7EF` | Fundo claro alternativo das seções |
 | Grafite | `#1C2B36` | Texto corrido |
 
-**Regra do amarelo:** é cor de exceção, nunca de base. Não usar em botões, fundos de seção ou
-texto corrido. Hoje aparece só na palavra de impacto do título do hero ("O horizonte é **seu**") e
-nas estrelas de nota e no selo **"Preço reduzido"** dos anúncios de venda (fundo amarelo, texto marinho).
-Qualquer novo uso deve substituir ou justificar a ênfase, não somar.
+**Regra do amarelo:** é cor de exceção, nunca de base. Não usar em fundos de seção, texto corrido nem
+como cor padrão de botões (o botão principal é marinho). Hoje aparece só na palavra de impacto do título
+do hero ("O horizonte é **seu**"), nas estrelas de nota, no selo **"Preço reduzido"** dos anúncios de
+venda e no botão **"Conversar com o dono"** do detalhe do roteiro (única exceção de botão, decidida em
+24/10/2026) — sempre com texto marinho. Qualquer novo uso deve substituir ou justificar a ênfase, não somar.
 
 - ✅ **Aplicada na página inicial** (hero, vitrines, avaliações, benefícios, "Inspire-se"), no
   Header, no Footer, no card de embarcação e no banner de cookies.
@@ -271,13 +272,13 @@ Exibir:
 - Galeria: imagem principal (2/3 largura) + 2 miniaturas laterais.
 - Specs row: ícones com Localização, Duração, Pessoas, Preço — layout com `min-w-0` + `truncate` para evitar overflow.
 - "Sobre a Embarcação": foto principal grande da embarcação (clicável, abre `EmbarcacaoFotosModal` com galeria completa e especificações), nome, tipo, modalidade de capitão e link **"Veja outros roteiros desta embarcação"** (nova aba) — ver "Detalhe do roteiro — foto da embarcação em destaque" abaixo.
-- "Comodidades a bordo": grid 3 colunas com ícones `CheckCircle2`.
+- Equipamentos de Segurança, Acessórios e Comodidades a bordo: desde 24/10/2026 ficam **dentro** de "Sobre a Embarcação", num bloco recolhível "Equipamentos e Acessórios da embarcação" (ver abaixo).
 - "O que está incluído": itens do catálogo vinculados ao roteiro (`roteiro_catalogo`).
 - "Itinerário": timeline vertical com gradiente — partida, **paradas intermediárias cadastradas pelo gestor (0, 1 ou várias)** e chegada (ver "Paradas do itinerário do roteiro" abaixo).
-- Reviews: seção placeholder.
+- Avaliações: lista com média e comentários; **sem nenhuma avaliação a seção não aparece** e o roteiro ganha o selo "Novo no Boatzy" (desde 24/10/2026 — ver "Página do roteiro otimizada para conversão no celular").
 - Sidebar `BookingCard`: seleção de data e pessoas, resumo de preço com a taxa de serviço **embutida** nos valores (dinâmica — taxa geral da plataforma ou específica do gestor dono do roteiro, configuráveis em `/administrator/taxas`; ver 6.11; desde 19/10/2026 a taxa não aparece em linha própria), total estimado, botão "Solicitar Reserva" → `/reservas/novo`.
 - ✅ O calendário de data do `BookingCard` respeita a **disponibilidade do roteiro**: datas fora dos dias de operação ou bloqueadas pelo gestor aparecem riscadas e não selecionáveis (ver 6.8 → Disponibilidade do roteiro).
-- ✅ Botão **"Converse com o dono"** na sidebar (oculto para o próprio dono vendo seu roteiro) → `/roteiros/[id]/chat`, que abre o chat da plataforma com o gestor do roteiro (ver 6.8 → Chat).
+- ✅ Bloco **"Fale com o dono da embarcação"** na sidebar, logo abaixo de Favoritar/Compartilhar (oculto para o próprio dono vendo seu roteiro) — *substituiu o botão "Converse com o dono" em 24/10/2026*: ícone de conversa, instrução "Tire suas dúvidas antes de reservar. A conversa acontece aqui pelo Boatzy.", caixa de texto de 2 linhas e botão **"Conversar com o dono"** (secundário, para não competir com "Solicitar Reserva"). O que o cliente escreve vai como **rascunho** para o chat (`/roteiros/[id]/chat`) — ele revisa e envia lá, depois do aviso "converse pela plataforma" quando for a primeira vez; não é enviado sozinho. Sem texto, o chat abre com a mensagem padrão de sempre. Deslogado, passa pelo login e volta ao chat com o texto preservado. Ctrl/⌘ + Enter também abre a conversa. Na pré-visualização do painel, só avisa. Ver 6.8 → Chat e `SPEC.md` §75.
 
 #### ✅ Implementado — Modal de Fotos da Embarcação (`EmbarcacaoFotosModal`)
 
@@ -2028,7 +2029,142 @@ permissão de localização, não fazia nada.
   campo não aparece.
 - A linha foi reorganizada em 3 colunas no computador (Duração · Saída · Retorno Aproximado /
   Capacidade · Local de partida · Embarcação); no celular continua em 2. A pré-visualização do painel mostra o
-  mesmo campo. Detalhes técnicos: `SPEC.md` §55.
+  mesmo campo. Detalhes técnicos: `SPEC.md` §55. *(Capacidade e Embarcação saíram da linha em
+  24/10/2026 — ver abaixo.)*
+
+### ✅ Detalhe do roteiro — ajustes nos opcionais e no card de reserva (24/10/2026)
+
+- **"Turbine seu passeio" vem antes de "Sobre a Embarcação"** (logo depois das informações do passeio).
+- **Animação de atenção corrigida e reforçada:** ela não aparecia porque o servidor de desenvolvimento
+  estava entregando uma versão antiga do CSS (cache do Turbopack — não era defeito do código). Agora,
+  quando o bloco de opcionais fica à vista por meio segundo, ele sobe de leve, uma faixa de brilho
+  atravessa o bloco, o contorno pulsa em turquesa 3 vezes e o "+" do primeiro item pulsa. No card de
+  reserva a animação roda de novo quando o cliente escolhe a data. Para quem pediu menos animação no
+  aparelho, só o contorno pulsa (sem movimento).
+- **Opcionais no card exigem a data:** sem data escolhida, os opcionais do card ficam esmaecidos com a
+  dica "escolha a data primeiro"; tocar em um deles não o inclui — mostra "Escolha a data do passeio
+  para incluir opcionais." e abre o calendário. Com a data, entram normalmente e somam no subtotal.
+  (Remover continua livre; a seção "Turbine seu passeio" do conteúdo segue sem essa trava.)
+- **Seletor de pessoas (e de data) fecha ao tocar fora:** antes o de pessoas só fechava tocando de
+  novo no campo; agora fecha ao tocar em qualquer lugar fora do campo e da janelinha de seleção,
+  inclusive em outras partes do card. Detalhes técnicos: `SPEC.md` §79.
+
+### ✅ Detalhe do roteiro — opcionais sempre à vista ("Turbine seu passeio") (24/10/2026)
+
+Problema: com opcionais cadastrados, os clientes não percebiam que dava para abrir o bloco "Deixe seu
+passeio inesquecível!" do card de reserva. Análise: o bloco tinha cara de anúncio (o olho pula
+banners), escondia o conteúdo (só "4 opcionais · a partir de R$ 92", sem dizer o quê), não parecia
+clicável e aparecia quando o cliente já ia para o botão de reservar; a bolinha piscando contínua
+virava ruído. Decisão (opções escolhidas pelo produto):
+
+- **Seção "Turbine seu passeio" no conteúdo**, logo abaixo de "Sobre a Embarcação": cada opcional
+  numa linha com ícone (produto/serviço), nome, tipo, preço (já com a taxa) e botão **"+ Adicionar"**,
+  que vira **"✓ Adicionado"**. Mostra até 4 e "Ver mais N opcionais"; com algo adicionado, rodapé
+  "N opcional(is) adicionado(s) · + R$ X no total da reserva". Sem opcionais, a seção não aparece.
+- **No card de reserva**, o accordion fechado saiu: entra **"Adicione ao seu passeio"** com até 3
+  opcionais já visíveis (caixa de marcar, nome e "+ R$ X") e "Ver mais N opcionais".
+- **Os dois lugares usam o mesmo carrinho:** adicionar na seção marca no card (e vice-versa) e soma
+  na hora em "Adicionais" e no Total.
+- **Animação de atenção uma única vez:** quando o bloco aparece na tela pela primeira vez, ele sobe de
+  leve, a borda brilha em turquesa duas vezes e o "+"/a caixa do primeiro item pulsa; depois fica
+  parado. Desligada para quem pediu menos animação no aparelho.
+- **Medição (GA4):** opcional adicionado/removido, com o nome e de onde veio (seção ou card).
+- Detalhes técnicos: `SPEC.md` §78.
+
+### ✅ Detalhe do roteiro — "Ficou com dúvida?" abaixo da reserva e espaçamentos menores (24/10/2026)
+
+- O bloco de contato agora fica **logo abaixo do card com "Solicitar Reserva"**, no celular e no
+  computador (antes: no celular, no meio do conteúdo; no computador, acima do card de preço). Título
+  **"Ficou com dúvida? Fale com o dono da embarcação"**, apoio "A conversa acontece aqui pelo Boatzy,
+  antes de você reservar." e botão **"Conversar com o dono" em amarelo** (texto marinho), com o ícone
+  em tom de amarelo para combinar.
+- O card **"Por que reservar no Boatzy?"** foi removido.
+- Espaços entre as seções do conteúdo reduzidos de 40px para 32px; no celular, 24px entre o conteúdo
+  e o card de reserva e menos sobra antes do rodapé. Página no celular: 4.092px → ~3.770px.
+  Detalhes técnicos: `SPEC.md` §77.
+
+### ✅ Página do roteiro otimizada para conversão no celular (24/10/2026)
+
+Análise de UX/UI com foco em compra no celular (a maior parte dos acessos). Antes, no celular, o preço
+e o botão de reserva só apareciam depois de ~4 telas de rolagem (galeria, informações, embarcação,
+itinerário, mapa e avaliações). Aplicado (itens 1–10 e 12–15 da análise; o item 11 — reorganizar o
+card de reserva — ficou para depois):
+
+- **Barra fixa de reserva (celular):** no rodapé da tela, sempre à mão, com "A partir de R$ X
+  /passeio", "Sem cobrança agora" e o botão **"Ver datas"** (ou "Reservar", com data já escolhida).
+  O botão leva ao card de reserva e já abre o calendário. Some quando o card de reserva ou o rodapé
+  do site estão na tela, para não duplicar a ação. Não aparece no computador.
+- **Sem medo de compromisso:** abaixo de "Solicitar Reserva", "Sem cobrança agora — você só paga
+  depois que o dono confirmar."
+- **Preço logo abaixo do título (celular):** "A partir de R$ 9.200 por passeio" já na primeira tela.
+- **Preço claro:** a unidade "/dia" virou **"/passeio"** no card de reserva, na busca e no mapa da
+  busca (o valor é do passeio inteiro, não por dia nem por pessoa); com mais de uma pessoa, o card
+  mostra "≈ R$ X por pessoa (N pessoas)" abaixo do total, como referência para grupos.
+- **Capacidade unificada:** em "Sobre a Embarcação", "Pessoas" virou **"Convidados"** (capacidade
+  sem a tripulação); no card de reserva, "Até N pessoas a bordo, sem contar a tripulação." — antes
+  apareciam "10 pessoas" e "Capacidade máxima: 8" na mesma página.
+- **Galeria (celular):** deslizar com o dedo troca a foto; tocar abre a galeria em tela cheia;
+  contador "1/4" no lugar dos pontinhos; setas só no computador. **Favoritar e compartilhar viraram
+  ícones sobre a foto** (compartilhar abre a folha nativa do celular, com WhatsApp, Instagram etc.);
+  no computador continuam no topo da coluna de reserva.
+- **Selos do topo:** "Novo no Boatzy" (só quando o roteiro ainda não tem avaliações), "Roteiro
+  Verificado" e **"Com Capitão"** (ou "Sem Capitão"/"Capitão Opcional", conforme a embarcação) no lugar
+  de "Lancha incluída" — todo passeio inclui a embarcação, então o selo não informava nada. O
+  "Com Capitão" saiu de "Sobre a Embarcação" para não repetir.
+- **Nota junto do título:** com avaliações, "★ 4,9 · 12 avaliações" ao lado da cidade (leva à seção).
+- **Avaliações:** sem nenhuma, a seção some (antes, um quadro vazio grande que passava a ideia de
+  que ninguém reservou).
+- **Informações do passeio:** Duração · Saída · Retorno lado a lado também no celular (ícone sobre o
+  texto); quando embarque e desembarque são no mesmo lugar, mostra "Embarque e desembarque: Marina…"
+  em vez de "A → A".
+- **Itinerário:** só aparece quando acrescenta algo (paradas, ou saída e chegada diferentes).
+- **Localização:** endereço + botões **Google Maps** e **Waze** (abrem a navegação até o embarque). No
+  celular o mapa interativo só carrega se a pessoa tocar em "Ver no mapa aqui" (página mais leve e
+  curta); no computador continua carregando direto.
+- **"Fale com o dono" (celular):** no meio do conteúdo, depois da localização, em vez de entre o
+  favoritar e o card de reserva.
+- **Promessas verdadeiras:** saíram "Suporte 24/7", "Embarcações inspecionadas", "Operadores com
+  antecedentes verificados" e "Cancelamento flexível" (não correspondiam ao produto). Entraram:
+  "Pagamento protegido: o dono só recebe depois do passeio", "Anúncio aprovado pela equipe Boatzy" e,
+  no card "Por que reservar no Boatzy?", "Preço final, sem surpresa: as taxas já estão no valor",
+  "Converse com o dono pelo chat antes de reservar" e "Datas e preços atualizados pelo próprio dono".
+- **Banner de cookies (todo o site, celular):** texto curto, "Recusar opcionais" e "Aceitar todos"
+  lado a lado com o mesmo peso, "Personalizar" como link — ocupa bem menos da primeira tela.
+- **Calendário no celular:** passou a abrir centralizado (antes saía cortado à esquerda); legenda
+  "Valores do passeio em R$, por data".
+- **Medição (GA4):** novos eventos do funil — toque na barra fixa, abertura do calendário (pela barra
+  ou pelo card) e data escolhida.
+
+**Busca (`/buscar`) e vitrines da home:** os cards de roteiro e de embarcação sem avaliações ganharam
+o selo **"Novo"** sobre a foto (canto superior esquerdo); o "Novo" pequeno do rodapé do card saiu
+para não duplicar. A nota (★) continua no rodapé quando existe.
+
+Resultado medido no celular (390px): página de 4.653px → 4.092px; o preço aparece já na primeira tela
+e a reserva fica a um toque o tempo todo. Detalhes técnicos: `SPEC.md` §76.
+
+### ✅ Detalhe do roteiro — equipamentos e acessórios recolhidos em "Sobre a Embarcação" (24/10/2026) — em teste
+
+- As três seções soltas que vinham depois de "Sobre a Embarcação" — **Equipamentos de Segurança**,
+  **Acessórios da Embarcação** e **Comodidades a bordo** — passaram para **dentro** do card "Sobre a
+  Embarcação", logo abaixo dos números (pessoas, tripulação, quartos, banheiros, comprimento).
+- Ficam num bloco que abre **fechado**, com o título **"Equipamentos e Acessórios da embarcação"** e
+  um resumo das quantidades (ex.: "12 itens de segurança · 7 acessórios · 13 comodidades"). Ao
+  clicar, expande com animação e mostra os itens **separados nas três categorias**, cada uma com
+  ícone, nome e contador; no computador os itens ficam em 3 colunas, no celular em 1.
+- Categoria sem itens não aparece; se a embarcação não tiver nenhum dos três, o bloco não aparece.
+- Vale também para a pré-visualização do roteiro no painel. A página pública da embarcação
+  (`/embarcacoes/[id]`) **não** mudou — segue com as listas abertas. Detalhes técnicos: `SPEC.md` §74.
+
+### ✅ Detalhe do roteiro — linha de informações sem Capacidade e Embarcação (24/10/2026)
+
+- **Capacidade** e **Embarcação** saíram da linha de informações do roteiro: as duas já aparecem logo
+  abaixo, em "Sobre a Embarcação" (nome, tipo e número de pessoas), e o limite real de pessoas para
+  reservar continua no card de reserva ("Capacidade máxima: N pessoas" — menor entre roteiro e
+  embarcação, descontada a tripulação).
+- A linha agora tem **Duração · Saída · Retorno Aproximado** e, na linha de baixo ocupando a largura
+  toda, **Local de partida** — a rota (origem → destino) aparece inteira no computador, sem corte. No
+  celular segue em 2 colunas, com o Local de partida na largura toda. Vale também para a
+  pré-visualização do roteiro no painel, que usa a mesma tela. Detalhes técnicos: `SPEC.md` §73.
 
 ### ✅ Pedido de acesso de gestor com aprovação do admin (22/10/2026)
 

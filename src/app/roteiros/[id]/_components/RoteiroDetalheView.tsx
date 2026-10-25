@@ -1,31 +1,33 @@
 import {
   MapPin,
-  Users,
   Clock,
   Navigation,
-  Anchor,
   BadgeCheck,
-  Award,
-  CheckCircle2,
-  ShieldCheck,
+  Sparkles,
+  ShipWheel,
+  Star,
   AlarmClock,
   AlarmClockCheck,
-  Waves,
   Ship,
   ExternalLink,
 } from 'lucide-react';
 import BookingCard from './BookingCard';
+import RoteiroAcoes from './RoteiroAcoes';
 import EmbarcacaoFotosModal from './EmbarcacaoFotosModal';
+import EquipamentosEmbarcacao from './EquipamentosEmbarcacao';
+import OpcionaisRoteiro from './OpcionaisRoteiro';
 import { CartProvider } from './CartContext';
 import { DataReservaProvider } from './DataReservaContext';
 import type { CalendarioCliente } from '@/lib/disponibilidade';
-import LocalizacaoMap from './LocalizacaoMap';
+import LocalizacaoRoteiro from './LocalizacaoRoteiro';
 import GaleriaRoteiro from './GaleriaRoteiro';
 import AvaliacoesSection, { type AvaliacaoPublica } from '@/components/avaliacoes/AvaliacoesSection';
 import { formatarComprimento } from '@/lib/comprimento';
 import { ordenarImagens } from '@/lib/galeria';
 import { capacidadeMaxima } from '@/lib/capacidade';
 import { horarioRetorno, retornoTexto } from '@/lib/duracao';
+import { decomporPreco } from '@/lib/precos-calendario';
+import { formatCurrency } from '@/lib/utils';
 
 /** Dados que a página do roteiro exibe — vindos do banco ou do formulário (prévia). */
 export type RoteiroDetalheDados = {
@@ -130,6 +132,36 @@ export default function RoteiroDetalheView({
 
   const retorno = horarioRetorno(roteiro.horario_saida, roteiro.duracao_horas);
 
+  // Embarque e desembarque no mesmo lugar: a rota vira um local só e o itinerário
+  // (sem paradas) não acrescenta nada.
+  const mesmoLocal = Boolean(
+    roteiro.origem && roteiro.destino
+    && roteiro.origem.trim().toLowerCase() === roteiro.destino.trim().toLowerCase(),
+  );
+  const mostrarItinerario = roteiro.roteiro_parada.length > 0 || Boolean(roteiro.origem && roteiro.destino && !mesmoLocal);
+
+  // Avaliações: sem nenhuma, a seção some e o roteiro ganha o selo "Novo no Boatzy".
+  const totalAvaliacoes = avaliacoes.length;
+  const mediaAvaliacoes = totalAvaliacoes > 0
+    ? avaliacoes.reduce((acc, a) => acc + a.nota, 0) / totalAvaliacoes
+    : 0;
+
+  // Preço logo abaixo do título (celular) — o mesmo "a partir de" do card de reserva, no
+  // modelo em que ele abre: menor total entre os dias disponíveis, ou a diária com a taxa.
+  const modalidadeAnunciada = initialModalidade
+    ?? (roteiro.preco_base != null || !roteiro.preco_diaria_ativo ? 'roteiro' : 'diaria');
+  const totaisDisponiveis = calendario.dias
+    .filter((d) => d.status === 'disponivel' && d.total != null)
+    .map((d) => d.total!);
+  const precoTopo = modalidadeAnunciada === 'diaria'
+    ? (roteiro.preco_diaria_valor != null ? decomporPreco(roteiro.preco_diaria_valor, calendario.taxaPercent).clientePaga : null)
+    : totaisDisponiveis.length > 0 ? Math.min(...totaisDisponiveis) : null;
+
+  // Convidados = capacidade da embarcação sem a tripulação (mesma base do limite do card de reserva).
+  const convidados = roteiro.embarcacao?.capacidade != null
+    ? roteiro.embarcacao.capacidade - (roteiro.embarcacao.tripulacao ?? 0)
+    : null;
+
   const localidade = roteiro.municipios
     ? roteiro.municipios.estados
       ? `${roteiro.municipios.nome}, ${roteiro.municipios.estados.uf}`
@@ -153,10 +185,14 @@ export default function RoteiroDetalheView({
 
   return (
     <>
-      <GaleriaRoteiro images={images} nome={roteiro.nome} />
+      <GaleriaRoteiro
+        images={images}
+        nome={roteiro.nome}
+        acoes={<RoteiroAcoes roteiroId={roteiro.id} roteiroNome={roteiro.nome} initialFavorito={isFavorito} variante="sobreFoto" />}
+      />
 
       {/* Content */}
-      <section className="pb-16" id="roteiro-content">
+      <section className="pb-10 lg:pb-16" id="roteiro-content">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <CartProvider addons={catalogAddons} taxaPercent={calendario.taxaPercent}>
           {/* Data vinda da busca só vale se o dia estiver disponível no calendário. */}
@@ -165,24 +201,28 @@ export default function RoteiroDetalheView({
             flexInicial={initialFlex ?? 0}
             modalidadeInicial={initialModalidade ?? (roteiro.preco_base != null || !roteiro.preco_diaria_ativo ? 'roteiro' : 'diaria')}
             diariasIniciais={roteiro.preco_diaria_minimo}>
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-10">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 lg:gap-10">
 
             {/* ── Left column ── */}
-            <div className="lg:col-span-2">
+            {/* Seções a 32px uma da outra; a última não deixa sobra antes do card de reserva (celular) */}
+            <div className="lg:col-span-2 [&>*:last-child]:mb-0">
               {/* Badges */}
               <div className="flex flex-wrap gap-2 mb-4">
-                <span className="inline-flex items-center gap-1 text-xs font-medium text-turquesa-escuro bg-turquesa/10 px-3 py-1.5 rounded-full">
-                  <Award className="h-3 w-3" />
-                  Novo
-                </span>
+                {totalAvaliacoes === 0 && (
+                  <span className="inline-flex items-center gap-1 text-xs font-medium text-turquesa-escuro bg-turquesa/10 px-3 py-1.5 rounded-full">
+                    <Sparkles className="h-3 w-3" />
+                    Novo no Boatzy
+                  </span>
+                )}
                 <span className="inline-flex items-center gap-1 text-xs font-medium text-turquesa-escuro bg-turquesa/10 px-3 py-1.5 rounded-full">
                   <BadgeCheck className="h-3 w-3" />
                   Roteiro Verificado
                 </span>
+                {/* Todo passeio inclui a embarcação; o que diferencia é o capitão (não se repete em "Sobre a Embarcação") */}
                 {roteiro.embarcacao && (
                   <span className="inline-flex items-center gap-1 text-xs font-medium text-marinho bg-marinho/10 px-3 py-1.5 rounded-full">
-                    <Anchor className="h-3 w-3" />
-                    {roteiro.embarcacao.embarcacao_tipo?.nome ?? 'Embarcação'} incluída
+                    <ShipWheel className="h-3 w-3" />
+                    {modalidadeLabel[roteiro.embarcacao.modalidade_capitao] ?? roteiro.embarcacao.modalidade_capitao}
                   </span>
                 )}
               </div>
@@ -191,11 +231,33 @@ export default function RoteiroDetalheView({
               <h1 className="text-3xl md:text-4xl font-bold text-marinho mb-2">
                 {roteiro.nome}
               </h1>
-              {localidade && (
-                <div className="flex items-center gap-1.5 text-slate-500 text-sm mb-6">
-                  <MapPin className="h-4 w-4 shrink-0" />
-                  {localidade}
+              {(localidade || totalAvaliacoes > 0) && (
+                <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-slate-500 text-sm mb-4 lg:mb-6">
+                  {localidade && (
+                    <span className="inline-flex items-center gap-1.5">
+                      <MapPin className="h-4 w-4 shrink-0" />
+                      {localidade}
+                    </span>
+                  )}
+                  {totalAvaliacoes > 0 && (
+                    <a href="#avaliacoes" className="inline-flex items-center gap-1 hover:underline underline-offset-4">
+                      <Star className="h-4 w-4 fill-destaque text-destaque" />
+                      <span className="font-semibold text-marinho">
+                        {mediaAvaliacoes.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}
+                      </span>
+                      · {totalAvaliacoes} {totalAvaliacoes === 1 ? 'avaliação' : 'avaliações'}
+                    </a>
+                  )}
                 </div>
+              )}
+
+              {/* Preço já na primeira tela do celular (no desktop ele está no card de reserva, ao lado) */}
+              {precoTopo != null && (
+                <p className="lg:hidden mb-6 flex flex-wrap items-baseline gap-x-1.5">
+                  <span className="text-xs text-slate-500">A partir de</span>
+                  <span className="text-xl font-bold text-marinho">{formatCurrency(precoTopo)}</span>
+                  <span className="text-sm text-slate-500">{modalidadeAnunciada === 'diaria' ? 'por diária' : 'por passeio'}</span>
+                </p>
               )}
 
               {/* Description */}
@@ -203,11 +265,13 @@ export default function RoteiroDetalheView({
                 {roteiro.descricao}
               </p>
 
-              {/* Specs row — 3 por linha no desktop: Duração · Saída · Retorno / Capacidade · Rota · Embarcação */}
-              <div className="grid grid-cols-2 md:grid-cols-3 gap-4 py-6 border-y border-slate-100 mb-10">
+              {/* Specs row — Duração · Saída · Retorno lado a lado (no celular, ícone em cima do texto para
+                  caber em 3 colunas); local de embarque na linha inteira. Capacidade e embarcação ficam em
+                  "Sobre a Embarcação" e no BookingCard. */}
+              <div className="grid grid-cols-3 gap-x-3 gap-y-5 py-5 sm:py-6 border-y border-slate-100 mb-8">
                 {roteiro.duracao && (
-                  <div className="flex items-center gap-3 min-w-0">
-                    <div className="h-10 w-10 rounded-xl bg-slate-100 flex items-center justify-center shrink-0">
+                  <div className="flex flex-col items-start gap-2 sm:flex-row sm:items-center sm:gap-3 min-w-0">
+                    <div className="h-9 w-9 sm:h-10 sm:w-10 rounded-xl bg-slate-100 flex items-center justify-center shrink-0">
                       <Clock className="h-4 w-4 text-marinho" />
                     </div>
                     <div className="min-w-0">
@@ -217,8 +281,8 @@ export default function RoteiroDetalheView({
                   </div>
                 )}
                 {roteiro.horario_saida && (
-                  <div className="flex items-center gap-3 min-w-0">
-                    <div className="h-10 w-10 rounded-xl bg-slate-100 flex items-center justify-center shrink-0">
+                  <div className="flex flex-col items-start gap-2 sm:flex-row sm:items-center sm:gap-3 min-w-0">
+                    <div className="h-9 w-9 sm:h-10 sm:w-10 rounded-xl bg-slate-100 flex items-center justify-center shrink-0">
                       <AlarmClock className="h-4 w-4 text-marinho" />
                     </div>
                     <div className="min-w-0">
@@ -231,12 +295,15 @@ export default function RoteiroDetalheView({
                 )}
                 {/* Retorno aproximado = saída + duração (relógio de 24 h; pode cair de madrugada / em outro dia) */}
                 {retorno && (
-                  <div className="flex items-center gap-3 min-w-0">
-                    <div className="h-10 w-10 rounded-xl bg-slate-100 flex items-center justify-center shrink-0">
+                  <div className="flex flex-col items-start gap-2 sm:flex-row sm:items-center sm:gap-3 min-w-0">
+                    <div className="h-9 w-9 sm:h-10 sm:w-10 rounded-xl bg-slate-100 flex items-center justify-center shrink-0">
                       <AlarmClockCheck className="h-4 w-4 text-marinho" />
                     </div>
                     <div className="min-w-0">
-                      <p className="text-[10px] text-slate-500 uppercase tracking-wider font-medium">Retorno Aproximado</p>
+                      <p className="text-[10px] text-slate-500 uppercase tracking-wider font-medium">
+                        <span className="sm:hidden">Retorno aprox.</span>
+                        <span className="hidden sm:inline">Retorno Aproximado</span>
+                      </p>
                       <p className="text-sm font-semibold text-grafite truncate" title={retornoTexto(retorno)}>
                         {retorno.horario}
                         {retorno.diasDepois > 0 && (
@@ -248,48 +315,31 @@ export default function RoteiroDetalheView({
                     </div>
                   </div>
                 )}
-                {roteiro.quantidade_pessoas && (
-                  <div className="flex items-center gap-3 min-w-0">
-                    <div className="h-10 w-10 rounded-xl bg-slate-100 flex items-center justify-center shrink-0">
-                      <Users className="h-4 w-4 text-marinho" />
-                    </div>
-                    <div className="min-w-0">
-                      <p className="text-[10px] text-slate-500 uppercase tracking-wider font-medium">Capacidade</p>
-                      <p className="text-sm font-semibold text-grafite truncate">{roteiro.quantidade_pessoas} pessoas</p>
-                    </div>
-                  </div>
-                )}
                 {(roteiro.origem || roteiro.destino) && (
-                  <div className="flex items-center gap-3 min-w-0">
+                  <div className="col-span-full flex items-center gap-3 min-w-0">
                     <div className="h-10 w-10 rounded-xl bg-slate-100 flex items-center justify-center shrink-0">
                       <Navigation className="h-4 w-4 text-marinho" />
                     </div>
                     <div className="min-w-0">
-                      <p className="text-[10px] text-slate-500 uppercase tracking-wider font-medium">Local de partida</p>
-                      <p className="text-sm font-semibold text-grafite truncate">
-                        {roteiro.origem && roteiro.destino
+                      <p className="text-[10px] text-slate-500 uppercase tracking-wider font-medium">
+                        {mesmoLocal ? 'Embarque e desembarque' : 'Local de partida'}
+                      </p>
+                      <p className="text-sm font-semibold text-grafite sm:truncate">
+                        {roteiro.origem && roteiro.destino && !mesmoLocal
                           ? `${roteiro.origem} → ${roteiro.destino}`
                           : roteiro.origem ?? roteiro.destino}
                       </p>
                     </div>
                   </div>
                 )}
-                {roteiro.embarcacao && (
-                  <div className="flex items-center gap-3 min-w-0">
-                    <div className="h-10 w-10 rounded-xl bg-slate-100 flex items-center justify-center shrink-0">
-                      <Anchor className="h-4 w-4 text-marinho" />
-                    </div>
-                    <div className="min-w-0">
-                      <p className="text-[10px] text-slate-500 uppercase tracking-wider font-medium">Embarcação</p>
-                      <p className="text-sm font-semibold text-grafite truncate">{roteiro.embarcacao.nome}</p>
-                    </div>
-                  </div>
-                )}
               </div>
+
+              {/* Opcionais do dono à vista, antes da embarcação (some sem opcionais) */}
+              <OpcionaisRoteiro roteiroId={roteiro.id} variante="conteudo" />
 
               {/* Embarcação details */}
               {roteiro.embarcacao && (
-                <div className="mb-10">
+                <div className="mb-8">
                   <h2 className="text-xl font-bold text-marinho mb-4">
                     Sobre a Embarcação
                   </h2>
@@ -298,16 +348,12 @@ export default function RoteiroDetalheView({
                     <div className="flex flex-col sm:flex-row gap-4 sm:gap-5 mb-5 min-w-0">
                       <EmbarcacaoFotosModal capa={fotoEmbarcacao} embarcacao={roteiro.embarcacao} />
                       <div className="min-w-0 flex-1 flex flex-col">
-                        <div className="flex items-start justify-between gap-3">
-                          <div className="min-w-0">
-                            <p className="text-lg font-semibold text-grafite leading-snug">{roteiro.embarcacao.nome}</p>
-                            {roteiro.embarcacao.embarcacao_tipo && (
-                              <p className="text-xs text-slate-500 mt-0.5">{roteiro.embarcacao.embarcacao_tipo.nome}</p>
-                            )}
-                          </div>
-                          <span className="shrink-0 text-xs font-medium bg-marinho/10 text-marinho px-3 py-1 rounded-full whitespace-nowrap">
-                            {modalidadeLabel[roteiro.embarcacao.modalidade_capitao] ?? roteiro.embarcacao.modalidade_capitao}
-                          </span>
+                        {/* Capitão: selo no topo da página (não repete aqui) */}
+                        <div className="min-w-0">
+                          <p className="text-lg font-semibold text-grafite leading-snug">{roteiro.embarcacao.nome}</p>
+                          {roteiro.embarcacao.embarcacao_tipo && (
+                            <p className="text-xs text-slate-500 mt-0.5">{roteiro.embarcacao.embarcacao_tipo.nome}</p>
+                          )}
                         </div>
                         {hrefRoteirosEmbarcacao && (
                           <a
@@ -324,10 +370,10 @@ export default function RoteiroDetalheView({
                       </div>
                     </div>
                     <div className="grid grid-cols-3 sm:grid-cols-5 gap-3">
-                      {roteiro.embarcacao.capacidade && (
+                      {convidados != null && convidados > 0 && (
                         <div className="text-center p-3 bg-white rounded-xl border border-slate-100">
-                          <p className="text-lg font-bold text-marinho">{roteiro.embarcacao.capacidade}</p>
-                          <p className="text-[10px] text-slate-500 uppercase tracking-wider mt-0.5">Pessoas</p>
+                          <p className="text-lg font-bold text-marinho">{convidados}</p>
+                          <p className="text-[10px] text-slate-500 uppercase tracking-wider mt-0.5">Convidados</p>
                         </div>
                       )}
                       {roteiro.embarcacao.tripulacao && (
@@ -355,79 +401,43 @@ export default function RoteiroDetalheView({
                         </div>
                       )}
                     </div>
+
+                    {/* Segurança, acessórios e comodidades: recolhidos num accordion, por categoria */}
+                    <EquipamentosEmbarcacao
+                      categorias={[
+                        {
+                          titulo: 'Equipamentos de Segurança',
+                          singular: 'item de segurança',
+                          plural: 'itens de segurança',
+                          icone: 'seguranca',
+                          itens: roteiro.embarcacao.embarcacao_equipamentos_seguranca.flatMap((ee) =>
+                            ee.equipamentos_seguranca ? [ee.equipamentos_seguranca.nome] : []),
+                        },
+                        {
+                          titulo: 'Acessórios da Embarcação',
+                          singular: 'acessório',
+                          plural: 'acessórios',
+                          icone: 'acessorios',
+                          itens: roteiro.embarcacao.embarcacao_acessorios.flatMap((ea) =>
+                            ea.acessorios ? [ea.acessorios.nome] : []),
+                        },
+                        {
+                          titulo: 'Comodidades a bordo',
+                          singular: 'comodidade',
+                          plural: 'comodidades',
+                          icone: 'comodidades',
+                          itens: roteiro.embarcacao.embarcacao_comodidades.flatMap((ec) =>
+                            ec.comodidade ? [ec.comodidade.nome] : []),
+                        },
+                      ]}
+                    />
                   </div>
                 </div>
               )}
 
-              {/* Equipamentos de segurança da embarcação */}
-              {roteiro.embarcacao && roteiro.embarcacao.embarcacao_equipamentos_seguranca.length > 0 && (
-                <div className="mb-10">
-                  <h2 className="text-xl font-bold text-marinho mb-4 flex items-center gap-2">
-                    <ShieldCheck className="h-5 w-5 text-marinho" />
-                    Equipamentos de Segurança
-                  </h2>
-                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-                    {roteiro.embarcacao.embarcacao_equipamentos_seguranca.map((ee, i) =>
-                      ee.equipamentos_seguranca ? (
-                        <div
-                          key={i}
-                          className="flex items-center gap-2.5 p-3 rounded-xl border border-slate-100 bg-slate-50/60"
-                        >
-                          <CheckCircle2 className="h-4 w-4 text-marinho shrink-0" />
-                          <span className="text-sm text-slate-700 leading-tight">{ee.equipamentos_seguranca.nome}</span>
-                        </div>
-                      ) : null,
-                    )}
-                  </div>
-                </div>
-              )}
-
-              {/* Acessórios da embarcação */}
-              {roteiro.embarcacao && roteiro.embarcacao.embarcacao_acessorios.length > 0 && (
-                <div className="mb-10">
-                  <h2 className="text-xl font-bold text-marinho mb-4 flex items-center gap-2">
-                    <Waves className="h-5 w-5 text-marinho" />
-                    Acessórios da Embarcação
-                  </h2>
-                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-                    {roteiro.embarcacao.embarcacao_acessorios.map((ea, i) =>
-                      ea.acessorios ? (
-                        <div
-                          key={i}
-                          className="flex items-center gap-2.5 p-3 rounded-xl border border-slate-100 bg-slate-50/60"
-                        >
-                          <CheckCircle2 className="h-4 w-4 text-marinho shrink-0" />
-                          <span className="text-sm text-slate-700 leading-tight">{ea.acessorios.nome}</span>
-                        </div>
-                      ) : null,
-                    )}
-                  </div>
-                </div>
-              )}
-
-              {/* Comodidades da embarcação */}
-              {roteiro.embarcacao && roteiro.embarcacao.embarcacao_comodidades.length > 0 && (
-                <div className="mb-10">
-                  <h2 className="text-xl font-bold text-marinho mb-4">Comodidades a bordo</h2>
-                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-                    {roteiro.embarcacao.embarcacao_comodidades.map((ec, i) =>
-                      ec.comodidade ? (
-                        <div
-                          key={i}
-                          className="flex items-center gap-2.5 p-3 rounded-xl border border-slate-100 bg-slate-50/60"
-                        >
-                          <CheckCircle2 className="h-4 w-4 text-turquesa shrink-0" />
-                          <span className="text-sm text-slate-700 leading-tight">{ec.comodidade.nome}</span>
-                        </div>
-                      ) : null,
-                    )}
-                  </div>
-                </div>
-              )}
-
-              {/* Itinerary */}
-              {(roteiro.origem || roteiro.destino || roteiro.roteiro_parada.length > 0) && (
-                <div className="mb-10">
+              {/* Itinerary — só quando acrescenta algo: paradas, ou saída e chegada diferentes */}
+              {mostrarItinerario && (
+                <div className="mb-8">
                   <h2 className="text-xl font-bold text-marinho mb-4">Itinerário</h2>
                   <div className="relative pl-6">
                     <div className="absolute left-2 top-2 bottom-2 w-0.5 bg-gradient-to-b from-marinho to-turquesa rounded-full" />
@@ -460,42 +470,49 @@ export default function RoteiroDetalheView({
 
               {/* Localização */}
               {roteiro.latitude && roteiro.longitude && (
-                <div className="mb-10">
+                <div className="mb-8">
                   <h2 className="text-xl font-bold text-marinho mb-4">Localização</h2>
 
-                  <LocalizacaoMap lat={Number(roteiro.latitude)} lng={Number(roteiro.longitude)} />
-
-                  {/* Endereço textual */}
-                  <div className="mt-4 flex items-start gap-3 p-4 rounded-xl bg-slate-50 border border-slate-100">
-                    <MapPin className="h-4 w-4 text-marinho mt-0.5 shrink-0" />
-                    <div className="text-sm text-slate-700 leading-relaxed">
-                      {roteiro.logradouro && (
-                        <p className="font-medium text-grafite">
-                          {roteiro.logradouro}
-                          {roteiro.logradouro_numero && `, ${roteiro.logradouro_numero}`}
-                          {roteiro.complemento && ` — ${roteiro.complemento}`}
-                        </p>
-                      )}
-                      {roteiro.bairro && <p>{roteiro.bairro}</p>}
-                      {localidade && <p>{localidade}</p>}
-                      {roteiro.cep && (
-                        <p className="text-slate-500 mt-0.5">
-                          CEP {roteiro.cep.replace(/^(\d{5})(\d{3})$/, '$1-$2')}
-                        </p>
-                      )}
-                      {!roteiro.logradouro && !roteiro.bairro && roteiro.origem && (
-                        <p className="font-medium text-grafite">{roteiro.origem}</p>
-                      )}
-                    </div>
-                  </div>
+                  <LocalizacaoRoteiro
+                    lat={Number(roteiro.latitude)}
+                    lng={Number(roteiro.longitude)}
+                    endereco={
+                      <div className="flex items-start gap-3 p-4 rounded-xl bg-slate-50 border border-slate-100">
+                        <MapPin className="h-4 w-4 text-marinho mt-0.5 shrink-0" />
+                        <div className="text-sm text-slate-700 leading-relaxed">
+                          {roteiro.logradouro && (
+                            <p className="font-medium text-grafite">
+                              {roteiro.logradouro}
+                              {roteiro.logradouro_numero && `, ${roteiro.logradouro_numero}`}
+                              {roteiro.complemento && ` — ${roteiro.complemento}`}
+                            </p>
+                          )}
+                          {roteiro.bairro && <p>{roteiro.bairro}</p>}
+                          {localidade && <p>{localidade}</p>}
+                          {roteiro.cep && (
+                            <p className="text-slate-500 mt-0.5">
+                              CEP {roteiro.cep.replace(/^(\d{5})(\d{3})$/, '$1-$2')}
+                            </p>
+                          )}
+                          {!roteiro.logradouro && !roteiro.bairro && roteiro.origem && (
+                            <p className="font-medium text-grafite">{roteiro.origem}</p>
+                          )}
+                        </div>
+                      </div>
+                    }
+                  />
                 </div>
               )}
 
-              {/* Avaliações */}
-              <AvaliacoesSection
-                avaliacoes={avaliacoes}
-                emptyLabel="Ainda não há avaliações para este roteiro."
-              />
+              {/* Avaliações — sem nenhuma, a seção some (o selo "Novo no Boatzy" aparece no topo) */}
+              {totalAvaliacoes > 0 && (
+                <div id="avaliacoes" className="scroll-mt-24">
+                  <AvaliacoesSection
+                    avaliacoes={avaliacoes}
+                    emptyLabel="Ainda não há avaliações para este roteiro."
+                  />
+                </div>
+              )}
             </div>
 
             {/* ── Right sidebar ── */}

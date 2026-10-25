@@ -111,7 +111,7 @@ export default function CalendarioReserva({
       <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1 text-[11px] text-slate-500">
         {modalidade === 'roteiro' ? (
           <>
-            <span>Valores em R$ por dia</span>
+            <span>Valores do passeio em R$, por data</span>
             <span className="flex items-center gap-1.5"><span className="h-2 w-2 rounded-full bg-turquesa" /> Menor preço do mês</span>
           </>
         ) : (

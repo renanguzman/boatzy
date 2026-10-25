@@ -174,8 +174,9 @@ const FAQ_ITEMS: FaqItem[] = [
     pergunta: 'É possível conversar com o proprietário antes de reservar?',
     resposta: (
       <>
-        Sim. Nas páginas de roteiro e de embarcação existe o botão &quot;Converse com o dono&quot;,
-        que abre um chat direto dentro da plataforma. Você acompanha todas as conversas em{' '}
+        Sim. Na página do roteiro, use o campo &quot;Fale com o dono da embarcação&quot; — você já
+        começa a escrever ali — e, na página da embarcação, o botão &quot;Converse com o dono&quot;. Os
+        dois abrem um chat direto dentro da plataforma. Você acompanha todas as conversas em{' '}
         <Link href="/minhas-conversas" className="text-marinho underline hover:no-underline">
           Minhas Conversas
         </Link>

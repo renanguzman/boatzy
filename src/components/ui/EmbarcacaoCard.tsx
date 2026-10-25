@@ -4,7 +4,7 @@ import { useEffect, useState, useTransition } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { MapPin, Star, Ship, Users } from 'lucide-react';
+import { MapPin, Star, Ship, Users, Sparkles } from 'lucide-react';
 import { alternarFavoritoEmbarcacao } from '@/lib/favoritos-actions';
 
 export type EmbarcacaoCardData = {
@@ -110,6 +110,14 @@ export default function EmbarcacaoCard({
           </div>
         )}
 
+        {/* Selo "Novo": sem avaliações ainda (mesmo critério do "Novo no Boatzy" do detalhe) */}
+        {!avaliacaoResumo && (
+          <span className="absolute top-3 left-3 inline-flex items-center gap-1 rounded-full bg-white/95 backdrop-blur-sm px-2.5 py-1 text-[10px] font-bold text-marinho shadow-sm">
+            <Sparkles className="h-3 w-3 text-turquesa-escuro" />
+            Novo
+          </span>
+        )}
+
         {/* Favorite */}
         <button
           type="button"
@@ -154,7 +162,7 @@ export default function EmbarcacaoCard({
               </div>
             )}
           </div>
-          {avaliacaoResumo ? (
+          {avaliacaoResumo && (
             <span
               className="flex items-center gap-1 shrink-0"
               title={`${avaliacaoResumo.total} ${avaliacaoResumo.total === 1 ? 'avaliação' : 'avaliações'}`}
@@ -167,10 +175,6 @@ export default function EmbarcacaoCard({
                 })}
               </span>
               <span className="text-xs font-normal text-slate-400">({avaliacaoResumo.total})</span>
-            </span>
-          ) : (
-            <span className="inline-flex items-center gap-1 text-[10px] font-semibold bg-turquesa/10 text-turquesa-escuro px-2 py-1 rounded-full shrink-0">
-              Novo
             </span>
           )}
         </div>

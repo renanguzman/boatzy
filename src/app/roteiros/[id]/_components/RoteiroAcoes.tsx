@@ -30,10 +30,16 @@ type Props = {
   roteiroNome: string;
   /** Estado inicial resolvido no servidor (false quando deslogado). */
   initialFavorito: boolean;
+  /**
+   * `barra` (padrão): dois botões com texto, no topo da coluna de reserva (desktop).
+   * `sobreFoto`: dois ícones redondos sobre a galeria (celular); compartilhar usa a
+   * folha nativa do aparelho quando existe.
+   */
+  variante?: 'barra' | 'sobreFoto';
 };
 
-/** Botões Favoritar + Compartilhar do detalhe do roteiro (rodapé da sidebar). */
-export default function RoteiroAcoes({ roteiroId, roteiroNome, initialFavorito }: Props) {
+/** Botões Favoritar + Compartilhar do detalhe do roteiro. */
+export default function RoteiroAcoes({ roteiroId, roteiroNome, initialFavorito, variante = 'barra' }: Props) {
   const router = useRouter();
   const pathname = usePathname();
   const [, startTransition] = useTransition();
@@ -115,38 +121,59 @@ export default function RoteiroAcoes({ roteiroId, roteiroNome, initialFavorito }
     window.open('https://www.instagram.com/', '_blank', 'noopener');
   }
 
+  // Celular: a folha nativa já traz WhatsApp, Instagram, copiar etc.; sem ela, o menu próprio.
+  async function handleCompartilhar() {
+    if (preview.ativo) { preview.avisar(); return; }
+    if (variante === 'sobreFoto' && typeof navigator.share === 'function') {
+      try {
+        await navigator.share({ title: roteiroNome, text: shareText(), url: shareUrl() });
+      } catch {
+        // Cancelado pelo usuário: nada a fazer.
+      }
+      return;
+    }
+    setShareOpen((o) => !o);
+  }
+
+  const sobreFoto = variante === 'sobreFoto';
+  const botaoIcone = 'h-10 w-10 rounded-full bg-white/90 backdrop-blur-sm shadow-sm flex items-center justify-center transition-colors hover:bg-white';
+
   return (
-    <div className="flex gap-3">
+    <div className={sobreFoto ? 'flex gap-2' : 'flex gap-3'}>
       <button
         type="button"
         onClick={handleFavoritar}
         aria-pressed={favorito}
-        className={`flex-1 flex items-center justify-center gap-2 py-3 rounded-xl border text-sm font-medium transition-colors ${
+        aria-label={sobreFoto ? (favorito ? 'Remover dos favoritos' : 'Favoritar') : undefined}
+        className={sobreFoto ? botaoIcone : `flex-1 flex items-center justify-center gap-2 py-3 rounded-xl border text-sm font-medium transition-colors ${
           favorito
             ? 'border-red-200 bg-red-50 text-red-600 hover:bg-red-100'
             : 'border-slate-200 text-slate-700 hover:bg-slate-50'
         }`}
       >
-        <Heart className={`h-4 w-4 ${favorito ? 'fill-red-500 text-red-500' : ''}`} />
-        {favorito ? 'Favoritado' : 'Favoritar'}
+        <Heart className={`h-4 w-4 ${favorito ? 'fill-red-500 text-red-500' : sobreFoto ? 'text-slate-700' : ''}`} />
+        {!sobreFoto && (favorito ? 'Favoritado' : 'Favoritar')}
       </button>
 
-      <div className="relative flex-1" ref={shareRef}>
+      <div className={sobreFoto ? 'relative' : 'relative flex-1'} ref={shareRef}>
         <button
           type="button"
-          onClick={() => (preview.ativo ? preview.avisar() : setShareOpen((o) => !o))}
+          onClick={handleCompartilhar}
           aria-haspopup="menu"
           aria-expanded={shareOpen}
-          className="w-full flex items-center justify-center gap-2 py-3 rounded-xl border border-slate-200 text-sm font-medium text-slate-700 hover:bg-slate-50 transition-colors"
+          aria-label={sobreFoto ? 'Compartilhar' : undefined}
+          className={sobreFoto ? botaoIcone : 'w-full flex items-center justify-center gap-2 py-3 rounded-xl border border-slate-200 text-sm font-medium text-slate-700 hover:bg-slate-50 transition-colors'}
         >
-          <Share2 className="h-4 w-4" />
-          Compartilhar
+          <Share2 className={`h-4 w-4 ${sobreFoto ? 'text-slate-700' : ''}`} />
+          {!sobreFoto && 'Compartilhar'}
         </button>
 
         {shareOpen && (
           <div
             role="menu"
-            className="absolute bottom-full right-0 mb-2 w-56 rounded-2xl border border-slate-100 bg-white shadow-xl shadow-slate-900/10 overflow-hidden z-50 py-1.5"
+            className={`absolute right-0 w-56 rounded-2xl border border-slate-100 bg-white shadow-xl shadow-slate-900/10 overflow-hidden z-50 py-1.5 ${
+              sobreFoto ? 'top-full mt-2' : 'bottom-full mb-2'
+            }`}
           >
             <button
               type="button"

@@ -35,14 +35,15 @@ export type PrecoNaData = {
 
 export type PrecoExibicao = {
   valor: number;
-  /** Sufixo da unidade, já com a barra: '/dia', '/diária' ou '/pessoa'. */
+  /** Sufixo da unidade, já com a barra: '/passeio', '/diária' ou '/pessoa'. */
   unidade: string;
   /** Texto acima do valor: 'a partir de' ou 'em 25/10'. */
   rotulo: string;
 };
 
 const UNIDADE: Record<ReservaModalidadePreco, string> = {
-  roteiro: '/dia',
+  // Modelo Roteiro: o valor é do passeio inteiro (o barco), não por dia nem por pessoa.
+  roteiro: '/passeio',
   diaria: '/diária',
   pessoa: '/pessoa',
 };

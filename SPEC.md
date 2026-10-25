@@ -46,7 +46,7 @@ opacidade (`bg-marinho/90`, `bg-turquesa/10`). **Não usar hex solto (`[#...]`) 
 |---|---|---|
 | `marinho` | `#0E2F4F` | Títulos (`text-marinho`), botões principais (`bg-marinho`), links, Footer, overlays de foto (`from-marinho/70`), ícones ativos |
 | `turquesa` | `#17B5B0` | Ícones/eyebrow sobre fundo escuro (`text-turquesa`), fim do gradiente, tintas (`bg-turquesa/10`, `/15`, `/35`) |
-| `destaque` | `#FFC844` | Ênfase pontual (~10%): palavra de impacto do hero, estrelas de nota (`fill-destaque text-destaque`), selo "Preço reduzido" de vendas (`bg-destaque text-marinho`; na sidebar `bg-destaque/30 text-marinho`) |
+| `destaque` | `#FFC844` | Ênfase pontual (~10%): palavra de impacto do hero, estrelas de nota (`fill-destaque text-destaque`), selo "Preço reduzido" de vendas (`bg-destaque text-marinho`; na sidebar `bg-destaque/30 text-marinho`), botão "Conversar com o dono" do roteiro (`bg-destaque text-marinho`, única exceção de botão) |
 | `areia` | `#FBF7EF` | Fundo das seções alternadas (`bg-areia`) |
 | `grafite` | `#1C2B36` | Texto corrido; também é o `--foreground` (cor padrão do `body`) |
 | gradiente | — | `bg-gradient-to-r from-marinho to-turquesa` (texto com `bg-clip-text text-transparent`) |
@@ -2246,6 +2246,7 @@ motivação em §15-B → "Bloqueio por reserva confirmada".
 
 ### 20.2b Seletor de adicionais dentro do `BookingCard` (accordion)
 
+- *(Removido em 24/10/2026 — substituído por `OpcionaisRoteiro`, ver §78.)*
 - **Arquivo:** `src/app/roteiros/[id]/_components/AddonsAccordion.tsx` (`'use client'`) — consome
   `useCart()` (`CartContext.tsx`, já existente: `addons`/`selectedIds`/`toggle`/`selectedAddons`/
   `totalAdicionais`) e é renderizado dentro do próprio `BookingCard`, entre o campo **Pessoas** e o
@@ -7114,4 +7115,266 @@ Mantidos: `STATUS_CONFIG` "Confirmada" de `minhas-reservas/page.tsx` (`bg-emeral
 contorno marinho, selos turquesa) e `/embarcacoes/[id]` sem erro de console. Checkout não
 renderizado no teste (exige sessão e reserva), conferido por código: nenhuma cor fora da paleta
 além das semânticas listadas.
+
+## 73. Detalhe do roteiro — specs sem Capacidade e Embarcação (24/10/2026)
+
+- `src/app/roteiros/[id]/_components/RoteiroDetalheView.tsx`: removidos da grade de specs os itens
+  "Capacidade" (`roteiro.quantidade_pessoas`, ícone `Users` — import removido) e "Embarcação"
+  (`roteiro.embarcacao.nome`, ícone `Anchor`, que segue importado para o selo "… incluída"). A grade
+  continua `grid-cols-2 md:grid-cols-3`; "Local de partida" ganhou `col-span-full` (linha própria,
+  `truncate` só corta em telas estreitas). Ordem: Duração · Saída · Retorno Aproximado / Local de partida.
+- Dados não mudaram: `quantidade_pessoas` segue sendo usado no `capacidade` do `BookingCard`
+  (`capacidadeMaxima(roteiro.quantidade_pessoas, embarcacao.capacidade − tripulacao)`); nome e
+  capacidade da embarcação seguem no bloco "Sobre a Embarcação". A prévia do painel
+  (`montarPreviewRoteiro` → `RoteiroDetalheView`) herda a mudança.
+- **Testes:** `tsc`/`eslint` limpos; navegador 1366px e 390px em `/roteiros/[id]` — 4 itens na
+  grade (Duração, Saída, Retorno Aproximado, Local de partida), rota completa no desktop, sem erro de console.
+
+## 74. Detalhe do roteiro — accordion "Equipamentos e Acessórios da embarcação" (24/10/2026)
+
+- **Novo `src/app/roteiros/[id]/_components/EquipamentosEmbarcacao.tsx`** (`'use client'`):
+  ```ts
+  type CategoriaEquipamentos = {
+    titulo: string;
+    singular: string; plural: string;      // rótulos da contagem no resumo fechado
+    icone: 'seguranca' | 'acessorios' | 'comodidades';  // → ShieldCheck | Waves | Sofa
+    itens: string[];
+  };
+  props: { categorias: CategoriaEquipamentos[] }
+  ```
+  O ícone vai por **chave** (mapa `ICONES` no componente) porque `RoteiroDetalheView` é Server
+  Component e não pode passar componentes/funções como prop para um Client Component (gerava 500
+  "Functions cannot be passed directly to Client Components").
+- Visual: cartão `mt-5 rounded-xl border border-slate-100 bg-white` dentro do card "Sobre a
+  Embarcação". Cabeçalho = `<button aria-expanded aria-controls>`: ícone `ListChecks` em
+  `bg-turquesa/10 text-turquesa-escuro`, título "Equipamentos e Acessórios da embarcação"
+  (`text-sm font-semibold text-marinho`), resumo `text-xs text-slate-500` ("N itens de segurança ·
+  N acessórios · N comodidades", singular/plural por categoria, só das não vazias), botão circular com
+  `ChevronDown` (`bg-slate-100` fechado → `bg-marinho text-white` aberto, seta gira 180°).
+- Expansão: `grid` + `grid-rows-[0fr]→[1fr]` (`duration-300`), mesmo padrão de `AddonsAccordion` e
+  do FAQ; conteúdo com `inert` quando fechado (fora do foco e da árvore de acessibilidade). Começa
+  fechado. Foco do cabeçalho: `outline-none focus-visible:ring-2 ring-inset ring-marinho/25` com
+  `rounded-xl` (antes um outline marinho de cantos retos aparecia após o clique).
+- Aberto (layout "ficha técnica", revisado em 24/10/2026): contêiner `border-t px-4 sm:px-5 pt-5
+  pb-6 space-y-7`; por categoria uma `<section>` com `<h3>` = ícone `h-3.5 text-marinho` + título
+  `text-[11px] font-semibold uppercase tracking-wider text-marinho` (mesmo padrão dos rótulos de
+  specs do site) + contagem "N itens" à direita (`ml-auto text-[11px] text-slate-400 tabular-nums`);
+  `<ul>` `grid-cols-1 sm:grid-cols-2 sm:gap-x-8` (2 colunas no máximo — 3 quebrava nomes longos e
+  desalinhava as linhas); cada `<li>` é uma linha `min-h-10 py-2 border-t border-slate-100` com
+  `Check` `h-3.5 strokeWidth 2.5 text-turquesa-escuro` (sem círculo) + nome `text-sm
+  text-slate-700`.
+- Retorna `null` se as três listas estiverem vazias; categoria vazia é omitida.
+- `RoteiroDetalheView`: removidos os três blocos `mb-10` (Equipamentos de Segurança / Acessórios da
+  Embarcação / Comodidades a bordo); as listas viram `string[]` via `flatMap` dos joins
+  (`embarcacao_equipamentos_seguranca[].equipamentos_seguranca.nome`,
+  `embarcacao_acessorios[].acessorios.nome`, `embarcacao_comodidades[].comodidade.nome`, ignorando
+  `null`), na ordem em que já vinham. Imports `CheckCircle2`, `ShieldCheck` e `Waves` saíram da view.
+  Sem mudança de dados/queries. `EmbarcacaoInfoSection` (`/embarcacoes/[id]`) não foi alterada.
+- **Testes:** `tsc`/`eslint` limpos; navegador 1366px e 390px: fechado mostra "12 itens de segurança
+  · 7 acessórios · 13 comodidades" com `aria-expanded=false`; clique → `true`, 3 categorias com
+  contadores 12/7/13; sem erro de console.
+
+## 75. Detalhe do roteiro — bloco "Fale com o dono da embarcação" com mensagem inicial (24/10/2026)
+
+- **Novo `src/app/roteiros/[id]/_components/ContatoDono.tsx`** (`'use client'`, props `{ roteiroId }`):
+  `<form>` `rounded-2xl border border-slate-200 p-5 shadow-sm` (mesma moldura do card de preço) com
+  ícone `MessageCircle` em `bg-turquesa/10 text-turquesa-escuro`, `<label>` "Fale com o dono da
+  embarcação" (`text-sm font-semibold text-marinho`) ligado ao `<textarea>` por `useId`, instrução
+  `text-xs text-slate-500`, `<textarea rows={2} maxLength={4000}>` (placeholder "Olá! Gostaria de
+  saber se…", foco `ring-marinho/20`) e botão submit "Conversar com o dono" + `ArrowRight`,
+  **secundário** (`bg-marinho/[0.06] text-marinho hover:bg-marinho hover:text-white`).
+  Submit (ou Ctrl/⌘+Enter): `useModoPreview().ativo` → `avisar()`; senão `router.push`
+  `/roteiros/{id}/chat?mensagem={encodeURIComponent(texto.trim())}` (sem `?mensagem` se vazio).
+- **`BookingCard`:** renderiza `{!ehDono && <ContatoDono roteiroId />}` logo após `RoteiroAcoes`
+  (Favoritar/Compartilhar), antes do card de preço; o `<Link>` "Converse com o dono" que ficava
+  entre o card de preço e "Por que reservar no Boatzy?" foi removido (imports `Link` e
+  `MessageCircle` saíram).
+- **`/roteiros/[id]/chat/page.tsx`:** passou a receber `searchParams: Promise<{ mensagem?: string |
+  string[] }>`; `mensagemDigitada` = primeiro valor, `trim()`, `slice(0, 4000)` (teto de
+  `enviarMensagem`), vazio → `undefined`. `rascunhoInicial = mensagemDigitada ?? (conversa vazia ?
+  mensagem padrão : undefined)` — o texto digitado vale mesmo em conversa que já tem histórico. Não
+  há envio automático: o `ChatBox` só pré-preenche o campo (e o aviso "converse pela plataforma"
+  continua bloqueando até a ciência). Deslogado: `redirect('/entrar?redirect_to=' +
+  encodeURIComponent('/roteiros/{id}/chat?mensagem=…'))` — antes o `redirect_to` ia sem encode e sem
+  query; `setup-cliente` segue aceitando só caminhos relativos.
+- `src/app/help/_components/FaqContent.tsx`: resposta "É possível conversar com o proprietário…"
+  cita o bloco do roteiro e o botão da embarcação.
+- `/embarcacoes/[id]` (`EmbarcacaoBookingCard`) **não** mudou — segue com o botão "Converse com o dono".
+- **Testes:** `tsc`/`eslint` limpos; navegador: texto digitado → `/roteiros/{id}/chat?mensagem=Olá!
+  O passeio aceita crianças de 5 anos?` → 307 para `/entrar?redirect_to=…chat%3Fmensagem%3D…` com o
+  texto preservado; layout conferido em 1366px e 390px, sem erro de console. O pré-preenchimento no
+  `ChatBox` logado não foi exercitado no teste (exige sessão) — usa o mesmo `rascunhoInicial` já existente.
+
+## 76. Detalhe do roteiro — otimização de conversão no celular (24/10/2026)
+
+Arquivos em `src/app/roteiros/[id]/_components/` salvo indicação. Breakpoint "celular" = `< lg` (1024px).
+
+- **`BarraReservaMobile.tsx` (novo, client):** props `{ rotulo, valor: string | null, unidade, acao,
+  onAcao, card: RefObject<HTMLElement | null> }`. `fixed inset-x-0 bottom-0 z-40 lg:hidden`,
+  `bg-white/95 backdrop-blur-md`, `pb-[calc(0.75rem+env(safe-area-inset-bottom))]`; à esquerda rótulo
+  (`text-[10px] uppercase`), valor (`text-lg font-bold text-marinho`) + unidade e "Sem cobrança agora"
+  (`text-turquesa-escuro`); à direita botão `bg-marinho`. `IntersectionObserver` (threshold 0.15) no
+  card de preço (`card`) e em `#footer`: visível qualquer um → `translate-y-full` + `inert` +
+  `aria-hidden`. Fica abaixo do banner de cookies (`z-[70]`).
+- **`BookingCard`:** renderiza a barra como último filho do contêiner (dentro de `containerRef`, então
+  tocar nela não dispara o "clique fora" que fecha o calendário): `rotulo` = data escolhida
+  (`formatarData` dia/semana/mês) | "A partir de" | "Por diária"; `valor` = `precoCabecalho`;
+  `acao` = "Reservar" com data, "Ver datas" sem. `abrirReservaPelaBarra()` rola até o campo de data
+  (`campoDataRef`, `top − 88px`, `smooth`) e, sem data, `setActive('date')`.
+  - `MODALIDADE_INFO.roteiro.unidade` `'/dia'` → `'/passeio'`.
+  - `RoteiroAcoes` e `ContatoDono` envolvidos em `hidden lg:block` (no celular vão para a galeria e
+    para o conteúdo).
+  - Capacidade: "Até N pessoa(s) a bordo, sem contar a tripulação." (antes "Capacidade máxima: N").
+  - Abaixo do Total, com `guests > 1`: "≈ {total / guests} por pessoa (N pessoas)" (`text-xs
+    text-turquesa-escuro`, alinhado à direita).
+  - Abaixo do CTA (e do erro): "Sem cobrança agora — você só paga depois que o dono confirmar."
+  - Selos: `ShieldCheck` "Pagamento protegido: o dono só recebe depois do passeio" (repasse 48h após o
+    passeio — PRD D6) e `BadgeCheck` "Anúncio aprovado pela equipe Boatzy" (pipeline de aprovação);
+    `Headphones`/"Suporte 24/7" removido. "Por que reservar no Boatzy?" (layout inalterado): "Preço
+    final, sem surpresa: as taxas já estão no valor", "Converse com o dono pelo chat antes de
+    reservar", "Datas e preços atualizados pelo próprio dono".
+  - Dropdown do calendário: `left-1/2 -translate-x-1/2` no celular, `sm:right-0` a partir do sm
+    (antes `right-0` sempre → saía da tela à esquerda em 390px).
+- **GA4 (`rastrear`, `src/lib/analytics.ts`):** `reserva_barra_clique { item_id, com_data }`,
+  `reserva_calendario_aberto { item_id, origem: 'barra' | 'card' }` (só ao abrir, não ao fechar),
+  `reserva_data_escolhida { item_id, data, modalidade }`. Somam-se a `view_item`/`begin_checkout`/
+  `iniciar_conversa` (§65).
+- **`GaleriaRoteiro`:** nova prop `acoes?: ReactNode` (canto superior direito, `lg:hidden`, com
+  `stopPropagation`). Toque: `onTouchStart`/`onTouchEnd` na foto principal; deslocamento horizontal
+  ≥ 40px e maior que o vertical troca a foto (`LIMIAR_SWIPE`); clique sem deslize abre o
+  `FotosLightbox` (todas as larguras, `cursor-zoom-in`). Pontinhos → contador `Camera` "n/total"
+  (`bg-black/55`, `lg:hidden`, abre o lightbox). Setas `hidden lg:flex`. "Ver todas" do celular
+  removido (o contador cumpre o papel); no desktop sem fotos laterais segue "Ver todas".
+- **`RoteiroAcoes`:** prop `variante?: 'barra' | 'sobreFoto'` (padrão `barra`, igual ao anterior).
+  `sobreFoto`: dois botões redondos `h-10 w-10 bg-white/90` só com ícone (`aria-label`); compartilhar
+  usa `navigator.share({ title, text, url })` quando existe (cancelamento ignorado), senão o menu
+  próprio abrindo para baixo (`top-full`).
+- **`LocalizacaoRoteiro.tsx` (novo, client):** props `{ lat, lng, endereco: ReactNode }`. Mapa
+  (`LocalizacaoMap`) se `ehDesktop || pediuMapa`; `ehDesktop` via `useSyncExternalStore` sobre
+  `matchMedia('(min-width: 1024px)')` (snapshot do servidor `false` → sem divergência de hidratação).
+  Atalhos: `https://www.google.com/maps/search/?api=1&query={lat},{lng}` e
+  `https://waze.com/ul?ll={lat},{lng}&navigate=yes` (nova aba); botão "Ver no mapa aqui" no celular.
+- **`RoteiroDetalheView`:**
+  - Galeria recebe `acoes={<RoteiroAcoes variante="sobreFoto" … />}`.
+  - Selos: "Novo no Boatzy" (`Sparkles`) só com `avaliacoes.length === 0` (antes "Novo" fixo),
+    "Roteiro Verificado", e `ShipWheel` + `modalidadeLabel[embarcacao.modalidade_capitao]` (antes
+    `Anchor` + "{tipo} incluída"); a pílula de capitão saiu de "Sobre a Embarcação".
+  - Linha sob o título: cidade + (com avaliações) `Star` + média + contagem, link `#avaliacoes`.
+  - `precoTopo` (`lg:hidden`): no modelo inicial (`initialModalidade` ou a mesma regra do
+    `DataReservaProvider`), menor `total` entre os dias `disponivel` do calendário, ou
+    `decomporPreco(preco_diaria_valor, taxaPercent).clientePaga` na diária; "por passeio"/"por diária".
+  - Specs: `grid-cols-3` sempre; no celular ícone acima do texto (`flex-col`, ícone `h-9`), "Retorno
+    aprox." (sm+: "Retorno Aproximado"). `mesmoLocal` (origem = destino, sem caixa/espaços) → rótulo
+    "Embarque e desembarque" e um só local; o local não trunca no celular.
+  - "Sobre a Embarcação": "Pessoas" (`capacidade`) → "Convidados" (`capacidade − tripulacao`, só se > 0).
+  - Itinerário só se `roteiro_parada.length > 0` ou origem e destino presentes e diferentes.
+  - Localização via `LocalizacaoRoteiro` (endereço passado como `endereco`).
+  - `ContatoDono` em `lg:hidden mb-10` depois da localização (oculto para o dono).
+  - `AvaliacoesSection` só com avaliações, dentro de `#avaliacoes` (`scroll-mt-24`).
+- **`CalendarioReserva`:** legenda "Valores do passeio em R$, por data" (antes "por dia").
+- **`src/lib/precos-roteiro.ts`:** `UNIDADE.roteiro` `'/dia'` → `'/passeio'` (cards de `/buscar`, mapa
+  da busca e vitrines que usam `precoExibicaoRoteiro`).
+- **Cards (`src/app/buscar/_components/RoteiroCard.tsx`, `src/components/ui/EmbarcacaoCard.tsx`):**
+  sem `avaliacaoResumo` → selo `absolute top-3 left-3` (`bg-white/95 text-marinho text-[10px] font-bold`,
+  `Sparkles text-turquesa-escuro`) "Novo"; a pílula "Novo" do rodapé foi removida (a nota segue lá).
+- **`src/components/consentimento/BannerCookies.tsx`:** celular com texto curto (`sm:hidden`/`hidden
+  sm:inline`), `p-4` + safe-area, "Recusar opcionais"/"Aceitar todos" em `grid-cols-2` (mesmo estilo),
+  "Personalizar" como link sublinhado `text-xs`; sm+ igual ao anterior (Personalizar, Recusar, Aceitar).
+- **Testes:** `tsc`/`eslint` limpos. Navegador 390px: altura 4.653 → 4.092px; barra visível no topo
+  ("A partir de R$ 9.200/passeio · Sem cobrança agora · Ver datas"), oculta com o card de reserva na
+  tela; "Ver datas" abre o calendário dentro da tela (x 16–374 de 390); deslize sintético 1/4 → 2/4;
+  seções exibidas: Sobre a Embarcação e Localização (itinerário redundante e avaliações vazias
+  ocultos); selos "Novo no Boatzy | Roteiro Verificado | Com Capitão"; `/buscar` com selo "Novo" e
+  "/passeio". 1366px: barra `display: none`, coluna de reserva inalterada. Sem erro de console.
+  Não testado: `navigator.share` real (headless não tem a folha nativa) e Waze/Google Maps em aparelho.
+
+## 77. Detalhe do roteiro — contato abaixo da reserva, sem "Por que reservar", espaçamentos (24/10/2026)
+
+- **`BookingCard`:** ordem da coluna = `RoteiroAcoes` (`hidden lg:block`) → card de preço (`cardRef`) →
+  `{!ehDono && <ContatoDono />}` → `BarraReservaMobile`. Removidos o `ContatoDono` `hidden lg:block`
+  acima do card de preço e o card "Por que reservar no Boatzy?" (gradiente marinho com 3 itens).
+- **`RoteiroDetalheView`:** removido o `ContatoDono` `lg:hidden` do conteúdo (e o import). Seções da
+  coluna principal `mb-10` → `mb-8` (specs, Sobre a Embarcação, Itinerário, Localização); coluna com
+  `[&>*:last-child]:mb-0`; grade `gap-10` → `gap-6 lg:gap-10`; `section#roteiro-content` `pb-16` →
+  `pb-10 lg:pb-16`.
+- **`ContatoDono`:** rótulo "Ficou com dúvida? Fale com o dono da embarcação"; apoio "A conversa
+  acontece aqui pelo Boatzy, antes de você reservar."; ícone `MessageCircle text-marinho` em
+  `bg-destaque/25`; botão `bg-destaque text-marinho font-bold shadow-sm shadow-destaque/40
+  hover:brightness-95` (antes `bg-marinho/[0.06]`, secundário).
+- **Testes:** `tsc`/`eslint` limpos; 390px: altura 4.092 → 3.767px, "Por que reservar" ausente, ordem
+  Localização (1600) → Solicitar Reserva (2386) → "Ficou com dúvida?" (2614); 1366px: contato abaixo do
+  card de preço na coluna fixa. Sem erro de console.
+
+## 78. Detalhe do roteiro — opcionais à vista (`OpcionaisRoteiro`) (24/10/2026)
+
+- **Novo `src/app/roteiros/[id]/_components/OpcionaisRoteiro.tsx`** (`'use client'`), props
+  `{ roteiroId: string; variante: 'conteudo' | 'card' }`; lê `useCart()` (`addons`, `selectedIds`,
+  `toggle`, `selectedAddons`, `precoCliente`) — o `CartProvider` já envolve conteúdo e coluna de
+  reserva em `RoteiroDetalheView`, então as duas variantes compartilham a seleção. `null` sem addons.
+  - `VISIVEIS = { conteudo: 4, card: 3 }`; botão "Ver mais N opcional(is)" (`text-turquesa-escuro`)
+    mostra o resto (não recolhe de volta).
+  - Preço exibido: `precoCliente(preco)` (taxa embutida); `preco = 0` → "Incluso".
+  - **`card`:** rótulo `text-[10px] uppercase` "Adicione ao seu passeio" (mesmo padrão de Data/Pessoas);
+    caixa `rounded-xl border-turquesa/40 bg-turquesa/[0.04]`, `<ul divide-y>`; cada linha é um
+    `<button aria-pressed>` com quadrado de marcação `h-5 w-5 rounded-md border-2` (marcado:
+    `bg-marinho border-marinho` + `Check`), nome `text-sm` e "+ R$ X" à direita.
+  - **`conteudo`:** `<h2>` "Turbine seu passeio" + apoio; cartão `rounded-2xl border-slate-200`,
+    linhas com ícone `Wrench` (serviço) / `Package` (produto) em quadrado `h-10`, nome, tipo
+    (`text-[10px] uppercase`; no celular o preço vai ao lado do tipo, a partir do sm numa coluna
+    própria) e botão `aria-pressed` + `aria-label` "Adicionar|Remover {nome}": desmarcado
+    `border-marinho/25 text-marinho` "+ Adicionar", marcado `bg-marinho text-white` "✓ Adicionado";
+    linha marcada `bg-turquesa/[0.06]`. Rodapé `aria-live="polite"` com quantidade e soma.
+  - **Atenção uma vez:** `useApareceuUmaVez()` — `IntersectionObserver` (threshold 0.35) que liga
+    `apareceu` na primeira interseção e desconecta. Com `apareceu`: contêiner `.animate-opcionais`
+    e, no primeiro item não marcado, `.animate-opcionais-pulso`.
+  - **GA4:** `opcional_adicionado` / `opcional_removido` `{ item_id: roteiroId, opcional: descricao,
+    origem: variante }` antes do `toggle`.
+- **`src/app/globals.css`:** keyframes `opcionais-entrada` (opacity .35→1, translateY 12px→0, 0,5s),
+  `opcionais-brilho` (`box-shadow` 0→4px `rgb(23 181 176 / .35)`, 1s × 2, após 0,5s) e
+  `opcionais-pulso` (scale 1→1,2, 0,6s × 2, após 1,2s); classes `.animate-opcionais` e
+  `.animate-opcionais-pulso`; `prefers-reduced-motion: reduce` → `animation: none`.
+- **`BookingCard`:** `<AddonsAccordion />` → `<OpcionaisRoteiro roteiroId variante="card" />` (mesma
+  posição: depois de Pessoas, antes do detalhamento). **`AddonsAccordion.tsx` removido** (sem outros usos).
+- **`RoteiroDetalheView`:** `<OpcionaisRoteiro roteiroId variante="conteudo" />` entre "Sobre a
+  Embarcação" e Itinerário/Localização.
+- **Testes:** `tsc`/`eslint` limpos. 390px: nenhuma `.animate-opcionais` no carregamento → 1 ao rolar
+  até a seção; "+ Adicionar" em "Água e Refrigerante para até 10 pessoas" → marcado também no card,
+  "Adicionais R$ 115", Total R$ 9.200 → R$ 9.315 (dia 26/10). 1366px: seção com preço em coluna e
+  card com 3 itens + "Ver mais 1 opcional". Sem erro de console.
+
+## 79. Detalhe do roteiro — ordem, animação, trava de data e fechar seletores (24/10/2026)
+
+- **Ordem (`RoteiroDetalheView`):** `<OpcionaisRoteiro variante="conteudo" />` passou para antes do bloco
+  "Sobre a Embarcação" (depois da grade de specs).
+- **Animação (`src/app/globals.css`):** nova keyframe `opcionais-faixa` (faixa `linear-gradient(105deg,
+  transparent 35%, rgb(23 181 176 / .22) 50%, transparent 65%)` em `background-image`, `background-size
+  250% 100%`, posição 150% → −50%, 1,1s, após 0,4s); `opcionais-entrada` 16px; `opcionais-brilho` 6px a
+  0,45, 0,9s × 3; `opcionais-pulso` scale 1,25 × 3 após 1s. `prefers-reduced-motion`: só
+  `opcionais-brilho` (sem faixa, deslocamento ou escala).
+  - Causa de "não aparece": o CSS servido pelo `next dev` não continha as regras (cache persistente
+    `.next/dev/cache/turbopack` desatualizado, 13 GB); resolvido limpando o cache e reiniciando o dev
+    server. Não afeta build de produção.
+- **`OpcionaisRoteiro`:**
+  - `useApareceuUmaVez`: `threshold 0.5` + `ESPERA_VISIVEL_MS = 450` (timer cancelado se sair da
+    tela); `ref` no wrapper externo (não remonta).
+  - `card`: caixa animada com `key={data ? 'com-data' : 'sem-data'}` → remonta e reanima ao escolher a data.
+  - Nova prop `onFaltaData?: () => void`. `travadoSemData = variante === 'card' && !data`
+    (`useDataReserva`): linhas não marcadas `opacity-55` + `aria-disabled`; rótulo ganha "escolha a
+    data primeiro"; `alternar()` em item não marcado sem data → `setAvisoData(true)`, `onFaltaData()`
+    e não chama `toggle`. Aviso `role="alert"` (`text-amber-700`, `CalendarDays`) "Escolha a data do
+    passeio para incluir opcionais." enquanto não houver data. Remover não é travado; a variante
+    `conteudo` não tem trava.
+- **`BookingCard`:**
+  - `pedirDataParaOpcionais()`: rola até `campoDataRef` (−88px, smooth), `rastrear('reserva_calendario_aberto',
+    { origem: 'opcionais' })` e `setActive('date')`; passado como `onFaltaData`.
+  - Fechar seletores: listener `pointerdown` no `document` (antes `mousedown` fora do `containerRef`
+    inteiro) — mantém aberto só se o alvo estiver dentro do campo ativo: `campoDataRef` (campo + dropdown
+    do calendário) para `date`, novo `campoPessoasRef` (wrapper do `GuestPicker`, inclui o dropdown) para
+    `guests`; qualquer outro toque → `setActive(null)`. Botões que abrem o calendário (barra fixa,
+    opcionais) chamam `setActive('date')` no `click`, depois do `pointerdown`.
+- **Testes:** `tsc`/`eslint` limpos. 390px: ordem "Turbine seu passeio → Sobre a Embarcação →
+  Localização"; animações `opcionais-entrada/faixa/brilho/pulso` rodando ao rolar até a seção; card sem
+  data: toque em "Água e Refrigerante" → 0 marcados, aviso exibido, calendário aberto; com 26/10, "Gelo
+  Filtrado" → Adicionais R$ 92, Total R$ 9.292; seletor de pessoas aberto → toque fora → fechado. Sem
+  erro de console.
 

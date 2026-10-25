@@ -1,15 +1,17 @@
 'use client';
 
 import { useEffect, useMemo, useRef, useState } from 'react';
-import Link from 'next/link';
-import { CalendarDays, Headphones, ShieldCheck, MessageCircle } from 'lucide-react';
+import { BadgeCheck, CalendarDays, ShieldCheck } from 'lucide-react';
 import GuestPicker from '@/components/home/search/GuestPicker';
 import { formatCurrency } from '@/lib/utils';
 import { useCart } from './CartContext';
 import { useDataReserva } from './DataReservaContext';
-import AddonsAccordion from './AddonsAccordion';
+import OpcionaisRoteiro from './OpcionaisRoteiro';
 import RoteiroAcoes from './RoteiroAcoes';
+import ContatoDono from './ContatoDono';
 import CalendarioReserva from './CalendarioReserva';
+import BarraReservaMobile from './BarraReservaMobile';
+import { rastrear } from '@/lib/analytics';
 import { useModoPreview } from '@/components/preview/ModoPreview';
 import { FUSO_HORARIO, formatarData } from '@/lib/datas';
 import { capacidadeMaxima, mensagemCapacidadeExcedida } from '@/lib/capacidade';
@@ -57,7 +59,7 @@ type Props = {
 };
 
 const MODALIDADE_INFO: Record<Modalidade, { label: string; unidade: string; linha: string }> = {
-  roteiro: { label: 'Roteiro', unidade: '/dia', linha: 'Passeio' },
+  roteiro: { label: 'Roteiro', unidade: '/passeio', linha: 'Passeio' },
   diaria: { label: 'Por Diária', unidade: '/diária', linha: 'Diárias' },
 };
 
@@ -116,24 +118,56 @@ export default function BookingCard({
   const [error, setError] = useState<string | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const cardRef = useRef<HTMLDivElement>(null);
+  const campoDataRef = useRef<HTMLDivElement>(null);
+  const campoPessoasRef = useRef<HTMLDivElement>(null);
   const [topoSticky, setTopoSticky] = useState(TOPO_STICKY);
   const preview = useModoPreview();
   const { selectedAddons, totalAdicionais } = useCart();
 
   function open(panel: ActivePanel) {
+    if (panel === 'date' && active !== 'date') {
+      rastrear('reserva_calendario_aberto', { item_id: roteiroId, origem: 'card' });
+    }
     setActive((p) => (p === panel ? null : panel));
   }
 
-  // Fecha o picker aberto (data ou pessoas) ao clicar fora do card — antes só
-  // fechava ao clicar de novo no mesmo campo, o que prendia o usuário nele.
-  useEffect(() => {
-    function handleClick(e: MouseEvent) {
-      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
-        setActive(null);
-      }
+  // Opcional sem data: leva ao campo de data e abre o calendário (sem data não há subtotal).
+  function pedirDataParaOpcionais() {
+    const alvo = campoDataRef.current;
+    if (alvo) {
+      window.scrollTo({ top: alvo.getBoundingClientRect().top + window.scrollY - 88, behavior: 'smooth' });
     }
-    document.addEventListener('mousedown', handleClick);
-    return () => document.removeEventListener('mousedown', handleClick);
+    rastrear('reserva_calendario_aberto', { item_id: roteiroId, origem: 'opcionais' });
+    setActive('date');
+  }
+
+  // Barra fixa do celular: leva ao card de reserva e, sem data escolhida, já abre o calendário.
+  function abrirReservaPelaBarra() {
+    rastrear('reserva_barra_clique', { item_id: roteiroId, com_data: Boolean(dateISO) });
+    const alvo = campoDataRef.current;
+    if (alvo) {
+      window.scrollTo({ top: alvo.getBoundingClientRect().top + window.scrollY - 88, behavior: 'smooth' });
+    }
+    if (!dateISO) {
+      rastrear('reserva_calendario_aberto', { item_id: roteiroId, origem: 'barra' });
+      setActive('date');
+    }
+  }
+
+  // Fecha o picker aberto (data ou pessoas) ao tocar em qualquer lugar fora do próprio campo e
+  // da sua janela — inclusive em outras partes do card (antes só fechava fora da coluna inteira,
+  // e o de pessoas ficava aberto até tocar de novo no campo). `pointerdown` cobre mouse e toque.
+  useEffect(() => {
+    function handlePointerDown(e: PointerEvent) {
+      const alvo = e.target as Node;
+      setActive((atual) => {
+        if (atual === 'date' && campoDataRef.current?.contains(alvo)) return atual;
+        if (atual === 'guests' && campoPessoasRef.current?.contains(alvo)) return atual;
+        return null;
+      });
+    }
+    document.addEventListener('pointerdown', handlePointerDown);
+    return () => document.removeEventListener('pointerdown', handlePointerDown);
   }, []);
 
   // Coluna fixa: se o card de reserva cabe na tela, prende no topo (abaixo do
@@ -238,8 +272,10 @@ export default function BookingCard({
 
   return (
     <div ref={containerRef} className="sticky space-y-4" style={{ top: topoSticky }}>
-      {/* Favoritar + Compartilhar */}
-      <RoteiroAcoes roteiroId={roteiroId} roteiroNome={roteiroNome} initialFavorito={initialFavorito} />
+      {/* Favoritar + Compartilhar — no celular ficam sobre a foto da galeria */}
+      <div className="hidden lg:block">
+        <RoteiroAcoes roteiroId={roteiroId} roteiroNome={roteiroNome} initialFavorito={initialFavorito} />
+      </div>
 
       {/* Price Card */}
       <div ref={cardRef} className="rounded-2xl border border-slate-200 p-6 shadow-sm">
@@ -289,7 +325,7 @@ export default function BookingCard({
         </div>
 
         {/* Date field — abre o calendário do roteiro (o mesmo que o gestor configura) */}
-        <div className="mb-3 relative">
+        <div ref={campoDataRef} className="mb-3 relative">
           <p className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider mb-1.5">
             {modalidade === 'diaria' ? 'Check-in' : 'Data'}
           </p>
@@ -308,11 +344,13 @@ export default function BookingCard({
             )}
           </button>
           {active === 'date' && (
-            <div className="absolute right-0 top-full z-50 mt-2 w-[min(680px,calc(100vw-2rem))] rounded-2xl border border-slate-100 bg-white p-4 shadow-2xl">
+            // Celular: centralizado no campo (que ocupa a largura da tela); a partir do sm, alinhado à direita.
+            <div className="absolute left-1/2 -translate-x-1/2 sm:left-auto sm:right-0 sm:translate-x-0 top-full z-50 mt-2 w-[min(680px,calc(100vw-2rem))] rounded-2xl border border-slate-100 bg-white p-4 shadow-2xl">
               <CalendarioReserva
                 calendario={calendario}
                 selecionada={dateISO}
                 onSelecionar={(iso) => {
+                  rastrear('reserva_data_escolhida', { item_id: roteiroId, data: iso, modalidade });
                   setData(iso);
                   setError(null);
                   setActive(null);
@@ -351,7 +389,7 @@ export default function BookingCard({
         )}
 
         {/* Guests field */}
-        <div className="mb-4">
+        <div ref={campoPessoasRef} className="mb-4">
           <p className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider mb-1.5">
             Pessoas
           </p>
@@ -376,13 +414,14 @@ export default function BookingCard({
             </p>
           ) : limitePessoas != null ? (
             <p className="mt-1.5 text-xs text-slate-400">
-              Capacidade máxima: {limitePessoas} {limitePessoas === 1 ? 'pessoa' : 'pessoas'}.
+              Até {limitePessoas} {limitePessoas === 1 ? 'pessoa' : 'pessoas'} a bordo, sem contar a tripulação.
             </p>
           ) : null}
         </div>
 
-        {/* Adicionais (produtos/serviços do catálogo) — accordion */}
-        <AddonsAccordion />
+        {/* Opcionais (produtos/serviços do catálogo) — à vista, com marcação; mesmo carrinho da
+            seção "Turbine seu passeio" do conteúdo */}
+        <OpcionaisRoteiro roteiroId={roteiroId} variante="card" onFaltaData={pedirDataParaOpcionais} />
 
         {/* Detalhamento — valores com a taxa embutida (somam o total) */}
         {valores && (
@@ -409,6 +448,12 @@ export default function BookingCard({
               <span className="text-base font-bold text-marinho">Total</span>
               <span className="text-xl font-bold text-marinho">{formatCurrency(valores.total)}</span>
             </div>
+            {/* Referência para grupos: o preço é do passeio (barco), dividido aqui só como estimativa. */}
+            {guests > 1 && (
+              <p className="mt-1 text-right text-xs font-medium text-turquesa-escuro">
+                ≈ {formatCurrency(valores.total / guests)} por pessoa ({guests} pessoas)
+              </p>
+            )}
             <p className="mt-1 text-[11px] text-slate-400">
               Cupom de desconto pode ser aplicado na confirmação.
             </p>
@@ -429,48 +474,39 @@ export default function BookingCard({
           </p>
         )}
 
-        {/* Trust badges */}
+        {/* Solicitar não compromete: o pagamento só vem depois da confirmação do dono */}
+        <p className="mt-2.5 text-center text-xs font-medium text-turquesa-escuro">
+          Sem cobrança agora — você só paga depois que o dono confirmar.
+        </p>
+
+        {/* Trust badges — só o que o produto garante (repasse 48h após o passeio, anúncio aprovado) */}
         <div className="mt-4 space-y-2">
           <div className="flex items-center gap-2 text-xs text-slate-500">
             <ShieldCheck className="h-3.5 w-3.5 text-turquesa shrink-0" />
-            <span>Garantia de pagamento seguro</span>
+            <span>Pagamento protegido: o dono só recebe depois do passeio</span>
           </div>
           <div className="flex items-center gap-2 text-xs text-slate-500">
-            <Headphones className="h-3.5 w-3.5 text-turquesa shrink-0" />
-            <span>Suporte 24/7 durante sua experiência</span>
+            <BadgeCheck className="h-3.5 w-3.5 text-turquesa shrink-0" />
+            <span>Anúncio aprovado pela equipe Boatzy</span>
           </div>
         </div>
       </div>
 
-      {/* Chat com o dono */}
-      {!ehDono && (
-        <Link
-          href={`/roteiros/${roteiroId}/chat`}
-          className="w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-marinho hover:bg-marinho-escuro text-white text-sm font-semibold transition-colors"
-        >
-          <MessageCircle className="h-4 w-4" />
-          Converse com o dono
-        </Link>
-      )}
+      {/* Contato com o dono logo abaixo do "Solicitar Reserva": a dúvida que trava a reserva
+          vira conversa (o texto segue como rascunho para o chat) */}
+      {!ehDono && <ContatoDono roteiroId={roteiroId} />}
 
-      {/* Why Boatzy Card */}
-      <div className="rounded-2xl bg-gradient-to-br from-marinho to-marinho-escuro p-6 text-white">
-        <h3 className="text-base font-bold mb-4">Por que reservar no Boatzy?</h3>
-        <div className="space-y-3">
-          {[
-            'Embarcações inspecionadas e verificadas',
-            'Operadores com antecedentes verificados',
-            'Cancelamento flexível na maioria dos roteiros',
-          ].map((item) => (
-            <div key={item} className="flex items-center gap-2.5">
-              <div className="h-5 w-5 rounded-full bg-turquesa/20 flex items-center justify-center shrink-0">
-                <div className="h-2 w-2 rounded-full bg-turquesa" />
-              </div>
-              <span className="text-sm text-slate-200">{item}</span>
-            </div>
-          ))}
-        </div>
-      </div>
+      {/* Celular: preço + atalho para a reserva, fixos no rodapé */}
+      <BarraReservaMobile
+        rotulo={dateISO
+          ? formatarData(dateISO, { weekday: 'short', day: '2-digit', month: 'short' })
+          : mostrarAPartirDe ? 'A partir de' : modalidade === 'diaria' ? 'Por diária' : 'Valor'}
+        valor={precoCabecalho != null ? formatCurrency(precoCabecalho) : null}
+        unidade={MODALIDADE_INFO[modalidade].unidade}
+        acao={dateISO ? 'Reservar' : 'Ver datas'}
+        onAcao={abrirReservaPelaBarra}
+        card={cardRef}
+      />
     </div>
   );
 }
