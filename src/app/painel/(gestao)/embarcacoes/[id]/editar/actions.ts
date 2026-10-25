@@ -8,6 +8,7 @@ import type { ModalidadeCapitao } from '@/types/supabase';
 import { isComprimentoUnidade, type ComprimentoUnidade } from '@/lib/comprimento';
 import { normalizarTituloImagem } from '@/lib/galeria';
 import { verificarEdicaoSensivel } from '@/lib/publicacao/server';
+import { normalizarRegras } from '@/lib/embarcacao-regras';
 
 // ─── Tipos ───────────────────────────────────────────────────────────────────
 
@@ -30,6 +31,8 @@ export type AtualizarEmbarcacaoPayload = {
   logradouro: string;
   logradouro_numero: string;
   complemento: string;
+  /** Regras a bordo (tags); normalizadas no servidor (`normalizarRegras`). */
+  regras: string[];
 };
 
 type ActionResult = { ok: boolean; error?: string };
@@ -100,6 +103,7 @@ export async function atualizarEmbarcacao(
       logradouro: payload.logradouro.trim() || null,
       logradouro_numero: payload.logradouro_numero.trim() || null,
       complemento: payload.complemento.trim() || null,
+      regras: normalizarRegras(payload.regras),
     })
     .eq('id', embarcacaoId);
 

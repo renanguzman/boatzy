@@ -122,7 +122,7 @@ export default function BookingCard({
   const campoPessoasRef = useRef<HTMLDivElement>(null);
   const [topoSticky, setTopoSticky] = useState(TOPO_STICKY);
   const preview = useModoPreview();
-  const { selectedAddons, totalAdicionais } = useCart();
+  const { selectedAddons, totalAdicionais, precoCliente } = useCart();
 
   function open(panel: ActivePanel) {
     if (panel === 'date' && active !== 'date') {
@@ -230,6 +230,18 @@ export default function BookingCard({
       : menorTotal;
 
   const checkout = modalidade === 'diaria' && dateISO ? somarDias(dateISO, diarias - 1) : null;
+
+  // Barra fixa (celular): com data (ou na diária) é o Total do card — passeio + opcionais com a
+  // taxa embutida; sem data, o "a partir de" somado aos opcionais já escolhidos.
+  const opcionaisCliente = selectedAddons.reduce((soma, a) => soma + precoCliente(a.preco), 0);
+  const valorBarra = valores
+    ? valores.total
+    : precoCabecalho != null ? precoCabecalho + opcionaisCliente : null;
+  const unidadeBarra = selectedAddons.length > 0
+    ? 'com opcionais'
+    : modalidade === 'diaria' && multiplicador > 1
+      ? `total (${multiplicador} diárias)`
+      : MODALIDADE_INFO[modalidade].unidade;
 
   function handleReserve() {
     // Data e Pessoas são obrigatórios para solicitar a reserva.
@@ -496,13 +508,14 @@ export default function BookingCard({
           vira conversa (o texto segue como rascunho para o chat) */}
       {!ehDono && <ContatoDono roteiroId={roteiroId} />}
 
-      {/* Celular: preço + atalho para a reserva, fixos no rodapé */}
+      {/* Celular: preço + atalho para a reserva, fixos no rodapé — sempre o mesmo valor que o
+          cliente vai pagar, com os opcionais já incluídos */}
       <BarraReservaMobile
         rotulo={dateISO
           ? formatarData(dateISO, { weekday: 'short', day: '2-digit', month: 'short' })
           : mostrarAPartirDe ? 'A partir de' : modalidade === 'diaria' ? 'Por diária' : 'Valor'}
-        valor={precoCabecalho != null ? formatCurrency(precoCabecalho) : null}
-        unidade={MODALIDADE_INFO[modalidade].unidade}
+        valor={valorBarra != null ? formatCurrency(valorBarra) : null}
+        unidade={unidadeBarra}
         acao={dateISO ? 'Reservar' : 'Ver datas'}
         onAcao={abrirReservaPelaBarra}
         card={cardRef}

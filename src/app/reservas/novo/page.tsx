@@ -1,12 +1,10 @@
 import { redirect } from 'next/navigation';
 import Link from 'next/link';
-import { Users, CalendarDays, ShoppingCart, MessageCircle, ExternalLink } from 'lucide-react';
+import { Users, CalendarDays, MessageCircle, ExternalLink } from 'lucide-react';
 import Header from '@/components/layout/Header';
 import Footer from '@/components/layout/Footer';
 import { createClient } from '@/lib/supabase/server';
 import { supabaseAdmin } from '@/lib/supabase';
-import { formatCurrency } from '@/lib/utils';
-import { precoComTaxa } from '@/lib/pagamentos/valores';
 import { getTaxaEfetiva } from '@/lib/taxas';
 import { buscarPrevisaoTempo } from '@/lib/weather';
 import { getMotivoPeriodoIndisponivel, somarDiasISO } from '@/lib/reservas';
@@ -14,6 +12,7 @@ import { capacidadeMaxima } from '@/lib/capacidade';
 import { obterTermoParaAceite } from '@/lib/termos/aceite';
 import { getPrecoRoteiroNaData } from '@/lib/precos-roteiro-actions';
 import ConfirmarReserva from './_components/ConfirmarReserva';
+import OpcionaisCheckout, { SelecaoOpcionaisProvider, type OpcionalCheckout } from './_components/OpcionaisCheckout';
 import PrevisaoTempoCard from './_components/PrevisaoTempoCard';
 import GaleriaReserva from './_components/GaleriaReserva';
 import { FUSO_HORARIO } from '@/lib/datas';
@@ -94,7 +93,9 @@ export default async function NovaReservaPage({
   let multiplicador = 1;
   const rotuloLinha = 'Diária';
 
-  let adicionais: { id: string; descricao: string; valor: number; tipo: string }[] = [];
+  // Todos os opcionais do roteiro — o cliente pode adicionar ou retirar aqui (os ids da query
+  // são só a seleção inicial).
+  let opcionais: OpcionalCheckout[] = [];
   const adicionalIds = (sp.adicionais ?? '')
     .split(',')
     .map((s) => s.trim())
@@ -171,15 +172,13 @@ export default async function NovaReservaPage({
   const lat = roteiro.latitude ?? roteiro.municipios?.latitude ?? null;
   const lng = roteiro.longitude ?? roteiro.municipios?.longitude ?? null;
 
-  // Reconstrói os adicionais selecionados a partir dos ids da query.
-  if (adicionalIds.length > 0) {
+  {
     const { data: itens } = await supabaseAdmin
       .from('roteiro_catalogo')
       .select('id, valor_customizado, catalogo ( descricao, valor, tipo )')
-      .eq('roteiro_id', roteiro.id)
-      .in('id', adicionalIds);
+      .eq('roteiro_id', roteiro.id);
 
-    adicionais = (itens ?? [])
+    opcionais = (itens ?? [])
       .filter((it) => it.catalogo)
       .map((it) => {
         const cat = it.catalogo as unknown as { descricao: string; valor: number; tipo: string };
@@ -200,7 +199,6 @@ export default async function NovaReservaPage({
     redirect(`${voltarHref}?${volta.toString()}`);
   }
 
-  const totalAdicionais = adicionais.reduce((sum, a) => sum + Number(a.valor), 0);
   // Taxa de serviço efetiva do gestor dono do roteiro (específica ou geral — ver SPEC §14).
   const taxaPercent = await getTaxaEfetiva(ownerId);
 
@@ -264,6 +262,7 @@ export default async function NovaReservaPage({
           </div>
         )}
 
+        <SelecaoOpcionaisProvider opcionais={opcionais} iniciais={adicionalIds} roteiroId={alvoId}>
         {/* (a previsão já traz margem inferior; sem previsão, o espaçamento vem do mt-6) */}
         <div className={`${previsaoTempo ? '' : 'mt-6 '}rounded-2xl border border-slate-200 bg-white shadow-sm overflow-hidden`}>
           {/* Data / Pessoas */}
@@ -301,26 +300,8 @@ export default async function NovaReservaPage({
             </div>
           </div>
 
-          {/* Adicionais */}
-          {adicionais.length > 0 && (
-            <div className="p-5 border-b border-slate-100">
-              <div className="flex items-center gap-1.5 mb-3">
-                <ShoppingCart className="h-4 w-4 text-marinho" />
-                <span className="text-sm font-semibold text-marinho">Adicionais selecionados</span>
-              </div>
-              <div className="space-y-2">
-                {adicionais.map((a) => (
-                  <div key={a.id} className="flex items-center justify-between text-sm">
-                    <span className="text-slate-600">
-                      {a.descricao}
-                      <span className="ml-2 text-[10px] uppercase tracking-wider text-slate-400">{a.tipo}</span>
-                    </span>
-                    <span className="font-medium text-grafite">{formatCurrency(precoComTaxa(Number(a.valor), taxaPercent))}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
+          {/* Opcionais: todos os do roteiro, com adicionar/retirar */}
+          <OpcionaisCheckout taxaPercent={taxaPercent} />
         </div>
 
         <ConfirmarReserva
@@ -328,16 +309,15 @@ export default async function NovaReservaPage({
           data={data}
           flex={flex}
           pessoas={pessoas}
-          adicionaisIds={adicionalIds}
           modalidade={modalidade}
           diarias={diarias}
           precoUnitario={precoUnitario}
           multiplicador={multiplicador}
           rotuloLinha={rotuloLinha}
-          totalAdicionais={totalAdicionais}
           taxaPercent={taxaPercent}
           termo={termo}
         />
+        </SelecaoOpcionaisProvider>
       </main>
 
       <Footer />

@@ -1,5 +1,8 @@
-import { MapPin, Users, Anchor, Ruler, DoorOpen, Bath, LifeBuoy, BadgeCheck, Award, CheckCircle2, ShieldCheck, Waves } from 'lucide-react';
+import { MapPin, Users, Anchor, Ruler, DoorOpen, Bath, LifeBuoy, BadgeCheck, Award } from 'lucide-react';
 import { formatarComprimento } from '@/lib/comprimento';
+import EquipamentosEmbarcacao from '@/components/boat/EquipamentosEmbarcacao';
+import RegrasEmbarcacao from '@/components/boat/RegrasEmbarcacao';
+import { categoriasDaEmbarcacao } from '@/lib/embarcacao-itens';
 
 export type EmbarcacaoInfo = {
   nome: string;
@@ -15,6 +18,8 @@ export type EmbarcacaoInfo = {
   embarcacao_comodidades: { comodidade: { nome: string } | null }[];
   embarcacao_equipamentos_seguranca: { equipamentos_seguranca: { nome: string } | null }[];
   embarcacao_acessorios: { acessorios: { nome: string } | null }[];
+  /** Regras a bordo definidas pelo dono (`embarcacao.regras`). */
+  regras: string[];
 };
 
 /**
@@ -95,75 +100,20 @@ export default function EmbarcacaoInfoSection({ embarcacao }: { embarcacao: Emba
   );
 }
 
-/** Equipamentos de segurança + acessórios + comodidades da embarcação. */
+/**
+ * O que a embarcação possui (equipamentos de segurança, acessórios, comodidades) — o mesmo bloco
+ * recolhível do detalhe do roteiro, com placas por categoria e ícone por item — e, logo abaixo,
+ * as regras a bordo do dono (sempre visíveis).
+ */
 export function EmbarcacaoItensSection({ embarcacao }: { embarcacao: EmbarcacaoInfo }) {
   return (
-    <>
-      {/* Equipamentos de segurança */}
-      {embarcacao.embarcacao_equipamentos_seguranca.length > 0 && (
-        <div className="mb-10">
-          <h2 className="text-xl font-bold text-marinho mb-4 flex items-center gap-2">
-            <ShieldCheck className="h-5 w-5 text-marinho" />
-            Equipamentos de Segurança
-          </h2>
-          <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-            {embarcacao.embarcacao_equipamentos_seguranca.map((ee, i) =>
-              ee.equipamentos_seguranca ? (
-                <div
-                  key={i}
-                  className="flex items-center gap-2.5 p-3 rounded-xl border border-slate-100 bg-slate-50/60"
-                >
-                  <CheckCircle2 className="h-4 w-4 text-marinho shrink-0" />
-                  <span className="text-sm text-slate-700 leading-tight">{ee.equipamentos_seguranca.nome}</span>
-                </div>
-              ) : null,
-            )}
-          </div>
+    <div className="mb-10">
+      <EquipamentosEmbarcacao categorias={categoriasDaEmbarcacao(embarcacao)} />
+      {embarcacao.regras?.length > 0 && (
+        <div className="mt-3">
+          <RegrasEmbarcacao regras={embarcacao.regras} />
         </div>
       )}
-
-      {/* Acessórios */}
-      {embarcacao.embarcacao_acessorios.length > 0 && (
-        <div className="mb-10">
-          <h2 className="text-xl font-bold text-marinho mb-4 flex items-center gap-2">
-            <Waves className="h-5 w-5 text-marinho" />
-            Acessórios da Embarcação
-          </h2>
-          <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-            {embarcacao.embarcacao_acessorios.map((ea, i) =>
-              ea.acessorios ? (
-                <div
-                  key={i}
-                  className="flex items-center gap-2.5 p-3 rounded-xl border border-slate-100 bg-slate-50/60"
-                >
-                  <CheckCircle2 className="h-4 w-4 text-marinho shrink-0" />
-                  <span className="text-sm text-slate-700 leading-tight">{ea.acessorios.nome}</span>
-                </div>
-              ) : null,
-            )}
-          </div>
-        </div>
-      )}
-
-      {/* Comodidades */}
-      {embarcacao.embarcacao_comodidades.length > 0 && (
-        <div className="mb-10">
-          <h2 className="text-xl font-bold text-marinho mb-4">Comodidades a bordo</h2>
-          <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-            {embarcacao.embarcacao_comodidades.map((ec, i) =>
-              ec.comodidade ? (
-                <div
-                  key={i}
-                  className="flex items-center gap-2.5 p-3 rounded-xl border border-slate-100 bg-slate-50/60"
-                >
-                  <CheckCircle2 className="h-4 w-4 text-turquesa shrink-0" />
-                  <span className="text-sm text-slate-700 leading-tight">{ec.comodidade.nome}</span>
-                </div>
-              ) : null,
-            )}
-          </div>
-        </div>
-      )}
-    </>
+    </div>
   );
 }

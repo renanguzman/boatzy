@@ -87,11 +87,15 @@ export default function CalendarioReserva({
         </button>
       </div>
 
-      <div className={`grid gap-6 ${meses === 2 ? 'sm:grid-cols-2' : ''}`}>
+      {/* Dois meses lado a lado separados por um filete vertical, para não confundir de qual mês é o dia. */}
+      <div className={`grid gap-6 ${meses === 2 ? 'sm:grid-cols-2 sm:gap-0' : ''}`}>
         {[0, 1].slice(0, meses).map(i => {
           const { ano, mes } = mesDo(offset + i);
           return (
-            <div key={`${ano}-${mes}`} className={i === 1 ? 'hidden sm:block' : ''}>
+            <div
+              key={`${ano}-${mes}`}
+              className={meses === 2 ? (i === 1 ? 'hidden sm:block sm:border-l sm:border-slate-200 sm:pl-5' : 'sm:pr-5') : ''}
+            >
               <Mes ano={ano} mes={mes} hoje={hoje} porData={porData} dataMaxima={calendario.dataMaxima}
                 selecionada={selecionada} fimPeriodo={fimPeriodo} modalidade={modalidade}
                 onSelecionar={onSelecionar} />
@@ -137,10 +141,16 @@ function Mes({ ano, mes, hoje, porData, dataMaxima, selecionada, fimPeriodo, mod
     .filter((d): d is DiaReserva => d?.status === 'disponivel' && d.total != null)
     .map(d => d.total!);
   const menor = totaisDisponiveis.length > 1 && new Set(totaisDisponiveis).size > 1 ? Math.min(...totaisDisponiveis) : null;
+  // Mês da data escolhida: a faixa do nome fica em destaque (deixa claro em qual mês se marcou).
+  const temSelecionada = selecionada != null && datas.includes(selecionada);
 
   return (
     <div>
-      <p className="mb-2 text-center text-sm font-semibold text-grafite">{MESES[mes]} {ano}</p>
+      <p className={`mb-2 rounded-lg py-1.5 text-center text-sm font-semibold transition-colors ${
+        temSelecionada ? 'bg-marinho text-white' : 'bg-slate-50 text-marinho'
+      }`}>
+        {MESES[mes]} {ano}
+      </p>
       <div className="grid grid-cols-7 gap-0.5">
         {DOW.map((d, i) => (
           <div key={i} className="pb-1 text-center text-[10px] font-semibold text-slate-400">{d}</div>

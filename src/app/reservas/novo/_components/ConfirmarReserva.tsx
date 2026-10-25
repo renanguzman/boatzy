@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { CheckCircle2, Loader2, Tag, X, AlertCircle, Clock, ShieldCheck } from 'lucide-react';
@@ -9,6 +9,7 @@ import { formatCurrency } from '@/lib/utils';
 import { valoresParaCliente } from '@/lib/pagamentos/valores';
 import { rastrear } from '@/lib/analytics';
 import TermoAceite from '@/components/termos/TermoAceite';
+import { useSelecaoOpcionais } from './OpcionaisCheckout';
 import type { AceiteTermoCliente, TermoParaAceite } from '@/lib/termos/tipos';
 import type { CupomTipoDesconto } from '@/types/supabase';
 
@@ -17,7 +18,6 @@ type Props = {
   data: string;
   flex: number;
   pessoas: number;
-  adicionaisIds: string[];
   /** Modelo de cobrança escolhido no BookingCard do roteiro. */
   modalidade: ModalidadeReserva;
   /** Quantidade de diárias — só relevante quando `modalidade === 'diaria'`. */
@@ -28,7 +28,6 @@ type Props = {
   multiplicador: number;
   /** Rótulo da linha de preço no resumo — "Diária" ou "Pessoa". */
   rotuloLinha: string;
-  totalAdicionais: number;
   /**
    * Taxa de serviço efetiva (%) do gestor dono do alvo — resolvida no servidor
    * (ver SPEC §14). Só entra na conta: o cliente vê os valores com ela embutida.
@@ -60,10 +59,12 @@ function formatContagem(ms: number): string {
 }
 
 export default function ConfirmarReserva({
-  roteiroId, data, flex, pessoas, adicionaisIds, modalidade, diarias,
-  precoUnitario, multiplicador, rotuloLinha, totalAdicionais, taxaPercent, termo,
+  roteiroId, data, flex, pessoas, modalidade, diarias,
+  precoUnitario, multiplicador, rotuloLinha, taxaPercent, termo,
 }: Props) {
   const router = useRouter();
+  // Opcionais: escolhidos no roteiro e ajustáveis aqui (OpcionaisCheckout) — mesmo estado.
+  const { selecionados: adicionaisIds, totalAdicionais } = useSelecaoOpcionais();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [enviada, setEnviada] = useState(false);
@@ -111,6 +112,33 @@ export default function ConfirmarReserva({
   }, [bloqueadoAte]);
 
   const bloqueado = bloqueadoAte != null && bloqueadoAte.getTime() > agora;
+
+  // Opcionais mudaram com cupom aplicado: o desconto sai da comissão, que depende do total — revalida
+  // o mesmo código com a nova seleção (validação ok não conta como tentativa); se deixar de valer, sai.
+  const chaveOpcionais = adicionaisIds.join(',');
+  const chaveAnterior = useRef(chaveOpcionais);
+  useEffect(() => {
+    if (chaveAnterior.current === chaveOpcionais) return;
+    chaveAnterior.current = chaveOpcionais;
+    const codigo = cupomAplicado?.codigo;
+    if (!codigo) return;
+    let cancelado = false;
+    (async () => {
+      const result = await validarCupom({
+        roteiroId, adicionaisIds, codigo, modalidade, diarias, pessoas, data,
+      });
+      if (cancelado) return;
+      if (result.ok) {
+        setCupomAplicado(result.cupom);
+      } else {
+        setCupomAplicado(null);
+        setErroCupom(`O cupom ${codigo} foi removido: ${result.error}`);
+      }
+    })();
+    return () => { cancelado = true; };
+    // Só reage à troca de opcionais.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [chaveOpcionais]);
 
   async function handleAplicarCupom() {
     if (validando || bloqueado || !cupomInput.trim()) return;

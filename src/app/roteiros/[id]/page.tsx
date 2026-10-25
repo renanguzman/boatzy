@@ -42,7 +42,7 @@ export default async function RoteiroDetalhePage({
       municipios ( nome, estados ( uf, nome ) ),
       roteiro_imagens ( id, url_imagem, titulo, principal, ordem ),
       roteiro_parada ( nome ),
-      embarcacao ( id, nome, capacidade, comprimento, comprimento_unidade, quartos, banheiros, tripulacao, modalidade_capitao,
+      embarcacao ( id, nome, capacidade, comprimento, comprimento_unidade, quartos, banheiros, tripulacao, modalidade_capitao, regras,
         embarcacao_tipo ( nome ),
         embarcacao_comodidades ( comodidade ( nome ) ),
         embarcacao_equipamentos_seguranca ( equipamentos_seguranca ( nome ) ),

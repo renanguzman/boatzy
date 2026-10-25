@@ -14,7 +14,8 @@ import {
 import BookingCard from './BookingCard';
 import RoteiroAcoes from './RoteiroAcoes';
 import EmbarcacaoFotosModal from './EmbarcacaoFotosModal';
-import EquipamentosEmbarcacao from './EquipamentosEmbarcacao';
+import EquipamentosEmbarcacao from '@/components/boat/EquipamentosEmbarcacao';
+import RegrasEmbarcacao from '@/components/boat/RegrasEmbarcacao';
 import OpcionaisRoteiro from './OpcionaisRoteiro';
 import { CartProvider } from './CartContext';
 import { DataReservaProvider } from './DataReservaContext';
@@ -23,6 +24,7 @@ import LocalizacaoRoteiro from './LocalizacaoRoteiro';
 import GaleriaRoteiro from './GaleriaRoteiro';
 import AvaliacoesSection, { type AvaliacaoPublica } from '@/components/avaliacoes/AvaliacoesSection';
 import { formatarComprimento } from '@/lib/comprimento';
+import { categoriasDaEmbarcacao } from '@/lib/embarcacao-itens';
 import { ordenarImagens } from '@/lib/galeria';
 import { capacidadeMaxima } from '@/lib/capacidade';
 import { horarioRetorno, retornoTexto } from '@/lib/duracao';
@@ -66,6 +68,8 @@ export type RoteiroDetalheDados = {
     banheiros: number | null;
     tripulacao: number | null;
     modalidade_capitao: string;
+    /** Regras a bordo definidas pelo dono (`embarcacao.regras`). */
+    regras: string[];
     embarcacao_tipo: { nome: string } | null;
     embarcacao_comodidades: { comodidade: { nome: string } | null }[];
     embarcacao_equipamentos_seguranca: { equipamentos_seguranca: { nome: string } | null }[];
@@ -343,7 +347,7 @@ export default function RoteiroDetalheView({
                   <h2 className="text-xl font-bold text-marinho mb-4">
                     Sobre a Embarcação
                   </h2>
-                  <div className="rounded-2xl border border-slate-100 p-5 bg-slate-50/50">
+                  <div className="rounded-2xl border border-slate-100 p-4 sm:p-5 bg-slate-50/50">
                     {/* Foto grande (abre a galeria) | nome, tipo, capitão e link p/ os outros roteiros */}
                     <div className="flex flex-col sm:flex-row gap-4 sm:gap-5 mb-5 min-w-0">
                       <EmbarcacaoFotosModal capa={fotoEmbarcacao} embarcacao={roteiro.embarcacao} />
@@ -402,35 +406,17 @@ export default function RoteiroDetalheView({
                       )}
                     </div>
 
-                    {/* Segurança, acessórios e comodidades: recolhidos num accordion, por categoria */}
-                    <EquipamentosEmbarcacao
-                      categorias={[
-                        {
-                          titulo: 'Equipamentos de Segurança',
-                          singular: 'item de segurança',
-                          plural: 'itens de segurança',
-                          icone: 'seguranca',
-                          itens: roteiro.embarcacao.embarcacao_equipamentos_seguranca.flatMap((ee) =>
-                            ee.equipamentos_seguranca ? [ee.equipamentos_seguranca.nome] : []),
-                        },
-                        {
-                          titulo: 'Acessórios da Embarcação',
-                          singular: 'acessório',
-                          plural: 'acessórios',
-                          icone: 'acessorios',
-                          itens: roteiro.embarcacao.embarcacao_acessorios.flatMap((ea) =>
-                            ea.acessorios ? [ea.acessorios.nome] : []),
-                        },
-                        {
-                          titulo: 'Comodidades a bordo',
-                          singular: 'comodidade',
-                          plural: 'comodidades',
-                          icone: 'comodidades',
-                          itens: roteiro.embarcacao.embarcacao_comodidades.flatMap((ec) =>
-                            ec.comodidade ? [ec.comodidade.nome] : []),
-                        },
-                      ]}
-                    />
+                    {/* O que a embarcação possui (segurança, acessórios, comodidades): accordion por categoria */}
+                    <div className="mt-5">
+                      <EquipamentosEmbarcacao categorias={categoriasDaEmbarcacao(roteiro.embarcacao)} />
+                    </div>
+
+                    {/* Regras a bordo do dono: sempre visíveis, em destaque (some sem regras) */}
+                    {roteiro.embarcacao.regras?.length > 0 && (
+                      <div className="mt-3">
+                        <RegrasEmbarcacao regras={roteiro.embarcacao.regras} />
+                      </div>
+                    )}
                   </div>
                 </div>
               )}

@@ -42,7 +42,7 @@ export default async function RoteirosDaEmbarcacaoPage({
   const { data, error } = await supabaseAdmin
     .from('embarcacao')
     .select(`
-      id, owner_id, nome, descricao, capacidade, comprimento, comprimento_unidade, quartos, banheiros, tripulacao,
+      id, owner_id, nome, descricao, capacidade, comprimento, comprimento_unidade, quartos, banheiros, tripulacao, regras,
       embarcacao_tipo ( nome ),
       municipios ( nome, estados ( uf ) ),
       embarcacao_comodidades ( comodidade ( nome ) ),

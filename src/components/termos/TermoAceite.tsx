@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
-  FileText, ShieldCheck, X, ChevronDown, Loader2, AlertCircle, CheckCircle2, Lock,
+  FileText, ShieldCheck, X, ChevronDown, Loader2, AlertCircle, CheckCircle2, Lock, Check, Fingerprint,
 } from 'lucide-react';
 import TermoMarkdown from './TermoMarkdown';
 import { conferirConfirmacaoDigitada } from '@/lib/termos/actions';
@@ -39,6 +39,24 @@ function mascararDocumento(v: string, tipo: 'cpf' | 'cnpj'): string {
     .replace(/^(\d{2})\.(\d{3})(\d)/, '$1.$2.$3')
     .replace(/\.(\d{3})(\d)/, '.$1/$2')
     .replace(/(\d{4})(\d)/, '$1-$2');
+}
+
+/**
+ * Prévia do documento esperado a partir da dica do servidor ("829..." / "1234..."): os dígitos
+ * conhecidos e o resto em pontos, já no formato — ex.: 829.•••.•••-••. Nunca revela mais que a dica.
+ */
+function previaDocumento(dica: string, tipo: 'cpf' | 'cnpj'): string {
+  const total = tipo === 'cpf' ? 11 : 14;
+  const c = (dica.replace(/\D/g, '').slice(0, total) + '•'.repeat(total)).slice(0, total).split('');
+  return tipo === 'cpf'
+    ? `${c.slice(0, 3).join('')}.${c.slice(3, 6).join('')}.${c.slice(6, 9).join('')}-${c.slice(9).join('')}`
+    : `${c.slice(0, 2).join('')}.${c.slice(2, 5).join('')}.${c.slice(5, 8).join('')}/${c.slice(8, 12).join('')}-${c.slice(12).join('')}`;
+}
+
+/** Valor digitado já tem o tamanho esperado (o conteúdo é conferido no servidor). */
+function confirmacaoCompleta(valor: string, tipo: 'cpf' | 'cnpj' | 'nome'): boolean {
+  if (tipo === 'nome') return valor.trim().split(/\s+/).length >= 2;
+  return valor.replace(/\D/g, '').length === (tipo === 'cpf' ? 11 : 14);
 }
 
 /**
@@ -183,28 +201,29 @@ export default function TermoAceite({ termo, aceite, onAceitar, finalidade, disa
       {/* ── Modal do documento ───────────────────────────────────────── */}
       {aberto && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center sm:p-4" role="dialog" aria-modal="true" aria-labelledby="termo-titulo">
-          <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm" onClick={() => !enviando && setAberto(false)} />
+          <div className="absolute inset-0 bg-slate-900/50 backdrop-blur-sm" onClick={() => !enviando && setAberto(false)} />
 
-          <div className="relative flex flex-col bg-white w-full h-full sm:h-auto sm:max-h-[92vh] sm:max-w-3xl sm:rounded-2xl shadow-2xl overflow-hidden">
-            {/* Cabeçalho formal */}
-            <header className="bg-marinho text-white px-5 sm:px-8 pt-5 pb-4 shrink-0">
+          <div className="relative flex flex-col bg-white w-full h-full sm:h-auto sm:max-h-[92vh] sm:max-w-3xl sm:rounded-3xl shadow-2xl overflow-hidden">
+            {/* Cabeçalho claro: título em destaque e metadados em pílulas */}
+            <header className="shrink-0 border-b border-slate-100 px-5 sm:px-8 pt-5 pb-4">
               <div className="flex items-start justify-between gap-4">
                 <div className="min-w-0">
-                  <p className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-[0.2em] text-turquesa/90">
-                    <ShieldCheck className="h-3.5 w-3.5" /> Boatzy · Documento para aceite
+                  <p className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-turquesa-escuro">
+                    <ShieldCheck className="h-3.5 w-3.5" /> Documento para aceite
                   </p>
-                  <h2 id="termo-titulo" className="mt-1.5 text-lg sm:text-xl font-bold leading-snug">{termo.titulo}</h2>
-                  <p className="mt-1 text-[11px] text-slate-300">
-                    Versão {termo.versao} · Vigente desde {fmtData(termo.publicadoEm)} · Código de verificação{' '}
-                    <span className="font-mono">{codigoVerificacao}</span>
-                  </p>
+                  <h2 id="termo-titulo" className="mt-1 text-lg sm:text-xl font-bold leading-snug text-marinho">{termo.titulo}</h2>
+                  <div className="mt-2 flex flex-wrap gap-1.5 text-[11px] text-slate-500">
+                    <span className="rounded-full bg-slate-100 px-2.5 py-0.5">Versão {termo.versao}</span>
+                    <span className="rounded-full bg-slate-100 px-2.5 py-0.5">Vigente desde {fmtData(termo.publicadoEm)}</span>
+                    <span className="rounded-full bg-slate-100 px-2.5 py-0.5">Código <span className="font-mono">{codigoVerificacao}</span></span>
+                  </div>
                 </div>
                 <button
                   type="button"
                   onClick={() => setAberto(false)}
                   disabled={enviando}
                   aria-label="Fechar"
-                  className="p-1.5 -mr-1.5 rounded-lg text-slate-300 hover:text-white hover:bg-white/10 transition shrink-0"
+                  className="p-2 -mr-2 rounded-full text-slate-400 hover:text-marinho hover:bg-slate-100 transition shrink-0"
                 >
                   <X className="h-5 w-5" />
                 </button>
@@ -231,85 +250,132 @@ export default function TermoAceite({ termo, aceite, onAceitar, finalidade, disa
               </p>
             </div>
 
-            {/* Rodapé de aceite */}
-            <footer className="shrink-0 border-t border-slate-200 bg-slate-50 px-5 sm:px-8 py-4 space-y-3">
-              {!rolouAteFim ? (
-                <button
-                  type="button"
-                  onClick={() => scrollRef.current?.scrollBy({ top: scrollRef.current.clientHeight * 0.85, behavior: 'smooth' })}
-                  className="w-full flex items-center justify-center gap-1.5 text-xs font-semibold text-slate-500 hover:text-marinho py-1 transition"
-                >
-                  <ChevronDown className="h-4 w-4 animate-bounce" />
-                  Leia o documento até o final para prosseguir ({Math.round(progresso * 100)}%)
-                </button>
-              ) : (
-                <>
-                  <label className="flex items-start gap-2.5 cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={concordo}
-                      onChange={(e) => setConcordo(e.target.checked)}
-                      className="mt-0.5 h-4 w-4 rounded border-slate-300 text-marinho focus:ring-marinho/30 cursor-pointer"
-                    />
-                    <span className="text-sm text-slate-700">
-                      Declaro que <strong>li integralmente</strong> e <strong>concordo</strong> com os termos acima.
-                    </span>
-                  </label>
+            {/* Rodapé de aceite: passos numerados, cada um com o próprio estado */}
+            <footer className="shrink-0 border-t border-slate-100 bg-white px-5 sm:px-8 pt-4 pb-5 shadow-[0_-12px_24px_-20px_rgb(14_47_79/0.35)]">
+              <p className="text-xs font-semibold uppercase tracking-wider text-marinho">Para concluir o aceite</p>
 
-                  {termo.confirmacao && (
-                    <div>
-                      <label htmlFor="termo-confirmacao" className="block text-xs font-medium text-slate-600 mb-1">
-                        Para confirmar sua identidade, digite {termo.confirmacao.rotulo}:
-                      </label>
-                      <p className="mb-1.5 text-xs text-slate-500">
-                        {termo.confirmacao.tipo === 'nome' ? 'Começa com' : 'Começa com os dígitos'}{' '}
-                        <strong className="font-mono text-slate-700">{termo.confirmacao.dica}</strong> — complete por
-                        inteiro{termo.confirmacao.tipo === 'nome' ? '.' : ', com ou sem máscara.'}
-                      </p>
-                      <input
-                        id="termo-confirmacao"
-                        type="text"
-                        autoComplete="off"
-                        inputMode={termo.confirmacao.tipo === 'nome' ? 'text' : 'numeric'}
-                        value={confirmacaoValor}
-                        onChange={(e) => {
-                          const tipo = termo.confirmacao!.tipo;
-                          setConfirmacaoValor(tipo === 'nome' ? e.target.value : mascararDocumento(e.target.value, tipo));
-                          setErro(null);
-                        }}
-                        onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); aceitar(); } }}
-                        placeholder={
-                          termo.confirmacao.tipo === 'cpf' ? '000.000.000-00'
-                          : termo.confirmacao.tipo === 'cnpj' ? '00.000.000/0000-00'
-                          : 'Nome completo'
-                        }
-                        className="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-grafite placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-marinho/20 focus:border-marinho/40 transition"
-                      />
-                    </div>
-                  )}
-                </>
-              )}
+              {/* ① Leitura */}
+              <div className="mt-2.5 flex items-center gap-2.5">
+                <Passo numero={1} feito={rolouAteFim} />
+                {rolouAteFim ? (
+                  <p className="text-sm text-slate-600">Documento lido até o final.</p>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => scrollRef.current?.scrollBy({ top: scrollRef.current.clientHeight * 0.85, behavior: 'smooth' })}
+                    className="flex items-center gap-1.5 text-sm font-semibold text-marinho hover:text-turquesa-escuro transition"
+                  >
+                    Leia o documento até o final ({Math.round(progresso * 100)}%)
+                    <ChevronDown className="h-4 w-4 animate-bounce" />
+                  </button>
+                )}
+              </div>
 
-              {erro && (
-                <p className="flex items-center gap-1.5 text-xs font-medium text-red-600" role="alert">
-                  <AlertCircle className="h-3.5 w-3.5 shrink-0" /> {erro}
+              {/* Celular: enquanto lê, só o passo 1 (sobra espaço para o texto) e um aviso do que vem depois */}
+              {!rolouAteFim && (
+                <p className="mt-1.5 pl-[34px] text-xs text-slate-500 sm:hidden">
+                  Depois: declarar que concorda{termo.confirmacao ? ` e confirmar ${termo.confirmacao.rotulo}` : ''}.
                 </p>
               )}
 
-              <div className="flex flex-col-reverse sm:flex-row sm:items-center gap-3 sm:justify-between">
-                <p className="flex items-start gap-1.5 text-[11px] leading-snug text-slate-400 sm:max-w-md">
+              <div className={`mt-3 gap-3 ${termo.confirmacao ? 'sm:grid-cols-2' : ''} ${rolouAteFim ? 'grid' : 'hidden sm:grid opacity-50 pointer-events-none select-none'}`}
+                aria-disabled={!rolouAteFim}>
+                {/* ② Declaração — o cartão inteiro é clicável */}
+                <label className={`flex items-start gap-3 rounded-2xl border-2 p-3.5 cursor-pointer transition-colors ${
+                  concordo ? 'border-turquesa bg-turquesa/[0.06]' : 'border-slate-200 hover:border-marinho/30'
+                }`}>
+                  <Passo numero={2} feito={concordo} />
+                  <span className="min-w-0 flex-1">
+                    <span className="block text-sm font-semibold text-marinho">Declare que leu e concorda</span>
+                    <span className="mt-1 flex items-start gap-2 text-sm text-slate-600">
+                      <input
+                        type="checkbox"
+                        checked={concordo}
+                        disabled={!rolouAteFim}
+                        onChange={(e) => setConcordo(e.target.checked)}
+                        className="mt-0.5 h-4 w-4 shrink-0 rounded border-slate-300 accent-marinho focus:ring-marinho/30 cursor-pointer"
+                      />
+                      <span>Li <strong>integralmente</strong> e <strong>concordo</strong> com os termos acima.</span>
+                    </span>
+                  </span>
+                </label>
+
+                {/* ③ Identidade — instrução em destaque, prévia do documento esperado e estado de completo */}
+                {termo.confirmacao && (() => {
+                  const tipo = termo.confirmacao.tipo;
+                  const completo = confirmacaoCompleta(confirmacaoValor, tipo);
+                  return (
+                    <div className={`rounded-2xl border-2 p-3.5 transition-colors ${
+                      completo ? 'border-turquesa bg-turquesa/[0.06]' : 'border-marinho/25 bg-marinho/[0.02]'
+                    }`}>
+                      <div className="flex items-start gap-3">
+                        <Passo numero={3} feito={completo} />
+                        <div className="min-w-0 flex-1">
+                          <label htmlFor="termo-confirmacao" className="block text-sm font-semibold text-marinho">
+                            {tipo === 'cpf' ? 'Digite seu CPF completo' : tipo === 'cnpj' ? 'Digite o CNPJ completo' : 'Digite seu nome completo'}
+                          </label>
+                          <p className="mt-0.5 text-xs text-slate-500">
+                            Para confirmar que é você.{' '}
+                            {tipo === 'nome' ? 'Como está no cadastro, começando por' : 'Começa com'}{' '}
+                            <span className="inline-block rounded-md bg-destaque/30 px-1.5 py-px font-mono font-semibold text-marinho">
+                              {tipo === 'nome' ? termo.confirmacao.dica : previaDocumento(termo.confirmacao.dica, tipo)}
+                            </span>
+                          </p>
+                        </div>
+                      </div>
+                      <div className="relative mt-2.5">
+                        <Fingerprint className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+                        <input
+                          id="termo-confirmacao"
+                          type="text"
+                          autoComplete="off"
+                          disabled={!rolouAteFim}
+                          inputMode={tipo === 'nome' ? 'text' : 'numeric'}
+                          value={confirmacaoValor}
+                          onChange={(e) => {
+                            setConfirmacaoValor(tipo === 'nome' ? e.target.value : mascararDocumento(e.target.value, tipo));
+                            setErro(null);
+                          }}
+                          onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); aceitar(); } }}
+                          placeholder={tipo === 'cpf' ? '000.000.000-00' : tipo === 'cnpj' ? '00.000.000/0000-00' : 'Nome completo'}
+                          className={`w-full rounded-xl border bg-white pl-10 pr-10 py-3 text-base font-medium tracking-wide text-grafite placeholder:font-normal placeholder:tracking-normal placeholder:text-slate-300 focus:outline-none focus:ring-2 transition ${
+                            erro ? 'border-red-300 focus:ring-red-200' : 'border-slate-300 focus:ring-marinho/20 focus:border-marinho/50'
+                          }`}
+                        />
+                        {completo && (
+                          <CheckCircle2 className="pointer-events-none absolute right-3.5 top-1/2 h-5 w-5 -translate-y-1/2 text-turquesa-escuro" />
+                        )}
+                      </div>
+                    </div>
+                  );
+                })()}
+              </div>
+
+              {erro && (
+                <p className="mt-3 flex items-center gap-1.5 text-sm font-medium text-red-600" role="alert">
+                  <AlertCircle className="h-4 w-4 shrink-0" /> {erro}
+                </p>
+              )}
+
+              <div className="mt-4 flex flex-col-reverse sm:flex-row sm:items-center gap-3 sm:justify-between">
+                <p className="flex items-start gap-1.5 text-[11px] leading-snug text-slate-400 sm:max-w-sm">
                   <Lock className="h-3 w-3 shrink-0 mt-0.5" />
                   Como comprovante deste aceite eletrônico, registramos data, hora, IP, dispositivo e
                   localização, conforme nossa Política de Privacidade.
                 </p>
+                {/* O botão diz o que falta enquanto não dá para aceitar */}
                 <button
                   type="button"
                   onClick={aceitar}
                   disabled={!podeAceitar || enviando}
-                  className="shrink-0 flex items-center justify-center gap-2 rounded-xl bg-marinho hover:bg-marinho-escuro text-white text-sm font-semibold px-6 py-2.5 transition shadow-md shadow-marinho/10 disabled:opacity-40 disabled:cursor-not-allowed"
+                  className="shrink-0 flex items-center justify-center gap-2 rounded-xl bg-marinho hover:bg-marinho-escuro text-white text-sm font-semibold px-6 py-3 transition shadow-md shadow-marinho/15 disabled:bg-slate-200 disabled:text-slate-500 disabled:shadow-none disabled:cursor-not-allowed"
                 >
                   {enviando ? <Loader2 className="h-4 w-4 animate-spin" /> : <ShieldCheck className="h-4 w-4" />}
-                  Li e aceito
+                  {enviando ? 'Confirmando…'
+                    : !rolouAteFim ? 'Leia até o fim'
+                    : !concordo ? 'Marque a declaração'
+                    : termo.confirmacao && !confirmacaoValor.trim() ? `Digite ${termo.confirmacao.rotulo}`
+                    : 'Li e aceito'}
                 </button>
               </div>
             </footer>
@@ -317,5 +383,19 @@ export default function TermoAceite({ termo, aceite, onAceitar, finalidade, disa
         </div>
       )}
     </>
+  );
+}
+
+/** Número do passo no rodapé do aceite; vira um check quando concluído. */
+function Passo({ numero, feito }: { numero: number; feito: boolean }) {
+  return (
+    <span
+      aria-hidden
+      className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-xs font-bold transition-colors ${
+        feito ? 'bg-turquesa-escuro text-white' : 'bg-marinho/10 text-marinho'
+      }`}
+    >
+      {feito ? <Check className="h-3.5 w-3.5" strokeWidth={3} /> : numero}
+    </span>
   );
 }

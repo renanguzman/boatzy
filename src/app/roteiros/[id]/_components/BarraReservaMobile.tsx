@@ -7,7 +7,7 @@ type Props = {
   rotulo: string;
   /** Valor já formatado; null = "Consulte o preço". */
   valor: string | null;
-  /** "/passeio" ou "/diária". */
+  /** "/passeio", "/diária", "com opcionais" ou "total (N diárias)". */
   unidade: string;
   /** Texto do botão: "Ver datas" sem data, "Reservar" com data. */
   acao: string;
@@ -53,7 +53,9 @@ export default function BarraReservaMobile({ rotulo, valor, unidade, acao, onAca
           <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-500 truncate">{rotulo}</p>
           {valor ? (
             <p className="leading-tight">
-              <span className="text-lg font-bold text-marinho">{valor}</span>
+              {/* `key`: ao mudar o valor (ex.: opcional adicionado), o número entra de novo com uma
+                  animação curta — o cliente percebe que o total foi atualizado. */}
+              <span key={valor} className="inline-block text-lg font-bold text-marinho animate-aviso">{valor}</span>
               <span className="ml-1 text-xs text-slate-500">{unidade}</span>
             </p>
           ) : (

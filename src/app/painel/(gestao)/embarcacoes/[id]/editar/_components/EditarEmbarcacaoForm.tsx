@@ -4,7 +4,7 @@ import { useState, useTransition, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import {
   Info, ClipboardCheck, Ruler, MapPin, ImageIcon, Sparkles,
-  Loader2, AlertCircle, CheckCircle, ShieldCheck, Waves,
+  Loader2, AlertCircle, CheckCircle, ShieldCheck, Waves, ScrollText,
 } from 'lucide-react';
 import GaleriaImagensEditor, { itensDeImagensSalvas, type GaleriaItem } from '@/components/painel/GaleriaImagensEditor';
 import { enviarFotosNovas, mensagemFalhaEnvio, MENSAGEM_SEM_FOTOS } from '@/lib/galeria-upload';
@@ -22,6 +22,8 @@ import {
   getMunicipiosByEstado,
 } from '../../../novo/actions';
 import MapaPicker from '../../../novo/_components/MapaPicker';
+import RegrasInput from '@/components/painel/RegrasInput';
+import { normalizarRegras } from '@/lib/embarcacao-regras';
 import type { EmbarcacaoStatus, ModalidadeCapitao } from '@/types/supabase';
 import ConfirmarNovaAnaliseModal from '@/components/publicacao/ConfirmarNovaAnaliseModal';
 import { COMPRIMENTO_UNIDADES, type ComprimentoUnidade } from '@/lib/comprimento';
@@ -58,6 +60,8 @@ type EmbarcacaoData = {
   latitude: number | null; longitude: number | null;
   cep: string | null; bairro: string | null; logradouro: string | null;
   logradouro_numero: string | null; complemento: string | null;
+  /** Regras a bordo (`embarcacao.regras`), na ordem de exibição. */
+  regras: string[];
   embarcacao_imagens: { id: string; url_imagem: string; titulo: string | null; principal: boolean; ordem: number }[];
 };
 
@@ -133,7 +137,7 @@ export default function EditarEmbarcacaoForm({
   const numeroInputRef = useRef<HTMLInputElement>(null);
 
   // ── Form base ──────────────────────────────────────────────────────────────
-  const [form, setForm] = useState<Omit<AtualizarEmbarcacaoPayload, 'municipio_id'> & {
+  const [form, setForm] = useState<Omit<AtualizarEmbarcacaoPayload, 'municipio_id' | 'regras'> & {
     municipio_id: string; estado_id: string;
   }>({
     nome:        embarcacao.nome,
@@ -162,6 +166,9 @@ export default function EditarEmbarcacaoForm({
   const [loadingMunicipios, setLoadingMunicipios] = useState(false);
   const [cepLoading, setCepLoading]               = useState(false);
   const [cepError,   setCepError]                 = useState<string | null>(null);
+
+  // ── Regras a bordo (tags) ──────────────────────────────────────────────────
+  const [regras, setRegras] = useState<string[]>(embarcacao.regras ?? []);
 
   // ── Equipamentos de segurança ──────────────────────────────────────────────
   const [equipamentosSelecionados, setEquipamentosSelecionados] = useState<string[]>(equipamentosSegurancaIniciais);
@@ -219,6 +226,7 @@ export default function EditarEmbarcacaoForm({
         form, tipos, estados, municipios, comodidades, comodidadesSelecionadas,
         equipamentosSeguranca, equipamentosSegurancaSelecionados: equipamentosSelecionados,
         acessorios, acessoriosSelecionados,
+        regras,
         imagens,
       })
     : null;
@@ -335,6 +343,9 @@ export default function EditarEmbarcacaoForm({
     ) campos.push('localizacao');
     const idsMantidos = new Set(imagens.map(i => i.id).filter(Boolean));
     if (imagens.some(i => i.file) || embarcacao.embarcacao_imagens.some(i => !idsMantidos.has(i.id))) campos.push('fotos');
+    // Regras: incluir/alterar reenvia para análise; zerar a lista não (mesma regra do snapshot no banco).
+    const regrasNovas = normalizarRegras(regras);
+    if (regrasNovas.length > 0 && regrasNovas.join('\n') !== (embarcacao.regras ?? []).join('\n')) campos.push('regras');
     return campos;
   }
 
@@ -389,6 +400,7 @@ export default function EditarEmbarcacaoForm({
       latitude: form.latitude, longitude: form.longitude,
       cep: form.cep, bairro: form.bairro, logradouro: form.logradouro,
       logradouro_numero: form.logradouro_numero, complemento: form.complemento,
+      regras,
     });
 
     if (!result.ok) {
@@ -531,6 +543,15 @@ export default function EditarEmbarcacaoForm({
               value={form.banheiros} onChange={e => setField('banheiros', e.target.value)} />
           </Field>
         </div>
+      </SectionCard>
+
+      {/* ── Regras a bordo (definidas pelo dono; aparecem em destaque no site) ─ */}
+      <SectionCard icon={ScrollText} title="Regras a bordo">
+        <p className="text-xs text-slate-400 mb-4">
+          Regras que os passageiros devem respeitar durante o passeio (ex.: proibido fumar, não é permitido
+          levar animais). Elas aparecem em destaque na página da embarcação e dos roteiros.
+        </p>
+        <RegrasInput value={regras} onChange={setRegras} />
       </SectionCard>
 
       {/* ── 3. Equipamentos de segurança ──────────────────────────────────── */}

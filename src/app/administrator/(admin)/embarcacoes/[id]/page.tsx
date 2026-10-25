@@ -25,7 +25,7 @@ export default async function AdminRevisaoEmbarcacaoPage({ params }: { params: P
     .from('embarcacao')
     .select(`
       id, owner_id, nome, descricao, status, modalidade_capitao, capacidade, comprimento, comprimento_unidade,
-      quartos, banheiros, tripulacao, cep, bairro, logradouro, logradouro_numero, complemento,
+      quartos, banheiros, tripulacao, cep, bairro, logradouro, logradouro_numero, complemento, regras,
       created_at, enviado_analise_em, aprovado_em, primeira_aprovacao_em, revisao,
       embarcacao_tipo ( nome ),
       municipios ( nome, estados ( uf ) ),
@@ -83,6 +83,7 @@ export default async function AdminRevisaoEmbarcacaoPage({ params }: { params: P
               { label: 'Banheiros', valor: emb.banheiros, chave: 'banheiros' },
               { label: 'Tripulação', valor: emb.tripulacao, chave: 'tripulacao' },
               { label: 'Localização', valor: [endereco, mun ? `${mun.nome}${mun.estados ? ` / ${mun.estados.uf}` : ''}` : null, emb.cep].filter(Boolean).join(' · ') || null, chave: 'localizacao', largo: true },
+              { label: 'Regras a bordo', valor: (emb.regras as string[] | null)?.length ? (emb.regras as string[]).join(' · ') : null, chave: 'regras', largo: true },
               { label: 'Comodidades', valor: nomes<{ comodidade: { nome: string } | null }>(emb.embarcacao_comodidades, r => r.comodidade?.nome), largo: true },
               { label: 'Acessórios', valor: nomes<{ acessorios: { nome: string } | null }>(emb.embarcacao_acessorios, r => r.acessorios?.nome), largo: true },
               { label: 'Equipamentos de segurança', valor: nomes<{ equipamentos_seguranca: { nome: string } | null }>(emb.embarcacao_equipamentos_seguranca, r => r.equipamentos_seguranca?.nome), largo: true },

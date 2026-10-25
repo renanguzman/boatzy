@@ -4,6 +4,7 @@ import { createClient } from '@/lib/supabase/server';
 import { supabaseAdmin } from '@/lib/supabase';
 import { checkRoleInDb } from '@/lib/roles';
 import { verificarEdicaoSensivel } from '@/lib/publicacao/server';
+import { normalizarRegras } from '@/lib/embarcacao-regras';
 import type { ModalidadeCapitao } from '@/types/supabase';
 import { isComprimentoUnidade, type ComprimentoUnidade } from '@/lib/comprimento';
 import { normalizarTituloImagem } from '@/lib/galeria';
@@ -36,6 +37,8 @@ export type CriarEmbarcacaoPayload = {
   logradouro: string;
   logradouro_numero: string;
   complemento: string;
+  /** Regras a bordo (tags); normalizadas no servidor (`normalizarRegras`). */
+  regras: string[];
 };
 
 export type CriarEmbarcacaoResult =
@@ -96,6 +99,7 @@ export async function criarEmbarcacao(
       logradouro: payload.logradouro.trim() || null,
       logradouro_numero: payload.logradouro_numero.trim() || null,
       complemento: payload.complemento.trim() || null,
+      regras: normalizarRegras(payload.regras),
     })
     .select('id')
     .single();

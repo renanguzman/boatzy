@@ -2032,6 +2032,96 @@ permissão de localização, não fazia nada.
   mesmo campo. Detalhes técnicos: `SPEC.md` §55. *(Capacidade e Embarcação saíram da linha em
   24/10/2026 — ver abaixo.)*
 
+### ✅ Modal de aceite dos termos — mais limpa e com passos claros (25/10/2026)
+
+- **Cabeçalho claro** (sem a faixa marinho): "Documento para aceite", título em destaque e versão,
+  vigência e código de verificação em pílulas discretas; barra de progresso da leitura logo abaixo.
+- **Rodapé "Para concluir o aceite"** com **passos numerados** que viram ✓ quando concluídos:
+  ① ler o documento até o final (com a porcentagem lida e atalho para rolar); ② **declarar que leu e
+  concorda** (o cartão inteiro é clicável); ③ **confirmar a identidade** — cartão em destaque com o título
+  em negrito "Digite seu CPF completo" (ou CNPJ/nome, conforme o cadastro), "Para confirmar que é você.
+  Começa com **829.•••.•••-••**" (início do documento em destaque, nunca o número inteiro), campo maior
+  com ✓ quando o número está completo e borda vermelha se não conferir.
+- **O botão diz o que falta:** "Leia até o fim" → "Marque a declaração" → "Digite seu CPF" → "Li e aceito".
+- **Celular:** enquanto a pessoa lê, só o passo 1 aparece (com "Depois: declarar que concorda e confirmar
+  seu CPF"), para sobrar espaço ao texto; ao terminar a leitura surgem os passos 2 e 3. No computador os
+  três ficam visíveis, com 2 e 3 travados até o fim da leitura. Regras de aceite e evidências
+  registradas não mudaram. Detalhes técnicos: `SPEC.md` §86.
+
+### ✅ Confirmação da reserva — adicionar ou retirar opcionais (25/10/2026)
+
+- Na tela **Confirmar solicitação de reserva** (`/reservas/novo`), a lista fixa "Adicionais
+  selecionados" virou **"Opcionais do passeio"**: mostra **todos** os opcionais do roteiro, com os
+  escolhidos no roteiro já marcados, e cada um tem o botão **"+ Adicionar"** / **"✓ Adicionado"** (no
+  computador, ao passar o mouse, vira "Retirar"). Contador "N de M adicionados".
+- O resumo de valores (linha "Adicionais" e **Total estimado**) atualiza na hora. O endereço da página
+  acompanha a seleção, então recarregar não perde as escolhas.
+- **Cupom:** se já houver um cupom aplicado e o cliente mudar os opcionais, o cupom é **revalidado
+  automaticamente** com o novo total (o desconto sai da comissão, que depende do total); se deixar de
+  valer, é removido com o aviso "O cupom X foi removido: …".
+- O servidor continua recalculando opcionais, valores e cupom a partir dos ids ao enviar a solicitação
+  (o navegador só escolhe quais). Detalhes técnicos: `SPEC.md` §85.
+
+### ✅ Barra fixa de reserva (celular) soma os opcionais (25/10/2026)
+
+- Correção: ao adicionar opcionais, o valor da barra fixa do rodapé (celular) não mudava — mostrava só
+  o preço do passeio. Agora ela mostra sempre o que o cliente vai pagar: com data escolhida, o mesmo
+  **Total** do card de reserva (passeio + opcionais); sem data, o "a partir de" somado aos opcionais
+  já adicionados. Com opcionais, a unidade vira "com opcionais"; o número faz uma animação curta ao
+  mudar, para o cliente perceber a atualização. Detalhes técnicos: `SPEC.md` §84.
+
+### ✅ Calendário de reserva — separação entre os meses (25/10/2026)
+
+- No calendário do card de reserva (detalhe do roteiro), os dois meses lado a lado ganharam um **filete
+  vertical** entre eles e o nome de cada mês passou a ficar numa **faixa** suave; a faixa do mês em que
+  está a **data escolhida** fica em destaque (marinho, texto branco), deixando claro em qual mês se
+  marcou. No celular segue um mês por vez. Detalhes técnicos: `SPEC.md` §83.
+
+### ✅ Regras a bordo da embarcação (25/10/2026)
+
+- **Painel (cadastro e edição da embarcação), step Detalhes:** nova seção **"Regras a bordo"**, entre
+  "Especificações técnicas" e "Equipamentos de Segurança". O dono escreve as regras que os passageiros
+  devem respeitar (ex.: "Proibido fumar a bordo", "Não é permitido levar animais") num campo de
+  **tags**: cada regra vira uma etiqueta ao pressionar **Enter** ou digitar **ponto e vírgula (;)**;
+  colar um texto com ";" ou várias linhas cria várias de uma vez; o × remove; Backspace com o campo
+  vazio apaga a última; sair do campo guarda o que estava digitado. Até **20 regras** de até **120
+  caracteres**; repetidas são ignoradas. Cada dono define as suas (por embarcação). Vale também para a
+  edição feita pelo admin.
+- **No site:** as regras aparecem **sempre visíveis**, logo abaixo de "O que esta embarcação possui",
+  no **detalhe do roteiro** (dentro de "Sobre a Embarcação") e na **página da embarcação**: bloco
+  "Regras a bordo" com cada regra em **vermelho** e ícone de proibido (cor de alerta, fora da paleta
+  de marca). Sem regras, o bloco não aparece. Também na pré-visualização do painel.
+- **Aprovação:** regras são texto livre e público, então contam como **alteração sensível** (como a
+  descrição): incluir ou alterar regras de uma embarcação aprovada a devolve para análise do admin, com
+  o aviso de confirmação antes de salvar; na revisão, o admin vê a linha "Regras a bordo" destacada
+  quando mudou. Remover **todas** as regras não reenvia para análise (só tira conteúdo do site).
+- Migration `supabase/migrations/20261025_embarcacao_regras.sql` **aplicada** no Supabase (25/10/2026).
+  Detalhes técnicos: `SPEC.md` §82.
+
+### ✅ "O que esta embarcação possui" — novo título e mesmo bloco na página da embarcação (25/10/2026)
+
+- O bloco recolhível passou a se chamar **"O que esta embarcação possui (clique para expandir):"**;
+  aberto, a dica muda para "(clique para recolher)". (Grafia "possui", sem acento — presente do verbo.)
+- A **página da embarcação** (`/embarcacoes/[id]`) trocou as três seções abertas (Equipamentos de
+  Segurança, Acessórios da Embarcação, Comodidades a bordo, em cartões grandes) pelo **mesmo bloco** do
+  detalhe do roteiro: fechado com o resumo das quantidades e, aberto, placas por categoria com ícone por
+  item. Fica depois de "Roteiros desta embarcação". Aberto ocupa ~592px no computador e ~847px no
+  celular. Detalhes técnicos: `SPEC.md` §81.
+
+### ✅ Detalhe do roteiro — "Equipamentos e Acessórios" mais compacto e com ícones (25/10/2026)
+
+- O conteúdo aberto do bloco "Equipamentos e Acessórios da embarcação" foi redesenhado (inspirado no
+  "O que está incluído" de um concorrente): cada categoria — Equipamentos de Segurança, Acessórios da
+  Embarcação, Comodidades a bordo — vira uma **placa suave** com um ponto de cor (marinho, turquesa e
+  amarelo), o título e a contagem; os itens ficam em **grade de 3 colunas no computador e 2 no
+  celular**, cada um com um **ícone próprio** (colete/boia, âncora, extintor, GPS, rádio, kit de
+  primeiros socorros, cooler, snorkel, ar-condicionado, micro-ondas, toldo…). Itens cujo nome não
+  corresponde a nenhum ícone conhecido aparecem com um check.
+- Ocupa bem menos espaço aberto: **925 → 610px no computador (−34%)** e **1.557 → 901px no celular
+  (−42%)**. O cabeçalho fechado, o resumo e a animação de abrir não mudaram.
+- Junto: no celular, o card "Sobre a Embarcação" ficou com margem interna um pouco menor, para sobrar
+  largura aos itens. Detalhes técnicos: `SPEC.md` §80.
+
 ### ✅ Detalhe do roteiro — ajustes nos opcionais e no card de reserva (24/10/2026)
 
 - **"Turbine seu passeio" vem antes de "Sobre a Embarcação"** (logo depois das informações do passeio).

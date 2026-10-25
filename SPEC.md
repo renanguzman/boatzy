@@ -7378,3 +7378,190 @@ Arquivos em `src/app/roteiros/[id]/_components/` salvo indicação. Breakpoint "
   Filtrado" → Adicionais R$ 92, Total R$ 9.292; seletor de pessoas aberto → toque fora → fechado. Sem
   erro de console.
 
+## 80. `EquipamentosEmbarcacao` — placas por categoria, grade compacta e ícone por item (25/10/2026)
+
+Substitui o layout "ficha técnica" do conteúdo aberto (§74, revisão de 24/10). Cabeçalho, resumo,
+`aria-*`, `inert` e a expansão por `grid-rows` seguem iguais.
+
+- **Cor por categoria:** `ESTILO` (antes `ICONES`) indexado pela mesma chave `icone` da prop
+  (`'seguranca' | 'acessorios' | 'comodidades'` — `RoteiroDetalheView` não mudou): ponto `bg-marinho` /
+  `bg-turquesa` / `bg-destaque`; ícones `text-marinho` / `text-turquesa-escuro` / `text-turquesa-escuro`
+  (amarelo só no ponto — ícone amarelo sobre fundo claro não teria contraste).
+- **Ícone por item:** `ICONE_POR_NOME: [RegExp, LucideIcon][]` testado sobre o nome sem acento e em
+  minúsculas (`normalize('NFD')` + remoção de `\u0300–\u036f`), primeira regra que casa; sem regra →
+  `Check`. Ordem do mais específico ao geral (ex.: `frigobar` → `Refrigerator` antes de `cooler|termica|gelo`
+  → `Snowflake`; `escada` e `snorkel` antes de `mergulho`; `\bsom\b`, `\btv\b`, `\bwc\b`, `\bsup\b`
+  com fronteira de palavra). Cobre os 32 itens atuais do catálogo (Âncora → `Anchor`, Boia/Colete →
+  `LifeBuoy`, Bomba de Porão → `Droplets`, Detector de Monóxido → `Siren`, Sinalizador de Fumaça →
+  `CloudFog`, Sinalizador Luminoso → `Flashlight`, Toalhas → `Shirt`, Toldo → `Umbrella` etc.) e
+  prevê termos comuns ainda não cadastrados (chuveiro, Wi-Fi, TV, cabine, vinho, cerveja, água).
+- **Layout aberto:** contêiner `border-t p-2 sm:p-4 space-y-2 sm:space-y-3`; por categoria
+  `<section className="rounded-xl bg-slate-50/80 px-2.5 py-3 sm:px-4">` com `<h3>` = ponto `h-2 w-2` +
+  título `text-[13px] font-semibold text-marinho` + "N itens" (`ml-auto text-[11px] text-slate-400`);
+  `<ul className="grid grid-cols-2 sm:grid-cols-3 gap-x-3 sm:gap-x-4 gap-y-2.5">`, `<li>` `flex
+  items-start gap-2 text-[13px] leading-snug text-slate-700` com ícone `h-4 w-4 strokeWidth 1.75` (sem
+  filetes entre linhas; nomes longos quebram em 2 linhas).
+- **`RoteiroDetalheView`:** card "Sobre a Embarcação" `p-5` → `p-4 sm:p-5`.
+- **Testes:** `tsc`/`eslint` limpos; altura do bloco aberto (cabeçalho + conteúdo) 925 → 610px em
+  1366px e 1.557 → 901px em 390px; mapeamento conferido nos 32 itens; sem erro de console.
+
+## 81. Bloco "O que esta embarcação possui" compartilhado (roteiro + embarcação) (25/10/2026)
+
+- **Arquivo movido:** `src/app/roteiros/[id]/_components/EquipamentosEmbarcacao.tsx` →
+  **`src/components/boat/EquipamentosEmbarcacao.tsx`** (mesmo componente, props e visual de §74/§80).
+  Raiz sem margem própria (o `mt-5` saiu; quem usa decide o espaçamento).
+- **Título:** "O que esta embarcação possui" + `<span class="font-normal text-slate-500">` "(clique para
+  expandir):" / "(clique para recolher):" conforme `aberto`. O nome acessível do botão acompanha o texto.
+- **Novo `src/lib/embarcacao-itens.ts`:** `categoriasDaEmbarcacao(e)` recebe os joins
+  `embarcacao_equipamentos_seguranca` / `embarcacao_acessorios` / `embarcacao_comodidades` e devolve as
+  três `CategoriaEquipamentos` (títulos, singular/plural, chave de cor, `itens` sem joins nulos). Puro —
+  usado em Server Components (só importa o tipo do componente client).
+- **`RoteiroDetalheView`:** monta com `categoriasDaEmbarcacao(roteiro.embarcacao)` dentro de
+  `<div className="mt-5">` (antes, array literal na própria view).
+- **`EmbarcacaoItensSection`** (`src/app/embarcacoes/[id]/_components/EmbarcacaoInfoSection.tsx`):
+  em vez das três seções `mb-10` com `<h2>` e grade de cartões `CheckCircle2`, renderiza
+  `<div className="mb-10"><EquipamentosEmbarcacao categorias={categoriasDaEmbarcacao(embarcacao)} /></div>`.
+  Imports `CheckCircle2`, `ShieldCheck`, `Waves` removidos. Posição na página inalterada (depois do
+  carrossel "Roteiros desta embarcação").
+- **Testes:** `tsc`/`eslint` limpos; roteiro: botão "O que esta embarcação possui (clique para
+  expandir): | 12 itens de segurança · 7 acessórios · 13 comodidades" → após clique "(clique para
+  recolher)"; embarcação: `<h2>` restantes só "Roteiros desta embarcação", bloco aberto 592px (1366) /
+  847px (390). Sem erro de console.
+
+## 82. Regras a bordo da embarcação (`embarcacao.regras`) (25/10/2026)
+
+**Banco — `supabase/migrations/20261025_embarcacao_regras.sql`:**
+- `embarcacao.regras text[] NOT NULL DEFAULT '{}'` + `CHECK (cardinality(regras) <= 20)`
+  (`embarcacao_regras_limite`). Coluna em tabela existente — sem GRANT novo.
+- `publicacao_snapshot` recriada (mesma definição de `20261013b_publicacao_pipeline.sql`) com
+  `|| CASE WHEN cardinality(e.regras) > 0 THEN jsonb_build_object('regras', to_jsonb(e.regras)) ELSE
+  '{}' END` no ramo `embarcacao`. A chave só existe com regras porque `publicacao_campos_alterados`
+  itera as chaves do snapshot atual e compara com `snapshot_aprovado`; uma chave sempre presente
+  (`null`/`[]`) marcaria toda embarcação aprovada antes da migration como alterada. Consequência:
+  zerar a lista não é detectado como edição sensível.
+- **Aplicar no Supabase antes de usar** (sem a coluna, os selects com `regras` retornam erro → 404).
+
+**Normalização — `src/lib/embarcacao-regras.ts`:** `MAX_REGRAS = 20`, `MAX_CARACTERES_REGRA = 120`;
+`normalizarRegra` (colapsa espaços, trim, corta em 120), `separarRegras` (split por `;` e `\n`),
+`normalizarRegras(lista: unknown)` (só strings, sem vazias, dedupe sem diferenciar caixa, até 20).
+Usada no componente, nas actions (o servidor não confia no cliente) e na prévia.
+
+**Painel:**
+- **`src/components/painel/RegrasInput.tsx`** (client, `{ value: string[]; onChange }`): contêiner
+  `rounded-xl border` com tags `bg-red-50 border-red-100 text-red-700` + `Ban` + botão × (`aria-label`);
+  `<input>` com Enter → confirma; `;` digitado fecha as partes anteriores; colar com `;`/quebra de linha
+  → `separarRegras`; Backspace vazio → remove a última; `onBlur` → confirma o texto pendente;
+  desabilitado com 20; ajuda + contador "N/20" (`aria-describedby`). Enter não envia o formulário
+  (`preventDefault` no input; o form já bloqueia Enter em inputs).
+- **`NovaEmbarcacaoForm` / `EditarEmbarcacaoForm`:** estado `regras` (edição: `embarcacao.regras`),
+  `SectionCard icon={ScrollText} title="Regras a bordo"` entre Especificações técnicas e Equipamentos
+  de Segurança (step Detalhes); enviado em `criarEmbarcacao`/`atualizarEmbarcacao` e passado a
+  `montarPreviewEmbarcacao`. Tipos do estado do form com `Omit<…, 'regras'>`. Na edição,
+  `camposSensiveisAlterados()` inclui `'regras'` quando a lista normalizada não é vazia e difere da
+  salva (espelha o snapshot) → modal "voltará para análise".
+- **Actions:** `CriarEmbarcacaoPayload` / `AtualizarEmbarcacaoPayload` ganham `regras: string[]`;
+  insert/update gravam `normalizarRegras(payload.regras)`.
+- Selects de edição com `regras`: `/painel/embarcacoes/[id]/editar/page.tsx` e
+  `/administrator/embarcacoes/[id]/editar/page.tsx` (repassam via `...emb`).
+
+**Admin — revisão (`/administrator/embarcacoes/[id]`):** select com `regras`; linha "Regras a bordo"
+(`join(' · ')`, `chave: 'regras'`, destacada quando alterada). `CAMPO_SENSIVEL_LABEL.regras = 'Regras a bordo'`.
+
+**Site:**
+- **`src/components/boat/RegrasEmbarcacao.tsx`** (server-safe, `{ regras }`; `null` sem regras):
+  `<section aria-label>` `rounded-xl border-red-100`; cabeçalho `bg-red-50/60` com `ShieldAlert
+  text-red-600`, "Regras a bordo" (`text-marinho`) e contagem; `<ul divide-y>` com `Ban text-red-500` +
+  texto `text-sm text-red-700`.
+- `RoteiroDetalheView`: logo abaixo de `EquipamentosEmbarcacao`, dentro de "Sobre a Embarcação"
+  (`mt-3`); `RoteiroDetalheDados.embarcacao.regras: string[]`; select do roteiro (`embarcacao ( …,
+  regras, … )`) e da prévia (`src/lib/preview-actions.ts`).
+- `EmbarcacaoItensSection` (página da embarcação): abaixo do bloco recolhível (`mt-3`);
+  `EmbarcacaoInfo.regras: string[]`; select de `/embarcacoes/[id]/roteiros/page.tsx`.
+- `montarPreviewEmbarcacao`: novo arg `regras` → `embarcacao.regras = normalizarRegras(regras)`.
+- `src/types/supabase.ts`: `regras` em Row/Insert/Update de `embarcacao`.
+
+**Testes:** `tsc`/`eslint` limpos. Migration aplicada (25/10/2026): `select('id, regras')` ok; `/roteiros/[id]` e
+`/embarcacoes/[id]/roteiros` → 200 (sem regras cadastradas, o bloco não aparece). Exibição com regras e
+o campo de tags no painel dependem de cadastro pelo gestor (não testados com dados reais).
+
+## 83. `CalendarioReserva` — separação entre os meses (25/10/2026)
+
+- Grade dos meses: com `meses === 2`, `sm:grid-cols-2 sm:gap-0`; 1º mês `sm:pr-5`, 2º `hidden sm:block
+  sm:border-l sm:border-slate-200 sm:pl-5` (filete vertical). Celular: um mês por vez (inalterado).
+- `Mes`: nome do mês numa faixa `mb-2 rounded-lg py-1.5 text-center text-sm font-semibold`; `temSelecionada`
+  (a data selecionada pertence ao mês) → `bg-marinho text-white`, senão `bg-slate-50 text-marinho`.
+- **Testes:** `tsc`/`eslint` limpos; 1366px: data escolhida em 01/11 → ao reabrir, "Novembro 2026" em
+  destaque e "Dezembro 2026" neutra; sem erro de console.
+
+## 84. `BarraReservaMobile` — valor com opcionais (25/10/2026)
+
+- **`BookingCard`:** `useCart()` também expõe `precoCliente`. `valorBarra = valores ? valores.total :
+  precoCabecalho != null ? precoCabecalho + Σ precoCliente(opcional.preco) : null` (com data — ou na
+  diária — é exatamente o Total do card; sem data, "a partir de" + opcionais com a taxa embutida).
+  `unidadeBarra` = "com opcionais" (há opcionais) | "total (N diárias)" (diária com N > 1) |
+  `MODALIDADE_INFO[modalidade].unidade`. Antes a barra recebia só `precoCabecalho` (preço do dia).
+- **`BarraReservaMobile`:** o valor é um `<span key={valor}>` com `animate-aviso` (reanima a cada
+  mudança de valor).
+- **Testes:** 390px — início "R$ 9.200/passeio"; sem data + Água (R$ 115) → "A partir de R$ 9.315 com
+  opcionais"; 26/10 → "R$ 9.315"; + Gelo (R$ 92) → "R$ 9.407", igual ao "Total R$ 9.407" do card.
+  `tsc`/`eslint` limpos; sem erro de console.
+
+## 85. `/reservas/novo` — opcionais editáveis na confirmação (25/10/2026)
+
+- **`page.tsx`:** busca **todos** os `roteiro_catalogo` do roteiro (`id, valor_customizado, catalogo (
+  descricao, valor, tipo )`, sem filtrar por ids) → `opcionais: OpcionalCheckout[]` (valor do gestor).
+  Os ids de `?adicionais=` viram só a seleção inicial (`iniciais`; ids que não são do roteiro são
+  ignorados). O bloco estático "Adicionais selecionados" saiu; o card de Data/Pessoas e o
+  `ConfirmarReserva` ficam dentro de `<SelecaoOpcionaisProvider opcionais iniciais roteiroId>`, e no
+  card entra `<OpcionaisCheckout taxaPercent />`. `ConfirmarReserva` não recebe mais `adicionaisIds`
+  nem `totalAdicionais` por prop. Imports `ShoppingCart`, `formatCurrency`, `precoComTaxa` removidos.
+- **`_components/OpcionaisCheckout.tsx`** (novo, client):
+  - `SelecaoOpcionaisProvider` / `useSelecaoOpcionais()` → `{ opcionais, selecionados (ordem da lista),
+    alternar(id), totalAdicionais (Σ valor do gestor) }`. `alternar` registra GA4
+    `opcional_adicionado|opcional_removido { item_id, opcional, origem: 'checkout' }` e atualiza a URL com
+    `history.replaceState` (`adicionais=` com os ids, ou removido se vazio) — sem recarregar.
+  - `OpcionaisCheckout`: `null` sem opcionais; cabeçalho "Opcionais do passeio" + "N de M adicionados" +
+    apoio; `<ul>` com ícone `Wrench`/`Package`, nome, tipo, preço `precoComTaxa(valor, taxaPercent)`
+    ("Incluso" se 0) e botão `aria-pressed`/`aria-label` "Adicionar|Retirar {nome}": desmarcado
+    `border-marinho/25`, marcado `bg-marinho text-white` "✓ Adicionado" (com `group-hover` → `X`
+    "Retirar").
+- **`ConfirmarReserva`:** `const { selecionados: adicionaisIds, totalAdicionais } = useSelecaoOpcionais()`
+  (alimenta resumo, `validarCupom` e `criarReserva`). Efeito em `adicionaisIds.join(',')` (ignora o
+  valor inicial via `useRef`): com cupom aplicado, chama `validarCupom` com o mesmo código e a nova
+  seleção — ok → atualiza `cupomAplicado`; falha → remove e mostra "O cupom {código} foi removido:
+  {erro}". Validação bem-sucedida não conta como tentativa (`registrar_tentativa_cupom` com
+  `p_sucesso = true`).
+- **Segurança:** inalterada — `criarReserva`/`validarCupom` resolvem os opcionais pelos ids no
+  servidor, restritos ao `roteiro_id`, com o valor atual do catálogo.
+- **Testes:** `tsc`/`eslint` limpos; rota compila (sem sessão → 307 para `/entrar`). Fluxo logado não
+  exercitado no teste automatizado (exige sessão de cliente).
+
+## 86. `TermoAceite` — modal redesenhada (25/10/2026)
+
+Arquivo `src/components/termos/TermoAceite.tsx` (só a modal; o bloco-resumo e a lógica de aceite —
+`podeAceitar`, `conferirConfirmacaoDigitada`, evidências, ESC/scroll lock — não mudaram).
+- **Contêiner:** `sm:rounded-3xl`, véu `bg-slate-900/50`.
+- **Cabeçalho:** branco, `border-b`; eyebrow `ShieldCheck` "Documento para aceite" (`text-turquesa-escuro`),
+  `h2#termo-titulo` `text-marinho`, metadados em pílulas `bg-slate-100` (Versão, Vigente desde, Código
+  `font-mono`); fechar em botão redondo `text-slate-400`.
+- **Rodapé** (`bg-white`, sombra superior): título "Para concluir o aceite" e passos com o componente
+  local `Passo({ numero, feito })` (círculo `bg-marinho/10` → `bg-turquesa-escuro` + `Check`):
+  - ① leitura: "Leia o documento até o final (N%)" (rola 85% da área) ou "Documento lido até o final.".
+  - ② `<label>` cartão `rounded-2xl border-2` (marcado: `border-turquesa bg-turquesa/[0.06]`) com o
+    checkbox (`accent-marinho`).
+  - ③ (se `termo.confirmacao`) cartão `border-marinho/25` → `border-turquesa` quando completo; título
+    "Digite seu CPF completo" / "Digite o CNPJ completo" / "Digite seu nome completo"; apoio "Para confirmar
+    que é você. Começa com" + pílula `bg-destaque/30 font-mono` com `previaDocumento(dica, tipo)` (dígitos
+    da dica + `•` no formato: `829.•••.•••-••`, `1234` → `12.34•.•••/••••-••`) ou a dica do nome; input
+    `text-base py-3 pl-10` com `Fingerprint`, borda vermelha com `erro`, `CheckCircle2` quando
+    `confirmacaoCompleta` (11/14 dígitos; nome com ≥ 2 palavras — o conteúdo segue conferido no servidor).
+  - ②③ em `sm:grid-cols-2`; até ler: desktop `opacity-50 pointer-events-none` (+ inputs `disabled`),
+    celular `hidden` com a linha "Depois: declarar que concorda e confirmar {rotulo}.".
+  - Botão: rótulo progressivo `enviando ? 'Confirmando…' : !rolouAteFim ? 'Leia até o fim' : !concordo ?
+    'Marque a declaração' : confirmação vazia ? 'Digite {rotulo}' : 'Li e aceito'`; desabilitado
+    `bg-slate-200 text-slate-500`.
+- **Testes:** `tsc`/`eslint` limpos; inspeção visual em página temporária (removida) com termo fictício
+  (CPF, dica "829..."): 1366px e 390px, sequência do botão Leia até o fim → Marque a declaração → Digite
+  seu CPF → Li e aceito, máscara "829.123.456-78"; celular com área de leitura de 475px antes de ler.
+  Sem erro de console.
+

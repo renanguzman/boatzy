@@ -748,6 +748,8 @@ export type Database = {
           quartos: number | null;
           banheiros: number | null;
           tripulacao: number | null;
+          /** Regras a bordo definidas pelo dono (até 20). */
+          regras: string[];
           embarcacao_tipo_id: string | null;
           municipio_id: number | null;
           cep: string | null;
@@ -784,6 +786,7 @@ export type Database = {
           quartos?: number | null;
           banheiros?: number | null;
           tripulacao?: number | null;
+          regras?: string[];
           embarcacao_tipo_id?: string | null;
           municipio_id?: number | null;
           cep?: string | null;
@@ -812,6 +815,7 @@ export type Database = {
           quartos?: number | null;
           banheiros?: number | null;
           tripulacao?: number | null;
+          regras?: string[];
           embarcacao_tipo_id?: string | null;
           municipio_id?: number | null;
           cep?: string | null;

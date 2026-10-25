@@ -1,4 +1,5 @@
 import type { GaleriaItem } from '@/components/painel/GaleriaImagensEditor';
+import { normalizarRegras } from '@/lib/embarcacao-regras';
 import type { RoteiroDetalheDados } from '@/app/roteiros/[id]/_components/RoteiroDetalheView';
 import { normalizarTituloImagem } from '@/lib/galeria';
 import { isComprimentoUnidade } from '@/lib/comprimento';
@@ -88,6 +89,8 @@ export function montarPreviewEmbarcacao(args: {
   equipamentosSegurancaSelecionados: string[];
   acessorios: Opcao[];
   acessoriosSelecionados: string[];
+  /** Regras a bordo digitadas no formulário (tags). */
+  regras: string[];
   imagens: GaleriaItem[];
 }): PreviewDados {
   const { form } = args;
@@ -115,6 +118,7 @@ export function montarPreviewEmbarcacao(args: {
       embarcacao_acessorios: args.acessorios
         .filter(a => args.acessoriosSelecionados.includes(a.id))
         .map(a => ({ acessorios: { nome: a.nome } })),
+      regras: normalizarRegras(args.regras),
       embarcacao_imagens: imagensParaPreview(args.imagens),
     },
   };

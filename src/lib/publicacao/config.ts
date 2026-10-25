@@ -104,6 +104,7 @@ export const CAMPO_SENSIVEL_LABEL: Record<string, string> = {
   quartos: 'Quartos',
   banheiros: 'Banheiros',
   tripulacao: 'Tripulação',
+  regras: 'Regras a bordo',
   localizacao: 'Localização',
   fotos: 'Fotos',
   origem: 'Origem',
