@@ -65,7 +65,7 @@ const MODALIDADE_INFO: Record<Modalidade, { label: string; unidade: string; linh
 
 /** Topo da coluna fixa quando o card cabe na tela (abaixo do header) — o antigo `top-24`. */
 const TOPO_STICKY = 96;
-/** Respiro entre o fim do card de reserva e a borda de baixo da tela. */
+/** Respiro entre o fim da coluna ("Converse com o dono") e a borda de baixo da tela. */
 const RESPIRO_INFERIOR = 16;
 
 /** Soma `dias` dias a uma data ISO (aritmética em UTC), devolvendo outra data ISO. */
@@ -118,6 +118,7 @@ export default function BookingCard({
   const [error, setError] = useState<string | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const cardRef = useRef<HTMLDivElement>(null);
+  const contatoRef = useRef<HTMLDivElement>(null);
   const campoDataRef = useRef<HTMLDivElement>(null);
   const campoPessoasRef = useRef<HTMLDivElement>(null);
   const [topoSticky, setTopoSticky] = useState(TOPO_STICKY);
@@ -170,20 +171,23 @@ export default function BookingCard({
     return () => document.removeEventListener('pointerdown', handlePointerDown);
   }, []);
 
-  // Coluna fixa: se o card de reserva cabe na tela, prende no topo (abaixo do
+  // Coluna fixa: se a coluna inteira cabe na tela, prende no topo (abaixo do
   // header). Se não cabe (telas baixas, adicionais abertos), o `top` fica
   // menor/negativo na medida exata para a coluna rolar junto com a página até o
-  // fim do card ("Solicitar Reserva" + selos) aparecer, e só então fixar — antes
-  // o fim ficava cortado até o fim da página. Para rever o topo, rola para cima.
-  // Remede quando o card muda de altura (abas, adicionais, erro) ou a janela muda.
+  // fim do "Converse com o dono" aparecer, e só então fixar — antes travava no fim
+  // do card de reserva e o contato com o dono (ação principal antes de reservar)
+  // ficava escondido abaixo da dobra. Sem o contato (dono vendo o próprio roteiro),
+  // mede até o fim do card. Para rever o topo, rola para cima.
+  // Remede quando a coluna muda de altura (abas, adicionais, erro, mensagem) ou a janela muda.
   useEffect(() => {
     const container = containerRef.current;
     const card = cardRef.current;
     if (!container || !card) return;
     function atualizar() {
       // offsetTop relativo à coluna (sticky é posicionado → é o offsetParent).
-      const fimDoCard = card!.offsetTop + card!.offsetHeight;
-      setTopoSticky(Math.min(TOPO_STICKY, window.innerHeight - fimDoCard - RESPIRO_INFERIOR));
+      const fim = contatoRef.current ?? card!;
+      const fimDaColuna = fim.offsetTop + fim.offsetHeight;
+      setTopoSticky(Math.min(TOPO_STICKY, window.innerHeight - fimDaColuna - RESPIRO_INFERIOR));
     }
     atualizar();
     const observador = new ResizeObserver(atualizar);
@@ -506,7 +510,11 @@ export default function BookingCard({
 
       {/* Contato com o dono logo abaixo do "Solicitar Reserva": a dúvida que trava a reserva
           vira conversa (o texto segue como rascunho para o chat) */}
-      {!ehDono && <ContatoDono roteiroId={roteiroId} />}
+      {!ehDono && (
+        <div ref={contatoRef}>
+          <ContatoDono roteiroId={roteiroId} />
+        </div>
+      )}
 
       {/* Celular: preço + atalho para a reserva, fixos no rodapé — sempre o mesmo valor que o
           cliente vai pagar, com os opcionais já incluídos */}

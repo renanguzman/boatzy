@@ -4477,7 +4477,8 @@ fazem parte de um único itinerário e a ordem em que aparecem é a ordem em que
 
 A query da página passou a buscar `roteiro_parada ( nome )` ordenado por `ordem`
 (`.order('ordem', { referencedTable: 'roteiro_parada' })`). A seção **"Itinerário"** (timeline
-vertical com gradiente) passou a renderizar, entre "Saída" (`origem`) e "Chegada" (`destino`),
+vertical com gradiente) passou a renderizar, entre "Embarque" (`origem`) e "Desembarque" (`destino`)
+— rótulos "Saída"/"Chegada" até 25/10/2026 —,
 um ponto por parada cadastrada, rotulado "Parada 1", "Parada 2", etc. A seção só aparece quando
 há origem, destino **ou** ao menos uma parada (antes só considerava origem/destino).
 
@@ -6467,8 +6468,12 @@ R$ 9.200 + Adicionais R$ 92 = Total R$ 9.292 (mesmo total do checkout).
   cardRef.offsetHeight) − RESPIRO_INFERIOR = 16)`. Card cabe na tela → 96px (igual a antes); não cabe
   → `top` menor/negativo na medida exata para a coluna rolar até o fim do card de reserva ficar 16px
   acima da borda inferior e então fixar. Recalculado por `ResizeObserver` (coluna e card) e `resize`
-  da janela. A âncora é o fim do card de preço (botão + selos); "Converse com o dono" e "Por que
-  reservar no Boatzy?" ficam abaixo dele, como antes.
+  da janela. ~~A âncora é o fim do card de preço (botão + selos).~~ **Desde 25/10/2026 a âncora é o
+  fim do `ContatoDono`** ("Ficou com dúvida? Fale com o dono da embarcação"), medido por `contatoRef`
+  (wrapper `<div>` do `ContatoDono`): `top = min(96, innerHeight − (contatoRef.offsetTop +
+  contatoRef.offsetHeight) − 16)`. A coluna só fixa depois que o contato com o dono aparece inteiro —
+  antes travava no fim do card de preço e o contato ficava escondido abaixo da dobra. Sem o contato
+  (`ehDono`), a âncora volta a ser `cardRef`.
 - Verificação (navegador): 1280×700 → `top` 69px, card fixa com o fim a 16px da borda e o botão
   visível; com os adicionais abertos → `top` −221px, mesmo comportamento; 1280×800/1100 (card cabe)
   → 96px. Popover sem "Data exata"/"Limpar data". `tsc`/`eslint` limpos.
@@ -7469,9 +7474,11 @@ Usada no componente, nas actions (o servidor não confia no cliente) e na prévi
 
 **Site:**
 - **`src/components/boat/RegrasEmbarcacao.tsx`** (server-safe, `{ regras }`; `null` sem regras):
-  `<section aria-label>` `rounded-xl border-red-100`; cabeçalho `bg-red-50/60` com `ShieldAlert
-  text-red-600`, "Regras a bordo" (`text-marinho`) e contagem; `<ul divide-y>` com `Ban text-red-500` +
-  texto `text-sm text-red-700`.
+  `<section aria-label>` `rounded-xl border-slate-100 bg-white` (neutro, igual a
+  `EquipamentosEmbarcacao`); cabeçalho `bg-slate-100/70 border-b border-slate-100`, com `ShieldAlert
+  text-destaque` (amarelo da paleta), "Regras a bordo" (`text-marinho`) e contagem; `<ul divide-y
+  divide-slate-100>` com `Ban text-red-500` + texto `text-sm text-slate-700`. Vermelho só nos ícones
+  das regras (25/10/2026).
 - `RoteiroDetalheView`: logo abaixo de `EquipamentosEmbarcacao`, dentro de "Sobre a Embarcação"
   (`mt-3`); `RoteiroDetalheDados.embarcacao.regras: string[]`; select do roteiro (`embarcacao ( …,
   regras, … )`) e da prévia (`src/lib/preview-actions.ts`).

@@ -274,7 +274,7 @@ Exibir:
 - "Sobre a Embarcação": foto principal grande da embarcação (clicável, abre `EmbarcacaoFotosModal` com galeria completa e especificações), nome, tipo, modalidade de capitão e link **"Veja outros roteiros desta embarcação"** (nova aba) — ver "Detalhe do roteiro — foto da embarcação em destaque" abaixo.
 - Equipamentos de Segurança, Acessórios e Comodidades a bordo: desde 24/10/2026 ficam **dentro** de "Sobre a Embarcação", num bloco recolhível "Equipamentos e Acessórios da embarcação" (ver abaixo).
 - "O que está incluído": itens do catálogo vinculados ao roteiro (`roteiro_catalogo`).
-- "Itinerário": timeline vertical com gradiente — partida, **paradas intermediárias cadastradas pelo gestor (0, 1 ou várias)** e chegada (ver "Paradas do itinerário do roteiro" abaixo).
+- "Itinerário": timeline vertical com gradiente — **Embarque**, **paradas intermediárias cadastradas pelo gestor (0, 1 ou várias)** e **Desembarque** (ver "Paradas do itinerário do roteiro" abaixo).
 - Avaliações: lista com média e comentários; **sem nenhuma avaliação a seção não aparece** e o roteiro ganha o selo "Novo no Boatzy" (desde 24/10/2026 — ver "Página do roteiro otimizada para conversão no celular").
 - Sidebar `BookingCard`: seleção de data e pessoas, resumo de preço com a taxa de serviço **embutida** nos valores (dinâmica — taxa geral da plataforma ou específica do gestor dono do roteiro, configuráveis em `/administrator/taxas`; ver 6.11; desde 19/10/2026 a taxa não aparece em linha própria), total estimado, botão "Solicitar Reserva" → `/reservas/novo`.
 - ✅ O calendário de data do `BookingCard` respeita a **disponibilidade do roteiro**: datas fora dos dias de operação ou bloqueadas pelo gestor aparecem riscadas e não selecionáveis (ver 6.8 → Disponibilidade do roteiro).
@@ -909,7 +909,7 @@ Problema: ao clicar numa data do calendário de preços, o painel para definir o
 
 - O roteiro continua tendo **Local de partida (origem)** e **Local de chegada (destino)**, mas agora o gestor pode cadastrar, entre os dois, **quantas paradas quiser** — nenhuma, uma ou várias — no cadastro (`/painel/roteiros/novo`) e na edição (`/painel/roteiros/[id]/editar`, também usada em `/administrator/roteiros/[id]/editar`).
 - Novo bloco **"Paradas do itinerário"**, logo abaixo dos campos de partida/chegada: campo de texto + botão "Adicionar" inclui uma parada; cada parada da lista pode ser reordenada (mover para cima/baixo) ou removida.
-- No site, a página do roteiro (`/roteiros/[id]`) exibe a seção **"Itinerário"** com a timeline completa: Saída → Parada 1 → Parada 2 → ... → Chegada, refletindo exatamente o que o gestor cadastrou.
+- No site, a página do roteiro (`/roteiros/[id]`) exibe a seção **"Itinerário"** com a timeline completa: Embarque → Parada 1 → Parada 2 → ... → Desembarque (rótulos "Saída"/"Chegada" até 25/10/2026), refletindo exatamente o que o gestor cadastrou.
 - Detalhes técnicos: SPEC §30.
 
 #### ✅ Implementado — Navegação por âncoras no cadastro e na edição de roteiro
@@ -1900,6 +1900,11 @@ taxa continua sendo cobrada e repassada como antes — muda só a apresentação
   página até o fim do card aparecer (com "Solicitar Reserva" e os selos) e só então fica fixa. Para
   ver o topo do card de novo, basta rolar para cima. Ajusta-se sozinha quando o card muda de altura
   (aba Roteiro/Por Diária, adicionais abertos, mensagem de erro) ou a janela muda de tamanho.
+- **Ponto de travamento abaixo do "Converse com o dono" (25/10/2026):** a coluna passou a rolar junto
+  com a página até o bloco **"Ficou com dúvida? Fale com o dono da embarcação"** aparecer inteiro, e
+  só então fica fixa (antes travava no fim do card de reserva e o contato com o dono — uma das
+  principais ações antes de reservar — ficava escondido). Para o próprio dono, que não vê o contato,
+  continua travando no fim do card.
 - Detalhes técnicos: `SPEC.md` §53.
 
 ### ✅ Campo Destino funcionando — home e busca (19/10/2026)
@@ -2089,8 +2094,10 @@ permissão de localização, não fazia nada.
   edição feita pelo admin.
 - **No site:** as regras aparecem **sempre visíveis**, logo abaixo de "O que esta embarcação possui",
   no **detalhe do roteiro** (dentro de "Sobre a Embarcação") e na **página da embarcação**: bloco
-  "Regras a bordo" com cada regra em **vermelho** e ícone de proibido (cor de alerta, fora da paleta
-  de marca). Sem regras, o bloco não aparece. Também na pré-visualização do painel.
+  "Regras a bordo" em card **neutro** (borda e divisórias cinza-claro, texto cinza-escuro), com o
+  título em fundo cinza um pouco mais escuro com o escudo no **amarelo da paleta**, e o **vermelho só
+  no ícone de proibido de cada regra** — sinaliza a regra de forma sutil, sem deixar o bloco com cara
+  de erro. Sem regras, o bloco não aparece. Também na pré-visualização do painel.
 - **Aprovação:** regras são texto livre e público, então contam como **alteração sensível** (como a
   descrição): incluir ou alterar regras de uma embarcação aprovada a devolve para análise do admin, com
   o aviso de confirmação antes de salvar; na revisão, o admin vê a linha "Regras a bordo" destacada

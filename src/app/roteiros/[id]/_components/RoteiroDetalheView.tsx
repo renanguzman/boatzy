@@ -430,7 +430,7 @@ export default function RoteiroDetalheView({
                     {roteiro.origem && (
                       <div className="relative mb-6">
                         <div className="absolute -left-6 top-1 h-3 w-3 rounded-full bg-marinho ring-2 ring-white" />
-                        <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-0.5">Saída</p>
+                        <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-0.5">Embarque</p>
                         <p className="text-sm font-semibold text-grafite">{roteiro.origem}</p>
                       </div>
                     )}
@@ -446,7 +446,7 @@ export default function RoteiroDetalheView({
                     {roteiro.destino && (
                       <div className="relative">
                         <div className="absolute -left-6 top-1 h-3 w-3 rounded-full bg-turquesa ring-2 ring-white" />
-                        <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-0.5">Chegada</p>
+                        <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-0.5">Desembarque</p>
                         <p className="text-sm font-semibold text-grafite">{roteiro.destino}</p>
                       </div>
                     )}
