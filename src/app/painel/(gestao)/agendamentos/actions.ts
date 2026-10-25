@@ -13,6 +13,7 @@ import { calcularExpiracao } from '@/lib/pagamentos/pedidos';
 import { emailPagamentoPendente } from '@/lib/pagamentos/emails';
 import { emailReservaRecusada } from '@/lib/emails/reserva-recusada';
 import { emailReservaConfirmada } from '@/lib/emails/reserva-cliente';
+import { registrarRecadoReservaNoChat } from '@/lib/chat-recado-reserva';
 import { calcularValoresPedido, multiplicadorDaReserva, VALOR_MINIMO_COBRANCA } from '@/lib/pagamentos/valores';
 import type { ReservaModalidadePreco } from '@/types/supabase';
 
@@ -227,7 +228,10 @@ async function aceitarComPagamento(params: {
     return { ok: false, error: 'Não foi possível gerar o pedido. Tente novamente.' };
   }
 
-  // 3) Avisa o cliente (falha no e-mail não desfaz o aceite).
+  // 3) Recado do gestor também no chat com o cliente (SPEC §89).
+  await registrarRecadoReservaNoChat({ reservaId: r.id, gestorId: params.ownerId, texto: observacao, resposta: 'aceita' });
+
+  // 4) Avisa o cliente (falha no e-mail não desfaz o aceite).
   const { data: cliente } = await supabaseAdmin.from('users').select('name, email').eq('id', r.cliente_id).single();
   await emailPagamentoPendente({
     para: cliente?.email ?? '',
@@ -342,6 +346,11 @@ async function responderReserva(
     if (ehConflitoDeData(error.code)) return { ok: false, error: CONFLITO_MSG };
     return { ok: false, error: error.message };
   }
+
+  // Recado do gestor também no chat com o cliente (SPEC §89).
+  await registrarRecadoReservaNoChat({
+    reservaId, gestorId: user.id, texto: observacao, resposta: status === 'confirmada' ? 'aceita' : 'recusada',
+  });
 
   // Recusa: aviso gentil ao cliente por e-mail (depois da resposta ao gestor).
   if (status === 'recusada') {

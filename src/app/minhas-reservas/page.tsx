@@ -3,8 +3,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 import {
   MapPin, Ship, Users, CalendarDays, ShoppingCart, Clock, MessageSquare,
-  MessageCircle, Hourglass, CheckCircle2, XCircle, Compass, Ban, Flag,
-  User, Crown, Phone, CreditCard, TimerOff, BadgeCheck,
+  MessageCircle, Compass, User, Crown, Phone, CreditCard, BadgeCheck,
 } from 'lucide-react';
 import { applyPhoneMask, onlyDigits } from '@/lib/validators';
 import Header from '@/components/layout/Header';
@@ -17,8 +16,10 @@ import { formatarDataHoraBR } from '@/lib/termos/formato';
 import { formatCurrency } from '@/lib/utils';
 import type { ReservaStatus, AvaliacaoStatus, PedidoStatus } from '@/types/supabase';
 import CancelarReservaButton from './_components/CancelarReservaButton';
+import { STATUS } from './_lib/status';
+import ConversarDonoReserva from './_components/ConversarDonoReserva';
 import AvaliacaoReserva from './_components/AvaliacaoReserva';
-import { FUSO_HORARIO } from '@/lib/datas';
+import { FUSO_HORARIO, formatarData } from '@/lib/datas';
 import { precoComTaxa } from '@/lib/pagamentos/valores';
 
 type AvaliacaoResumo = { nota: number; comentario: string | null; created_at: string; status: AvaliacaoStatus };
@@ -66,61 +67,6 @@ type ReservaCliente = {
 };
 
 type PedidoCliente = { numero: number; status: PedidoStatus; expira_em: string | null; pago_em: string | null; valor_total: number };
-
-const STATUS: Record<
-  ReservaStatus,
-  { label: string; badge: string; Icon: React.ElementType; note: string; noteClass: string }
-> = {
-  pendente: {
-    label: 'Aguardando confirmação',
-    badge: 'bg-amber-100 text-amber-700',
-    Icon: Hourglass,
-    note: 'Sua solicitação foi enviada. O gestor irá analisar e responder em breve.',
-    noteClass: 'bg-amber-50 border-amber-100 text-amber-700',
-  },
-  aguardando_pagamento: {
-    label: 'Aguardando pagamento',
-    badge: 'bg-violet-100 text-violet-700',
-    Icon: CreditCard,
-    note: 'O gestor aceitou sua solicitação. Conclua o pagamento para garantir a data.',
-    noteClass: 'bg-violet-50 border-violet-100 text-violet-700',
-  },
-  expirada: {
-    label: 'Pagamento expirado',
-    badge: 'bg-slate-200 text-slate-600',
-    Icon: TimerOff,
-    note: 'O prazo para pagamento terminou e a solicitação expirou. Nenhum valor foi cobrado.',
-    noteClass: 'bg-slate-50 border-slate-200 text-slate-500',
-  },
-  confirmada: {
-    label: 'Confirmada',
-    badge: 'bg-emerald-100 text-emerald-700',
-    Icon: CheckCircle2,
-    note: 'Reserva confirmada pelo gestor.',
-    noteClass: 'bg-emerald-50 border-emerald-100 text-emerald-700',
-  },
-  recusada: {
-    label: 'Recusada',
-    badge: 'bg-red-100 text-red-600',
-    Icon: XCircle,
-    note: 'Esta solicitação foi recusada pelo gestor.',
-    noteClass: 'bg-red-50 border-red-100 text-red-600',
-  },
-  cancelada: {
-    label: 'Cancelada',
-    badge: 'bg-slate-200 text-slate-600',
-    Icon: Ban,
-    note: 'Você cancelou esta reserva.',
-    noteClass: 'bg-slate-50 border-slate-200 text-slate-500',
-  },
-  concluida: {
-    label: 'Concluída',
-    badge: 'bg-sky-100 text-sky-700',
-    Icon: Flag,
-    note: 'Experiência realizada. Conte como foi — sua avaliação ajuda outros clientes!',
-    noteClass: 'bg-sky-50 border-sky-100 text-sky-700',
-  },
-};
 
 function formatData(iso: string, flex: number | null): string {
   const label = new Date(iso + 'T12:00:00').toLocaleDateString('pt-BR', { timeZone: FUSO_HORARIO, 
@@ -263,7 +209,9 @@ export default async function MinhasReservasPage() {
                             {r.tipo === 'embarcacao' ? 'Embarcação' : 'Roteiro'}
                           </div>
                           <h2 className="mt-0.5 text-base font-bold text-marinho truncate">
-                            {r.roteiro?.nome ?? r.item_nome}
+                            <Link href={`/minhas-reservas/${r.id}`} className="hover:text-turquesa-escuro transition-colors">
+                              {r.roteiro?.nome ?? r.item_nome}
+                            </Link>
                           </h2>
                           {localidade && (
                             <div className="mt-0.5 flex items-center gap-1 text-xs text-slate-500">
@@ -357,10 +305,13 @@ export default async function MinhasReservasPage() {
                   )}
                   {pedido?.status === 'pago' && (
                     <div className="px-4 pb-4">
-                      <div className="flex items-center gap-2 text-xs text-turquesa-escuro">
+                      <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-turquesa-escuro">
                         <BadgeCheck className="h-4 w-4" />
                         Pagamento confirmado · Pedido #{pedido.numero}
                         {pedido.pago_em && ` · ${formatarDataHoraBR(pedido.pago_em)}`}
+                        <Link href={`/minhas-reservas/${r.id}#comprovante`} className="font-semibold text-marinho hover:underline">
+                          Ver comprovante
+                        </Link>
                       </div>
                     </div>
                   )}
@@ -440,34 +391,25 @@ export default async function MinhasReservasPage() {
                     {chatIndisponivel ? (
                       <span className="inline-flex items-center gap-2 text-sm font-medium text-slate-300">
                         <MessageCircle className="h-4 w-4" />
-                        Conversar com o gestor
+                        Conversar com o dono
                       </span>
                     ) : (
-                      <Link
-                        href={`/minhas-reservas/${r.id}/chat`}
-                        className="inline-flex items-center gap-2 text-sm font-medium text-marinho hover:text-turquesa-escuro transition-colors"
-                      >
-                        <span className="relative inline-flex">
-                          <MessageCircle className="h-4 w-4" />
-                          {naoLidas > 0 && (
-                            <span className="absolute -top-1.5 -right-1.5 min-w-[16px] h-[16px] px-1 flex items-center justify-center rounded-full bg-red-500 text-white text-[9px] font-bold leading-none">
-                              {naoLidas > 99 ? '99+' : naoLidas}
-                            </span>
-                          )}
-                        </span>
-                        Conversar com o gestor
-                      </Link>
+                      <ConversarDonoReserva
+                        reservaId={r.id}
+                        itemNome={r.roteiro?.nome ?? r.item_nome}
+                        dataLabel={formatarData(r.data_reserva)}
+                        naoLidas={naoLidas}
+                        variante="link"
+                      />
                     )}
                     <div className="flex items-center gap-4">
                       {podeCancelar && <CancelarReservaButton reservaId={r.id} />}
-                      {r.roteiro_id && (
-                        <Link
-                          href={`/roteiros/${r.roteiro_id}`}
-                          className="text-sm font-medium text-marinho hover:text-turquesa-escuro transition-colors"
-                        >
-                          Ver roteiro →
-                        </Link>
-                      )}
+                      <Link
+                        href={`/minhas-reservas/${r.id}`}
+                        className="text-sm font-semibold text-marinho hover:text-turquesa-escuro transition-colors"
+                      >
+                        Ver detalhes →
+                      </Link>
                     </div>
                   </div>
                 </article>

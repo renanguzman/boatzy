@@ -2545,6 +2545,69 @@ pagamento aprovado.
   navegador nessas telas. O painel do gestor continua mostrando o e-mail do cliente.
 - Detalhes técnicos: `SPEC.md` §88.
 
+### ✅ Recado do gestor ao responder a reserva também vai para o chat (25/10/2026)
+
+**Objetivo:** tudo o que o gestor diz ao cliente fica registrado num ponto só — a conversa — e nada se
+perde.
+
+- Ao **aceitar** (com ou sem cobrança) ou **recusar** uma solicitação no painel, a mensagem opcional que
+  o gestor escreve continua funcionando como antes (fica na reserva e no e-mail de recusa) e, **se
+  preenchida**, também entra no **chat gestor ↔ cliente** como mensagem do gestor, com uma linha de
+  contexto: *"Sobre sua reserva de "X" para 31/10/2026 — aceita:"* (ou *"Sobre sua solicitação de … —
+  não aceita:"*) seguida do texto.
+- O cliente vê a mensagem na conversa (e recebe o aviso de nova mensagem, como qualquer mensagem do
+  chat); o gestor a encontra em Clientes → conversa. Se ainda não existia conversa entre os dois, ela é
+  criada (origem = o roteiro/embarcação da reserva).
+- Telefones digitados são mascarados, como em qualquer mensagem do chat. Campo vazio não gera mensagem.
+- Abaixo dos campos de mensagem, o painel avisa: "Se preenchida, a mensagem também fica registrada no
+  chat com o cliente."
+- Detalhes técnicos: `SPEC.md` §89.
+
+### ✅ Minhas reservas — página de detalhes da reserva com comprovante de pagamento (25/10/2026)
+
+**Objetivo:** cada reserva tem a sua página, com tudo sobre aquele passeio, a situação do pagamento e,
+quando pago, um comprovante.
+
+- **Acesso:** em `/minhas-reservas`, o nome do passeio e o novo **"Ver detalhes →"** (no lugar de "Ver
+  roteiro →") abrem `/minhas-reservas/[id]`; reservas pagas ganham o atalho **"Ver comprovante"**. Os
+  e-mails ao cliente (reserva confirmada, pagamento confirmado, reembolso) passaram a levar direto ao
+  detalhe/comprovante. Só o próprio cliente vê a reserva (de outra pessoa → página não encontrada);
+  deslogado, passa pelo login e volta.
+- **Cabeçalho:** foto, tipo, **código da reserva** (8 caracteres, para citar no chat/suporte), nome, local,
+  situação e **linha do tempo** — Solicitação enviada → Aceita/Confirmada pelo dono → Pagamento → Dia do
+  passeio / Passeio realizado, com data e hora de cada etapa; a etapa atual fica em destaque (amarelo) e
+  desfechos (não aceita, cancelada, prazo expirado, reembolso) encerram a linha.
+- **Seu passeio:** data (ou período) e flexibilidade, pessoas, horário de saída, retorno aproximado e
+  duração, embarcação, dono da embarcação, embarque e desembarque, data da solicitação, **ponto de
+  encontro** (endereço + "Abrir no mapa") e **opcionais incluídos**.
+- **Situação / Resposta do dono:** o recado do dono (se houver) ou a nota da situação; **quem vai te
+  atender** (reserva confirmada); **avaliação** (reserva concluída).
+- **Valores** (taxas incluídas, como no checkout): passeio, opcionais, desconto/cupom e total (com o nº do
+  pedido); preço a combinar explicado.
+- **Pagamento**, com a próxima ação: pendente de aceite ("nada é cobrado agora"), aguardando pagamento
+  (prazo + botão **Pagar**), aprovado (data/hora + **Ver comprovante** + "o dono só recebe depois do
+  passeio"), reembolsado/parcial, em contestação, expirado ou cancelado ("nenhum valor foi cobrado"), ou
+  confirmada sem pagamento online.
+- **Ações:** conversar com o dono (com contador de não lidas), ver a página do roteiro, cancelar (quando
+  permitido). Rodapé com o **aceite dos termos** (versão, data e protocolo).
+- **Comprovante de pagamento** (pago, reembolsado ou em contestação): logo Boatzy, nº do pedido e código
+  da reserva, **valor pago**, situação, **data e hora do pagamento**, **forma** (Pix, ou cartão com
+  bandeira, final e parcelas), **pagador** (nome + CPF mascarado), recebedor (Boatzy — intermediação), **ID
+  da transação**, ID Pix (end-to-end), nº da fatura, referente a (passeio, data, pessoas, opcionais),
+  passeio e opcionais, desconto, total pago, **reembolsos** (valor e data) e link **"Comprovante da
+  operadora"**. Botão **"Imprimir ou salvar PDF"** — a impressão sai só com o comprovante.
+- **Celular:** valores, pagamento e ações vêm logo após o cabeçalho; a linha do tempo fica vertical.
+- **"Conversar com o dono" em modal (25/10/2026):** no detalhe e em cada card da lista (antes "Conversar
+  com o gestor", que abria outra página), a conversa abre na **mesma modal** do roteiro, por cima da tela,
+  com atalho para nova aba. Assuntos sugeridos para quem já reservou — Ponto de encontro, O que levar,
+  Comida e bebida, Crianças a bordo, Se o tempo virar, Alterar a reserva — e a abertura cita o passeio, a
+  data e o código ("Olá! Sobre a minha reserva de "X" para 24/10/2026 (código 20166AFD)."). Ao fechar, o
+  contador de não lidas atualiza. A página `/minhas-reservas/[id]/chat` continua existindo (nova aba) e o
+  "voltar" dela leva ao detalhe da reserva.
+- Pendência: os links das notificações do sino ainda levam à lista (`/minhas-reservas#reserva-…`), que
+  agora tem "Ver detalhes" em cada card; apontar direto para o detalhe exige atualizar os triggers.
+- Detalhes técnicos: `SPEC.md` §90.
+
 ## 11. Não Incluído no MVP
 
 - Chat em tempo real

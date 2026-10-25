@@ -3,7 +3,7 @@
 import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
-import { Check, X, Loader2, User, Crown, Pencil } from 'lucide-react';
+import { Check, X, Loader2, User, Crown, Pencil, MessageCircle } from 'lucide-react';
 import type { AtendenteOption } from '@/lib/equipe-types';
 import type { ReservaModalidadePreco, ReservaStatus } from '@/types/supabase';
 import { calcularValoresPedido } from '@/lib/pagamentos/valores';
@@ -312,6 +312,10 @@ export default function ReservaAcoes({ reservaId, status, atendenteOptions, aten
             placeholder="Observação ao cliente (opcional) — ponto de encontro, instruções…"
             className="w-full rounded-lg border border-slate-200 p-2.5 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-[#0B3D91]/30"
           />
+          <p className="-mt-1.5 flex items-center gap-1 text-[11px] text-slate-400">
+            <MessageCircle className="h-3 w-3 shrink-0" />
+            Se preenchida, a mensagem também fica registrada no chat com o cliente.
+          </p>
           <div className="flex items-center gap-2">
             <button
               onClick={submeter}
@@ -342,6 +346,10 @@ export default function ReservaAcoes({ reservaId, status, atendenteOptions, aten
             placeholder="Mensagem ao cliente (opcional) — vai no e-mail de recusa."
             className="w-full rounded-lg border border-slate-200 p-2.5 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-[#0B3D91]/30"
           />
+          <p className="-mt-1.5 flex items-center gap-1 text-[11px] text-slate-400">
+            <MessageCircle className="h-3 w-3 shrink-0" />
+            Se preenchida, a mensagem também fica registrada no chat com o cliente.
+          </p>
           <div className="flex items-center gap-2">
             <button
               onClick={submeter}

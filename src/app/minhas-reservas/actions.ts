@@ -64,6 +64,7 @@ export async function cancelarReserva(reservaId: string): Promise<ActionResult> 
   after(() => Promise.all([emailReservaCancelada(reservaId), emailGestorReservaCancelada(reservaId)]));
 
   revalidatePath('/minhas-reservas');
+  revalidatePath(`/minhas-reservas/${reservaId}`);
   revalidatePath('/painel/agendamentos');
   return { ok: true };
 }

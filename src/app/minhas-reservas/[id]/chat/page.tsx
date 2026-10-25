@@ -1,8 +1,8 @@
 import { notFound, redirect } from 'next/navigation';
 import Header from '@/components/layout/Header';
 import { createClient } from '@/lib/supabase/server';
-import { supabaseAdmin } from '@/lib/supabase';
-import ChatBox, { type Mensagem } from '@/components/chat/ChatBox';
+import { carregarChatReserva } from '@/lib/chat-dono';
+import ChatBox from '@/components/chat/ChatBox';
 
 export default async function ChatGestorPage({ params }: { params: Promise<{ id: string }> }) {
   const { id: reservaId } = await params;
@@ -11,76 +11,13 @@ export default async function ChatGestorPage({ params }: { params: Promise<{ id:
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect(`/entrar?redirect_to=/minhas-reservas/${reservaId}/chat`);
 
-  // Aviso "converse pela plataforma": só exibido enquanto o cliente não confirmou ciência.
-  const { data: usuarioDb } = await supabaseAdmin
-    .from('users')
-    .select('chat_aviso_ciente_em')
-    .eq('id', user.id)
-    .single();
-  const avisoCienteInicial = usuarioDb?.chat_aviso_ciente_em != null;
-
-  // A reserva precisa pertencer ao cliente logado (valida acesso) e dá o gestor.
-  const { data: reserva } = await supabaseAdmin
-    .from('reserva')
-    .select('id, owner_id, tipo, item_nome, embarcacao_id, roteiro_id')
-    .eq('id', reservaId)
-    .eq('cliente_id', user.id)
-    .single();
-
-  if (!reserva) notFound();
-
-  // Conta que acumula cliente + gestor: não há chat consigo mesma (a tabela
-  // `conversa` tem CHECK gestor_id <> cliente_id). Volta para a lista em vez
-  // de estourar um 404 confuso.
-  if (reserva.owner_id === user.id) redirect('/minhas-reservas');
-
-  // Origem da conversa = o objeto da reserva (embarcação ou roteiro).
-  const origemTipo = reserva.tipo === 'roteiro' ? 'roteiro' : 'embarcacao';
-  const origemId = reserva.roteiro_id ?? reserva.embarcacao_id ?? null;
-  const origemLabel = reserva.item_nome;
-
-  // Dados do gestor (interlocutor).
-  const { data: gestor } = await supabaseAdmin
-    .from('users')
-    .select('id, name, avatar_url')
-    .eq('id', reserva.owner_id)
-    .single();
-
-  if (!gestor) notFound();
-
-  // Garante (idempotente) a conversa gestor ↔ cliente, registrando a origem
-  // (última a abrir o chat) = o objeto desta reserva.
-  const { data: conversa } = await supabaseAdmin
-    .from('conversa')
-    .upsert(
-      {
-        gestor_id: reserva.owner_id,
-        cliente_id: user.id,
-        origem_tipo: origemTipo,
-        origem_id: origemId,
-        origem_label: origemLabel,
-      },
-      { onConflict: 'gestor_id,cliente_id', ignoreDuplicates: false },
-    )
-    .select('id')
-    .single();
-
-  if (!conversa) notFound();
-  const conversaId = conversa.id;
-
-  // Ao abrir, zera as não lidas enviadas pelo gestor (inline, sem revalidate).
-  await supabaseAdmin
-    .from('mensagem')
-    .update({ lida_em: new Date().toISOString() })
-    .eq('conversa_id', conversaId)
-    .neq('remetente_id', user.id)
-    .is('lida_em', null);
-
-  const { data: mensagens } = await supabaseAdmin
-    .from('mensagem')
-    .select('id, remetente_id, conteudo, lida_em, created_at')
-    .eq('conversa_id', conversaId)
-    .order('created_at', { ascending: true });
+  const resultado = await carregarChatReserva(reservaId, user.id);
+  if (!resultado.ok) {
+    // Conta que acumula cliente + gestor: não há chat consigo mesma — volta para a lista.
+    if (resultado.motivo === 'dono') redirect('/minhas-reservas');
+    notFound();
+  }
+  const { conversaId, interlocutor, mensagens, avisoCiente, origemTipo, origemLabel } = resultado.dados;
 
   return (
     <div className="h-screen flex flex-col">
@@ -89,12 +26,12 @@ export default async function ChatGestorPage({ params }: { params: Promise<{ id:
         <ChatBox
           conversaId={conversaId}
           meId={user.id}
-          interlocutor={{ name: gestor.name, descricao: 'Dono da embarcação · conversa pelo Boatzy', avatar_url: gestor.avatar_url }}
-          voltarHref="/minhas-reservas"
-          voltarLabel="Voltar para Minhas reservas"
-          mensagensIniciais={(mensagens ?? []) as Mensagem[]}
+          interlocutor={interlocutor}
+          voltarHref={`/minhas-reservas/${reservaId}`}
+          voltarLabel="Voltar para a reserva"
+          mensagensIniciais={mensagens}
           contexto={{ tipo: origemTipo, label: origemLabel }}
-          avisoCienteInicial={avisoCienteInicial}
+          avisoCienteInicial={avisoCiente}
         />
       </div>
     </div>

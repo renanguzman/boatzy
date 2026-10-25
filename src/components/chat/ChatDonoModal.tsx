@@ -2,10 +2,14 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { Baby, CloudRain, ExternalLink, Loader2, MapPin, MessageCircle, PackageCheck, Route, UtensilsCrossed, X } from 'lucide-react';
+import {
+  Backpack, Baby, CalendarCog, CloudRain, ExternalLink, Loader2, MapPin, MessageCircle, PackageCheck, Route,
+  UtensilsCrossed, X,
+} from 'lucide-react';
 import ChatBox, { type SugestaoChat } from './ChatBox';
 import { abrirChatRoteiro } from '@/app/roteiros/[id]/chat/actions';
-import type { ChatRoteiroDados } from '@/lib/chat-roteiro';
+import { abrirChatReserva } from '@/app/minhas-reservas/[id]/chat/actions';
+import type { ChatDonoDados } from '@/lib/chat-dono';
 import { rastrearUmaVez } from '@/lib/analytics';
 
 /** Dúvidas mais comuns antes de reservar um passeio — um clique vira a mensagem. */
@@ -18,10 +22,23 @@ const SUGESTOES: SugestaoChat[] = [
   { rotulo: 'Ajustar o roteiro', icone: Route, texto: 'É possível ajustar o roteiro ou incluir alguma parada?' },
 ];
 
+/** Dúvidas de quem já tem a reserva — preparação para o dia e ajustes. */
+export const SUGESTOES_RESERVA: SugestaoChat[] = [
+  { rotulo: 'Ponto de encontro', icone: MapPin, texto: 'Pode me confirmar o ponto de encontro e com quanto tempo de antecedência devo chegar?' },
+  { rotulo: 'O que levar', icone: Backpack, texto: 'O que eu preciso levar para o passeio?' },
+  { rotulo: 'Comida e bebida', icone: UtensilsCrossed, texto: 'Posso levar comida e bebida a bordo? Tem cooler ou gelo disponível?' },
+  { rotulo: 'Crianças a bordo', icone: Baby, texto: 'Vou com crianças. Tem colete salva-vidas infantil a bordo?' },
+  { rotulo: 'Se o tempo virar', icone: CloudRain, texto: 'Se o tempo estiver ruim no dia, como funciona? Dá para remarcar?' },
+  { rotulo: 'Alterar a reserva', icone: CalendarCog, texto: 'Preciso fazer uma alteração na reserva (data ou número de pessoas). É possível?' },
+];
+
+/** De onde a conversa parte: um roteiro (antes de reservar) ou uma reserva do cliente. */
+export type AlvoChatDono = { tipo: 'roteiro'; id: string } | { tipo: 'reserva'; id: string };
+
 type Estado =
   | { status: 'fechado' }
   | { status: 'carregando' }
-  | { status: 'ok'; dados: ChatRoteiroDados }
+  | { status: 'ok'; dados: ChatDonoDados }
   | { status: 'erro'; mensagem: string };
 
 /**
@@ -38,7 +55,7 @@ export function saudacaoPasseio(
 }
 
 /**
- * Conversa com o dono do roteiro em modal, por cima da página — o cliente não perde o que
+ * Conversa com o dono em modal, por cima da página — o cliente não perde o que
  * estava vendo. Controlada por quem usa (`aberto`/`onFechar`). Abre com assuntos sugeridos
  * (um clique preenche a mensagem com `saudacao` + a pergunta) e tem atalho para abrir a
  * conversa em uma nova aba. Carrega na primeira abertura e continua montada depois de
@@ -48,41 +65,46 @@ export function saudacaoPasseio(
  * prenderia a modal no próprio contexto de empilhamento (atrás do header).
  */
 export function ChatDonoDialog({
-  roteiroId,
+  alvo,
   aberto,
   onFechar,
   saudacao,
+  sugestoes = SUGESTOES,
   rascunho,
   origem,
   onSemSessao,
 }: {
-  roteiroId: string;
+  alvo: AlvoChatDono;
   aberto: boolean;
   onFechar: () => void;
   saudacao: string;
+  /** Assuntos sugeridos — padrão: dúvidas antes de reservar. */
+  sugestoes?: SugestaoChat[];
   rascunho?: { texto: string; versao: number };
   /** De onde a conversa foi aberta (GA4 `iniciar_conversa`). */
-  origem: 'reserva' | 'roteiro';
+  origem: 'reserva' | 'roteiro' | 'minhas_reservas';
   onSemSessao?: () => void;
 }) {
   const [estado, setEstado] = useState<Estado>({ status: 'fechado' });
   const painelRef = useRef<HTMLDivElement>(null);
-  const hrefNovaAba = `/roteiros/${roteiroId}/chat`;
+  const hrefNovaAba = alvo.tipo === 'roteiro' ? `/roteiros/${alvo.id}/chat` : `/minhas-reservas/${alvo.id}/chat`;
 
   const carregar = useCallback(async () => {
     setEstado({ status: 'carregando' });
-    const r = await abrirChatRoteiro(roteiroId);
+    const r = alvo.tipo === 'roteiro' ? await abrirChatRoteiro(alvo.id) : await abrirChatReserva(alvo.id);
     if (r.ok) {
       setEstado({ status: 'ok', dados: r.dados });
-      // GA4: contato com o dono (1x por item e navegador) — mesma chave da página de chat (SPEC §65).
-      rastrearUmaVez(`iniciar_conversa:roteiro:${roteiroId}`, 'iniciar_conversa', { origem, item_id: roteiroId });
+      // GA4: contato com o dono antes de reservar (1x por item e navegador) — mesma chave da página de chat (SPEC §65).
+      if (alvo.tipo === 'roteiro') {
+        rastrearUmaVez(`iniciar_conversa:roteiro:${alvo.id}`, 'iniciar_conversa', { origem, item_id: alvo.id });
+      }
     } else if (r.semSessao && onSemSessao) {
       setEstado({ status: 'fechado' });
       onSemSessao();
     } else {
       setEstado({ status: 'erro', mensagem: r.error });
     }
-  }, [roteiroId, origem, onSemSessao]);
+  }, [alvo.tipo, alvo.id, origem, onSemSessao]);
 
   // Carrega na primeira abertura (e de novo se a anterior falhou).
   const status = estado.status;
@@ -129,11 +151,11 @@ export function ChatDonoDialog({
             mensagensIniciais={estado.dados.mensagens}
             rascunhoInicial={rascunho?.texto}
             rascunhoExterno={rascunho}
-            contexto={{ tipo: 'roteiro', label: estado.dados.roteiroNome }}
+            contexto={{ tipo: estado.dados.origemTipo, label: estado.dados.origemLabel }}
             avisoCienteInicial={estado.dados.avisoCiente}
             onFechar={onFechar}
             abrirEmNovaAbaHref={hrefNovaAba}
-            sugestoes={SUGESTOES}
+            sugestoes={sugestoes}
             saudacao={saudacao}
           />
         ) : (
@@ -228,7 +250,7 @@ export default function ChatDonoModal({
       </button>
 
       <ChatDonoDialog
-        roteiroId={roteiroId}
+        alvo={{ tipo: 'roteiro', id: roteiroId }}
         aberto={aberto}
         onFechar={fechar}
         origem="reserva"

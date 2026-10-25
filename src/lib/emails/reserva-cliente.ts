@@ -52,7 +52,7 @@ export async function emailReservaConfirmada(reservaId: string) {
         'Qualquer dúvida sobre o embarque, fale com o gestor pelo chat do Boatzy.',
       ],
       blocos: [{ linhas: [['Passeio', item], ['Data', periodo(r)]] }],
-      botao: { texto: 'Ver minha reserva', url: `${baseUrl()}/minhas-reservas#reserva-${reservaId}` },
+      botao: { texto: 'Ver minha reserva', url: `${baseUrl()}/minhas-reservas/${reservaId}` },
       rodape: 'Você recebe este e-mail porque fez uma reserva no Boatzy.',
     }),
     'reserva confirmada',

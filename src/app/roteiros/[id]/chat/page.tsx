@@ -2,7 +2,7 @@ import { notFound, redirect } from 'next/navigation';
 import Header from '@/components/layout/Header';
 import EventoAnalytics from '@/components/analytics/EventoAnalytics';
 import { createClient } from '@/lib/supabase/server';
-import { carregarChatRoteiro } from '@/lib/chat-roteiro';
+import { carregarChatRoteiro } from '@/lib/chat-dono';
 import ChatBox from '@/components/chat/ChatBox';
 
 /**
@@ -37,7 +37,7 @@ export default async function ChatRoteiroPage({
     if (resultado.motivo === 'dono') redirect(`/roteiros/${id}`);
     notFound();
   }
-  const { conversaId, interlocutor, mensagens, avisoCiente, roteiroNome } = resultado.dados;
+  const { conversaId, interlocutor, mensagens, avisoCiente, origemLabel: roteiroNome } = resultado.dados;
 
   // Rascunho: o texto que o cliente começou no detalhe do roteiro; sem ele, a mensagem
   // contextual padrão, apenas em conversa ainda vazia.

@@ -1,7 +1,7 @@
 'use server';
 
 import { createClient } from '@/lib/supabase/server';
-import { carregarChatRoteiro, type ChatRoteiroDados } from '@/lib/chat-roteiro';
+import { carregarChatRoteiro, type ChatDonoDados } from '@/lib/chat-dono';
 
 /**
  * Abre o chat com o dono do roteiro sem sair da página (modal da confirmação da
@@ -9,7 +9,7 @@ import { carregarChatRoteiro, type ChatRoteiroDados } from '@/lib/chat-roteiro';
  */
 export async function abrirChatRoteiro(
   roteiroId: string,
-): Promise<{ ok: true; dados: ChatRoteiroDados } | { ok: false; error: string; semSessao?: boolean }> {
+): Promise<{ ok: true; dados: ChatDonoDados } | { ok: false; error: string; semSessao?: boolean }> {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   // Deslogado: quem chamou leva ao login (a página de chat volta com o texto preservado).

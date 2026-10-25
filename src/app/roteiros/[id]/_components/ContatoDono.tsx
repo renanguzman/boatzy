@@ -108,7 +108,7 @@ export default function ContatoDono({ roteiroId, roteiroNome, dataISO, pessoas }
       </button>
 
       <ChatDonoDialog
-        roteiroId={roteiroId}
+        alvo={{ tipo: 'roteiro', id: roteiroId }}
         aberto={aberto}
         onFechar={fechar}
         origem="roteiro"

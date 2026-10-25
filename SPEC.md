@@ -7716,3 +7716,84 @@ solicitação").
   - Testes: `tsc`/`eslint` limpos; no navegador, deslogado no detalhe do roteiro: digitar "Tem colete
     infantil?" + "Conversar com o dono" → `/entrar?redirect_to=/roteiros/<id>/chat?mensagem=Tem colete
     infantil?`, sem erro de console. Modal logada não exercitada (exige sessão).
+
+## 89. Recado do gestor (aceite/recusa) registrado no chat (25/10/2026)
+
+- **`src/lib/chat-recado-reserva.ts`** (novo, server-only): `registrarRecadoReservaNoChat({ reservaId,
+  gestorId, texto, resposta: 'aceita' | 'recusada' })`. Sem texto (trim) ou `cliente_id === gestorId` →
+  nada. Upsert de `conversa` (`onConflict gestor_id,cliente_id`; `origem_tipo` `roteiro`/`embarcacao`,
+  `origem_id`, `origem_label` = nome atual do roteiro ou `item_nome`) e insert em `mensagem`
+  (`remetente_id` = gestor) com `"{contexto}\n\n{mascararTelefones(texto)}"`, até 4000 caracteres.
+  Contexto: `Sobre sua reserva de "{item}" para {dd/mm/aaaa[ a dd/mm/aaaa]} — aceita:` / `Sobre sua
+  solicitação de … — não aceita:`. `revalidatePath('/painel/clientes' | '/minhas-reservas')`. Nunca
+  lança (erros logados).
+- **Chamadas** (`src/app/painel/(gestao)/agendamentos/actions.ts`): `aceitarComPagamento` depois do
+  pedido criado (antes do e-mail de cobrança); `responderReserva` depois do update bem-sucedido (aceite sem
+  cobrança e recusa). `reserva.observacao_gestor` e o e-mail de recusa seguem iguais.
+- A mensagem dispara os mesmos efeitos de qualquer mensagem do gestor: trigger `notificacao_mensagem`
+  (sino do cliente, §64), Realtime no `ChatBox` e e-mail agrupado de conversas (cron, respeita
+  `notif_email_conversas`).
+- **`ReservaAcoes`**: dica `MessageCircle` "Se preenchida, a mensagem também fica registrada no chat com
+  o cliente." abaixo dos textareas de aceite e de recusa.
+- Testes: `tsc`/`eslint` limpos. Fluxo não exercitado no navegador (exige sessão de gestor e reserva
+  pendente).
+
+## 90. `/minhas-reservas/[id]` — detalhe da reserva do cliente + comprovante (25/10/2026)
+
+- **`page.tsx`**: exige sessão (`/entrar?redirect_to=/minhas-reservas/<id>`) e renderiza
+  `<DetalheReserva reservaId clienteId />`.
+- **`_components/DetalheReserva.tsx`** (server): `expirarPedidosVencidosSemFalhar` +
+  `concluirReservasVencidas`; `reserva` com `.eq('cliente_id', clienteId)` (senão `notFound()`), embeds
+  `roteiro (nome, origem, destino, horario_saida, duracao_horas, endereço, lat/lng, municipios, roteiro_imagens)`,
+  `embarcacao`, `reserva_adicional`, `reserva_atendente → equipe_membro`, `avaliacao`, `pedido (…, pedido_desconto)`.
+  Em paralelo: `pagamento` do pedido (`forma_pagamento, numero_parcelas, valor, status, confirmado_em,
+  recebido_em, numero_fatura, comprovante_url, fatura_url, asaas_payment_id, pix_transacao_id,
+  pagamento_cartao (bandeira, ultimos_digitos), pagamento_estorno (valor, status, solicitado_em,
+  concluido_em)`), `users` (nome + `cpf_cnpj` do cliente; nome do dono), `termos_uso_aceite`
+  (`contexto_tipo 'reserva'`, `contexto_id` = reserva → versão, `aceito_em`, protocolo via
+  `protocoloAceite`) e `chat_nao_lidas_por_gestor`.
+  - Pagamento do comprovante = o mais recente com status em `PAGAMENTO_PAGO` + `estornado`,
+    `estornado_parcial`, `em_disputa`, `estorno_em_andamento`. Comprovante só com pedido `pago`,
+    `reembolsado`, `reembolsado_parcial` ou `em_disputa`.
+  - `montarEtapas(r, pedido)` → `{ titulo, detalhe, estado: feito | atual | falhou | futuro }` (linha
+    horizontal ≥ sm, vertical no celular).
+  - Valores: `valoresParaCliente` (taxa embutida, `multiplicadorDaReserva`); total = `pedido.valor_total`
+    se houver pedido. Comprovante: "Passeio e opcionais" = `valor_itens + valor_comissao`, desconto,
+    total pago = `pagamento.valor`.
+  - Data do pagamento: `pedido.pago_em ?? pagamento.confirmado_em ?? recebido_em` (`confirmado_em` da
+    Asaas pode vir sem hora). CPF/CNPJ mascarado (`***.456.789-**`); bandeiras por nome legível.
+  - Impressão: tudo tem `print:hidden` exceto `#comprovante` (sem borda/sombra no print).
+  - `StatusPagamento` (situação + ação) e `SeloPedido`; datas com `formatarDataHoraBR`/`formatarData`
+    (fuso de Brasília), `dataLonga` com só a 1ª letra maiúscula.
+- **`_components/BotaoImprimir.tsx`** (client): `window.print()`.
+- **`src/app/minhas-reservas/_lib/status.ts`**: `STATUS` (rótulo, selo, ícone, nota por `ReservaStatus`)
+  extraído da lista, usado pela lista e pelo detalhe.
+- **Lista (`/minhas-reservas`)**: título com link para o detalhe; "Ver roteiro →" → "Ver detalhes →";
+  linha "Pagamento confirmado" com "Ver comprovante" (`#comprovante`).
+- **`cancelarReserva`**: também `revalidatePath('/minhas-reservas/<id>')`.
+- **E-mails**: `emailReservaConfirmada` → `/minhas-reservas/<id>`; `emailPagamentoConfirmado` ("Ver
+  comprovante") e `emailReembolso` → `/minhas-reservas/<id>#comprovante`.
+- **Pendente:** links das notificações in-app (triggers da §64/§87) seguem `/minhas-reservas#reserva-<id>`.
+- **Testes:** `tsc`/`eslint` limpos. Visual conferido com reservas reais numa página temporária (removida)
+  que renderizava `DetalheReserva` sem sessão: paga no cartão (1280px e 390px), pendente (1280px) e
+  `emulateMedia('print')` (só o comprovante). Sem erro de console. Fluxo logado pela rota real não
+  exercitado (exige sessão do cliente).
+- **Atualização (25/10/2026) — chat das reservas em modal:**
+  - `src/lib/chat-roteiro.ts` → **`src/lib/chat-dono.ts`**: `abrirConversa` (interno) +
+    `carregarChatRoteiro(roteiroId, clienteId)` + **`carregarChatReserva(reservaId, clienteId)`** (reserva
+    precisa ser do cliente; origem = roteiro/embarcação da reserva, `origem_label = item_nome`). Tipo
+    `ChatDonoDados` (antes `ChatRoteiroDados`) com `origemTipo`/`origemLabel` no lugar de `roteiroNome`.
+  - `src/app/minhas-reservas/[id]/chat/actions.ts` (novo): `abrirChatReserva(reservaId)` (`semSessao` sem
+    login). A página `/minhas-reservas/[id]/chat` usa `carregarChatReserva`; "voltar" → `/minhas-reservas/<id>`.
+  - `ChatDonoDialog`: `alvo: { tipo: 'roteiro' | 'reserva'; id }` (no lugar de `roteiroId`), `sugestoes`
+    (padrão = antes de reservar; exporta `SUGESTOES_RESERVA`), `origem` + `'minhas_reservas'`; nova aba →
+    `/roteiros/<id>/chat` ou `/minhas-reservas/<id>/chat`; GA4 `iniciar_conversa` só com alvo roteiro.
+    Selo de contexto a partir de `origemTipo/origemLabel`.
+  - `src/app/minhas-reservas/_components/ConversarDonoReserva.tsx` (novo, client): `{ reservaId, itemNome,
+    dataLabel, naoLidas, variante: 'botao' | 'link' }`; abre o diálogo com `SUGESTOES_RESERVA` e a saudação
+    `Olá! Sobre a minha reserva de "{item}" para {dd/mm/aaaa} (código {8 chars}).`; ao fechar,
+    `router.refresh()` (contador de não lidas). Usado no detalhe (`botao`) e no rodapé dos cards da lista
+    (`link`, texto "Conversar com o dono").
+  - Testes: `tsc`/`eslint` limpos; no navegador (página temporária, removida), o clique abre a modal na
+    mesma URL (sem sessão → aviso "Entre na sua conta…"), sem erro de console. Conversa logada não exercitada.
+
