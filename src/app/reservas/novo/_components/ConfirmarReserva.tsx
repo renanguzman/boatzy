@@ -64,10 +64,15 @@ export default function ConfirmarReserva({
 }: Props) {
   const router = useRouter();
   // Opcionais: escolhidos no roteiro e ajustáveis aqui (OpcionaisCheckout) — mesmo estado.
-  const { selecionados: adicionaisIds, totalAdicionais } = useSelecaoOpcionais();
+  const { selecionados: adicionaisIds, totalAdicionais, setTravado } = useSelecaoOpcionais();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [enviada, setEnviada] = useState(false);
+
+  // Opcionais travados do clique em "Confirmar solicitação" em diante; destrava se o envio falhar.
+  useEffect(() => {
+    setTravado(loading || enviada);
+  }, [loading, enviada, setTravado]);
 
   // Aceite do termo da reserva (feito no modal do TermoAceite).
   const [aceiteTermo, setAceiteTermo] = useState<AceiteTermoCliente | null>(null);
@@ -163,6 +168,8 @@ export default function ConfirmarReserva({
   }
 
   async function handleConfirm() {
+    if (loading || enviada) return;
+    setTravado(true);
     setLoading(true);
     setError(null);
     const result = await criarReserva({

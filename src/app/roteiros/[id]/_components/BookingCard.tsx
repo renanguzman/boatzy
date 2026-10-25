@@ -509,10 +509,10 @@ export default function BookingCard({
       </div>
 
       {/* Contato com o dono logo abaixo do "Solicitar Reserva": a dúvida que trava a reserva
-          vira conversa (o texto segue como rascunho para o chat) */}
+          vira conversa em modal, sem sair da página (o texto segue como rascunho) */}
       {!ehDono && (
         <div ref={contatoRef}>
-          <ContatoDono roteiroId={roteiroId} />
+          <ContatoDono roteiroId={roteiroId} roteiroNome={roteiroNome} dataISO={dateISO} pessoas={guests} />
         </div>
       )}
 

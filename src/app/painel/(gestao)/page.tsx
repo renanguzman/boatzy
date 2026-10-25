@@ -11,6 +11,8 @@ import {
   Users,
   MapPin,
   Tag,
+  Inbox,
+  CreditCard,
 } from 'lucide-react';
 import { createClient } from '@/lib/supabase/server';
 import { supabaseAdmin } from '@/lib/supabase';
@@ -88,6 +90,11 @@ export default async function PainelDashboardPage() {
 
   /* ── Cards ── */
   const pendentes = reservas.filter((r) => r.status === 'pendente').length;
+  // Aviso no topo: solicitações esperando resposta (mais antigas primeiro) e pagamentos em aberto.
+  const solicitacoesPendentes = reservas
+    .filter((r) => r.status === 'pendente')
+    .sort((a, b) => a.solicitado_em.localeCompare(b.solicitado_em));
+  const aguardandoPagamento = reservas.filter((r) => r.status === 'aguardando_pagamento').length;
   const embarcacoesAtivas = embarcacoes.filter((e) => e.status === 'ativo').length;
   const roteirosAtivos = roteiros.filter((r) => r.ativo).length;
   const totalClientes = new Set(reservas.map((r) => r.cliente_id)).size;
@@ -195,6 +202,59 @@ export default async function PainelDashboardPage() {
 
   return (
     <div className="p-4 sm:p-6 lg:p-8">
+      {/* Solicitações de reserva esperando resposta do gestor — atualizado ao vivo (AtualizarAoVivo) */}
+      {solicitacoesPendentes.length > 0 && (
+        <div className="mb-6 rounded-2xl border border-amber-200 bg-amber-50/70 p-4 sm:p-5">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <p className="flex items-center gap-2 text-sm font-bold text-amber-900">
+              <span className="relative flex h-2.5 w-2.5">
+                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-amber-400 opacity-75" />
+                <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-amber-500" />
+              </span>
+              <Inbox className="h-4 w-4" />
+              {solicitacoesPendentes.length === 1
+                ? '1 solicitação de reserva aguarda sua resposta'
+                : `${solicitacoesPendentes.length} solicitações de reserva aguardam sua resposta`}
+            </p>
+            <Link href="/painel/agendamentos" className="text-xs font-semibold text-amber-800 hover:text-amber-950 inline-flex items-center gap-0.5">
+              Ver agendamentos <ChevronRight className="h-3.5 w-3.5" />
+            </Link>
+          </div>
+          <ul className="mt-3 grid gap-2 sm:grid-cols-2">
+            {solicitacoesPendentes.slice(0, 4).map((r) => (
+              <li key={r.id}>
+                <Link
+                  href={`/painel/agendamentos/${r.id}`}
+                  className="flex items-center gap-3 rounded-xl border border-amber-200 bg-white px-3 py-2.5 hover:border-amber-300 transition-colors"
+                >
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-semibold text-[#0B2447] truncate">{r.item_nome}</p>
+                    <p className="text-xs text-slate-500 truncate">
+                      {r.cliente?.name ?? 'Cliente'} · {formatDataCurta(r.data_reserva)} · {r.quantidade_pessoas}{' '}
+                      {r.quantidade_pessoas === 1 ? 'pessoa' : 'pessoas'}
+                    </p>
+                  </div>
+                  <span className="shrink-0 rounded-lg bg-[#0B2447] px-2.5 py-1 text-[11px] font-semibold text-white">Responder</span>
+                </Link>
+              </li>
+            ))}
+          </ul>
+          {solicitacoesPendentes.length > 4 && (
+            <p className="mt-2 text-xs text-amber-800">
+              e mais {solicitacoesPendentes.length - 4} em Agendamentos.
+            </p>
+          )}
+        </div>
+      )}
+      {aguardandoPagamento > 0 && (
+        <p className="mb-6 flex items-center gap-2 rounded-xl border border-violet-200 bg-violet-50/50 px-4 py-2.5 text-sm text-violet-800">
+          <CreditCard className="h-4 w-4 shrink-0" />
+          {aguardandoPagamento === 1
+            ? '1 reserva aceita aguarda o pagamento do cliente — você é avisado assim que ele pagar.'
+            : `${aguardandoPagamento} reservas aceitas aguardam o pagamento do cliente — você é avisado assim que cada uma for paga.`}
+        </p>
+      )}
+
       {/* Pipeline de aprovação */}
       {devolvidos.length > 0 && (
         <div className="mb-6 rounded-2xl border border-orange-200 bg-orange-50/60 p-5">

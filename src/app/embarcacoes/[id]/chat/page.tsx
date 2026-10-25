@@ -39,7 +39,7 @@ export default async function ChatEmbarcacaoPage({ params }: { params: Promise<{
 
   const { data: dono } = await supabaseAdmin
     .from('users')
-    .select('id, name, email, avatar_url')
+    .select('id, name, avatar_url')
     .eq('id', embarcacao.owner_id)
     .single();
   if (!dono) notFound();
@@ -92,7 +92,7 @@ export default async function ChatEmbarcacaoPage({ params }: { params: Promise<{
         <ChatBox
           conversaId={conversaId}
           meId={user.id}
-          interlocutor={{ name: dono.name, email: dono.email, avatar_url: dono.avatar_url }}
+          interlocutor={{ name: dono.name, descricao: 'Dono da embarcação · conversa pelo Boatzy', avatar_url: dono.avatar_url }}
           voltarHref={`/embarcacoes/${id}/roteiros`}
           voltarLabel="Voltar para a embarcação"
           mensagensIniciais={(mensagens ?? []) as Mensagem[]}

@@ -6,6 +6,7 @@ import { createClient } from '@/lib/supabase/server';
 import { supabaseAdmin } from '@/lib/supabase';
 import { cancelarPedidoAguardando } from '@/lib/pagamentos/pedidos';
 import { emailReservaCancelada } from '@/lib/emails/reserva-cliente';
+import { emailGestorReservaCancelada } from '@/lib/emails/reserva-gestor';
 
 type ActionResult = { ok: true } | { ok: false; error: string };
 
@@ -58,8 +59,9 @@ export async function cancelarReserva(reservaId: string): Promise<ActionResult> 
     return { ok: false, error: 'Erro ao cancelar a reserva. Tente novamente.' };
   }
 
-  // Comprovante por e-mail (o in-app vem do trigger `notificacao_reserva`, SPEC §64).
-  after(() => emailReservaCancelada(reservaId));
+  // Comprovante ao cliente e aviso ao gestor por e-mail (o in-app de ambos vem do trigger
+  // `notificacao_reserva`, SPEC §64/§87).
+  after(() => Promise.all([emailReservaCancelada(reservaId), emailGestorReservaCancelada(reservaId)]));
 
   revalidatePath('/minhas-reservas');
   revalidatePath('/painel/agendamentos');

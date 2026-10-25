@@ -19,26 +19,23 @@ export function normalizarNome(v: string): string {
     .trim();
 }
 
-/** As primeiras `n` letras do nome (espaços preservados), ex.: "Renan Guzman" → "Renan". */
-export function inicioDoNome(nome: string, n = 5): string {
-  let letras = 0;
-  let fim = 0;
-  const t = nome.trim().replace(/\s+/g, ' ');
-  for (const c of t) {
-    if (/\S/.test(c)) letras++;
-    fim += c.length;
-    if (letras === n) break;
-  }
-  return t.slice(0, fim);
+/** CPF/CNPJ (só dígitos) no formato de exibição: 000.000.000-00 / 00.000.000/0000-00. */
+export function formatarDocumento(doc: string): string {
+  return doc.length === 11
+    ? doc.replace(/^(\d{3})(\d{3})(\d{3})(\d{2})$/, '$1.$2.$3-$4')
+    : doc.replace(/^(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})$/, '$1.$2.$3/$4-$5');
 }
 
-/** Qual confirmação pedir para este usuário: documento se houver, senão nome completo. */
+/**
+ * Qual confirmação pedir para este usuário: documento se houver, senão nome completo.
+ * A dica é o valor completo do próprio cadastro (só vai para o dono da sessão).
+ */
 export function definirConfirmacao(usuario: { name: string | null; cpf_cnpj: string | null }): ConfirmacaoExigida | null {
   const doc = somenteDigitos(usuario.cpf_cnpj ?? '');
-  if (doc.length === 11) return { tipo: 'cpf', rotulo: 'seu CPF', dica: `${doc.slice(0, 3)}...` };
-  if (doc.length === 14) return { tipo: 'cnpj', rotulo: 'o CNPJ cadastrado', dica: `${doc.slice(0, 4)}...` };
+  if (doc.length === 11) return { tipo: 'cpf', rotulo: 'seu CPF', dica: formatarDocumento(doc) };
+  if (doc.length === 14) return { tipo: 'cnpj', rotulo: 'o CNPJ cadastrado', dica: formatarDocumento(doc) };
   if (usuario.name && normalizarNome(usuario.name)) {
-    return { tipo: 'nome', rotulo: 'seu nome completo, como está no cadastro', dica: `${inicioDoNome(usuario.name)}...` };
+    return { tipo: 'nome', rotulo: 'seu nome completo, como está no cadastro', dica: usuario.name.trim().replace(/\s+/g, ' ') };
   }
   return null;
 }

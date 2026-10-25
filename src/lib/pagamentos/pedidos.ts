@@ -4,7 +4,7 @@ import { supabaseAdmin } from '@/lib/supabase';
 import { removerCobranca } from '@/lib/asaas/cobrancas';
 import { mensagemErroAsaas } from '@/lib/asaas/client';
 import type { PagamentoStatus } from '@/types/supabase';
-import { emailPagamentoConfirmado, emailPedidoExpirado, emailReservaPaga } from './emails';
+import { emailGestorPedidoExpirado, emailPagamentoConfirmado, emailPedidoExpirado, emailReservaPaga } from './emails';
 
 /**
  * Ciclo de vida do pedido (SPEC §34.11):
@@ -148,7 +148,7 @@ export type ResultadoExpiracao = 'expirado' | 'confirmado' | 'cobranca_nao_remov
 /**
  * Encerra UM pedido aguardando pagamento: remove as cobranças no Asaas (para
  * não poderem mais ser pagas), marca pedido `expirado` e reserva `expirada`
- * (libera a data) e avisa o cliente. Se já existe pagamento confirmado
+ * (libera a data) e avisa cliente e gestor. Se já existe pagamento confirmado
  * (webhook ainda não aplicado), confirma o pedido em vez de expirar. Se alguma
  * cobrança não pôde ser removida, não encerra (tenta de novo depois).
  */
@@ -191,15 +191,19 @@ export async function expirarPedido(pedidoId: string, motivo: string): Promise<R
 
   const d = await dadosParaEmail(pedido.id);
   if (d?.reserva) {
-    await emailPedidoExpirado({
+    const base = {
       reservaId: d.reserva_id,
       pedidoNumero: d.numero,
       itemNome: d.reserva.item_nome,
       dataReserva: d.reserva.data_reserva,
       valorTotal: Number(d.valor_total),
-      para: d.cliente?.email ?? '',
-      nome: d.cliente?.name ?? '',
-    });
+    };
+    await Promise.all([
+      emailPedidoExpirado({ ...base, para: d.cliente?.email ?? '', nome: d.cliente?.name ?? '' }),
+      emailGestorPedidoExpirado({
+        ...base, para: d.gestor?.email ?? '', nome: d.gestor?.name ?? '', clienteNome: d.cliente?.name ?? 'O cliente',
+      }),
+    ]);
   }
   return 'expirado';
 }

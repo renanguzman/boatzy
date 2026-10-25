@@ -41,18 +41,6 @@ function mascararDocumento(v: string, tipo: 'cpf' | 'cnpj'): string {
     .replace(/(\d{4})(\d)/, '$1-$2');
 }
 
-/**
- * Prévia do documento esperado a partir da dica do servidor ("829..." / "1234..."): os dígitos
- * conhecidos e o resto em pontos, já no formato — ex.: 829.•••.•••-••. Nunca revela mais que a dica.
- */
-function previaDocumento(dica: string, tipo: 'cpf' | 'cnpj'): string {
-  const total = tipo === 'cpf' ? 11 : 14;
-  const c = (dica.replace(/\D/g, '').slice(0, total) + '•'.repeat(total)).slice(0, total).split('');
-  return tipo === 'cpf'
-    ? `${c.slice(0, 3).join('')}.${c.slice(3, 6).join('')}.${c.slice(6, 9).join('')}-${c.slice(9).join('')}`
-    : `${c.slice(0, 2).join('')}.${c.slice(2, 5).join('')}.${c.slice(5, 8).join('')}/${c.slice(8, 12).join('')}-${c.slice(12).join('')}`;
-}
-
 /** Valor digitado já tem o tamanho esperado (o conteúdo é conferido no servidor). */
 function confirmacaoCompleta(valor: string, tipo: 'cpf' | 'cnpj' | 'nome'): boolean {
   if (tipo === 'nome') return valor.trim().split(/\s+/).length >= 2;
@@ -300,7 +288,7 @@ export default function TermoAceite({ termo, aceite, onAceitar, finalidade, disa
                   </span>
                 </label>
 
-                {/* ③ Identidade — instrução em destaque, prévia do documento esperado e estado de completo */}
+                {/* ③ Identidade — instrução em destaque, valor completo a digitar (do cadastro) e estado de completo */}
                 {termo.confirmacao && (() => {
                   const tipo = termo.confirmacao.tipo;
                   const completo = confirmacaoCompleta(confirmacaoValor, tipo);
@@ -315,10 +303,9 @@ export default function TermoAceite({ termo, aceite, onAceitar, finalidade, disa
                             {tipo === 'cpf' ? 'Digite seu CPF completo' : tipo === 'cnpj' ? 'Digite o CNPJ completo' : 'Digite seu nome completo'}
                           </label>
                           <p className="mt-0.5 text-xs text-slate-500">
-                            Para confirmar que é você.{' '}
-                            {tipo === 'nome' ? 'Como está no cadastro, começando por' : 'Começa com'}{' '}
-                            <span className="inline-block rounded-md bg-destaque/30 px-1.5 py-px font-mono font-semibold text-marinho">
-                              {tipo === 'nome' ? termo.confirmacao.dica : previaDocumento(termo.confirmacao.dica, tipo)}
+                            Para confirmar que é você, digite{tipo === 'nome' ? ' como está no cadastro' : ''}:{' '}
+                            <span className={`inline-block rounded-md bg-destaque/30 px-1.5 py-px font-semibold text-marinho ${tipo === 'nome' ? '' : 'font-mono'}`}>
+                              {termo.confirmacao.dica}
                             </span>
                           </p>
                         </div>

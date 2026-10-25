@@ -21,7 +21,7 @@ export default function PrivacyPage() {
               Política de Privacidade
             </h1>
             <p className="mt-3 text-sm text-slate-300">
-              Última atualização: 23/10/2026
+              Última atualização: 25/10/2026
             </p>
           </div>
         </section>
@@ -263,8 +263,8 @@ export default function PrivacyPage() {
               <ul className="mt-3 list-disc pl-6 space-y-2">
                 <li>
                   <strong>Necessários</strong> — indispensáveis para a
-                  plataforma funcionar (manter você conectado, guardar sua
-                  escolha sobre cookies e preferências do site). Ficam sempre
+                  plataforma funcionar (manter você conectado e guardar
+                  preferências do site). Ficam sempre
                   ativos, com base na execução do contrato e no legítimo
                   interesse (art. 7º, V e IX, da LGPD).
                 </li>
@@ -272,32 +272,19 @@ export default function PrivacyPage() {
                   <strong>Medição</strong> — o Google Analytics, que nos mostra
                   de forma estatística como o site é usado (páginas visitadas, de
                   onde vêm os acessos, tipo de aparelho e região aproximada) para
-                  melhorarmos o Boatzy. Só gravamos esses cookies com o 
-                  <strong>seu consentimento</strong> (art. 7º, I, da LGPD). Não
-                  usamos cookies de publicidade.
+                  melhorarmos o Boatzy, com base no legítimo interesse (art. 7º,
+                  IX, da LGPD). Não usamos cookies de publicidade.
                 </li>
               </ul>
 
-              <h3 className="mt-6 font-semibold text-grafite">Como funciona a sua escolha</h3>
+              <h3 className="mt-6 font-semibold text-grafite">Como controlar os cookies</h3>
               <p className="mt-3">
-                No primeiro acesso, um aviso pergunta se você permite os cookies
-                de Medição. Você pode aceitar, recusar ou personalizar — recusar
-                não limita o uso da plataforma. Sem a sua permissão, o Google
-                Analytics funciona no modo restrito do Google (&quot;Consent Mode&quot;):
-                não grava cookies nem identifica você, apenas envia sinais
-                anônimos e agregados que o Google usa para estimar o volume de
-                visitas. Quando você está conectado e permitiu a Medição, as
-                estatísticas são associadas a um código interno da sua conta —
-                nunca ao seu nome ou e-mail.
-              </p>
-              <p className="mt-3">
-                Registramos cada escolha (data, categorias, versão desta política
-                e tipo de navegador, sem endereço IP) para comprovar o seu
-                consentimento. Você pode mudar de ideia a qualquer momento em 
-                <strong>Minha conta → Privacidade e cookies</strong>; ao retirar
-                a permissão, os cookies do Google Analytics são apagados deste
-                navegador. Você também pode apagar cookies nas configurações do
-                seu navegador.
+                Quando você está conectado, as estatísticas de Medição são
+                associadas a um código interno da sua conta — nunca ao seu nome
+                ou e-mail. Você pode bloquear ou apagar cookies a qualquer
+                momento nas configurações do seu navegador; bloquear os cookies
+                de Medição não limita o uso da plataforma, mas bloquear os
+                Necessários pode impedir o login.
               </p>
 
               <h3 className="mt-6 font-semibold text-grafite">Cookies e itens que usamos</h3>
@@ -319,13 +306,6 @@ export default function PrivacyPage() {
                       <td className="py-2 pr-3">Necessário</td>
                       <td className="py-2 pr-3">Mantém você conectado com segurança.</td>
                       <td className="py-2">Sessão de login (renovada enquanto você usa)</td>
-                    </tr>
-                    <tr className="border-t border-slate-100 align-top">
-                      <td className="py-2 pr-3 font-mono text-xs text-grafite">boatzy_consentimento</td>
-                      <td className="py-2 pr-3">Boatzy</td>
-                      <td className="py-2 pr-3">Necessário</td>
-                      <td className="py-2 pr-3">Guarda a sua escolha sobre cookies.</td>
-                      <td className="py-2">12 meses, renovado a cada visita</td>
                     </tr>
                     <tr className="border-t border-slate-100 align-top">
                       <td className="py-2 pr-3 font-mono text-xs text-grafite">boatzy_recent_locations</td>
@@ -353,14 +333,14 @@ export default function PrivacyPage() {
                       <td className="py-2 pr-3">Google Analytics</td>
                       <td className="py-2 pr-3">Medição</td>
                       <td className="py-2 pr-3">Distingue visitantes de forma estatística.</td>
-                      <td className="py-2">2 anos (só com sua permissão)</td>
+                      <td className="py-2">2 anos</td>
                     </tr>
                     <tr className="border-t border-slate-100 align-top">
                       <td className="py-2 pr-3 font-mono text-xs text-grafite">_ga_4QJF8H6EDJ</td>
                       <td className="py-2 pr-3">Google Analytics</td>
                       <td className="py-2 pr-3">Medição</td>
                       <td className="py-2 pr-3">Mantém o estado da visita para as estatísticas.</td>
-                      <td className="py-2">2 anos (só com sua permissão)</td>
+                      <td className="py-2">2 anos</td>
                     </tr>
                   </tbody>
                 </table>

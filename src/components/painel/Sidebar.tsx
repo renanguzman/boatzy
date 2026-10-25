@@ -24,6 +24,7 @@ import {
 } from 'lucide-react';
 import clsx from 'clsx';
 import { useMenuMobile } from './MenuMobile';
+import { EVENTO_AVISO_GESTOR } from './NotificacoesBell';
 
 const navItems = [
   { href: '/painel', label: 'DASHBOARD', icon: LayoutDashboard, exact: true, tour: 'nav-dashboard' },
@@ -37,7 +38,16 @@ const navItems = [
   { href: '/painel/receitas', label: 'RECEITAS', icon: DollarSign, exact: false, tour: 'nav-receitas' },
 ];
 
-export default function Sidebar({ naoLidas = 0 }: { naoLidas?: number }) {
+export default function Sidebar({
+  naoLidas = 0,
+  pendentes = 0,
+  userId = null,
+}: {
+  naoLidas?: number;
+  /** Solicitações de reserva aguardando resposta do gestor (badge de AGENDAMENTOS). */
+  pendentes?: number;
+  userId?: string | null;
+}) {
   const pathname = usePathname();
   const router = useRouter();
   const supabaseRef = useRef(createClient());
@@ -46,6 +56,29 @@ export default function Sidebar({ naoLidas = 0 }: { naoLidas?: number }) {
   // Total de mensagens não lidas: começa com o valor do servidor e é mantido
   // ao vivo via Realtime (eventos em `mensagem`).
   const [totalNaoLidas, setTotalNaoLidas] = useState(naoLidas);
+
+  // Solicitações pendentes: valor do servidor, recontado a cada navegação (o gestor pode ter
+  // acabado de responder uma) e quando chega aviso novo ao gestor pelo sino (Realtime).
+  const [totalPendentes, setTotalPendentes] = useState(pendentes);
+
+  useEffect(() => {
+    if (!userId) return;
+    let cancelado = false;
+    async function recontar() {
+      const { count, error } = await supabaseRef.current
+        .from('reserva')
+        .select('id', { count: 'exact', head: true })
+        .eq('owner_id', userId!)
+        .eq('status', 'pendente');
+      if (!cancelado && !error) setTotalPendentes(count ?? 0);
+    }
+    void recontar();
+    window.addEventListener(EVENTO_AVISO_GESTOR, recontar);
+    return () => {
+      cancelado = true;
+      window.removeEventListener(EVENTO_AVISO_GESTOR, recontar);
+    };
+  }, [userId, pathname]);
 
   useEffect(() => {
     const supabase = supabaseRef.current;
@@ -126,7 +159,11 @@ export default function Sidebar({ naoLidas = 0 }: { naoLidas?: number }) {
         <nav className="flex-1 min-h-0 overflow-y-auto overscroll-contain px-4 pb-2 space-y-0.5">
           {navItems.map(({ href, label, icon: Icon, exact, tour }) => {
             const active = exact ? pathname === href : pathname.startsWith(href);
-            const showBadge = href === '/painel/clientes' && totalNaoLidas > 0;
+            // Clientes: mensagens não lidas. Agendamentos: solicitações aguardando resposta.
+            const badge = href === '/painel/clientes' ? totalNaoLidas : href === '/painel/agendamentos' ? totalPendentes : 0;
+            const tituloBadge = href === '/painel/agendamentos'
+              ? `${badge} solicitaç${badge === 1 ? 'ão' : 'ões'} aguardando resposta`
+              : `${badge} mensage${badge === 1 ? 'm' : 'ns'} não lida${badge === 1 ? '' : 's'}`;
             return (
               <Link
                 key={href}
@@ -141,9 +178,13 @@ export default function Sidebar({ naoLidas = 0 }: { naoLidas?: number }) {
               >
                 <Icon className="w-4 h-4 flex-shrink-0" />
                 <span className="flex-1">{label}</span>
-                {showBadge && (
-                  <span className="min-w-[18px] h-[18px] px-1 flex items-center justify-center rounded-full bg-red-500 text-white text-[10px] font-bold leading-none">
-                    {totalNaoLidas > 99 ? '99+' : totalNaoLidas}
+                {badge > 0 && (
+                  <span
+                    title={tituloBadge}
+                    aria-label={tituloBadge}
+                    className="min-w-[18px] h-[18px] px-1 flex items-center justify-center rounded-full bg-red-500 text-white text-[10px] font-bold leading-none"
+                  >
+                    {badge > 99 ? '99+' : badge}
                   </span>
                 )}
               </Link>

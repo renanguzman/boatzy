@@ -5,6 +5,7 @@ import {
   CircleAlert,
   Clock,
   CreditCard,
+  Inbox,
   MessageCircle,
   RotateCcw,
   Star,
@@ -15,7 +16,7 @@ import {
 import { FUSO_HORARIO } from '@/lib/datas';
 import type { Database, NotificacaoTipo } from '@/types/supabase';
 
-/** Central de notificações do cliente — apresentação compartilhada (sino e /notificacoes). */
+/** Central de notificações — apresentação compartilhada (sino do site, /notificacoes e sino do painel). */
 
 export type Notificacao = Database['public']['Tables']['notificacao']['Row'];
 
@@ -23,6 +24,7 @@ type Visual = { icone: LucideIcon; cor: string; rotulo: string };
 
 /** Ícone, cores do quadrado do ícone e rótulo do filtro por tipo. */
 export const VISUAL_NOTIFICACAO: Record<NotificacaoTipo, Visual> = {
+  reserva_solicitada: { icone: Inbox, cor: 'bg-amber-50 text-amber-600', rotulo: 'Nova solicitação' },
   reserva_confirmada: { icone: CalendarCheck, cor: 'bg-emerald-50 text-emerald-600', rotulo: 'Reserva confirmada' },
   reserva_recusada: { icone: XCircle, cor: 'bg-rose-50 text-rose-500', rotulo: 'Reserva não aceita' },
   reserva_cancelada: { icone: Ban, cor: 'bg-rose-50 text-rose-500', rotulo: 'Reserva cancelada' },

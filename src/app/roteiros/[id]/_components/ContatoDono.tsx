@@ -1,39 +1,65 @@
 'use client';
 
-import { useId, useState } from 'react';
+import { useCallback, useId, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { ArrowRight, MessageCircle } from 'lucide-react';
 import { useModoPreview } from '@/components/preview/ModoPreview';
+import { ChatDonoDialog, saudacaoPasseio } from '@/components/chat/ChatDonoModal';
+import { formatarData } from '@/lib/datas';
 
 /** Mesmo teto do envio no chat (`enviarMensagem`, src/lib/chat-actions.ts). */
 const MAX_MENSAGEM = 4000;
 
 type Props = {
   roteiroId: string;
+  roteiroNome: string;
+  /** Data e pessoas escolhidas no card de reserva — entram na abertura das mensagens sugeridas. */
+  dataISO?: string | null;
+  pessoas?: number;
 };
 
 /**
- * Contato com o dono no detalhe do roteiro: o cliente já começa a escrever aqui e é levado ao
- * chat (`/roteiros/[id]/chat?mensagem=…`) com o texto como rascunho, para revisar e enviar.
- * Sem texto, o chat abre com o rascunho padrão de sempre.
+ * Contato com o dono no detalhe do roteiro: abre a conversa em modal (`ChatDonoDialog`), sem
+ * sair da página. O que o cliente começou a escrever aqui vai como rascunho, para revisar e
+ * enviar; sem texto, a modal sugere assuntos (com a data e as pessoas, se já escolhidas).
+ * Deslogado, segue para o chat (`/roteiros/[id]/chat?mensagem=…`), que passa pelo login e volta
+ * com o texto preservado.
  */
-export default function ContatoDono({ roteiroId }: Props) {
+export default function ContatoDono({ roteiroId, roteiroNome, dataISO, pessoas }: Props) {
   const router = useRouter();
   const preview = useModoPreview();
   const idCampo = useId();
   const [texto, setTexto] = useState('');
   const [indo, setIndo] = useState(false);
+  const [aberto, setAberto] = useState(false);
+  const [rascunho, setRascunho] = useState<{ texto: string; versao: number } | undefined>();
+  const botaoRef = useRef<HTMLButtonElement>(null);
 
   function abrirConversa() {
     if (preview.ativo) { preview.avisar(); return; }
     const mensagem = texto.trim();
+    // Texto novo substitui o rascunho da modal (mesmo se ela já foi aberta antes).
+    if (mensagem) setRascunho((r) => ({ texto: mensagem, versao: (r?.versao ?? 0) + 1 }));
+    setAberto(true);
+  }
+
+  const fechar = useCallback(() => {
+    setAberto(false);
+    // O texto já foi para a conversa — o campo daqui fica livre.
+    setTexto('');
+    botaoRef.current?.focus();
+  }, []);
+
+  const irParaLogin = useCallback(() => {
+    setAberto(false);
     setIndo(true);
+    const mensagem = texto.trim();
     router.push(
       mensagem
         ? `/roteiros/${roteiroId}/chat?mensagem=${encodeURIComponent(mensagem)}`
         : `/roteiros/${roteiroId}/chat`,
     );
-  }
+  }, [router, roteiroId, texto]);
 
   return (
     <form
@@ -70,14 +96,26 @@ export default function ContatoDono({ roteiroId }: Props) {
       />
 
       <button
+        ref={botaoRef}
         type="submit"
         disabled={indo}
+        aria-haspopup="dialog"
         // Amarelo de destaque da paleta (uso pontual): texto marinho, contraste 8,8:1.
         className="group mt-3 w-full flex items-center justify-center gap-2 py-2.5 rounded-xl bg-destaque text-marinho shadow-sm shadow-destaque/40 hover:brightness-95 active:scale-[0.99] text-sm font-bold transition disabled:opacity-70"
       >
         Conversar com o dono
         <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
       </button>
+
+      <ChatDonoDialog
+        roteiroId={roteiroId}
+        aberto={aberto}
+        onFechar={fechar}
+        origem="roteiro"
+        rascunho={rascunho}
+        onSemSessao={irParaLogin}
+        saudacao={saudacaoPasseio(roteiroNome, { dataLabel: dataISO ? formatarData(dataISO) : null, pessoas })}
+      />
     </form>
   );
 }

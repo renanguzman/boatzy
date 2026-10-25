@@ -1,6 +1,6 @@
 import { redirect } from 'next/navigation';
 import Link from 'next/link';
-import { Users, CalendarDays, MessageCircle, ExternalLink } from 'lucide-react';
+import { Users, CalendarDays } from 'lucide-react';
 import Header from '@/components/layout/Header';
 import Footer from '@/components/layout/Footer';
 import { createClient } from '@/lib/supabase/server';
@@ -15,7 +15,8 @@ import ConfirmarReserva from './_components/ConfirmarReserva';
 import OpcionaisCheckout, { SelecaoOpcionaisProvider, type OpcionalCheckout } from './_components/OpcionaisCheckout';
 import PrevisaoTempoCard from './_components/PrevisaoTempoCard';
 import GaleriaReserva from './_components/GaleriaReserva';
-import { FUSO_HORARIO } from '@/lib/datas';
+import ChatDonoModal from '@/components/chat/ChatDonoModal';
+import { FUSO_HORARIO, formatarData } from '@/lib/datas';
 import { ordenarImagens } from '@/lib/galeria';
 
 const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
@@ -237,19 +238,9 @@ export default async function NovaReservaPage({
 
         </div>
 
-        {/* Chat com o dono — nova aba, para o cliente não perder a confirmação. Oculto para o próprio dono. */}
+        {/* Chat com o dono em modal, por cima da confirmação (com atalho para nova aba). Oculto para o próprio dono. */}
         {user.id !== ownerId && (
-          <a
-            href={`/roteiros/${alvoId}/chat`}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="mt-4 w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-marinho hover:bg-marinho-escuro text-white text-sm font-semibold transition-colors"
-          >
-            <MessageCircle className="h-4 w-4" />
-            Converse com o dono da embarcação deste Roteiro
-            <ExternalLink className="h-3.5 w-3.5 opacity-70" aria-hidden />
-            <span className="sr-only">(abre em uma nova aba)</span>
-          </a>
+          <ChatDonoModal roteiroId={alvoId} roteiroNome={nome} dataLabel={formatarData(data)} pessoas={pessoas} />
         )}
 
         {previsaoTempo && (

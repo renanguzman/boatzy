@@ -566,6 +566,11 @@ export async function criarReserva(input: CriarReservaInput): Promise<CriarReser
     }
   }
 
+  // Aviso no sino do painel (tempo real) só agora, com a reserva gravada por completo — se algo
+  // acima falhou, a reserva foi desfeita e o gestor não chegou a ser avisado (SPEC §87).
+  const { error: notifErr } = await supabaseAdmin.rpc('notificar_gestor_nova_solicitacao', { p_reserva_id: reserva.id });
+  if (notifErr) console.error('[criarReserva] falha ao notificar o gestor no painel', reserva.id, notifErr.message);
+
   // Avisa o gestor por e-mail depois da resposta ao cliente (falha não afeta a solicitação).
   after(() => notificarGestorNovaSolicitacao(reserva.id));
 

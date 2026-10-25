@@ -27,7 +27,6 @@ import {
 import { isStrongPassword, isValidCPF, isValidBirthday, maskCPF, maskCEP } from '@/lib/validators';
 import PhoneInput, { type PhoneValue } from '@/components/auth/PhoneInput';
 import PasswordRequirements from '@/components/auth/PasswordRequirements';
-import PrivacidadeCookies from './PrivacidadeCookies';
 import { FUSO_HORARIO, hojeISO } from '@/lib/datas';
 
 type Estado = { id: number; uf: string; nome: string };
@@ -297,7 +296,6 @@ export default function MinhaContaForm({
     { id: 'dados-pessoais', label: 'Dados pessoais' },
     { id: 'meu-endereco', label: 'Meu endereço' },
     { id: 'notificacoes', label: 'Notificações' },
-    { id: 'privacidade', label: 'Privacidade' },
     { id: 'seguranca', label: 'Segurança' },
   ];
   const [secaoAtiva, setSecaoAtiva] = useState(secoes[0].id);
@@ -697,9 +695,6 @@ export default function MinhaContaForm({
           <a href="/notificacoes" className="font-semibold text-marinho hover:underline">Notificações</a>.
         </p>
       </div>
-
-      {/* Privacidade e cookies (LGPD) */}
-      <PrivacidadeCookies />
 
       {/* Segurança / senha */}
       <div id="seguranca" className="scroll-mt-32 rounded-2xl border border-slate-100 bg-white p-6 shadow-sm sm:p-8">

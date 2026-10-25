@@ -42,7 +42,7 @@ export default async function ChatGestorPage({ params }: { params: Promise<{ id:
   // Dados do gestor (interlocutor).
   const { data: gestor } = await supabaseAdmin
     .from('users')
-    .select('id, name, email, avatar_url')
+    .select('id, name, avatar_url')
     .eq('id', reserva.owner_id)
     .single();
 
@@ -89,7 +89,7 @@ export default async function ChatGestorPage({ params }: { params: Promise<{ id:
         <ChatBox
           conversaId={conversaId}
           meId={user.id}
-          interlocutor={{ name: gestor.name, email: gestor.email, avatar_url: gestor.avatar_url }}
+          interlocutor={{ name: gestor.name, descricao: 'Dono da embarcação · conversa pelo Boatzy', avatar_url: gestor.avatar_url }}
           voltarHref="/minhas-reservas"
           voltarLabel="Voltar para Minhas reservas"
           mensagensIniciais={(mensagens ?? []) as Mensagem[]}

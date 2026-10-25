@@ -48,7 +48,7 @@ export default function Header({ title = 'Overview' }: HeaderProps) {
       </div>
 
       <div className="flex items-center gap-1 sm:gap-4">
-        <NotificacoesBell />
+        <NotificacoesBell userId={user?.id ?? null} />
 
         <TutorialButton />
 

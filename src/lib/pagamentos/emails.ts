@@ -171,3 +171,80 @@ export async function emailReembolso(input: DadosPedidoEmail & { para: string; n
     'reembolso',
   );
 }
+
+/* ── Gestor: status de pagamento que dependem do cliente (SPEC §87) ── */
+
+type DadosGestorEmail = DadosPedidoEmail & { para: string; nome: string; clienteNome: string };
+
+const botaoPainel = (reservaId: string) => ({ texto: 'Ver no painel', url: `${baseUrl()}/painel/agendamentos/${reservaId}` });
+const RODAPE_GESTOR = 'Você recebe este e-mail porque é gestor no Boatzy.';
+
+/** Gestor: o cliente não pagou dentro do prazo — a data voltou a ficar livre. */
+export async function emailGestorPedidoExpirado(input: DadosGestorEmail) {
+  await enviar(
+    input.para,
+    `Pagamento não feito no prazo — ${input.itemNome} em ${dataBR(input.dataReserva)}`,
+    montarHtml({
+      nome: input.nome,
+      paragrafos: [
+        `<strong>${esc(input.clienteNome)}</strong> não pagou <strong>${esc(input.itemNome)}</strong> dentro do prazo, e a solicitação expirou.`,
+        'A data voltou a ficar disponível para outras reservas. Nenhum valor foi cobrado do cliente.',
+      ],
+      linhas: [
+        ['Pedido', `#${input.pedidoNumero}`],
+        ['Data do passeio', dataBR(input.dataReserva)],
+      ],
+      botao: botaoPainel(input.reservaId),
+      rodape: RODAPE_GESTOR,
+    }),
+    'gestor pedido expirado',
+  );
+}
+
+/** Gestor: o pagamento do cliente foi recusado — ele ainda pode pagar até o prazo. */
+export async function emailGestorPagamentoRecusado(input: DadosGestorEmail & { expiraEm: string | null }) {
+  await enviar(
+    input.para,
+    `Pagamento do cliente recusado — ${input.itemNome} em ${dataBR(input.dataReserva)}`,
+    montarHtml({
+      nome: input.nome,
+      paragrafos: [
+        `O pagamento de <strong>${esc(input.clienteNome)}</strong> para <strong>${esc(input.itemNome)}</strong> não foi aprovado pela operadora.`,
+        input.expiraEm
+          ? `A data continua segurada até <strong>${esc(dataHoraBR(input.expiraEm))}</strong>: o cliente pode tentar com outro cartão ou pagar por Pix. Se não pagar, a solicitação expira sozinha.`
+          : 'O cliente pode tentar com outro cartão ou pagar por Pix.',
+      ],
+      linhas: [
+        ['Pedido', `#${input.pedidoNumero}`],
+        ['Data do passeio', dataBR(input.dataReserva)],
+        ['Total', brl(input.valorTotal)],
+      ],
+      botao: botaoPainel(input.reservaId),
+      rodape: RODAPE_GESTOR,
+    }),
+    'gestor pagamento recusado',
+  );
+}
+
+/** Gestor: o pedido do cliente foi estornado (total ou parcial). */
+export async function emailGestorReembolso(input: DadosGestorEmail & { parcial: boolean }) {
+  await enviar(
+    input.para,
+    `${input.parcial ? 'Reembolso parcial' : 'Reembolso'} ao cliente — ${input.itemNome} em ${dataBR(input.dataReserva)}`,
+    montarHtml({
+      nome: input.nome,
+      paragrafos: [
+        `${input.parcial ? 'Parte do valor' : 'O valor'} do pedido de <strong>${esc(input.clienteNome)}</strong> para <strong>${esc(input.itemNome)}</strong> foi estornado ao cliente.`,
+        'Se tiver dúvidas sobre o reembolso ou o repasse, fale com o suporte do Boatzy.',
+      ],
+      linhas: [
+        ['Pedido', `#${input.pedidoNumero}`],
+        ['Data do passeio', dataBR(input.dataReserva)],
+        ['Total do pedido', brl(input.valorTotal)],
+      ],
+      botao: botaoPainel(input.reservaId),
+      rodape: RODAPE_GESTOR,
+    }),
+    'gestor reembolso',
+  );
+}

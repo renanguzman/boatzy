@@ -3,8 +3,9 @@ import type { ConfirmacaoTipo, DispositivoTipo, GeoGpsStatus } from '@/lib/termo
 export type UserRole = 'admin' | 'gestor' | 'cliente';
 /** Pedido de acesso de gestor — aprovado ou recusado pelo admin (SPEC §62). */
 export type SolicitacaoGestorStatus = 'pendente' | 'aprovada' | 'recusada';
-/** Tipos da central de notificações do cliente (SPEC §64). */
+/** Tipos da central de notificações (cliente: SPEC §64; gestor: SPEC §87). */
 export type NotificacaoTipo =
+  | 'reserva_solicitada' // só gestor: nova solicitação de reserva
   | 'reserva_confirmada'
   | 'reserva_recusada'
   | 'reserva_cancelada'
@@ -15,6 +16,8 @@ export type NotificacaoTipo =
   | 'pagamento_recusado'
   | 'reembolso'
   | 'mensagem';
+/** Quem vê a notificação: sino do site (cliente) ou sino do painel (gestor) — SPEC §87. */
+export type NotificacaoPublico = 'cliente' | 'gestor';
 /** Status de publicação (embarcação e roteiro) — pipeline de aprovação, SPEC §45. */
 export type PublicacaoStatus = 'em_analise' | 'retorno' | 'ativo' | 'inativo' | 'em_manutencao';
 export type EmbarcacaoStatus = PublicacaoStatus;
@@ -435,6 +438,7 @@ export type Database = {
         Row: {
           id: string;
           user_id: string;
+          publico: NotificacaoPublico;
           tipo: NotificacaoTipo;
           titulo: string;
           mensagem: string;
@@ -449,6 +453,7 @@ export type Database = {
         Insert: {
           id?: string;
           user_id: string;
+          publico?: NotificacaoPublico;
           tipo: NotificacaoTipo;
           titulo: string;
           mensagem: string;
@@ -463,6 +468,7 @@ export type Database = {
         Update: {
           id?: string;
           user_id?: string;
+          publico?: NotificacaoPublico;
           tipo?: NotificacaoTipo;
           titulo?: string;
           mensagem?: string;
@@ -2782,6 +2788,10 @@ export type Database = {
       chat_total_nao_lidas: {
         Args: { p_gestor?: string };
         Returns: number;
+      };
+      notificar_gestor_nova_solicitacao: {
+        Args: { p_reserva_id: string };
+        Returns: undefined;
       };
       chat_nao_lidas_por_gestor: {
         Args: { p_cliente?: string };

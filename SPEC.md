@@ -6557,6 +6557,14 @@ exibe a dica acima do campo ("Começa com os dígitos/Começa com … — comple
 validação no servidor é a mesma (com/sem máscara; nome sem acento/caixa). Testado: 829..., 1234...,
 Renan..., Ana Ma..., Jo.... `tsc`/`eslint` limpos.
 
+**25/10/2026 — dica com o valor completo:** `definirConfirmacao` passou a devolver em `dica` o valor
+inteiro do cadastro: CPF/CNPJ formatados por `formatarDocumento` (novo, `confirmacao.ts`:
+`000.000.000-00` / `00.000.000/0000-00`), nome com espaços colapsados. `inicioDoNome` foi removida. A
+dica só chega ao próprio usuário: `obterTermoParaAceite(…, user.id)` é chamada com o usuário da sessão
+(`reservas/novo/page.tsx` e `actions.ts`). `TermoAceite`: `previaDocumento` removida; apoio "Para
+confirmar que é você, digite[ como está no cadastro]:" + pílula com `dica` (`font-mono` só em CPF/CNPJ).
+`confereConfirmacao` inalterada.
+
 ## 59. Confirmação da reserva — card do roteiro (20/10/2026)
 
 `src/app/reservas/novo/page.tsx` (Server Component): a consulta do roteiro passa a trazer `descricao` e
@@ -6749,6 +6757,9 @@ console). `tsc`/`eslint` limpos.
 
 ## 64. Central de notificações do cliente (23/10/2026)
 
+> **25/10/2026:** a tabela `notificacao` ganhou `publico` ('cliente' | 'gestor') e passou a servir também o
+> sino do painel do gestor — ver §87.
+
 ### 64.1 Modelo — `public.notificacao` (migration `20261023_notificacoes.sql`)
 
 | Coluna | Tipo | Observação |
@@ -6887,13 +6898,24 @@ nova → novo envio.
 **Limitações** — o 1º `page_view` sai antes do `set` de user_id/perfil (só os seguintes levam);
 `purchase` depende do cliente ver a tela de pedido pago (webhook confirma no servidor) — evolução:
 Measurement Protocol em `confirmarPedidoPago` com `client_id` capturado no checkout. Consentimento
-de cookies (LGPD): §66.
+de cookies (LGPD): §66 — removido em 25/10/2026.
 
 Verificado em dev forçando a tag (hits respondidos com 204 no navegador de teste): carregamento do
 roteiro → 1 `page_view` + 1 `view_item`; navegação interna para a busca → 1 `search` + 1 `page_view`.
 Sem a tag (dev normal), nenhum script do Google e nenhum erro. `tsc`/`eslint` limpos.
 
-## 66. Consentimento de cookies — LGPD + Consent Mode v2 (23/10/2026)
+## 66. Consentimento de cookies — LGPD + Consent Mode v2 (23/10/2026) — REMOVIDO (25/10/2026)
+
+> **Removido em 25/10/2026.** Apagados `src/lib/consentimento.ts`, `src/lib/consentimento-actions.ts`,
+> `src/components/consentimento/` (`BannerCookies`, `PreferenciasCookies`, `useConsentimento`) e
+> `src/app/minha-conta/_components/PrivacidadeCookies.tsx`; `<BannerCookies />` saiu do layout raiz e a
+> seção/aba `#privacidade` saiu de `MinhaContaForm`. `GoogleAnalytics.tsx` e `IdentificarUsuario.tsx`
+> voltaram à versão anterior a `8decaa3`: sem `gtag('consent', …)` (GA grava `_ga*` para todos) e
+> `user_id` enviado sempre para usuário logado. `privacy/page.tsx` §6: Medição por legítimo interesse
+> (art. 7º, IX), controle pelo navegador, linha `boatzy_consentimento` removida da tabela, duração dos
+> `_ga*` sem "só com sua permissão"; data 25/10/2026. A tabela `consentimento_cookies` (migration
+> `20261023b`) **foi mantida** (histórico; sem escrita). Para reativar: restaurar os arquivos do commit
+> `8decaa3`. O texto abaixo é o registro de como funcionava.
 
 **Cookie** `boatzy_consentimento` (1st party, `Path=/`, `SameSite=Lax`, `Secure` em https,
 `Max-Age` 365 d **renovado a cada visita** por `renovarConsentimento()` no banner) com JSON
@@ -7220,7 +7242,7 @@ Arquivos em `src/app/roteiros/[id]/_components/` salvo indicação. Breakpoint "
   (`text-[10px] uppercase`), valor (`text-lg font-bold text-marinho`) + unidade e "Sem cobrança agora"
   (`text-turquesa-escuro`); à direita botão `bg-marinho`. `IntersectionObserver` (threshold 0.15) no
   card de preço (`card`) e em `#footer`: visível qualquer um → `translate-y-full` + `inert` +
-  `aria-hidden`. Fica abaixo do banner de cookies (`z-[70]`).
+  `aria-hidden`. (Ficava abaixo do banner de cookies, `z-[70]`, removido em 25/10/2026.)
 - **`BookingCard`:** renderiza a barra como último filho do contêiner (dentro de `containerRef`, então
   tocar nela não dispara o "clique fora" que fecha o calendário): `rotulo` = data escolhida
   (`formatarData` dia/semana/mês) | "A partir de" | "Por diária"; `valor` = `precoCabecalho`;
@@ -7538,6 +7560,12 @@ o campo de tags no painel dependem de cadastro pelo gestor (não testados com da
   seleção — ok → atualiza `cupomAplicado`; falha → remove e mostra "O cupom {código} foi removido:
   {erro}". Validação bem-sucedida não conta como tentativa (`registrar_tentativa_cupom` com
   `p_sucesso = true`).
+- **Trava após o envio (25/10/2026):** o contexto ganhou `travado` / `setTravado`; `alternar` não faz
+  nada com `travado`. `ConfirmarReserva` sincroniza `setTravado(loading || enviada)` num efeito e chama
+  `setTravado(true)` já no início de `handleConfirm` (que também ignora clique repetido com `loading ||
+  enviada`) — falha no envio destrava. Travado, `OpcionaisCheckout` troca o botão por selo
+  `bg-slate-100` "✓ Incluído" / "🔒 Não incluído" (linha não incluída com `opacity-50`) e o apoio por
+  "Solicitação enviada com estes opcionais — não é mais possível alterar." (`Lock`).
 - **Segurança:** inalterada — `criarReserva`/`validarCupom` resolvem os opcionais pelos ids no
   servidor, restritos ao `roteiro_id`, com o valor atual do catálogo.
 - **Testes:** `tsc`/`eslint` limpos; rota compila (sem sessão → 307 para `/entrar`). Fluxo logado não
@@ -7558,8 +7586,8 @@ Arquivo `src/components/termos/TermoAceite.tsx` (só a modal; o bloco-resumo e a
     checkbox (`accent-marinho`).
   - ③ (se `termo.confirmacao`) cartão `border-marinho/25` → `border-turquesa` quando completo; título
     "Digite seu CPF completo" / "Digite o CNPJ completo" / "Digite seu nome completo"; apoio "Para confirmar
-    que é você. Começa com" + pílula `bg-destaque/30 font-mono` com `previaDocumento(dica, tipo)` (dígitos
-    da dica + `•` no formato: `829.•••.•••-••`, `1234` → `12.34•.•••/••••-••`) ou a dica do nome; input
+    que é você, digite[ como está no cadastro]:" + pílula `bg-destaque/30` (`font-mono` em CPF/CNPJ) com a
+    `dica` completa (`829.123.456-78`) — até 25/10/2026, `previaDocumento` mostrava `829.•••.•••-••`; input
     `text-base py-3 pl-10` com `Fingerprint`, borda vermelha com `erro`, `CheckCircle2` quando
     `confirmacaoCompleta` (11/14 dígitos; nome com ≥ 2 palavras — o conteúdo segue conferido no servidor).
   - ②③ em `sm:grid-cols-2`; até ler: desktop `opacity-50 pointer-events-none` (+ inputs `disabled`),
@@ -7572,3 +7600,119 @@ Arquivo `src/components/termos/TermoAceite.tsx` (só a modal; o bloco-resumo e a
   seu CPF → Li e aceito, máscara "829.123.456-78"; celular com área de leitura de 475px antes de ler.
   Sem erro de console.
 
+## 87. Avisos do gestor — notificações do painel, e-mails e badges (25/10/2026)
+
+**Banco — migration `20261025b_notificacoes_gestor.sql`** (sobre a §64):
+- `notificacao.publico text NOT NULL DEFAULT 'cliente'` (`CHECK IN ('cliente','gestor')`); índice
+  `notificacao_nao_lidas_idx` passou a `(user_id, publico) WHERE lida_em IS NULL`. Novo tipo
+  `reserva_solicitada` no `CHECK` de `tipo` (só gestor).
+- `notificar_gestor(user, tipo, titulo, mensagem, reserva_id, chave)` (SECURITY DEFINER, sem EXECUTE
+  público): grava `publico='gestor'`, `link = '/painel/agendamentos/<reserva>'`, `chave = 'gestor:' ||
+  chave` (não colide com a do cliente quando gestor = cliente), idempotente. `notificacao_cliente_nome
+  (reserva)` → nome do cliente ou "O cliente".
+- `notificar_gestor_nova_solicitacao(p_reserva_id)` — `GRANT EXECUTE TO service_role`; só age em
+  reserva `pendente`. Chamada por `criarReserva` (`supabaseAdmin.rpc`) **depois** de adicionais, aceite e
+  cupom (não é trigger de INSERT: a reserva pode ser desfeita nesses passos). Erro só é logado.
+- Triggers recriados (comportamento do cliente idêntico ao da §64) + gestor:
+  - `trg_notificacao_reserva`: saindo de `pendente` → marca lido o `reserva_solicitada` do gestor;
+    `cancelada` → "Reserva cancelada pelo cliente" (só o cliente cancela); `expirada` → "Pagamento não
+    feito no prazo".
+  - `trg_notificacao_pedido`: `pago` → "Pagamento recebido"; `reembolsado`/`reembolsado_parcial` →
+    "Reembolso (parcial) ao cliente". Destinatário `pedido.gestor_id`.
+  - `trg_notificacao_pagamento`: `recusado` (pedido ainda aguardando) → "Pagamento do cliente recusado".
+  - `SET timezone = 'America/Sao_Paulo'` nos três e em `notificar_gestor_nova_solicitacao`.
+- Backfill: `reserva_solicitada` para toda reserva `pendente`.
+
+**Tipos (`src/types/supabase.ts`):** `NotificacaoPublico = 'cliente' | 'gestor'`; `publico` em
+Row/Insert/Update de `notificacao`; `NotificacaoTipo` + `reserva_solicitada`; RPC
+`notificar_gestor_nova_solicitacao`. `VISUAL_NOTIFICACAO.reserva_solicitada` (`Inbox`, âmbar, "Nova
+solicitação").
+
+**`useNotificacoes(userId, { publico = 'cliente', … })`:** lista, contagem e "marcar todas" filtram por
+`publico`; o canal Realtime (filtro só por `user_id`) ignora eventos do outro público. Sino do site e
+`/notificacoes` seguem no padrão `'cliente'`.
+
+**Painel:**
+- `NotificacoesBell({ userId })` (Header passa `user?.id`): seções "Reservas e pagamentos"
+  (`useNotificacoes` com `publico: 'gestor'`, `NotificacaoItem compacto`) e "Mensagens" (RPC
+  `chat_conversas_nao_lidas`, como antes); badge = não lidos + mensagens; toast 8 s (`animate-aviso`,
+  sino `animate-sino`); "Marcar avisos como lidos"; rodapé "Ver agendamentos" / "Ver clientes". Aviso
+  novo dispara `window` event `EVENTO_AVISO_GESTOR` (`'boatzy:aviso-gestor'`, exportado do componente).
+- `Sidebar({ naoLidas, pendentes, userId })`: badge em AGENDAMENTOS = reservas `pendente` do
+  `owner_id` (valor inicial do layout; recontado pelo client — RLS `owner_select_own` — a cada mudança
+  de `pathname` e no `EVENTO_AVISO_GESTOR`). Layout `(gestao)` conta `pendentes` com `supabaseAdmin`.
+- `AtualizarAoVivo` (no layout, abaixo do Header): `router.refresh()` no `EVENTO_AVISO_GESTOR`, só em
+  `/painel` e `/painel/agendamentos*` (formulários não são recarregados).
+- Dashboard (`/painel`): quadro âmbar com `solicitacoesPendentes` (status `pendente`, mais antigas
+  primeiro, até 4 com link para `/painel/agendamentos/[id]` + "e mais N") e linha violeta com o total
+  `aguardando_pagamento`.
+
+**E-mails ao gestor (novos):**
+- `src/lib/pagamentos/emails.ts`: `emailGestorPedidoExpirado`, `emailGestorPagamentoRecusado`
+  (`expiraEm`), `emailGestorReembolso` (`parcial`) — botão "Ver no painel".
+- `src/lib/emails/reserva-gestor.ts`: `emailGestorReservaCancelada(reservaId)` (gestor carregado por
+  `owner_id`).
+- Chamadas: `expirarPedido` (junto do e-mail do cliente); webhook — recusado e reembolso via
+  `avisarPorEmail` (antes `avisarCliente`), cliente e gestor em `Promise.all`; `cancelarReserva`
+  (`after`, cliente + gestor). Os de nova solicitação e pagamento recebido já existiam.
+
+**Testes:** `tsc`/`eslint` limpos. A migration não foi aplicada nem exercitada a partir desta sessão
+(sem acesso ao banco); fluxo ao vivo não testado no navegador (exige login de gestor).
+
+## 88. Conversa com o dono em modal na confirmação da reserva + assuntos sugeridos (25/10/2026)
+
+- **`src/lib/chat-roteiro.ts`** (novo, server-only): `carregarChatRoteiro(roteiroId, userId)` →
+  `{ ok: true, dados: ChatRoteiroDados } | { ok: false, motivo: 'nao_encontrado' | 'dono' }`. Extraído de
+  `/roteiros/[id]/chat/page.tsx` sem mudar a regra: roteiro `ativo`, dono ≠ cliente, upsert de `conversa`
+  (`origem_tipo 'roteiro'`), zera não lidas do dono, mensagens em ordem, `avisoCiente`
+  (`users.chat_aviso_ciente_em`). A página passou a usá-lo (rascunho `?mensagem=`/padrão inalterado).
+- **`src/app/roteiros/[id]/chat/actions.ts`** (novo): server action `abrirChatRoteiro(roteiroId)` — exige
+  sessão; devolve os dados ou `{ ok: false, error }`.
+- **`ChatBox`** — novas props opcionais (página inalterada sem elas):
+  - `onFechar` → modo modal: sem "voltar" (`voltarHref` virou opcional), cabeçalho com
+    `abrirEmNovaAbaHref` (`ExternalLink`, `target=_blank`) + fechar (`X`); selo de contexto sempre como
+    faixa abaixo do cabeçalho; paddings menores; aviso "Comunicação exclusiva" `absolute` (dentro da
+    modal), com `max-h-full overflow-y-auto`.
+  - `sugestoes: SugestaoChat[]` (`{ rotulo, texto, icone? }`, tipo exportado) e `saudacao`. Conversa vazia →
+    "Sobre o que você quer falar?" + grade 2 colunas de cartões (`aria-pressed` quando o campo termina com
+    o texto; descrição só ≥ sm). Com mensagens → chips roláveis acima do campo, só com o campo vazio.
+    `escolherSugestao` preenche `saudacao + '\n' + texto` (conversa vazia) ou só `texto`, foca o campo e
+    põe o cursor no fim. Nada é enviado automaticamente.
+  - Textarea com auto-altura (`scrollHeight`, até `max-h-32`).
+- **`src/components/chat/ChatDonoModal.tsx`** (novo, client): `{ roteiroId, roteiroNome, dataLabel, pessoas }`.
+  Botão (mesmo visual + "Tire dúvidas sem sair desta página", `aria-haspopup="dialog"`); 1ª abertura chama
+  `abrirChatRoteiro` (estados carregando/erro com "Tentar de novo" e "Abrir em nova aba"). Modal
+  `fixed inset-0 z-[80]`, painel `h-[100dvh]` no celular / `sm:max-w-xl sm:h-[min(44rem,90dvh)]`
+  arredondado, `role="dialog" aria-modal`, `animate-fade-in`; Esc, clique no fundo e X fecham (foco volta
+  ao botão); `body overflow hidden` enquanto aberta. Depois de aberta uma vez fica **montada** (`hidden`
+  ao fechar) — rascunho, mensagens e canal Realtime preservados. 6 `SUGESTOES` fixas (embarque, incluso,
+  comida e bebida, crianças, tempo, ajustar roteiro); `saudacao` com nome, data e pessoas. GA4
+  `rastrearUmaVez('iniciar_conversa:roteiro:<id>', 'iniciar_conversa', { origem: 'reserva', item_id })`
+  — mesma chave de deduplicação da página de chat.
+- **`/reservas/novo/page.tsx`:** o `<a target=_blank>` virou `<ChatDonoModal … dataLabel={formatarData(data)} />`
+  (oculto para o dono); imports `MessageCircle`/`ExternalLink` removidos.
+- **Testes:** `tsc`/`eslint` limpos. Visual conferido numa página temporária (removida) com o `ChatBox` em
+  modo modal e dados fictícios: 1280×800 e 390×844 — conversa vazia com cartões, clique preenche o campo
+  com saudação + pergunta (valor conferido), conversa com mensagens mostra os chips; sem erro de console.
+  O fluxo real (login, server action, envio) não foi exercitado no navegador.
+- **Atualização (25/10/2026) — detalhe do roteiro + e-mail oculto:**
+  - `ChatDonoModal.tsx` agora exporta `ChatDonoDialog` (controlado: `{ roteiroId, aberto, onFechar,
+    saudacao, rascunho?: { texto, versao }, origem: 'reserva' | 'roteiro', onSemSessao? }`, renderizado
+    com `createPortal(…, document.body)` — quem abre pode estar dentro da coluna `sticky` do
+    `BookingCard`) e `saudacaoPasseio(nome, { verbo, dataLabel, pessoas })`. O default `ChatDonoModal`
+    (botão da confirmação) usa o diálogo com `origem: 'reserva'`.
+  - `abrirChatRoteiro` devolve `semSessao: true` sem login; o diálogo chama `onSemSessao`.
+  - `ChatBox`: prop `rascunhoExterno { texto, versao }` — troca o campo quando `versao` muda (modal já
+    montada reaberta com texto novo).
+  - `ContatoDono` (`/roteiros/[id]`): props `roteiroNome`, `dataISO`, `pessoas` (do `BookingCard`). Enviar
+    → abre `ChatDonoDialog` (`origem: 'roteiro'`); com texto, `rascunho` com nova `versao`; ao fechar,
+    limpa o campo do bloco. Sem sessão → `router.push('/roteiros/<id>/chat?mensagem=…')` (login e volta,
+    como antes). Pré-visualização do painel: só avisa.
+  - E-mail do interlocutor: `Interlocutor` ganhou `descricao?` e `email` virou opcional; o cabeçalho
+    mostra `descricao ?? email`. Páginas do cliente (`/roteiros|embarcacoes|vendas/[id]/chat`,
+    `/minhas-reservas/[id]/chat`, `/minhas-conversas/[id]/chat`) e `carregarChatRoteiro` não selecionam
+    mais `email` do dono/vendedor e passam `descricao` ("Dono da embarcação · conversa pelo Boatzy" /
+    "Vendedor · conversa pelo Boatzy"). Painel do gestor inalterado (mostra o e-mail do cliente).
+  - Testes: `tsc`/`eslint` limpos; no navegador, deslogado no detalhe do roteiro: digitar "Tem colete
+    infantil?" + "Conversar com o dono" → `/entrar?redirect_to=/roteiros/<id>/chat?mensagem=Tem colete
+    infantil?`, sem erro de console. Modal logada não exercitada (exige sessão).

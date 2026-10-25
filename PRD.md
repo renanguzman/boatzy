@@ -64,7 +64,7 @@ venda e no botão **"Conversar com o dono"** do detalhe do roteiro (única exce�
 24/10/2026) — sempre com texto marinho. Qualquer novo uso deve substituir ou justificar a ênfase, não somar.
 
 - ✅ **Aplicada na página inicial** (hero, vitrines, avaliações, benefícios, "Inspire-se"), no
-  Header, no Footer, no card de embarcação e no banner de cookies.
+  Header, no Footer, no card de embarcação e no banner de cookies (removido em 25/10/2026).
 - ✅ **Aplicada em todo o site público (24/10/2026):** busca, detalhe de roteiro e embarcação,
   reserva e pagamento, vendas, área do cliente (minha conta, reservas, favoritos, conversas,
   notificações), login/cadastro/recuperação de senha, páginas institucionais (sobre, ajuda, contato,
@@ -278,7 +278,7 @@ Exibir:
 - Avaliações: lista com média e comentários; **sem nenhuma avaliação a seção não aparece** e o roteiro ganha o selo "Novo no Boatzy" (desde 24/10/2026 — ver "Página do roteiro otimizada para conversão no celular").
 - Sidebar `BookingCard`: seleção de data e pessoas, resumo de preço com a taxa de serviço **embutida** nos valores (dinâmica — taxa geral da plataforma ou específica do gestor dono do roteiro, configuráveis em `/administrator/taxas`; ver 6.11; desde 19/10/2026 a taxa não aparece em linha própria), total estimado, botão "Solicitar Reserva" → `/reservas/novo`.
 - ✅ O calendário de data do `BookingCard` respeita a **disponibilidade do roteiro**: datas fora dos dias de operação ou bloqueadas pelo gestor aparecem riscadas e não selecionáveis (ver 6.8 → Disponibilidade do roteiro).
-- ✅ Bloco **"Fale com o dono da embarcação"** na sidebar, logo abaixo de Favoritar/Compartilhar (oculto para o próprio dono vendo seu roteiro) — *substituiu o botão "Converse com o dono" em 24/10/2026*: ícone de conversa, instrução "Tire suas dúvidas antes de reservar. A conversa acontece aqui pelo Boatzy.", caixa de texto de 2 linhas e botão **"Conversar com o dono"** (secundário, para não competir com "Solicitar Reserva"). O que o cliente escreve vai como **rascunho** para o chat (`/roteiros/[id]/chat`) — ele revisa e envia lá, depois do aviso "converse pela plataforma" quando for a primeira vez; não é enviado sozinho. Sem texto, o chat abre com a mensagem padrão de sempre. Deslogado, passa pelo login e volta ao chat com o texto preservado. Ctrl/⌘ + Enter também abre a conversa. Na pré-visualização do painel, só avisa. Ver 6.8 → Chat e `SPEC.md` §75.
+- ✅ Bloco **"Fale com o dono da embarcação"** na sidebar, logo abaixo de Favoritar/Compartilhar (oculto para o próprio dono vendo seu roteiro) — *substituiu o botão "Converse com o dono" em 24/10/2026*: ícone de conversa, instrução "Tire suas dúvidas antes de reservar. A conversa acontece aqui pelo Boatzy.", caixa de texto de 2 linhas e botão **"Conversar com o dono"** (secundário, para não competir com "Solicitar Reserva"). O que o cliente escreve vai como **rascunho** para o chat (`/roteiros/[id]/chat`) — ele revisa e envia lá, depois do aviso "converse pela plataforma" quando for a primeira vez; não é enviado sozinho. Sem texto, o chat abre com a mensagem padrão de sempre. Deslogado, passa pelo login e volta ao chat com o texto preservado. Ctrl/⌘ + Enter também abre a conversa. Na pré-visualização do painel, só avisa. Ver 6.8 → Chat e `SPEC.md` §75. *Desde 25/10/2026 a conversa abre em modal sobre o detalhe, com assuntos sugeridos (logado) — ver "Confirmação da reserva — conversa com o dono em modal".*
 
 #### ✅ Implementado — Modal de Fotos da Embarcação (`EmbarcacaoFotosModal`)
 
@@ -2001,6 +2001,8 @@ permissão de localização, não fazia nada.
   - ✅ 20/10/2026 — logo abaixo do card do roteiro, o botão **"Converse com o dono da embarcação deste
     Roteiro"** (mesmo visual do "Converse com o dono" do detalhe) abre o chat com o dono **numa nova
     aba**, para o cliente não perder a confirmação. Oculto quando quem está reservando é o próprio dono. Detalhes: `SPEC.md` §59.
+    *Substituído em 25/10/2026 pela conversa em modal — ver "Confirmação da reserva — conversa com o dono em
+    modal, com assuntos sugeridos".*
 
 ### ✅ Aceite dos termos — dica do que digitar na confirmação de identidade (20/10/2026)
 
@@ -2008,6 +2010,10 @@ permissão de localização, não fazia nada.
   para quem entrou por login social e não sabe como o cadastro ficou: CPF → "Começa com os dígitos
   **829...** — complete por inteiro, com ou sem máscara" (CNPJ: 4 dígitos); nome → "Começa com **Renan...**"
   (as 5 primeiras letras do nome cadastrado). Nunca revela o valor completo. Detalhes: `SPEC.md` §58.
+- **Atualizado em 25/10/2026:** a dica passou a mostrar o **valor completo** a digitar, como está no
+  cadastro — "Para confirmar que é você, digite: **829.123.456-78**" (CNPJ formatado igual) ou, no nome,
+  "digite como está no cadastro: **Renan Guzman**". Objetivo: o usuário saber exatamente o que digitar.
+  O dado é do próprio usuário e só vai para ele (sessão logada); a conferência no servidor não mudou.
 
 ### ✅ Card de reserva — convite aos opcionais mais visível (20/10/2026)
 
@@ -2044,8 +2050,9 @@ permissão de localização, não fazia nada.
 - **Rodapé "Para concluir o aceite"** com **passos numerados** que viram ✓ quando concluídos:
   ① ler o documento até o final (com a porcentagem lida e atalho para rolar); ② **declarar que leu e
   concorda** (o cartão inteiro é clicável); ③ **confirmar a identidade** — cartão em destaque com o título
-  em negrito "Digite seu CPF completo" (ou CNPJ/nome, conforme o cadastro), "Para confirmar que é você.
-  Começa com **829.•••.•••-••**" (início do documento em destaque, nunca o número inteiro), campo maior
+  em negrito "Digite seu CPF completo" (ou CNPJ/nome, conforme o cadastro), "Para confirmar que é você,
+  digite: **829.123.456-78**" (dado completo do cadastro em destaque — até 25/10/2026 mostrava só o
+  início, "829.•••.•••-••"), campo maior
   com ✓ quando o número está completo e borda vermelha se não conferir.
 - **O botão diz o que falta:** "Leia até o fim" → "Marque a declaração" → "Digite seu CPF" → "Li e aceito".
 - **Celular:** enquanto a pessoa lê, só o passo 1 aparece (com "Depois: declarar que concorda e confirmar
@@ -2066,6 +2073,11 @@ permissão de localização, não fazia nada.
   valer, é removido com o aviso "O cupom X foi removido: …".
 - O servidor continua recalculando opcionais, valores e cupom a partir dos ids ao enviar a solicitação
   (o navegador só escolhe quais). Detalhes técnicos: `SPEC.md` §85.
+- **Travados após o envio (25/10/2026):** ao clicar em **"Confirmar solicitação"**, a lista de opcionais
+  trava — não dá mais para adicionar nem retirar. Os botões viram selos cinza **"✓ Incluído"** /
+  **"Não incluído"** (os não incluídos ficam esmaecidos) e o apoio muda para "Solicitação enviada com
+  estes opcionais — não é mais possível alterar." Se o envio falhar (ex.: cupom deixou de valer, termo
+  desatualizado), a lista volta a ficar editável para corrigir e tentar de novo.
 
 ### ✅ Barra fixa de reserva (celular) soma os opcionais (25/10/2026)
 
@@ -2225,7 +2237,7 @@ card de reserva — ficou para depois):
   "Pagamento protegido: o dono só recebe depois do passeio", "Anúncio aprovado pela equipe Boatzy" e,
   no card "Por que reservar no Boatzy?", "Preço final, sem surpresa: as taxas já estão no valor",
   "Converse com o dono pelo chat antes de reservar" e "Datas e preços atualizados pelo próprio dono".
-- **Banner de cookies (todo o site, celular):** texto curto, "Recusar opcionais" e "Aceitar todos"
+- **Banner de cookies (todo o site, celular)** *(banner removido em 25/10/2026)*: texto curto, "Recusar opcionais" e "Aceitar todos"
   lado a lado com o mesmo peso, "Personalizar" como link — ocupa bem menos da primeira tela.
 - **Calendário no celular:** passou a abrir centralizado (antes saía cortado à esquerda); legenda
   "Valores do passeio em R$, por data".
@@ -2378,10 +2390,19 @@ sociais, campanhas, links diretos), quem navega e como o funil de reserva conver
 - **Configurações no painel do GA4** (feitas pelo time, fora do código): marcar eventos-chave,
   registrar as dimensões personalizadas, ativar o filtro de tráfego interno — ver `SPEC.md` §65.
 - **Pendências:** registro da compra pelo servidor (Measurement Protocol) para não depender de o
-  cliente ver a tela de confirmação. (O consentimento de cookies foi feito — ver abaixo.)
+  cliente ver a tela de confirmação. (O consentimento de cookies chegou a ser feito e foi removido em 25/10/2026 — ver abaixo.)
 - Detalhes técnicos: `SPEC.md` §65.
 
-### ✅ Consentimento de cookies — LGPD (23/10/2026)
+### ⛔ Consentimento de cookies — LGPD (23/10/2026) — **removido em 25/10/2026**
+
+> **Removido em 25/10/2026 (decisão de produto: a primeira versão lança sem o aviso de cookies).**
+> Saíram de todo o site o banner, o modal "Personalizar" e a seção **Minha conta → Privacidade**. O
+> Google Analytics voltou a **medir normalmente para todos** (cookies `_ga*` e ID interno do usuário
+> logado), sem Consent Mode. A **Política de Privacidade, seção 6** foi ajustada: Medição com base no
+> legítimo interesse, controle pelas configurações do navegador, sem o cookie `boatzy_consentimento`
+> (minuta — vale nova revisão jurídica). A tabela `consentimento_cookies` continua no banco com o
+> histórico, sem novos registros. O código está no commit `8decaa3` para reativar. O texto abaixo
+> descreve como era.
 
 - **Banner** no rodapé (site e painel; **não aparece no admin**), sem bloquear a navegação:
   "Personalizar", "Recusar opcionais" e "Aceitar todos" — recusar tem o mesmo destaque de aceitar
@@ -2447,6 +2468,82 @@ sociais, campanhas, links diretos), quem navega e como o funil de reserva conver
 - **To-do:** voltar aos rankings "Mais Bem Avaliados" quando houver avaliações suficientes — ver
   Roadmap (§12).
 - Detalhes técnicos: `SPEC.md` §69.
+
+### ✅ Avisos do gestor em tempo real — sino do painel, e-mail e dashboard (25/10/2026)
+
+**Objetivo:** o dono da embarcação/gestor fica sabendo na hora de tudo o que depende do cliente ou do
+pagamento — dentro do painel e por e-mail — e não deixa nenhuma solicitação sem resposta. Antes, o sino
+do painel só mostrava mensagens de chat, e o gestor só recebia e-mail de nova solicitação e de
+pagamento aprovado.
+
+- **Sino do painel** (header do `/painel`) passou a ter duas seções: **"Reservas e pagamentos"** (avisos
+  novos, com ícone por tipo, ponto de não lido e "Marcar avisos como lidos") e **"Mensagens"** (conversas
+  com mensagens não lidas, como antes). O contador soma os dois. Rodapé: "Ver agendamentos" e "Ver
+  clientes". Clicar num aviso marca como lido e abre o agendamento.
+- **Tempo real:** o aviso chega sem recarregar a página — o sino balança e aparece um aviso flutuante no
+  canto (some em 8 s; clicável). No **dashboard** e em **Agendamentos**, os dados da tela também se
+  atualizam sozinhos.
+- **Badge no menu:** o item **AGENDAMENTOS** mostra em vermelho o número de **solicitações aguardando
+  resposta**; atualiza ao vivo e ao navegar (some quando o gestor responde todas). O badge de mensagens
+  em CLIENTES continua.
+- **Dashboard:** no topo, quadro em destaque **"N solicitações de reserva aguardam sua resposta"** com as
+  4 mais antigas (passeio, cliente, data, pessoas e botão "Responder") e "e mais N em Agendamentos";
+  abaixo, linha informativa quando há **reservas aceitas aguardando o pagamento do cliente**.
+- **Eventos avisados ao gestor:**
+
+| Evento | Sino do painel | E-mail |
+|---|---|---|
+| Nova solicitação de reserva | ✅ novo | ✅ (já existia) |
+| Pagamento recebido (reserva confirmada) | ✅ novo | ✅ (já existia) |
+| Pagamento do cliente recusado (ainda pode pagar até o prazo) | ✅ novo | ✅ novo |
+| Cliente não pagou no prazo — solicitação expirou, data livre | ✅ novo | ✅ novo |
+| Cliente cancelou a reserva | ✅ novo | ✅ novo |
+| Reembolso ao cliente (total ou parcial) | ✅ novo | ✅ novo |
+| Mensagem de chat do cliente | ✅ (já existia) | ✅ (já existia, conforme preferência) |
+
+- O que o próprio gestor faz (aceitar, recusar, confirmar) não gera aviso para ele. Quando ele responde
+  uma solicitação, o aviso "Nova solicitação" fica lido sozinho.
+- **Mesmo usuário cliente e gestor:** cada sino mostra só os seus avisos (o do site não mostra avisos
+  do painel e vice-versa).
+- **Lado do cliente** sem mudança: já recebia todos os avisos de reserva e pagamento no sino e por e-mail
+  (ver "Central de notificações do cliente").
+- **Implantação:** exige aplicar a migration `20261025b_notificacoes_gestor.sql` no Supabase (inclui
+  backfill: solicitações já pendentes aparecem no sino do gestor).
+- Fora do escopo por ora: aviso ao gestor de nova avaliação recebida e de passeio concluído.
+- Detalhes técnicos: `SPEC.md` §87.
+
+### ✅ Confirmação da reserva — conversa com o dono em modal, com assuntos sugeridos (25/10/2026)
+
+**Objetivo:** tirar dúvidas com o dono com o mínimo de esforço e sem perder a tela de confirmação.
+
+- O botão **"Converse com o dono da embarcação deste Roteiro"** (em `/reservas/novo`, abaixo do card do
+  roteiro) ganhou o apoio "Tire dúvidas sem sair desta página" e agora abre a **conversa numa modal por
+  cima da tela** (no celular, em tela cheia), em vez de uma nova aba. Fecha pelo **X**, por **Esc** ou
+  clicando fora; no cabeçalho, o ícone **"Abrir em nova aba"** leva à mesma conversa numa aba própria.
+- **Assuntos sugeridos:** com a conversa ainda vazia, a modal pergunta **"Sobre o que você quer falar?"**
+  e mostra 6 cartões — Ponto de embarque, O que está incluso, Comida e bebida, Crianças a bordo, Se o
+  tempo virar, Ajustar o roteiro. Um toque **escreve a mensagem no campo**, já com a abertura "Olá! Estou
+  solicitando o passeio "X" para 07/11/2026, com 4 pessoas." + a pergunta; o cliente só revisa e envia
+  (nada é enviado sozinho). No celular, os cartões mostram só o assunto, em duas colunas.
+- Com a conversa já em andamento, os assuntos viram **chips** acima do campo (enquanto ele está vazio),
+  sem a abertura.
+- **Nada se perde:** fechar e reabrir a modal mantém o texto digitado e as mensagens; a confirmação da
+  reserva (data, pessoas, opcionais, cupom, termo) continua intacta por trás. Mensagens do dono chegam em
+  tempo real na modal.
+- O campo de texto cresce com a mensagem (o assunto pré-preenchido aparece inteiro).
+- Aviso "Comunicação exclusiva pela plataforma" (primeira conversa) aparece dentro da modal.
+- **Também no detalhe do roteiro (25/10/2026):** o bloco "Ficou com dúvida? Fale com o dono da
+  embarcação" abre a **mesma modal**, sem sair da página. O que a pessoa escreveu no bloco vai como
+  rascunho; sem texto, aparecem os assuntos sugeridos — a abertura usa a data e as pessoas já escolhidas
+  no card de reserva ("Olá! Tenho interesse no passeio "X" para 07/11/2026, com 2 pessoas.") ou só o
+  passeio, se ainda não há data. Deslogado, continua indo para o login e volta à conversa com o texto
+  preservado.
+- **E-mail do dono não aparece mais no chat do cliente (25/10/2026):** no cabeçalho de todas as conversas
+  do lado do cliente (roteiro, embarcação, minhas reservas, minhas conversas e vendas), o e-mail do
+  dono/vendedor deu lugar a "Dono da embarcação · conversa pelo Boatzy" (ou "Vendedor · …") — coerente
+  com o aviso de comunicação exclusiva pela plataforma. O e-mail também deixou de ser enviado ao
+  navegador nessas telas. O painel do gestor continua mostrando o e-mail do cliente.
+- Detalhes técnicos: `SPEC.md` §88.
 
 ## 11. Não Incluído no MVP
 

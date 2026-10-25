@@ -43,7 +43,7 @@ export default async function ChatVendaPage({ params }: { params: Promise<{ id: 
 
   const { data: vendedor } = await supabaseAdmin
     .from('users')
-    .select('id, name, email, avatar_url')
+    .select('id, name, avatar_url')
     .eq('id', data.owner_id)
     .single();
   if (!vendedor) notFound();
@@ -104,7 +104,7 @@ export default async function ChatVendaPage({ params }: { params: Promise<{ id: 
         <ChatBox
           conversaId={conversaId}
           meId={user.id}
-          interlocutor={{ name: vendedor.name, email: vendedor.email, avatar_url: vendedor.avatar_url }}
+          interlocutor={{ name: vendedor.name, descricao: 'Vendedor · conversa pelo Boatzy', avatar_url: vendedor.avatar_url }}
           voltarHref={`/vendas/${id}`}
           voltarLabel="Voltar para o anúncio"
           mensagensIniciais={(mensagens ?? []) as Mensagem[]}

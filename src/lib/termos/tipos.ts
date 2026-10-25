@@ -47,9 +47,10 @@ export type ConfirmacaoExigida = {
   /** Texto para a instrução, ex.: "seu CPF". */
   rotulo: string;
   /**
-   * Começo do valor esperado, para o usuário (principalmente quem entrou por
-   * login social e não sabe como o cadastro ficou) saber o que digitar:
-   * "829..." (CPF), "5 primeiras letras" do nome. Nunca o valor completo.
+   * Valor esperado completo, como está no cadastro, para o usuário (principalmente
+   * quem entrou por login social e não sabe como o cadastro ficou) saber
+   * exatamente o que digitar: "829.123.456-78" (CPF), "00.000.000/0000-00"
+   * (CNPJ) ou o nome completo. Só é enviado ao próprio usuário da sessão.
    */
   dica: string;
 };
