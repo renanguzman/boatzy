@@ -4466,6 +4466,9 @@ fazem parte de um único itinerário e a ordem em que aparecem é a ordem em que
 - Ordem fixa de cima para baixo: **Partida** (input ligado a `form.origem`) → **Parada 1..N**
   (uma linha por parada, com posição no rótulo) → **Adicionar parada** (campo + botão, também
   aceita Enter) → **Chegada** (input ligado a `form.destino`).
+  Rótulos exibidos (25/10/2026): **"Embarque (saída)"** no ponto de `form.origem` e
+  **"Desembarque (chegada)"** no de `form.destino` (antes "Partida (saída)" / "Chegada (destino)");
+  colunas `origem`/`destino` inalteradas.
 - Estado local `paradas: { localId: string; nome: string }[]` (edição parte de `paradasIniciais:
   string[]`, carregado via `roteiro_parada` ordenado por `ordem`).
 - Cada parada tem botões para mover para cima/baixo (reordenar) e remover (`Trash2`) — mesmo
@@ -7797,3 +7800,79 @@ solicitação").
   - Testes: `tsc`/`eslint` limpos; no navegador (página temporária, removida), o clique abre a modal na
     mesma URL (sem sessão → aviso "Entre na sua conta…"), sem erro de console. Conversa logada não exercitada.
 
+## 91. Cadastro de embarcação — copiar dados de outra embarcação (Detalhes / Localização) (25/10/2026)
+
+- **Action** `buscarDadosParaCopia(embarcacaoId, etapa: 'detalhes' | 'localizacao')` em
+  `src/app/painel/(gestao)/embarcacoes/novo/actions.ts` → `{ ok: true, dados: DadosCopia } | { ok: false, error }`.
+  Exige sessão, `ehUuid(embarcacaoId)` e `.eq('owner_id', user.id)` (só embarcações do próprio gestor).
+  Valores já no formato dos campos do form (strings; `''` = vazio).
+  - `DadosCopiaDetalhes` (`etapa: 'detalhes'`): `nome`, `capacidade`, `tripulacao`, `comprimento`,
+    `comprimento_unidade`, `quartos`, `banheiros`, `regras: string[]`, `equipamentos`, `acessorios`,
+    `comodidades: { id, nome }[]` (embeds `embarcacao_equipamentos_seguranca → equipamentos_seguranca`,
+    `embarcacao_acessorios → acessorios`, `embarcacao_comodidades → comodidade`, ordenados por nome).
+  - `DadosCopiaLocalizacao` (`etapa: 'localizacao'`): `nome`, `cep` (mascarado `00000-000`), `estado_id`,
+    `estado` ("Nome (UF)"), `municipio_id`, `municipio`, `bairro`, `logradouro`, `logradouro_numero`,
+    `complemento`, `latitude`, `longitude` (embed `municipios (nome, estado_id, estados (uf, nome))`).
+- **Componente genérico** `src/components/painel/CopiarDeOutroCadastro.tsx` (desde §92): faixa + select +
+  modal; a localização usa `LocalizacaoCopia`/`localizacaoParaCopia`/`SELECT_LOCALIZACAO_COPIA` de
+  `src/lib/copia-cadastro.ts` (comum a embarcação e roteiro; `DadosCopiaLocalizacao = LocalizacaoCopia & { etapa }`).
+- **Wrapper** `embarcacoes/_components/CopiarDadosEmbarcacao.tsx`
+  (`{ embarcacoes: EmbarcacaoCopiavel[]; etapa; onCopiar(dados) }`, `EmbarcacaoCopiavel = { id, nome }`):
+  faixa tracejada com `<select>` "Copiar de outra embarcação…"; ao escolher chama a action e abre a modal
+  de confirmação com o resumo da etapa (`ResumoDetalhes` / `ResumoLocalizacao`; vazio = "Não informado").
+  `onCopiar` só é chamado em **"Copiar dados"**; Cancelar/X/Esc/backdrop fecham e limpam o select.
+  Retorna `null` com lista vazia.
+- **Forms** `NovaEmbarcacaoForm` e `EditarEmbarcacaoForm`: nova prop opcional
+  `embarcacoesParaCopiar?: EmbarcacaoCopiavel[]` (default `[]`); o componente fica no topo das etapas
+  Detalhes e Localização.
+  - `copiarDetalhes(d)`: substitui `capacidade`, `tripulacao`, `comprimento`, `comprimento_unidade`,
+    `quartos`, `banheiros`, `regras` e as seleções de equipamentos, acessórios e comodidades.
+  - `copiarLocalizacao(d)`: substitui CEP, estado, endereço e lat/lng; limpa `cepError`, recarrega os
+    municípios do estado (`getMunicipiosByEstado`) e então define `municipio_id`.
+- **Páginas:** `/painel/embarcacoes/novo` busca `embarcacao (id, nome)` do `owner_id` (ordem por nome);
+  `/painel/embarcacoes/[id]/editar` faz o mesmo com `.neq('id', id)`. A edição do admin
+  (`/administrator/embarcacoes/[id]/editar`) não passa a prop → opção oculta.
+- Nada é gravado na cópia: os dados entram no estado do form e seguem o fluxo normal de salvar (na edição
+  de embarcação Ativa, `camposSensiveisAlterados` continua pedindo confirmação de nova análise).
+- Testes: `tsc`/`eslint` limpos; consultas da action validadas no banco (embeds de catálogo e
+  município/estado retornando dados reais). Fluxo logado no navegador não exercitado.
+
+## 92. Cadastro de roteiro — copiar dados de outro roteiro (Localização / Preço e disponibilidade) (25/10/2026)
+
+- **Componente genérico** `src/components/painel/CopiarDeOutroCadastro.tsx` (client), extraído do §91:
+  `CopiarDeOutroCadastro<T extends { nome }>({ opcoes: OpcaoCopia[], chamada, rotuloSelect, titulo,
+  buscar(id) → { ok, dados } | { ok: false, error }, resumo(dados) → ReactNode, onCopiar(dados) })`.
+  Faixa tracejada + `<select>`; ao escolher, busca e abre a modal (título "`titulo` de “nome”?", aviso de
+  substituição, Cancelar / **Copiar dados**; Esc, X e backdrop fecham). `null` sem opções. Blocos do
+  resumo exportados: `LinhaResumo`, `GrupoResumo` (chips, com `vazio`), `ResumoLocalizacao`.
+- **`src/lib/copia-cadastro.ts`** (puro): `LocalizacaoCopia`, `localizacaoParaCopia(row)`, `cepMascarado`,
+  `SELECT_LOCALIZACAO_COPIA` (`… municipios ( nome, estado_id, estados ( uf, nome ) )`).
+- **Action** `buscarDadosRoteiroParaCopia(roteiroId, etapa: 'localizacao' | 'preco')` em
+  `roteiros/novo/actions.ts` → `{ ok: true, dados: DadosCopiaRoteiro } | { ok: false, error }`. Exige
+  sessão, `ehUuid` e `roteiro.owner_id = user.id`.
+  - `DadosCopiaRoteiroLocalizacao = LocalizacaoCopia & { etapa: 'localizacao' }`.
+  - `DadosCopiaRoteiroPreco` (`etapa: 'preco'`): `nome`, `preco_base`, `preco_diaria_ativo`,
+    `preco_diaria_valor`, `preco_diaria_minimo` (strings do form), `disponibilidade_dias_semana`,
+    `janela_reserva_meses` (`janelaValida`), `regras: RegraFormulario[]` (só `roteiro_preco_regra` ativas
+    `dia_semana`/`periodo_anual`), `ajustes` (`ajustesDeBanco` filtrado `>= hojeISO()`) e `diasRoteiro`
+    (`roteiro_disponibilidade_dia` com `data >= hojeISO()`). Fechamentos do barco
+    (`embarcacao_fechamento`) **não** entram.
+- **Wrapper** `roteiros/_components/CopiarDadosRoteiro.tsx` (`{ roteiros: RoteiroCopiavel[]; etapa;
+  onCopiar }`): resumo de localização (`ResumoLocalizacao`) ou de preço (`ResumoPreco`: como o cliente
+  paga, preço padrão, dias de operação, janela; chips de preços especiais, datas específicas — intervalos
+  compactados com `compactarAjustes` —, dias fechados e dias abertos fora da operação; nota sobre "de hoje
+  em diante" e barco fechado).
+- **Forms** `NovoRoteiroForm` / `EditarRoteiroForm`: prop opcional `roteirosParaCopiar?: RoteiroCopiavel[]`
+  (default `[]`); componente no topo das etapas Localização e Preço.
+  - `copiarLocalizacao(d)`: igual ao da embarcação (substitui endereço e lat/lng, recarrega municípios e
+    então define `municipio_id`).
+  - `copiarPreco(d)` — novo: substitui os campos de preço do `form`, `regras` (novos `localId`),
+    `ajustes`, `diasOperacao`, `janelaMeses` e `diasRoteiro`. Edição: `regrasExistentes` todas com
+    `markedForDelete: true`, copiadas em `novasRegras`; `ajustes` e `diasRoteiro` mantêm as chaves
+    `< hojeISO()` do próprio roteiro e recebem as copiadas (o salvar já grava por diferença/substituição).
+  - Estado `copiasPreco` (contador) é a `key` da `EtapaPreco`: a cópia remonta a etapa, e os passos
+    válidos aparecem como concluídos (`jaConfigurado`).
+- **Páginas:** `/painel/roteiros/novo` busca `roteiro (id, nome)` do `owner_id` (ordem por nome);
+  `/painel/roteiros/[id]/editar` idem com `.neq('id', id)`. Admin não passa a prop → opção oculta.
+- Testes: `tsc`/`eslint` limpos; consultas da action validadas no banco (localização com município/estado,
+  campos de preço, regras e `roteiro_disponibilidade_dia`). Fluxo logado no navegador não exercitado.

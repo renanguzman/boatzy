@@ -16,6 +16,8 @@ import {
   salvarParadasRoteiro,
   getMunicipiosByEstado,
   type CriarRoteiroPayload,
+  type DadosCopiaRoteiroLocalizacao,
+  type DadosCopiaRoteiroPreco,
 } from '../actions';
 import MapaPicker from '../../../embarcacoes/novo/_components/MapaPicker';
 import CatalogoSelector, { type CatalogoItem, type ItemSelecionado } from '../../_components/CatalogoSelector';
@@ -38,6 +40,7 @@ import RevisaoChecklist from '@/components/painel/etapas/RevisaoChecklist';
 import { useEtapas } from '@/components/painel/etapas/useEtapas';
 import RoteiroCard from '@/app/buscar/_components/RoteiroCard';
 import { ETAPAS_ROTEIRO, ETAPA_ROT, revisaoRoteiro } from '../../_components/etapasRoteiro';
+import CopiarDadosRoteiro, { type RoteiroCopiavel } from '../../_components/CopiarDadosRoteiro';
 
 // ─── Tipos ────────────────────────────────────────────────────────────────────
 
@@ -57,6 +60,8 @@ type Props = {
   embarcacaoInicialId?: string;
   /** Comissão do Boatzy (%) do gestor — mostrada no calendário de preços. */
   taxaPercent: number;
+  /** Outros roteiros do gestor — origem do "copiar de outro roteiro" nas etapas Localização/Preço. */
+  roteirosParaCopiar?: RoteiroCopiavel[];
 };
 
 // ─── Helpers de UI ────────────────────────────────────────────────────────────
@@ -98,7 +103,9 @@ function Field({ label, required, hint, children }: {
 
 // ─── Componente principal ─────────────────────────────────────────────────────
 
-export default function NovoRoteiroForm({ estados, embarcacoes, catalogo: catalogoInicial, embarcacaoInicialId, taxaPercent }: Props) {
+export default function NovoRoteiroForm({
+  estados, embarcacoes, catalogo: catalogoInicial, embarcacaoInicialId, taxaPercent, roteirosParaCopiar = [],
+}: Props) {
   const embarcacaoInicial = embarcacoes.find(e => e.id === embarcacaoInicialId);
   const router = useRouter();
   const [, startTransition] = useTransition();
@@ -136,6 +143,8 @@ export default function NovoRoteiroForm({ estados, embarcacoes, catalogo: catalo
   const [diasOperacao, setDiasOperacao] = useState<number[]>([]);
   const [janelaMeses, setJanelaMeses]   = useState<JanelaReservaMeses>(JANELA_RESERVA_PADRAO);
   const [diasRoteiro, setDiasRoteiro]   = useState<Record<string, boolean>>({});
+  // Incrementado a cada cópia de preço de outro roteiro (chave da EtapaPreco).
+  const [copiasPreco, setCopiasPreco]   = useState(0);
   // Agenda do barco escolhido (reservas de outros roteiros e dias fechados):
   // `base` = como está no banco, para gravar só a diferença.
   const [agendaBarco, setAgendaBarco] = useState<{
@@ -294,6 +303,38 @@ export default function NovoRoteiroForm({ estados, embarcacoes, catalogo: catalo
         setField('longitude', loc.lng().toFixed(7));
       }
     });
+  }
+
+  // ─── Copiar de outro roteiro (etapas Localização e Preço) ──────────────────
+
+  async function copiarLocalizacao(d: DadosCopiaRoteiroLocalizacao) {
+    setCepError(null);
+    setForm(f => ({
+      ...f,
+      cep: d.cep, estado_id: d.estado_id, municipio_id: '',
+      bairro: d.bairro, logradouro: d.logradouro,
+      logradouro_numero: d.logradouro_numero, complemento: d.complemento,
+      latitude: d.latitude, longitude: d.longitude,
+    }));
+    setMunicipios([]);
+    if (!d.estado_id) return;
+    await carregarMunicipios(parseInt(d.estado_id, 10));
+    setField('municipio_id', d.municipio_id);
+  }
+
+  function copiarPreco(d: DadosCopiaRoteiroPreco) {
+    setForm(f => ({
+      ...f,
+      preco_base: d.preco_base, preco_diaria_ativo: d.preco_diaria_ativo,
+      preco_diaria_valor: d.preco_diaria_valor, preco_diaria_minimo: d.preco_diaria_minimo,
+    }));
+    setRegras(d.regras.map(r => ({ ...r, localId: crypto.randomUUID() })));
+    setAjustes(d.ajustes);
+    setDiasOperacao(d.disponibilidade_dias_semana);
+    setJanelaMeses(d.janela_reserva_meses);
+    setDiasRoteiro(d.diasRoteiro);
+    // Remonta a EtapaPreco: os passos já preenchidos aparecem como concluídos.
+    setCopiasPreco(n => n + 1);
   }
 
   // ─── Regras ───────────────────────────────────────────────────────────────
@@ -545,7 +586,7 @@ export default function NovoRoteiroForm({ estados, embarcacoes, catalogo: catalo
               {/* Partida */}
               <div className="relative mb-4">
                 <div className="absolute -left-6 top-1.5 h-3 w-3 rounded-full bg-[#0B3D91] ring-2 ring-white" />
-                <p className="text-[10px] font-bold text-[#0B3D91] uppercase tracking-wider mb-1">Partida (saída)</p>
+                <p className="text-[10px] font-bold text-[#0B3D91] uppercase tracking-wider mb-1">Embarque (saída)</p>
                 <input className={inputCls} placeholder="ex: Marina da Glória, RJ"
                   value={form.origem} onChange={e => setField('origem', e.target.value)} />
               </div>
@@ -595,7 +636,7 @@ export default function NovoRoteiroForm({ estados, embarcacoes, catalogo: catalo
               {/* Chegada */}
               <div className="relative">
                 <div className="absolute -left-6 top-1.5 h-3 w-3 rounded-full bg-cyan-400 ring-2 ring-white" />
-                <p className="text-[10px] font-bold text-cyan-600 uppercase tracking-wider mb-1">Chegada (destino)</p>
+                <p className="text-[10px] font-bold text-cyan-600 uppercase tracking-wider mb-1">Desembarque (chegada)</p>
                 <input className={inputCls} placeholder="ex: Ilha Grande, RJ"
                   value={form.destino} onChange={e => setField('destino', e.target.value)} />
               </div>
@@ -607,9 +648,12 @@ export default function NovoRoteiroForm({ estados, embarcacoes, catalogo: catalo
       </div>
 
       <div hidden={etapas.atual !== ETAPA_ROT.preco} className="space-y-6">
+      <CopiarDadosRoteiro etapa="preco" roteiros={roteirosParaCopiar} onCopiar={copiarPreco} />
+
       {/* ── 2. Preço ─────────────────────────────────────────────────────── */}
       <SectionCard id="preco" icon={DollarSign} title="Preço">
         <EtapaPreco
+          key={copiasPreco}
           precoBase={form.preco_base}
           onPrecoBaseChange={v => setField('preco_base', v)}
           diariaAtivo={form.preco_diaria_ativo}
@@ -656,6 +700,8 @@ export default function NovoRoteiroForm({ estados, embarcacoes, catalogo: catalo
       </div>
 
       <div hidden={etapas.atual !== ETAPA_ROT.localizacao} className="space-y-6">
+      <CopiarDadosRoteiro etapa="localizacao" roteiros={roteirosParaCopiar} onCopiar={copiarLocalizacao} />
+
       {/* ── 4. Localização de partida ────────────────────────────────────── */}
       <SectionCard id="localizacao" icon={MapPin} title="Localização de partida">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-5">

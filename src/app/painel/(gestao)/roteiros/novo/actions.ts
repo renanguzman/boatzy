@@ -2,7 +2,10 @@
 
 import { createClient } from '@/lib/supabase/server';
 import { supabaseAdmin } from '@/lib/supabase';
-import { janelaValida } from '@/lib/disponibilidade';
+import { janelaValida, type JanelaReservaMeses } from '@/lib/disponibilidade';
+import { hojeISO } from '@/lib/datas';
+import { ajustesDeBanco, type RegraFormulario, type TipoRegraRecorrente } from '@/lib/precos-calendario';
+import { localizacaoParaCopia, SELECT_LOCALIZACAO_COPIA, type LocalizacaoCopia } from '@/lib/copia-cadastro';
 import { checkRoleInDb } from '@/lib/roles';
 import { duracaoParaHoras, duracaoTexto, type DuracaoUnidade } from '@/lib/duracao';
 import type { PrecoRegraTipo } from '@/types/supabase';
@@ -308,4 +311,111 @@ export async function getMunicipiosByEstado(
     .order('nome');
 
   return data ?? [];
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Action: dados de outro roteiro do gestor para copiar numa etapa do cadastro
+// ─────────────────────────────────────────────────────────────────────────────
+
+export type EtapaRoteiroCopiavel = 'localizacao' | 'preco';
+
+/** Etapa Localização de partida — formato comum a embarcação e roteiro. */
+export type DadosCopiaRoteiroLocalizacao = LocalizacaoCopia & { etapa: 'localizacao' };
+
+/**
+ * Etapa Preço e disponibilidade — valores no formato do form. Datas
+ * específicas e dias abertos/fechados só de hoje em diante (Brasília); os dias
+ * com o barco fechado não entram (pertencem à embarcação, não ao roteiro).
+ */
+export type DadosCopiaRoteiroPreco = {
+  etapa: 'preco';
+  nome: string;
+  preco_base: string;
+  preco_diaria_ativo: boolean;
+  preco_diaria_valor: string;
+  preco_diaria_minimo: string;
+  disponibilidade_dias_semana: number[];
+  janela_reserva_meses: JanelaReservaMeses;
+  /** Regras recorrentes ativas (período anual e dias da semana). */
+  regras: RegraFormulario[];
+  /** Datas específicas: 'yyyy-mm-dd' → R$. */
+  ajustes: Record<string, number>;
+  /** Exceções: false = dia fechado; true = dia aberto fora da operação. */
+  diasRoteiro: Record<string, boolean>;
+};
+
+export type DadosCopiaRoteiro = DadosCopiaRoteiroLocalizacao | DadosCopiaRoteiroPreco;
+
+export async function buscarDadosRoteiroParaCopia(
+  roteiroId: string,
+  etapa: EtapaRoteiroCopiavel,
+): Promise<{ ok: true; dados: DadosCopiaRoteiro } | { ok: false; error: string }> {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { ok: false, error: 'Não autenticado.' };
+  if (!ehUuid(roteiroId)) return { ok: false, error: 'Roteiro inválido.' };
+
+  if (etapa === 'localizacao') {
+    const { data: rot } = await supabaseAdmin
+      .from('roteiro')
+      .select(SELECT_LOCALIZACAO_COPIA)
+      .eq('id', roteiroId)
+      .eq('owner_id', user.id)
+      .single();
+    if (!rot) return { ok: false, error: 'Roteiro não encontrado ou sem permissão.' };
+    return { ok: true, dados: { etapa: 'localizacao', ...localizacaoParaCopia(rot) } };
+  }
+
+  const hoje = hojeISO();
+  const [{ data: rot }, { data: regras }, { data: dias }] = await Promise.all([
+    supabaseAdmin
+      .from('roteiro')
+      .select('nome, preco_base, preco_diaria_ativo, preco_diaria_valor, preco_diaria_minimo, disponibilidade_dias_semana, janela_reserva_meses')
+      .eq('id', roteiroId)
+      .eq('owner_id', user.id)
+      .single(),
+    supabaseAdmin
+      .from('roteiro_preco_regra')
+      .select('id, nome, valor, tipo, prioridade, ativo, dias_semana, periodo_mes_inicio, periodo_dia_inicio, periodo_mes_fim, periodo_dia_fim, data_inicio, data_fim')
+      .eq('roteiro_id', roteiroId)
+      .order('nome'),
+    supabaseAdmin
+      .from('roteiro_disponibilidade_dia')
+      .select('data, disponivel')
+      .eq('roteiro_id', roteiroId)
+      .gte('data', hoje),
+  ]);
+  if (!rot) return { ok: false, error: 'Roteiro não encontrado ou sem permissão.' };
+
+  const recorrentes = (regras ?? []).filter(r => r.ativo && (r.tipo === 'dia_semana' || r.tipo === 'periodo_anual'));
+  const ajustes = Object.fromEntries(
+    Object.entries(ajustesDeBanco(regras ?? [])).filter(([dia]) => dia >= hoje),
+  );
+  const num = (v: number | null) => (v != null ? String(v) : '');
+
+  return {
+    ok: true,
+    dados: {
+      etapa: 'preco',
+      nome: rot.nome,
+      preco_base: num(rot.preco_base),
+      preco_diaria_ativo: !!rot.preco_diaria_ativo,
+      preco_diaria_valor: num(rot.preco_diaria_valor),
+      preco_diaria_minimo: String(rot.preco_diaria_minimo || 1),
+      disponibilidade_dias_semana: rot.disponibilidade_dias_semana ?? [],
+      janela_reserva_meses: janelaValida(rot.janela_reserva_meses),
+      regras: recorrentes.map(r => ({
+        tipo: r.tipo as TipoRegraRecorrente,
+        nome: r.nome,
+        valor: String(Number(r.valor)),
+        diasSemana: r.dias_semana ?? [],
+        periodoMesInicio: r.periodo_mes_inicio ?? 1,
+        periodoDiaInicio: r.periodo_dia_inicio ?? 1,
+        periodoMesFim: r.periodo_mes_fim ?? 12,
+        periodoDiaFim: r.periodo_dia_fim ?? 31,
+      })),
+      ajustes,
+      diasRoteiro: Object.fromEntries((dias ?? []).map(d => [d.data, d.disponivel])),
+    },
+  };
 }

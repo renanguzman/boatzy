@@ -14,7 +14,7 @@ export default async function NovoRoteiroPage({
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect('/painel/login');
 
-  const [{ data: estados }, { data: embarcacoes }, { data: catalogo }, taxaPercent] = await Promise.all([
+  const [{ data: estados }, { data: embarcacoes }, { data: catalogo }, taxaPercent, { data: outrosRoteiros }] = await Promise.all([
     supabaseAdmin.from('estados').select('id, uf, nome').order('nome'),
     supabaseAdmin
       .from('embarcacao')
@@ -31,6 +31,7 @@ export default async function NovoRoteiroPage({
       .order('tipo')
       .order('descricao'),
     getTaxaEfetiva(user.id),
+    supabaseAdmin.from('roteiro').select('id, nome').eq('owner_id', user.id).order('nome'),
   ]);
 
   return (
@@ -47,6 +48,7 @@ export default async function NovoRoteiroPage({
         embarcacoes={embarcacoes ?? []}
         embarcacaoInicialId={embarcacaoInicialId}
         taxaPercent={taxaPercent}
+        roteirosParaCopiar={outrosRoteiros ?? []}
         catalogo={(catalogo ?? []) as { id: string; descricao: string; valor: number; tipo: 'produto' | 'servico' }[]}
       />
     </div>

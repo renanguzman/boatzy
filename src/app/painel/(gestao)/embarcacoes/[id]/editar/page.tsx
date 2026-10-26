@@ -30,6 +30,7 @@ export default async function EditarEmbarcacaoPage({
     { data: acessorios },
     { data: acessoriosVinculados },
     { data: roteiros },
+    { data: outrasEmbarcacoes },
     timeline,
     ultimaDecisao,
     isAdmin,
@@ -54,6 +55,7 @@ export default async function EditarEmbarcacaoPage({
     supabaseAdmin.from('acessorios').select('id, nome').order('nome'),
     supabaseAdmin.from('embarcacao_acessorios').select('acessorio_id').eq('embarcacao_id', id),
     supabaseAdmin.from('roteiro').select('nome').eq('embarcacao_id', id).eq('owner_id', user.id),
+    supabaseAdmin.from('embarcacao').select('id, nome').eq('owner_id', user.id).neq('id', id).order('nome'),
     listarTimeline('embarcacao', id, { incluirInterna: false }),
     ultimaDecisaoAdmin('embarcacao', id),
     checkRoleInDb(user.id, ['admin']),
@@ -116,6 +118,7 @@ export default async function EditarEmbarcacaoPage({
         acessorios={acessorios ?? []}
         acessoriosIniciais={(acessoriosVinculados ?? []).map(a => a.acessorio_id)}
         avisarNovaAnalise={emb.status === 'ativo' && !isAdmin}
+        embarcacoesParaCopiar={outrasEmbarcacoes ?? []}
       />
 
       <div className="mt-6 max-w-4xl">

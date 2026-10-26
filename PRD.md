@@ -910,6 +910,7 @@ Problema: ao clicar numa data do calendário de preços, o painel para definir o
 - O roteiro continua tendo **Local de partida (origem)** e **Local de chegada (destino)**, mas agora o gestor pode cadastrar, entre os dois, **quantas paradas quiser** — nenhuma, uma ou várias — no cadastro (`/painel/roteiros/novo`) e na edição (`/painel/roteiros/[id]/editar`, também usada em `/administrator/roteiros/[id]/editar`).
 - Novo bloco **"Paradas do itinerário"**, logo abaixo dos campos de partida/chegada: campo de texto + botão "Adicionar" inclui uma parada; cada parada da lista pode ser reordenada (mover para cima/baixo) ou removida.
 - No site, a página do roteiro (`/roteiros/[id]`) exibe a seção **"Itinerário"** com a timeline completa: Embarque → Parada 1 → Parada 2 → ... → Desembarque (rótulos "Saída"/"Chegada" até 25/10/2026), refletindo exatamente o que o gestor cadastrou.
+- No formulário do roteiro (painel), os rótulos do bloco Itinerário passaram a ser **"Embarque (saída)"** e **"Desembarque (chegada)"** (antes "Partida (saída)" e "Chegada (destino)") — 25/10/2026, alinhados à timeline pública.
 - Detalhes técnicos: SPEC §30.
 
 #### ✅ Implementado — Navegação por âncoras no cadastro e na edição de roteiro
@@ -2607,6 +2608,52 @@ quando pago, um comprovante.
 - Pendência: os links das notificações do sino ainda levam à lista (`/minhas-reservas#reserva-…`), que
   agora tem "Ver detalhes" em cada card; apontar direto para o detalhe exige atualizar os triggers.
 - Detalhes técnicos: `SPEC.md` §90.
+
+### ✅ Cadastro de embarcação — copiar Detalhes e Localização de outra embarcação (25/10/2026)
+
+**Objetivo:** agilizar o cadastro de quem tem várias embarcações parecidas ou atracadas no mesmo lugar.
+
+- Nas etapas **Detalhes** e **Localização** do cadastro (nova embarcação e edição, no painel do gestor)
+  aparece, no topo da etapa, a faixa **"Copiar de outra embarcação…"** com a lista das outras
+  embarcações do gestor. **Só aparece se ele já tiver outra embarcação cadastrada** (na edição, a
+  própria embarcação não entra na lista).
+- Ao escolher uma embarcação, abre uma **modal com tudo que será copiado** — campos vazios aparecem como
+  "Não informado" — e o aviso de que os dados **substituem** o que está preenchido na etapa. Nada muda
+  no formulário até o gestor clicar em **"Copiar dados"**; "Cancelar", o X, Esc ou clique fora fecham sem
+  copiar.
+- **A cópia vale só para a etapa em questão:**
+  - **Detalhes:** capacidade, tripulação, comprimento (com a unidade), quartos, banheiros, regras a bordo,
+    equipamentos de segurança, acessórios e comodidades.
+  - **Localização:** CEP, estado, município, bairro, logradouro, número, complemento e o ponto no mapa.
+- Os dados copiados ficam editáveis e só são gravados ao salvar o cadastro. Na edição de uma embarcação
+  Ativa, copiar campos sensíveis segue a regra de sempre (confirmação de nova análise ao salvar).
+- Só copia de embarcações do próprio gestor (checado no servidor). A tela de edição do admin não mostra
+  a opção.
+- Detalhes técnicos: `SPEC.md` §91.
+
+### ✅ Cadastro de roteiro — copiar Localização e Preço e disponibilidade de outro roteiro (25/10/2026)
+
+**Objetivo:** mesma facilidade da embarcação, para quem tem vários roteiros saindo do mesmo lugar ou
+com preços e agenda parecidos.
+
+- Nas etapas **Localização** e **Preço e disponibilidade** do cadastro de roteiro (novo e edição, no
+  painel do gestor) aparece a faixa **"Copiar de outro roteiro…"** com os outros roteiros do gestor —
+  **só se ele já tiver outro roteiro** (na edição, o próprio roteiro não entra na lista).
+- Igual à embarcação: ao escolher, uma **modal mostra tudo que será copiado** e avisa que os dados
+  **substituem** os da etapa; nada muda até **"Copiar dados"**.
+- **A cópia vale só para a etapa em questão:**
+  - **Localização:** CEP, estado, município, bairro, logradouro, número, complemento e o ponto no mapa.
+  - **Preço e disponibilidade:** como o cliente paga (diária única e, se ativo, Por diária com valor e
+    mínimo de diárias), preço padrão por dia, dias de operação, janela de reservas, preços especiais
+    (período anual e dias da semana), datas específicas e dias fechados/abertos do roteiro. Datas
+    específicas e dias fechados/abertos são copiados **de hoje em diante**. Os **dias com a embarcação
+    fechada não são copiados** (valem para a embarcação, não para o roteiro) — a modal avisa.
+- Na edição, as regras de preço já salvas ficam **marcadas para exclusão** (dá para desfazer na lista) e
+  as copiadas entram como novas; o histórico (datas passadas) do roteiro é mantido. Depois da cópia, os
+  passos já preenchidos da etapa Preço aparecem como concluídos.
+- Nada é gravado na cópia: tudo segue editável e só vai para o banco ao salvar. Só copia de roteiros do
+  próprio gestor (checado no servidor); a edição do admin não mostra a opção.
+- Detalhes técnicos: `SPEC.md` §92.
 
 ## 11. Não Incluído no MVP
 

@@ -14,12 +14,14 @@ export default async function NovaEmbarcacaoPage() {
     { data: comodidades },
     { data: equipamentosSeguranca },
     { data: acessorios },
+    { data: outrasEmbarcacoes },
   ] = await Promise.all([
     supabaseAdmin.from('embarcacao_tipo').select('id, nome').order('nome'),
     supabaseAdmin.from('estados').select('id, uf, nome').order('nome'),
     supabaseAdmin.from('comodidade').select('id, nome').order('nome'),
     supabaseAdmin.from('equipamentos_seguranca').select('id, nome').order('nome'),
     supabaseAdmin.from('acessorios').select('id, nome').order('nome'),
+    supabaseAdmin.from('embarcacao').select('id, nome').eq('owner_id', user.id).order('nome'),
   ]);
 
   return (
@@ -37,6 +39,7 @@ export default async function NovaEmbarcacaoPage() {
         comodidades={comodidades ?? []}
         equipamentosSeguranca={equipamentosSeguranca ?? []}
         acessorios={acessorios ?? []}
+        embarcacoesParaCopiar={outrasEmbarcacoes ?? []}
       />
     </div>
   );

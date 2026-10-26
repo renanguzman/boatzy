@@ -8,6 +8,7 @@ import { normalizarRegras } from '@/lib/embarcacao-regras';
 import type { ModalidadeCapitao } from '@/types/supabase';
 import { isComprimentoUnidade, type ComprimentoUnidade } from '@/lib/comprimento';
 import { normalizarTituloImagem } from '@/lib/galeria';
+import { localizacaoParaCopia, SELECT_LOCALIZACAO_COPIA, type LocalizacaoCopia } from '@/lib/copia-cadastro';
 import { ehUrlDoStorage, ehUuid, prepararImagensNovas, type ImagemNovaPayload } from '@/lib/upload-imagem-server';
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -327,4 +328,95 @@ export async function salvarAcessorios(
 
   if (error) return { ok: false, error: error.message };
   return { ok: true };
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Action: dados de outra embarcação do gestor para copiar numa etapa do cadastro
+// ─────────────────────────────────────────────────────────────────────────────
+
+export type EtapaCopiavel = 'detalhes' | 'localizacao';
+
+type ItemCatalogo = { id: string; nome: string };
+
+/** Etapa Detalhes — valores já no formato dos campos do form (strings). */
+export type DadosCopiaDetalhes = {
+  etapa: 'detalhes';
+  nome: string;
+  capacidade: string;
+  tripulacao: string;
+  comprimento: string;
+  comprimento_unidade: ComprimentoUnidade;
+  quartos: string;
+  banheiros: string;
+  regras: string[];
+  equipamentos: ItemCatalogo[];
+  acessorios: ItemCatalogo[];
+  comodidades: ItemCatalogo[];
+};
+
+/** Etapa Localização — formato comum a embarcação e roteiro (`@/lib/copia-cadastro`). */
+export type DadosCopiaLocalizacao = LocalizacaoCopia & { etapa: 'localizacao' };
+
+export type DadosCopia = DadosCopiaDetalhes | DadosCopiaLocalizacao;
+
+const num = (v: number | null | undefined) => (v != null ? String(v) : '');
+
+export async function buscarDadosParaCopia(
+  embarcacaoId: string,
+  etapa: EtapaCopiavel,
+): Promise<{ ok: true; dados: DadosCopia } | { ok: false; error: string }> {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { ok: false, error: 'Não autenticado.' };
+  if (!ehUuid(embarcacaoId)) return { ok: false, error: 'Embarcação inválida.' };
+
+  if (etapa === 'detalhes') {
+    const { data: emb } = await supabaseAdmin
+      .from('embarcacao')
+      .select(`
+        nome, capacidade, tripulacao, comprimento, comprimento_unidade, quartos, banheiros, regras,
+        embarcacao_equipamentos_seguranca ( equipamentos_seguranca ( id, nome ) ),
+        embarcacao_acessorios ( acessorios ( id, nome ) ),
+        embarcacao_comodidades ( comodidade ( id, nome ) )
+      `)
+      .eq('id', embarcacaoId)
+      .eq('owner_id', user.id)
+      .single();
+    if (!emb) return { ok: false, error: 'Embarcação não encontrada ou sem permissão.' };
+
+    type Vinculo<K extends string> = { [P in K]: ItemCatalogo | null };
+    const itens = <K extends string>(rows: unknown, chave: K): ItemCatalogo[] =>
+      ((rows ?? []) as Vinculo<K>[])
+        .map(r => r[chave])
+        .filter((i): i is ItemCatalogo => !!i)
+        .sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR'));
+
+    return {
+      ok: true,
+      dados: {
+        etapa: 'detalhes',
+        nome: emb.nome,
+        capacidade: num(emb.capacidade),
+        tripulacao: num(emb.tripulacao),
+        comprimento: num(emb.comprimento),
+        comprimento_unidade: isComprimentoUnidade(emb.comprimento_unidade) ? emb.comprimento_unidade : 'm',
+        quartos: num(emb.quartos),
+        banheiros: num(emb.banheiros),
+        regras: emb.regras ?? [],
+        equipamentos: itens(emb.embarcacao_equipamentos_seguranca, 'equipamentos_seguranca'),
+        acessorios: itens(emb.embarcacao_acessorios, 'acessorios'),
+        comodidades: itens(emb.embarcacao_comodidades, 'comodidade'),
+      },
+    };
+  }
+
+  const { data: emb } = await supabaseAdmin
+    .from('embarcacao')
+    .select(SELECT_LOCALIZACAO_COPIA)
+    .eq('id', embarcacaoId)
+    .eq('owner_id', user.id)
+    .single();
+  if (!emb) return { ok: false, error: 'Embarcação não encontrada ou sem permissão.' };
+
+  return { ok: true, dados: { etapa: 'localizacao', ...localizacaoParaCopia(emb) } };
 }

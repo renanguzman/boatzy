@@ -15,6 +15,8 @@ import {
   salvarAcessorios,
   getMunicipiosByEstado,
   type CriarEmbarcacaoPayload,
+  type DadosCopiaDetalhes,
+  type DadosCopiaLocalizacao,
 } from '../actions';
 import MapaPicker from './MapaPicker';
 import RegrasInput from '@/components/painel/RegrasInput';
@@ -29,6 +31,7 @@ import RevisaoChecklist from '@/components/painel/etapas/RevisaoChecklist';
 import { useEtapas } from '@/components/painel/etapas/useEtapas';
 import EmbarcacaoCard from '@/components/ui/EmbarcacaoCard';
 import { ETAPAS_EMBARCACAO, ETAPA_EMB, revisaoEmbarcacao } from '../../_components/etapasEmbarcacao';
+import CopiarDadosEmbarcacao, { type EmbarcacaoCopiavel } from '../../_components/CopiarDadosEmbarcacao';
 
 // ─── Tipos ────────────────────────────────────────────────────────────────────
 
@@ -46,6 +49,8 @@ type Props = {
   comodidades: Comodidade[];
   equipamentosSeguranca: EquipamentoSeguranca[];
   acessorios: Acessorio[];
+  /** Outras embarcações do gestor — origem do "copiar de outra embarcação" nas etapas Detalhes/Localização. */
+  embarcacoesParaCopiar?: EmbarcacaoCopiavel[];
 };
 
 // ─── Helpers de UI ────────────────────────────────────────────────────────────
@@ -88,7 +93,9 @@ function Field({ label, required, hint, className, children }: {
 
 // ─── Componente principal ─────────────────────────────────────────────────────
 
-export default function NovaEmbarcacaoForm({ tipos, estados, comodidades, equipamentosSeguranca, acessorios }: Props) {
+export default function NovaEmbarcacaoForm({
+  tipos, estados, comodidades, equipamentosSeguranca, acessorios, embarcacoesParaCopiar = [],
+}: Props) {
   const router = useRouter();
   const [, startTransition] = useTransition();
   const numeroInputRef = useRef<HTMLInputElement>(null);
@@ -268,6 +275,36 @@ export default function NovaEmbarcacaoForm({ tipos, estados, comodidades, equipa
     });
   }
 
+  // ─── Copiar de outra embarcação (etapas Detalhes e Localização) ───────────
+
+  function copiarDetalhes(d: DadosCopiaDetalhes) {
+    setForm(f => ({
+      ...f,
+      capacidade: d.capacidade, tripulacao: d.tripulacao,
+      comprimento: d.comprimento, comprimento_unidade: d.comprimento_unidade,
+      quartos: d.quartos, banheiros: d.banheiros,
+    }));
+    setRegras(d.regras);
+    setEquipamentosSelecionados(d.equipamentos.map(i => i.id));
+    setAcessoriosSelecionados(d.acessorios.map(i => i.id));
+    setComodidadesSelecionadas(d.comodidades.map(i => i.id));
+  }
+
+  async function copiarLocalizacao(d: DadosCopiaLocalizacao) {
+    setCepError(null);
+    setForm(f => ({
+      ...f,
+      cep: d.cep, estado_id: d.estado_id, municipio_id: '',
+      bairro: d.bairro, logradouro: d.logradouro,
+      logradouro_numero: d.logradouro_numero, complemento: d.complemento,
+      latitude: d.latitude, longitude: d.longitude,
+    }));
+    setMunicipios([]);
+    if (!d.estado_id) return;
+    await carregarMunicipios(parseInt(d.estado_id, 10));
+    setField('municipio_id', d.municipio_id);
+  }
+
   // ─── Imagens ──────────────────────────────────────────────────────────────
 
   // Id da nova embarcação, gerado no 1º salvar e mantido nas novas tentativas:
@@ -401,6 +438,8 @@ export default function NovaEmbarcacaoForm({ tipos, estados, comodidades, equipa
       </div>
 
       <div hidden={etapas.atual !== ETAPA_EMB.detalhes} className="space-y-6">
+      <CopiarDadosEmbarcacao etapa="detalhes" embarcacoes={embarcacoesParaCopiar} onCopiar={copiarDetalhes} />
+
       {/* ── 2. Especificações técnicas ───────────────────────────────────── */}
       <SectionCard icon={Ruler} title="Especificações técnicas">
         <div className="grid grid-cols-2 md:grid-cols-3 gap-3 sm:gap-5">
@@ -551,6 +590,8 @@ export default function NovaEmbarcacaoForm({ tipos, estados, comodidades, equipa
       </div>
 
       <div hidden={etapas.atual !== ETAPA_EMB.localizacao} className="space-y-6">
+      <CopiarDadosEmbarcacao etapa="localizacao" embarcacoes={embarcacoesParaCopiar} onCopiar={copiarLocalizacao} />
+
       {/* ── 5. Localização ──────────────────────────────────────────────── */}
       <SectionCard icon={MapPin} title="Localização" subtitle="Onde sua embarcação fica a maior parte do tempo">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-5">

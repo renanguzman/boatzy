@@ -31,6 +31,7 @@ export default async function EditarRoteiroPage({
     { data: catalogo },
     { data: catalogoVinculado },
     { data: paradas },
+    { data: outrosRoteiros },
     timeline,
     ultimaDecisao,
     isAdmin,
@@ -73,6 +74,7 @@ export default async function EditarRoteiroPage({
       .select('nome')
       .eq('roteiro_id', id)
       .order('ordem'),
+    supabaseAdmin.from('roteiro').select('id, nome').eq('owner_id', user.id).neq('id', id).order('nome'),
     listarTimeline('roteiro', id, { incluirInterna: false }),
     ultimaDecisaoAdmin('roteiro', id),
     checkRoleInDb(user.id, ['admin']),
@@ -162,6 +164,7 @@ export default async function EditarRoteiroPage({
         taxaPercent={taxaPercent}
         ocupacaoInicial={ocupacao}
         pedidosPendentes={pedidosPendentes}
+        roteirosParaCopiar={outrosRoteiros ?? []}
       />
 
       <div className="mt-6 max-w-4xl">
