@@ -1,8 +1,9 @@
 'use client';
 
 import { createContext, useContext, useState, type ReactNode } from 'react';
+import { useTranslations } from 'next-intl';
 import { Check, Lock, Package, Plus, ShoppingCart, Wrench, X } from 'lucide-react';
-import { formatCurrency } from '@/lib/utils';
+import { useFormatos } from '@/i18n/formatos';
 import { precoComTaxa } from '@/lib/pagamentos/valores';
 import { rastrear } from '@/lib/analytics';
 
@@ -84,24 +85,28 @@ export function useSelecaoOpcionais(): SelecaoOpcionais {
 /** Lista de opcionais do roteiro na confirmação: adicionar ou retirar sem voltar ao roteiro. */
 export default function OpcionaisCheckout({ taxaPercent }: { taxaPercent: number }) {
   const { opcionais, selecionados, alternar, travado } = useSelecaoOpcionais();
+  const t = useTranslations('OpcionaisCheckout');
+  const tOp = useTranslations('Opcionais');
+  const f = useFormatos();
   if (opcionais.length === 0) return null;
+  const preco = (valor: number) => (valor > 0 ? f.moeda(precoComTaxa(valor, taxaPercent)) : tOp('incluso'));
 
   return (
     <div className="p-5 border-b border-slate-100">
       <div className="flex items-center gap-1.5">
         <ShoppingCart className="h-4 w-4 text-marinho" />
-        <span className="text-sm font-semibold text-marinho">Opcionais do passeio</span>
+        <span className="text-sm font-semibold text-marinho">{t('titulo')}</span>
         <span className="ml-auto text-xs text-slate-400 tabular-nums">
-          {selecionados.length} de {opcionais.length} {opcionais.length === 1 ? 'adicionado' : 'adicionados'}
+          {t('contagem', { selecionados: selecionados.length, total: opcionais.length })}
         </span>
       </div>
       {travado ? (
         <p className="mt-0.5 mb-3 flex items-center gap-1 text-xs text-slate-500">
           <Lock className="h-3 w-3 shrink-0" />
-          Solicitação enviada com estes opcionais — não é mais possível alterar.
+          {t('travado')}
         </p>
       ) : (
-        <p className="mt-0.5 mb-3 text-xs text-slate-500">Adicione ou retire antes de enviar a solicitação.</p>
+        <p className="mt-0.5 mb-3 text-xs text-slate-500">{t('ajuste')}</p>
       )}
       <ul className="divide-y divide-slate-100 rounded-xl border border-slate-100">
         {opcionais.map((o) => {
@@ -120,27 +125,27 @@ export default function OpcionaisCheckout({ taxaPercent }: { taxaPercent: number
               <div className="min-w-0 flex-1">
                 <p className="text-sm font-medium text-grafite leading-snug">{o.descricao}</p>
                 <p className="mt-0.5 text-[10px] font-semibold uppercase tracking-wider text-slate-400">
-                  {o.tipo === 'servico' ? 'Serviço' : 'Produto'}
+                  {o.tipo === 'servico' ? tOp('servico') : tOp('produto')}
                   <span className="normal-case tracking-normal text-sm font-bold text-marinho sm:hidden">
-                    {' · '}{Number(o.valor) > 0 ? formatCurrency(precoComTaxa(Number(o.valor), taxaPercent)) : 'Incluso'}
+                    {' · '}{preco(Number(o.valor))}
                   </span>
                 </p>
               </div>
               <span className="hidden sm:block shrink-0 text-sm font-bold text-marinho tabular-nums">
-                {Number(o.valor) > 0 ? formatCurrency(precoComTaxa(Number(o.valor), taxaPercent)) : 'Incluso'}
+                {preco(Number(o.valor))}
               </span>
               {travado ? (
                 // Sem botão: depois de enviada, a seleção não muda mais.
                 <span className="shrink-0 inline-flex items-center gap-1.5 rounded-xl bg-slate-100 px-3 py-2 text-xs font-semibold text-slate-500">
                   {marcado ? <Check className="h-3.5 w-3.5" /> : <Lock className="h-3.5 w-3.5" />}
-                  {marcado ? 'Incluído' : 'Não incluído'}
+                  {marcado ? t('incluido') : t('naoIncluido')}
                 </span>
               ) : (
                 <button
                   type="button"
                   onClick={() => alternar(o.id)}
                   aria-pressed={marcado}
-                  aria-label={`${marcado ? 'Retirar' : 'Adicionar'} ${o.descricao}`}
+                  aria-label={marcado ? t('retirarItem', { item: o.descricao }) : tOp('adicionarItem', { item: o.descricao })}
                   className={`group shrink-0 inline-flex items-center gap-1.5 rounded-xl px-3 py-2 text-xs font-semibold transition-colors ${
                     marcado
                       ? 'bg-marinho text-white hover:bg-marinho-escuro'
@@ -152,13 +157,13 @@ export default function OpcionaisCheckout({ taxaPercent }: { taxaPercent: number
                       {/* No mouse, o "Adicionado" vira "Retirar" — deixa claro que dá para tirar. */}
                       <Check className="h-3.5 w-3.5 group-hover:hidden" />
                       <X className="hidden h-3.5 w-3.5 group-hover:block" />
-                      <span className="group-hover:hidden">Adicionado</span>
-                      <span className="hidden group-hover:inline">Retirar</span>
+                      <span className="group-hover:hidden">{tOp('adicionado')}</span>
+                      <span className="hidden group-hover:inline">{t('retirar')}</span>
                     </>
                   ) : (
                     <>
                       <Plus className="h-3.5 w-3.5" />
-                      Adicionar
+                      {tOp('adicionar')}
                     </>
                   )}
                 </button>

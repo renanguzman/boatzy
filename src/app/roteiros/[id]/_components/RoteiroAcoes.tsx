@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState, useTransition } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
+import { useTranslations } from 'next-intl';
 import { Heart, Share2, Link2, Check, MessageCircle } from 'lucide-react';
 import { alternarFavorito } from '@/lib/favoritos-actions';
 import { useModoPreview } from '@/components/preview/ModoPreview';
@@ -42,6 +43,8 @@ type Props = {
 export default function RoteiroAcoes({ roteiroId, roteiroNome, initialFavorito, variante = 'barra' }: Props) {
   const router = useRouter();
   const pathname = usePathname();
+  const t = useTranslations('AcoesRoteiro');
+  const tCards = useTranslations('Cards');
   const [, startTransition] = useTransition();
   const preview = useModoPreview();
 
@@ -83,7 +86,7 @@ export default function RoteiroAcoes({ roteiroId, roteiroNome, initialFavorito, 
   }
 
   function shareText(): string {
-    return `Confira o roteiro "${roteiroNome}" no Boatzy!`;
+    return t('textoCompartilhar', { nome: roteiroNome });
   }
 
   async function copiarLink(): Promise<void> {
@@ -144,7 +147,7 @@ export default function RoteiroAcoes({ roteiroId, roteiroNome, initialFavorito, 
         type="button"
         onClick={handleFavoritar}
         aria-pressed={favorito}
-        aria-label={sobreFoto ? (favorito ? 'Remover dos favoritos' : 'Favoritar') : undefined}
+        aria-label={sobreFoto ? (favorito ? tCards('removerFavorito') : tCards('adicionarFavorito')) : undefined}
         className={sobreFoto ? botaoIcone : `flex-1 flex items-center justify-center gap-2 py-3 rounded-xl border text-sm font-medium transition-colors ${
           favorito
             ? 'border-red-200 bg-red-50 text-red-600 hover:bg-red-100'
@@ -152,7 +155,7 @@ export default function RoteiroAcoes({ roteiroId, roteiroNome, initialFavorito, 
         }`}
       >
         <Heart className={`h-4 w-4 ${favorito ? 'fill-red-500 text-red-500' : sobreFoto ? 'text-slate-700' : ''}`} />
-        {!sobreFoto && (favorito ? 'Favoritado' : 'Favoritar')}
+        {!sobreFoto && (favorito ? t('favoritado') : t('favoritar'))}
       </button>
 
       <div className={sobreFoto ? 'relative' : 'relative flex-1'} ref={shareRef}>
@@ -161,11 +164,11 @@ export default function RoteiroAcoes({ roteiroId, roteiroNome, initialFavorito, 
           onClick={handleCompartilhar}
           aria-haspopup="menu"
           aria-expanded={shareOpen}
-          aria-label={sobreFoto ? 'Compartilhar' : undefined}
+          aria-label={sobreFoto ? t('compartilhar') : undefined}
           className={sobreFoto ? botaoIcone : 'w-full flex items-center justify-center gap-2 py-3 rounded-xl border border-slate-200 text-sm font-medium text-slate-700 hover:bg-slate-50 transition-colors'}
         >
           <Share2 className={`h-4 w-4 ${sobreFoto ? 'text-slate-700' : ''}`} />
-          {!sobreFoto && 'Compartilhar'}
+          {!sobreFoto && t('compartilhar')}
         </button>
 
         {shareOpen && (
@@ -202,7 +205,7 @@ export default function RoteiroAcoes({ roteiroId, roteiroNome, initialFavorito, 
               <InstagramIcon className="h-4 w-4 text-pink-500" />
               <span className="text-left leading-tight">
                 Instagram
-                <span className="block text-[10px] text-slate-400">copia o link para o story/direct</span>
+                <span className="block text-[10px] text-slate-400">{t('instagramDica')}</span>
               </span>
             </button>
             <div className="my-1 border-t border-slate-100" />
@@ -215,12 +218,12 @@ export default function RoteiroAcoes({ roteiroId, roteiroNome, initialFavorito, 
               {copiado ? (
                 <>
                   <Check className="h-4 w-4 text-turquesa" />
-                  <span className="text-turquesa-escuro font-medium">Link copiado!</span>
+                  <span className="text-turquesa-escuro font-medium">{t('linkCopiado')}</span>
                 </>
               ) : (
                 <>
                   <Link2 className="h-4 w-4 text-slate-400" />
-                  Copiar link
+                  {t('copiarLink')}
                 </>
               )}
             </button>

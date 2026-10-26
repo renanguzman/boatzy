@@ -41,24 +41,16 @@ export type BuscaSearchParams = {
   ordenar?: string;
 };
 
-export const MODELOS_PRECO = [
-  { value: 'roteiro', label: 'Passeios (Roteiro)' },
-  { value: 'diaria', label: 'Por Diária' },
-] as const;
+// Rótulos no idioma do site: `Busca.modelosPreco.<valor>` e `Busca.ordenar.<valor>`.
+export const MODELOS_PRECO = ['roteiro', 'diaria'] as const;
 
-export type ModeloPreco = (typeof MODELOS_PRECO)[number]['value'];
+export type ModeloPreco = (typeof MODELOS_PRECO)[number];
 
 export const ORDENACOES = [
-  { value: 'relevancia', label: 'Relevância' },
-  { value: 'recentes', label: 'Mais recentes' },
-  { value: 'avaliacao', label: 'Melhor avaliação' },
-  { value: 'preco_asc', label: 'Menor preço' },
-  { value: 'preco_desc', label: 'Maior preço' },
-  { value: 'duracao_asc', label: 'Menor duração' },
-  { value: 'duracao_desc', label: 'Maior duração' },
+  'relevancia', 'recentes', 'avaliacao', 'preco_asc', 'preco_desc', 'duracao_asc', 'duracao_desc',
 ] as const;
 
-export type Ordenacao = (typeof ORDENACOES)[number]['value'];
+export type Ordenacao = (typeof ORDENACOES)[number];
 
 export const ORDENACAO_PADRAO: Ordenacao = 'relevancia';
 
@@ -67,13 +59,12 @@ export const ORDENACAO_PADRAO: Ordenacao = 'relevancia';
 const ORDENACOES_SO_ROTEIRO: readonly Ordenacao[] = ['preco_asc', 'preco_desc'];
 
 export function ordenacoesDaAba(abaEmbarcacao: boolean) {
-  return abaEmbarcacao ? ORDENACOES.filter((o) => !ORDENACOES_SO_ROTEIRO.includes(o.value)) : ORDENACOES;
+  return abaEmbarcacao ? ORDENACOES.filter((o) => !ORDENACOES_SO_ROTEIRO.includes(o)) : ORDENACOES;
 }
 
 /** Valida o param `ordenar` vindo da URL (qualquer lixo ou opção fora da aba cai no padrão). */
 export function normalizarOrdenacao(valor: string | undefined, abaEmbarcacao: boolean): Ordenacao {
-  const encontrada = ordenacoesDaAba(abaEmbarcacao).find((o) => o.value === valor);
-  return encontrada ? encontrada.value : ORDENACAO_PADRAO;
+  return ordenacoesDaAba(abaEmbarcacao).find((o) => o === valor) ?? ORDENACAO_PADRAO;
 }
 
 /** Número positivo vindo da URL; qualquer outra coisa vira null (= sem filtro). */
@@ -118,9 +109,9 @@ export function parseIdsCsv(valor: string | undefined): string[] {
 /** Modelos de cobrança selecionados na URL (`?modelo_preco=roteiro,diaria`), só valores válidos. */
 export function parseModelosPreco(valor: string | undefined): ModeloPreco[] {
   if (!valor) return [];
-  const validos = new Set(MODELOS_PRECO.map((m) => m.value));
+  const validos = new Set<string>(MODELOS_PRECO);
   return valor
     .split(',')
     .map((v) => v.trim())
-    .filter((v): v is ModeloPreco => validos.has(v as ModeloPreco));
+    .filter((v): v is ModeloPreco => validos.has(v));
 }

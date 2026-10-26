@@ -3,6 +3,7 @@
 import { useState, useCallback, useRef, type ReactNode } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
+import { useTranslations } from 'next-intl';
 import { ChevronLeft, ChevronRight, Camera, Anchor } from 'lucide-react';
 import FotosLightbox from '@/components/ui/FotosLightbox';
 
@@ -20,6 +21,8 @@ type Props = {
 const LIMIAR_SWIPE = 40;
 
 export default function GaleriaRoteiro({ images, nome, voltarHref = '/buscar', acoes }: Props) {
+  const t = useTranslations('Galeria');
+  const tComum = useTranslations('Comum');
   const total = images.length;
   const [current, setCurrent] = useState(0);
   const [modalOpen, setModalOpen] = useState(false);
@@ -115,7 +118,7 @@ export default function GaleriaRoteiro({ images, nome, voltarHref = '/buscar', a
                     <button
                       type="button"
                       onClick={(e) => { e.stopPropagation(); openModal(current); }}
-                      aria-label={`Ver todas as ${total} fotos`}
+                      aria-label={t('verTodasN', { count: total })}
                       className="absolute bottom-4 right-4 z-10 lg:hidden inline-flex items-center gap-1.5 rounded-full bg-black/55 backdrop-blur-sm px-3 py-1.5 text-xs font-semibold text-white tabular-nums"
                     >
                       <Camera className="h-3.5 w-3.5" />
@@ -126,7 +129,7 @@ export default function GaleriaRoteiro({ images, nome, voltarHref = '/buscar', a
               ) : (
                 <div className="w-full h-full flex flex-col items-center justify-center gap-3">
                   <Anchor className="h-12 w-12 text-slate-200" />
-                  <p className="text-sm text-slate-300">Sem fotos disponíveis</p>
+                  <p className="text-sm text-slate-300">{t('semFotos')}</p>
                 </div>
               )}
 
@@ -134,7 +137,7 @@ export default function GaleriaRoteiro({ images, nome, voltarHref = '/buscar', a
               <Link
                 href={voltarHref}
                 onClick={(e) => e.stopPropagation()}
-                aria-label="Voltar"
+                aria-label={tComum('voltar')}
                 className="absolute top-4 left-4 z-10 h-10 w-10 rounded-full bg-white/90 backdrop-blur-sm flex items-center justify-center hover:bg-white transition-colors shadow-sm"
               >
                 <ChevronLeft className="h-5 w-5 text-slate-700" />
@@ -153,14 +156,14 @@ export default function GaleriaRoteiro({ images, nome, voltarHref = '/buscar', a
                   <button
                     onClick={(e) => { e.stopPropagation(); prevCarousel(); }}
                     className="absolute left-4 top-1/2 -translate-y-1/2 z-10 h-10 w-10 rounded-full bg-black/40 hover:bg-black/65 text-white hidden lg:flex items-center justify-center transition-all backdrop-blur-sm hover:scale-105 active:scale-95"
-                    aria-label="Foto anterior"
+                    aria-label={t('anterior')}
                   >
                     <ChevronLeft className="h-5 w-5" />
                   </button>
                   <button
                     onClick={(e) => { e.stopPropagation(); nextCarousel(); }}
                     className="absolute right-4 top-1/2 -translate-y-1/2 z-10 h-10 w-10 rounded-full bg-black/40 hover:bg-black/65 text-white hidden lg:flex items-center justify-center transition-all backdrop-blur-sm hover:scale-105 active:scale-95"
-                    aria-label="Próxima foto"
+                    aria-label={t('proxima')}
                   >
                     <ChevronRight className="h-5 w-5" />
                   </button>
@@ -179,7 +182,7 @@ export default function GaleriaRoteiro({ images, nome, voltarHref = '/buscar', a
                   >
                     <Image
                       src={side1.url_imagem}
-                      alt={side1.titulo ?? `Foto ${(current + 1) % total + 1}`}
+                      alt={side1.titulo ?? t('foto', { n: (current + 1) % total + 1 })}
                       fill
                       className="object-cover group-hover:scale-105 transition-transform duration-300"
                       sizes="33vw"
@@ -196,7 +199,7 @@ export default function GaleriaRoteiro({ images, nome, voltarHref = '/buscar', a
                   >
                     <Image
                       src={side2.url_imagem}
-                      alt={side2.titulo ?? `Foto ${(current + 2) % total + 1}`}
+                      alt={side2.titulo ?? t('foto', { n: (current + 2) % total + 1 })}
                       fill
                       className="object-cover group-hover:scale-105 transition-transform duration-300"
                       sizes="33vw"
@@ -212,7 +215,7 @@ export default function GaleriaRoteiro({ images, nome, voltarHref = '/buscar', a
                       className="absolute bottom-3 right-3 z-10 bg-white/90 backdrop-blur-sm text-grafite text-xs font-semibold px-4 py-2 rounded-lg flex items-center gap-1.5 hover:bg-white transition-all shadow-md hover:shadow-lg hover:scale-[1.02] active:scale-[0.98]"
                     >
                       <Camera className="h-3.5 w-3.5" />
-                      Ver todas ({total})
+                      {t('verTodas', { count: total })}
                     </button>
                   </div>
                 )}
@@ -226,7 +229,7 @@ export default function GaleriaRoteiro({ images, nome, voltarHref = '/buscar', a
                 className="absolute bottom-4 right-4 z-10 bg-white/90 backdrop-blur-sm text-grafite text-xs font-semibold px-4 py-2 rounded-lg hidden lg:flex items-center gap-1.5 hover:bg-white transition-all shadow-md"
               >
                 <Camera className="h-3.5 w-3.5" />
-                Ver todas ({total})
+                {t('verTodas', { count: total })}
               </button>
             )}
           </div>

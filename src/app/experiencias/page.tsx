@@ -2,18 +2,23 @@ import type { Metadata } from 'next';
 import Image from 'next/image';
 import Link from 'next/link';
 import { ArrowRight, MapPin } from 'lucide-react';
+import { getTranslations } from 'next-intl/server';
 import Header from '@/components/layout/Header';
 import Footer from '@/components/layout/Footer';
 import { PASSEIOS_DESTAQUE } from '@/lib/passeios';
 
-export const metadata: Metadata = {
-  title: 'Experiências — Boatzy',
-  description:
-    'Roteiros, destinos e histórias para inspirar seu próximo passeio de barco: conheça os melhores lugares para navegar com o Boatzy.',
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getTranslations('Experiencias');
+  return { title: t('metaTitulo'), description: t('metaDescricao') };
+}
 
-export default function ExperienciasPage() {
-  const [destaque, ...resto] = PASSEIOS_DESTAQUE;
+export default async function ExperienciasPage() {
+  const [t, tPasseios] = await Promise.all([getTranslations('Experiencias'), getTranslations('Passeios')]);
+  const [destaque, ...resto] = PASSEIOS_DESTAQUE.map((p) => ({
+    ...p,
+    titulo: tPasseios(`${p.slug}.titulo`),
+    resumo: tPasseios(`${p.slug}.resumo`),
+  }));
 
   return (
     <div className="min-h-screen flex flex-col">
@@ -24,17 +29,13 @@ export default function ExperienciasPage() {
         <section className="bg-marinho text-white">
           <div className="mx-auto max-w-5xl px-4 sm:px-6 lg:px-8 py-16 text-center">
             <p className="text-xs font-semibold text-turquesa uppercase tracking-widest mb-2">
-              Inspire-se
+              {t('sobretitulo')}
             </p>
             <h1 className="text-3xl sm:text-4xl font-bold tracking-tight">
-              Experiências{' '}
-              <span className="text-turquesa">
-                para navegar
-              </span>
+              {t.rich('titulo', { destaque: (texto) => <span className="text-turquesa">{texto}</span> })}
             </h1>
             <p className="mt-3 text-slate-300 max-w-xl mx-auto">
-              Roteiros, destinos e histórias reais para te ajudar a escolher o próximo passeio de
-              barco — direto de quem conhece o litoral catarinense.
+              {t('subtitulo')}
             </p>
           </div>
         </section>
@@ -65,7 +66,7 @@ export default function ExperienciasPage() {
                 </h2>
                 <p className="mt-3 text-slate-600 leading-relaxed">{destaque.resumo}</p>
                 <span className="mt-5 inline-flex items-center gap-1.5 text-sm font-semibold text-marinho">
-                  Ler experiência
+                  {t('lerExperiencia')}
                   <ArrowRight className="h-4 w-4 group-hover:translate-x-1 transition-transform" />
                 </span>
               </div>
@@ -100,7 +101,7 @@ export default function ExperienciasPage() {
                     {passeio.resumo}
                   </p>
                   <span className="mt-4 inline-flex items-center gap-1.5 text-sm font-semibold text-marinho">
-                    Ler experiência
+                    {t('lerExperiencia')}
                     <ArrowRight className="h-4 w-4 group-hover:translate-x-1 transition-transform" />
                   </span>
                 </div>
@@ -110,16 +111,15 @@ export default function ExperienciasPage() {
 
           {/* CTA final */}
           <div className="mt-16 rounded-3xl bg-marinho text-white p-8 sm:p-10 text-center">
-            <h2 className="text-xl sm:text-2xl font-bold">Pronto para viver a sua?</h2>
+            <h2 className="text-xl sm:text-2xl font-bold">{t('ctaTitulo')}</h2>
             <p className="mt-2 text-slate-300 max-w-lg mx-auto">
-              Encontre a embarcação certa e reserve o roteiro que combina com a experiência que
-              você quer viver.
+              {t('ctaTexto')}
             </p>
             <Link
               href="/buscar"
               className="mt-6 inline-flex items-center gap-2 bg-gradient-to-r from-marinho to-turquesa text-white font-semibold text-sm px-6 py-3 rounded-xl hover:brightness-110 transition-all"
             >
-              Buscar embarcações
+              {t('ctaBotao')}
               <ArrowRight className="h-4 w-4" />
             </Link>
           </div>

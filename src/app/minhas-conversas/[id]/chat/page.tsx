@@ -1,4 +1,6 @@
 import { notFound, redirect } from 'next/navigation';
+import type { Metadata } from 'next';
+import { getTranslations } from 'next-intl/server';
 import Header from '@/components/layout/Header';
 import { createClient } from '@/lib/supabase/server';
 import { supabaseAdmin } from '@/lib/supabase';
@@ -11,6 +13,10 @@ import { toConversaOrigem } from '@/lib/conversa-origem';
  * (indexado por anúncio), aqui o [id] é a própria conversa — cobre qualquer
  * conversa gestor↔cliente, inclusive as de venda sem reserva.
  */
+export async function generateMetadata(): Promise<Metadata> {
+  return { title: (await getTranslations('MinhasConversas'))('metaTitulo') };
+}
+
 export default async function ChatConversaPage({ params }: { params: Promise<{ id: string }> }) {
   const { id: conversaId } = await params;
 
@@ -58,6 +64,8 @@ export default async function ChatConversaPage({ params }: { params: Promise<{ i
     .eq('conversa_id', conversaId)
     .order('created_at', { ascending: true });
 
+  const [t, tChat] = await Promise.all([getTranslations('MinhasConversas'), getTranslations('Chat')]);
+
   return (
     <div className="h-screen flex flex-col">
       <Header />
@@ -65,9 +73,9 @@ export default async function ChatConversaPage({ params }: { params: Promise<{ i
         <ChatBox
           conversaId={conversaId}
           meId={user.id}
-          interlocutor={{ name: gestor.name, descricao: 'Dono da embarcação · conversa pelo Boatzy', avatar_url: gestor.avatar_url }}
+          interlocutor={{ name: gestor.name, descricao: tChat('descricaoDono'), avatar_url: gestor.avatar_url }}
           voltarHref="/minhas-conversas"
-          voltarLabel="Voltar para Minhas conversas"
+          voltarLabel={t('voltar')}
           mensagensIniciais={(mensagens ?? []) as Mensagem[]}
           contexto={toConversaOrigem(conversa.origem_tipo, conversa.origem_label)}
           avisoCienteInicial={avisoCienteInicial}

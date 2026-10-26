@@ -1,5 +1,6 @@
 import type { ReservaModalidadePreco } from '@/types/supabase';
 import { formatarData } from '@/lib/datas';
+import { IDIOMA_PADRAO, LOCALE_INTL, type Idioma } from '@/i18n/config';
 
 /**
  * Exibição do preço de um roteiro no card: "A partir de R$ X" ou, quando o
@@ -35,10 +36,14 @@ export type PrecoNaData = {
 
 export type PrecoExibicao = {
   valor: number;
-  /** Sufixo da unidade, já com a barra: '/passeio', '/diária' ou '/pessoa'. */
+  /** Sufixo da unidade, já com a barra: '/passeio', '/diária' ou '/pessoa' (pt-BR). */
   unidade: string;
-  /** Texto acima do valor: 'a partir de' ou 'em 25/10'. */
+  /** Texto acima do valor: 'a partir de' ou 'em 25/10' (pt-BR). */
   rotulo: string;
+  /** Modelo e data de origem — o site monta unidade e rótulo no idioma (`useFormatos`). */
+  modelo: ReservaModalidadePreco;
+  /** Dia do valor ('AAAA-MM-DD') quando há data escolhida; null = "a partir de". */
+  data: string | null;
 };
 
 const UNIDADE: Record<ReservaModalidadePreco, string> = {
@@ -48,10 +53,11 @@ const UNIDADE: Record<ReservaModalidadePreco, string> = {
   pessoa: '/pessoa',
 };
 
-export function formatarPreco(valor: number): string {
-  return new Intl.NumberFormat('pt-BR', {
+export function formatarPreco(valor: number, idioma: Idioma = IDIOMA_PADRAO): string {
+  return new Intl.NumberFormat(LOCALE_INTL[idioma], {
     style: 'currency',
     currency: 'BRL',
+    currencyDisplay: 'narrowSymbol',
     maximumFractionDigits: 0,
   }).format(valor);
 }
@@ -70,13 +76,22 @@ export function precoExibicaoRoteiro(
   naData?: PrecoNaData | null,
 ): PrecoExibicao | null {
   if (naData) {
-    return { valor: naData.valor, unidade: UNIDADE[naData.modelo], rotulo: rotuloNaData(naData.data) };
+    return {
+      valor: naData.valor,
+      unidade: UNIDADE[naData.modelo],
+      rotulo: rotuloNaData(naData.data),
+      modelo: naData.modelo,
+      data: naData.data,
+    };
   }
   if (r.preco_minimo_cliente == null) return null;
+  const modelo = r.preco_minimo_modelo ?? 'roteiro';
   return {
     valor: Number(r.preco_minimo_cliente),
-    unidade: UNIDADE[r.preco_minimo_modelo ?? 'roteiro'],
+    unidade: UNIDADE[modelo],
     rotulo: 'a partir de',
+    modelo,
+    data: null,
   };
 }
 

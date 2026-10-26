@@ -1,0 +1,62 @@
+{
+  "Hero": {
+    "altImagem": "Luxury yacht at sunrise",
+    "sobretitulo": "Boat tours booked 100% online",
+    "titulo": "The horizon is <destaque>yours</destaque>.",
+    "subtitulo": "From choosing your trip to boarding — do it all online, with secure payment, in just a few minutes.",
+    "buscarVendas": "Search boats for sale",
+    "dicaDestino": "Start your experience here",
+    "passos": {
+      "buscar": "Search for a destination",
+      "escolher": "Choose your trip",
+      "reservar": "Book and pay online"
+    }
+  },
+  "Home": {
+    "novosRoteiros": {
+      "sobretitulo": "Featured Trips",
+      "titulo": "New <destaque>Trips</destaque>",
+      "verMais": "See More",
+      "verTodos": "See All Trips"
+    },
+    "novasEmbarcacoes": {
+      "sobretitulo": "Featured Collection",
+      "titulo": "New <destaque>Boats</destaque>",
+      "verTodas": "See All",
+      "verTodasEmbarcacoes": "See All Boats"
+    },
+    "avaliacoes": {
+      "sobretitulo": "Real reviews",
+      "titulo": "Those who sailed <destaque>recommend it</destaque>",
+      "descricao": "5-star ratings from customers who booked and took their trip with Boatzy.",
+      "nota5": "Rated 5 out of 5"
+    },
+    "beneficios": {
+      "sobretitulo": "Why book with Boatzy",
+      "titulo": "Sail with <destaque>peace of mind</destaque>",
+      "cta": "Find your trip",
+      "precoFinal": {
+        "titulo": "Final price, no surprises",
+        "descricao": "The price you see is the price you pay. No hidden fees."
+      },
+      "pagamento": {
+        "titulo": "Protected payment",
+        "descricao": "Your money only goes to the boat owner after the trip."
+      },
+      "cancelamento": {
+        "titulo": "Hassle-free cancellation",
+        "descricao": "Clear rules before you pay, including for bad-weather days."
+      },
+      "agenda": {
+        "titulo": "Real-time availability",
+        "descricao": "Dates kept up to date by the owners. If it's open, you can book it."
+      }
+    },
+    "experiencias": {
+      "sobretitulo": "Get inspired",
+      "titulo": "A collection of <destaque>experiences</destaque>",
+      "anterior": "Previous experience",
+      "proxima": "Next experience"
+    }
+  }
+}

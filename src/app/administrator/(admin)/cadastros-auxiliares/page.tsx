@@ -3,9 +3,9 @@ import CadastrosAuxiliaresTabs from './_components/CadastrosAuxiliaresTabs';
 
 export default async function CadastrosAuxiliaresPage() {
   const [{ data: acessorios }, { data: comodidades }, { data: equipamentosSeguranca }] = await Promise.all([
-    supabaseAdmin.from('acessorios').select('id, nome').order('nome'),
-    supabaseAdmin.from('comodidade').select('id, nome').order('nome'),
-    supabaseAdmin.from('equipamentos_seguranca').select('id, nome').order('nome'),
+    supabaseAdmin.from('acessorios').select('id, nome, nome_en, nome_es').order('nome'),
+    supabaseAdmin.from('comodidade').select('id, nome, nome_en, nome_es').order('nome'),
+    supabaseAdmin.from('equipamentos_seguranca').select('id, nome, nome_en, nome_es').order('nome'),
   ]);
 
   return (

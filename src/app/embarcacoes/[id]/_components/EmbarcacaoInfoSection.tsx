@@ -1,5 +1,7 @@
 import { MapPin, Users, Anchor, Ruler, DoorOpen, Bath, LifeBuoy, BadgeCheck, Award } from 'lucide-react';
-import { formatarComprimento } from '@/lib/comprimento';
+import { useTranslations } from 'next-intl';
+import NomeCatalogo from '@/i18n/NomeCatalogo';
+import { useFormatos } from '@/i18n/formatos';
 import EquipamentosEmbarcacao from '@/components/boat/EquipamentosEmbarcacao';
 import RegrasEmbarcacao from '@/components/boat/RegrasEmbarcacao';
 import { categoriasDaEmbarcacao } from '@/lib/embarcacao-itens';
@@ -28,6 +30,8 @@ export type EmbarcacaoInfo = {
  * para a página poder encaixar o carrossel de roteiros logo abaixo das specs.
  */
 export default function EmbarcacaoInfoSection({ embarcacao }: { embarcacao: EmbarcacaoInfo }) {
+  const t = useTranslations('Embarcacao');
+  const f = useFormatos();
   const localidade = embarcacao.municipios
     ? embarcacao.municipios.estados
       ? `${embarcacao.municipios.nome}, ${embarcacao.municipios.estados.uf}`
@@ -35,12 +39,12 @@ export default function EmbarcacaoInfoSection({ embarcacao }: { embarcacao: Emba
     : null;
 
   const specs: { icon: typeof Users; label: string; value: string }[] = [];
-  if (embarcacao.capacidade) specs.push({ icon: Users, label: 'Pessoas', value: `${embarcacao.capacidade}` });
-  if (embarcacao.tripulacao) specs.push({ icon: LifeBuoy, label: 'Tripulação', value: String(embarcacao.tripulacao) });
-  if (embarcacao.quartos) specs.push({ icon: DoorOpen, label: 'Quartos', value: String(embarcacao.quartos) });
-  if (embarcacao.banheiros) specs.push({ icon: Bath, label: 'Banheiros', value: String(embarcacao.banheiros) });
-  const comprimento = formatarComprimento(embarcacao.comprimento, embarcacao.comprimento_unidade);
-  if (comprimento) specs.push({ icon: Ruler, label: 'Comprimento', value: comprimento });
+  if (embarcacao.capacidade) specs.push({ icon: Users, label: t('info.pessoas'), value: `${embarcacao.capacidade}` });
+  if (embarcacao.tripulacao) specs.push({ icon: LifeBuoy, label: t('info.tripulacao'), value: String(embarcacao.tripulacao) });
+  if (embarcacao.quartos) specs.push({ icon: DoorOpen, label: t('info.quartos'), value: String(embarcacao.quartos) });
+  if (embarcacao.banheiros) specs.push({ icon: Bath, label: t('info.banheiros'), value: String(embarcacao.banheiros) });
+  const comprimento = f.comprimento(embarcacao.comprimento, embarcacao.comprimento_unidade);
+  if (comprimento) specs.push({ icon: Ruler, label: t('info.comprimento'), value: comprimento });
 
   return (
     <>
@@ -48,16 +52,16 @@ export default function EmbarcacaoInfoSection({ embarcacao }: { embarcacao: Emba
       <div className="flex flex-wrap gap-2 mb-4">
         <span className="inline-flex items-center gap-1 text-xs font-medium text-turquesa-escuro bg-turquesa/10 px-3 py-1.5 rounded-full">
           <Award className="h-3 w-3" />
-          Novo
+          {t('badges.novo')}
         </span>
         <span className="inline-flex items-center gap-1 text-xs font-medium text-turquesa-escuro bg-turquesa/10 px-3 py-1.5 rounded-full">
           <BadgeCheck className="h-3 w-3" />
-          Embarcação Verificada
+          {t('badges.verificada')}
         </span>
         {embarcacao.embarcacao_tipo && (
           <span className="inline-flex items-center gap-1 text-xs font-medium text-marinho bg-marinho/10 px-3 py-1.5 rounded-full">
             <Anchor className="h-3 w-3" />
-            {embarcacao.embarcacao_tipo.nome}
+            <NomeCatalogo categoria="tipo" nome={embarcacao.embarcacao_tipo.nome} />
           </span>
         )}
       </div>

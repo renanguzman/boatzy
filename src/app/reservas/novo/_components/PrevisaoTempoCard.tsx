@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { useTranslations, type Messages } from 'next-intl';
 import {
   Sun,
   CloudSun,
@@ -22,6 +23,7 @@ import {
   Hourglass,
 } from 'lucide-react';
 import type { ResultadoPrevisao, PaletaClima } from '@/lib/weather';
+import { useFormatos, type Formatos } from '@/i18n/formatos';
 
 type Props = {
   resultado: ResultadoPrevisao;
@@ -87,31 +89,52 @@ const ESTILO_PALETA: Record<PaletaClima, { faixa: string; texto: string; badge: 
   },
 };
 
-function labelIndiceUv(uv: number): string {
-  if (uv < 3) return 'Baixo';
-  if (uv < 6) return 'Moderado';
-  if (uv < 8) return 'Alto';
-  if (uv < 11) return 'Muito alto';
-  return 'Extremo';
+type CodigoClima = keyof Messages['Clima']['codigos'];
+
+/** Condição pelo código WMO, no idioma do site (`Clima.codigos`). */
+function useCondicao() {
+  const t = useTranslations('Clima');
+  return (codigo: number) =>
+    String(codigo) in CODIGO_ICONE ? t(`codigos.${String(codigo) as CodigoClima}`) : t('condicaoIndisponivel');
+}
+
+function nivelIndiceUv(uv: number): 'baixo' | 'moderado' | 'alto' | 'muitoAlto' | 'extremo' {
+  if (uv < 3) return 'baixo';
+  if (uv < 6) return 'moderado';
+  if (uv < 8) return 'alto';
+  if (uv < 11) return 'muitoAlto';
+  return 'extremo';
+}
+
+/**
+ * Unidades no costume do idioma: en-US em °F, mph e polegadas; pt-BR e es no sistema
+ * métrico (a API responde em °C, km/h e mm).
+ */
+function unidades(f: Formatos) {
+  const imperial = f.idioma === 'en-US';
+  return {
+    temperatura: (c: number) => (imperial ? `${Math.round((c * 9) / 5 + 32)}°F` : `${c}°`),
+    vento: (kmh: number) => (imperial ? `${Math.round(kmh * 0.621371)} mph` : `${kmh} km/h`),
+    chuva: (mm: number) => (imperial ? `${f.numero(mm / 25.4, { maximumFractionDigits: 2 })} in` : `${f.numero(mm)} mm`),
+  };
 }
 
 /** Rodapé de fonte/disclaimer — igual nos três estados (ok/fora-do-alcance/indisponível). */
 function RodapeFonte() {
+  const t = useTranslations('Clima');
   return (
     <div className="border-t border-slate-100 bg-slate-50/60 px-5 py-3.5">
       <div className="flex items-start gap-2 text-[11px] text-slate-500 leading-relaxed">
         <Info className="h-3.5 w-3.5 shrink-0 mt-0.5" />
         <p>
-          Previsão meteorológica sujeita a alterações e fornecida apenas para fins informativos —
-          o Boatzy não se responsabiliza pela exatidão destes dados nem pelas condições reais no
-          dia do passeio.{' '}
+          {t('aviso')}{' '}
           <a
             href="https://open-meteo.com"
             target="_blank"
             rel="noopener noreferrer"
             className="inline-flex items-center gap-1 font-medium text-slate-600 hover:text-marinho underline underline-offset-2 transition-colors"
           >
-            Fonte: Open-Meteo.com
+            {t('fonte')}
             <ExternalLink className="h-3 w-3" />
           </a>
         </p>
@@ -125,6 +148,10 @@ export default function PrevisaoTempoCard({ resultado, localidade, dataLabel }: 
   // o cliente clicar, para não ocupar espaço logo no início da página.
   const [aberto, setAberto] = useState(false);
   const [mostrarHoras, setMostrarHoras] = useState(false);
+  const t = useTranslations('Clima');
+  const f = useFormatos();
+  const condicao = useCondicao();
+  const u = unidades(f);
 
   // Data além dos 15 dias da previsão — é espera, não erro: ampulheta em tom
   // da marca (o ícone de nuvem cortada dava a sensação de falha no site).
@@ -142,7 +169,7 @@ export default function PrevisaoTempoCard({ resultado, localidade, dataLabel }: 
           </div>
           <div className="flex-1 min-w-0">
             <p className="text-sm font-semibold text-marinho leading-snug">
-              A previsão do tempo estará disponível a partir dos 15 dias que antecedem seu passeio.
+              {t('foraAlcance.titulo')}
             </p>
             <p className="text-xs text-slate-400 mt-0.5">{dataLabel}</p>
           </div>
@@ -155,8 +182,7 @@ export default function PrevisaoTempoCard({ resultado, localidade, dataLabel }: 
           <div className="overflow-hidden">
             {/* Sem margem negativa: dentro do overflow-hidden ela cortava a 1ª linha. */}
             <p className="px-5 sm:px-6 pb-5 text-sm text-slate-500 leading-relaxed">
-              Seu passeio está marcado para {dataLabel}. Volte a esta página nos 15 dias anteriores
-              para conferir as condições esperadas{localidade ? ` em ${localidade}` : ''}.
+              {t('foraAlcance.texto', { data: dataLabel, temLocal: localidade ? 'sim' : 'nao', local: localidade ?? '' })}
             </p>
             <RodapeFonte />
           </div>
@@ -179,7 +205,7 @@ export default function PrevisaoTempoCard({ resultado, localidade, dataLabel }: 
             <CloudOff className="h-5 w-5 text-slate-400" />
           </div>
           <div className="flex-1 min-w-0">
-            <p className="text-sm font-semibold text-marinho">Previsão do tempo indisponível</p>
+            <p className="text-sm font-semibold text-marinho">{t('indisponivel.titulo')}</p>
             <p className="text-xs text-slate-400 mt-0.5">{dataLabel}</p>
           </div>
           <ChevronDown
@@ -190,8 +216,7 @@ export default function PrevisaoTempoCard({ resultado, localidade, dataLabel }: 
         <div className={`grid transition-all duration-200 ease-in-out ${aberto ? 'grid-rows-[1fr]' : 'grid-rows-[0fr]'}`}>
           <div className="overflow-hidden">
             <p className="px-5 sm:px-6 pb-5 text-sm text-slate-500 leading-relaxed">
-              Não foi possível carregar a previsão meteorológica agora. Isso não afeta sua
-              solicitação de reserva.
+              {t('indisponivel.texto')}
             </p>
             <RodapeFonte />
           </div>
@@ -215,7 +240,7 @@ export default function PrevisaoTempoCard({ resultado, localidade, dataLabel }: 
       >
         <div className="flex items-center justify-between gap-2 mb-4">
           <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">
-            Previsão do tempo para o passeio
+            {t('titulo')}
           </p>
           <div className="flex items-center gap-2 shrink-0">
             <span className={`text-[10px] font-semibold uppercase tracking-wider px-2 py-0.5 rounded-full ${paleta.badge}`}>
@@ -233,16 +258,16 @@ export default function PrevisaoTempoCard({ resultado, localidade, dataLabel }: 
           </div>
           <div className="min-w-0">
             <div className="flex items-baseline gap-2">
-              <span className="text-3xl font-bold text-marinho">{previsao.temperaturaMax}°</span>
-              <span className="text-base text-slate-400">/ {previsao.temperaturaMin}°</span>
+              <span className="text-3xl font-bold text-marinho">{u.temperatura(previsao.temperaturaMax)}</span>
+              <span className="text-base text-slate-400">/ {u.temperatura(previsao.temperaturaMin)}</span>
             </div>
             <p className="text-sm font-medium text-slate-600 truncate">
-              {previsao.condicao.label}
+              {condicao(previsao.condicao.codigo)}
               {localidade ? ` · ${localidade}` : ''}
             </p>
             {previsao.sensacaoMax != null && (
               <p className="text-xs text-slate-400 mt-0.5">
-                Sensação térmica de até {previsao.sensacaoMax}°
+                {t('sensacao', { temp: u.temperatura(previsao.sensacaoMax) })}
               </p>
             )}
           </div>
@@ -256,9 +281,9 @@ export default function PrevisaoTempoCard({ resultado, localidade, dataLabel }: 
           <div className="grid grid-cols-2 sm:grid-cols-4 divide-x divide-y sm:divide-y-0 divide-slate-100 border-t border-slate-100">
             <div className="p-4 text-center">
               <Wind className="h-4 w-4 text-marinho mx-auto mb-1.5" />
-              <p className="text-sm font-bold text-marinho">{previsao.ventoMaxKmh} km/h</p>
+              <p className="text-sm font-bold text-marinho">{u.vento(previsao.ventoMaxKmh)}</p>
               <p className="text-[10px] text-slate-400 uppercase tracking-wider mt-0.5">
-                Rajadas até {previsao.rajadaMaxKmh}
+                {t('rajadas', { valor: u.vento(previsao.rajadaMaxKmh) })}
               </p>
             </div>
             <div className="p-4 text-center">
@@ -266,19 +291,19 @@ export default function PrevisaoTempoCard({ resultado, localidade, dataLabel }: 
               <p className="text-sm font-bold text-marinho">
                 {previsao.chanceChuvaPercent != null ? `${previsao.chanceChuvaPercent}%` : '—'}
               </p>
-              <p className="text-[10px] text-slate-400 uppercase tracking-wider mt-0.5">Chance de chuva</p>
+              <p className="text-[10px] text-slate-400 uppercase tracking-wider mt-0.5">{t('chanceChuva')}</p>
             </div>
             <div className="p-4 text-center">
               <CloudRain className="h-4 w-4 text-marinho mx-auto mb-1.5" />
-              <p className="text-sm font-bold text-marinho">{previsao.precipitacaoMm} mm</p>
-              <p className="text-[10px] text-slate-400 uppercase tracking-wider mt-0.5">Volume esperado</p>
+              <p className="text-sm font-bold text-marinho">{u.chuva(previsao.precipitacaoMm)}</p>
+              <p className="text-[10px] text-slate-400 uppercase tracking-wider mt-0.5">{t('volume')}</p>
             </div>
             <div className="p-4 text-center">
               <ThermometerSun className="h-4 w-4 text-marinho mx-auto mb-1.5" />
               <p className="text-sm font-bold text-marinho">
-                {previsao.indiceUvMax != null ? labelIndiceUv(previsao.indiceUvMax) : '—'}
+                {previsao.indiceUvMax != null ? t(`uv.${nivelIndiceUv(previsao.indiceUvMax)}`) : '—'}
               </p>
-              <p className="text-[10px] text-slate-400 uppercase tracking-wider mt-0.5">Índice UV</p>
+              <p className="text-[10px] text-slate-400 uppercase tracking-wider mt-0.5">{t('uvTitulo')}</p>
             </div>
           </div>
 
@@ -288,13 +313,13 @@ export default function PrevisaoTempoCard({ resultado, localidade, dataLabel }: 
               {previsao.nascerDoSol && (
                 <span className="flex items-center gap-1.5">
                   <Sunrise className="h-3.5 w-3.5 text-amber-500" />
-                  Nascer do sol {previsao.nascerDoSol}
+                  {t('nascer', { hora: f.horario(previsao.nascerDoSol) })}
                 </span>
               )}
               {previsao.porDoSol && (
                 <span className="flex items-center gap-1.5">
                   <Sunset className="h-3.5 w-3.5 text-orange-500" />
-                  Pôr do sol {previsao.porDoSol}
+                  {t('por', { hora: f.horario(previsao.porDoSol) })}
                 </span>
               )}
             </div>
@@ -309,7 +334,7 @@ export default function PrevisaoTempoCard({ resultado, localidade, dataLabel }: 
                 aria-expanded={mostrarHoras}
                 className="w-full flex items-center justify-between px-5 py-3 text-sm font-medium text-marinho hover:bg-slate-50 transition-colors"
               >
-                Ver previsão hora a hora
+                {t('horaAHora')}
                 <ChevronDown
                   className={`h-4 w-4 transition-transform duration-200 ${mostrarHoras ? 'rotate-180' : ''}`}
                 />
@@ -325,9 +350,9 @@ export default function PrevisaoTempoCard({ resultado, localidade, dataLabel }: 
                           key={item.hora}
                           className="shrink-0 min-w-[64px] rounded-xl border border-slate-100 bg-slate-50/60 px-2.5 py-3 text-center"
                         >
-                          <p className="text-[10px] font-semibold text-slate-500">{item.hora}</p>
+                          <p className="text-[10px] font-semibold text-slate-500">{f.horario(item.hora)}</p>
                           <IconeHora className="h-4 w-4 text-marinho mx-auto my-1.5" />
-                          <p className="text-xs font-bold text-marinho">{item.temperatura}°</p>
+                          <p className="text-xs font-bold text-marinho">{u.temperatura(item.temperatura)}</p>
                           {item.chanceChuva != null && item.chanceChuva > 0 && (
                             <p className="text-[9px] text-blue-500 mt-0.5">{item.chanceChuva}%</p>
                           )}

@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { usePathname, useRouter } from 'next/navigation';
+import { useTranslations } from 'next-intl';
 import { Menu, X, User, Briefcase, LogOut, Loader2, CalendarCheck, UserCog, Heart, MessageCircle, Megaphone, Tag, Anchor, ArrowUpRight } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { authorizeRealtime } from '@/lib/supabase/realtime';
@@ -11,8 +12,10 @@ import type { User as SupabaseUser, RealtimeChannel } from '@supabase/supabase-j
 import UserMenu, { identificacaoUsuario } from './UserMenu';
 import EntrarMenu from './EntrarMenu';
 import NavPrincipal from './NavPrincipal';
+import SeletorIdioma from './SeletorIdioma';
 import SinoNotificacoes from '@/components/notificacoes/SinoNotificacoes';
 import { rastrear } from '@/lib/analytics';
+import { isRotaInterna } from '@/i18n/config';
 
 export default function Header() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -24,6 +27,8 @@ export default function Header() {
   const pathname = usePathname();
   const router = useRouter();
   const supabase = createClient();
+  const t = useTranslations('Header');
+  const tNav = useTranslations('Navegacao');
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data }) => {
@@ -120,6 +125,8 @@ export default function Header() {
   const entrarUrl = `/entrar?redirect_to=${encodeURIComponent(pathname)}`;
   const avatarUrl = (perfil?.avatar_url ?? user?.user_metadata?.avatar_url ?? undefined) as string | undefined;
   const displayName = (perfil?.name?.trim() || user?.user_metadata?.full_name || user?.user_metadata?.name || '') as string;
+  // Painel e admin (landing do gestor, pré-visualização) ficam sempre em pt-BR — sem seletor.
+  const mostrarSeletorIdioma = !isRotaInterna(pathname);
 
   return (
     <header className="sticky top-0 z-50 bg-white/95 backdrop-blur-md border-b border-slate-100 shadow-sm">
@@ -150,12 +157,15 @@ export default function Header() {
                   ? <Anchor className="h-3.5 w-3.5 text-turquesa" strokeWidth={2} />
                   : <Megaphone className="h-3.5 w-3.5 text-turquesa" strokeWidth={2} />}
               </span>
-              {isGestor ? 'Minhas embarcações' : 'Anuncie sua embarcação'}
+              {isGestor ? tNav('minhasEmbarcacoes') : tNav('anuncieSuaEmbarcacao')}
               <ArrowUpRight className="-ml-0.5 h-3.5 w-3.5 -translate-x-1 opacity-0 transition-all duration-200 group-hover:translate-x-0 group-hover:opacity-80" />
             </Link>
 
             {/* Notificações do cliente (todas as larguras) */}
             {!authLoading && user && <SinoNotificacoes userId={user.id} />}
+
+            {/* Idioma — ao lado do "Entrar" / menu da conta; no celular, ao lado do menu */}
+            {mostrarSeletorIdioma && <SeletorIdioma />}
 
             {/* Auth */}
             <div className="hidden md:flex items-center">
@@ -177,6 +187,8 @@ export default function Header() {
             {/* Mobile menu button */}
             <button
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+              aria-label={mobileMenuOpen ? t('fecharMenu') : t('abrirMenu')}
+              aria-expanded={mobileMenuOpen}
               className="md:hidden rounded-lg border border-slate-200 p-2"
             >
               {mobileMenuOpen ? <X className="h-5 w-5 text-slate-700" /> : <Menu className="h-5 w-5 text-slate-700" />}
@@ -189,13 +201,13 @@ export default function Header() {
           <div className="md:hidden border-t border-slate-100 py-4 animate-in slide-in-from-top">
             <nav className="flex flex-col gap-1">
               <Link href="/buscar" onClick={() => setMobileMenuOpen(false)} className="px-3 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-50 rounded-lg">
-                Roteiros
+                {tNav('roteiros')}
               </Link>
               <Link href="/buscar?tipo=embarcacao" onClick={() => setMobileMenuOpen(false)} className="px-3 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-50 rounded-lg">
-                Embarcações
+                {tNav('embarcacoes')}
               </Link>
               <Link href="/vendas" onClick={() => setMobileMenuOpen(false)} className="flex items-center gap-1.5 px-3 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-50 rounded-lg">
-                Vendas
+                {tNav('vendas')}
                 <span className="flex h-4 w-4 items-center justify-center rounded-full bg-gradient-to-br from-marinho to-turquesa text-white">
                   <Tag className="h-2.5 w-2.5" />
                 </span>
@@ -206,13 +218,13 @@ export default function Header() {
                 className="mx-3 mt-2 flex items-center justify-center gap-2 rounded-full bg-marinho px-4 py-2.5 text-sm font-semibold text-white"
               >
                 {isGestor ? <Anchor className="h-4 w-4 text-turquesa" /> : <Megaphone className="h-4 w-4 text-turquesa" />}
-                {isGestor ? 'Minhas embarcações' : 'Anuncie sua embarcação'}
+                {isGestor ? tNav('minhasEmbarcacoes') : tNav('anuncieSuaEmbarcacao')}
               </Link>
               <hr className="border-slate-100 my-1" />
               {!authLoading && !user && (
                 <div className="px-3 py-1 space-y-2">
                   <p className="px-0 pb-1 text-xs font-bold text-slate-400 tracking-wider uppercase">
-                    Como você quer entrar?
+                    {t('comoQuerEntrar')}
                   </p>
                   <Link
                     href={entrarUrl}
@@ -220,7 +232,7 @@ export default function Header() {
                     className="flex items-center gap-3 rounded-xl bg-marinho px-4 py-3 text-sm font-semibold text-white"
                   >
                     <User className="h-4 w-4" />
-                    Entrar como Cliente
+                    {t('entrarComoCliente')}
                   </Link>
                   <Link
                     href="/painel/login?aba=entrar"
@@ -228,7 +240,7 @@ export default function Header() {
                     className="flex items-center gap-3 rounded-xl border border-slate-200 px-4 py-3 text-sm font-semibold text-marinho"
                   >
                     <Briefcase className="h-4 w-4" />
-                    Entrar como Proprietário
+                    {t('entrarComoProprietario')}
                   </Link>
                 </div>
               )}
@@ -244,7 +256,7 @@ export default function Header() {
                       </span>
                     )}
                     <div className="min-w-0">
-                      <p className="truncate text-sm font-semibold text-marinho">{displayName || 'Minha conta'}</p>
+                      <p className="truncate text-sm font-semibold text-marinho">{displayName || tNav('minhaConta')}</p>
                       {user.email && <p className="truncate text-xs text-slate-400">{user.email}</p>}
                     </div>
                   </div>
@@ -254,7 +266,7 @@ export default function Header() {
                     className="flex items-center gap-2 px-3 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-50 rounded-lg"
                   >
                     <UserCog className="h-4 w-4 text-slate-400" />
-                    Minha conta
+                    {tNav('minhaConta')}
                   </Link>
                   <Link
                     href="/minhas-conversas"
@@ -262,7 +274,7 @@ export default function Header() {
                     className="flex items-center gap-2 px-3 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-50 rounded-lg"
                   >
                     <MessageCircle className="h-4 w-4 text-slate-400" />
-                    Minhas conversas
+                    {tNav('minhasConversas')}
                     {naoLidas > 0 && (
                       <span className="ml-auto min-w-[18px] h-[18px] px-1 flex items-center justify-center rounded-full bg-red-500 text-white text-[10px] font-bold leading-none">
                         {naoLidas > 99 ? '99+' : naoLidas}
@@ -275,7 +287,7 @@ export default function Header() {
                     className="flex items-center gap-2 px-3 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-50 rounded-lg"
                   >
                     <CalendarCheck className="h-4 w-4 text-slate-400" />
-                    Minhas reservas
+                    {tNav('minhasReservas')}
                   </Link>
                   <Link
                     href="/favoritos"
@@ -283,7 +295,7 @@ export default function Header() {
                     className="flex items-center gap-2 px-3 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-50 rounded-lg"
                   >
                     <Heart className="h-4 w-4 text-slate-400" />
-                    Favoritos
+                    {tNav('favoritos')}
                   </Link>
                   <hr className="border-slate-100 my-1" />
                   <button
@@ -291,7 +303,7 @@ export default function Header() {
                     className="flex items-center gap-2 px-3 py-2.5 text-sm font-medium text-red-500 hover:bg-red-50 rounded-lg w-full text-left"
                   >
                     <LogOut className="w-4 h-4" />
-                    Sair
+                    {tNav('sair')}
                   </button>
                 </>
               )}

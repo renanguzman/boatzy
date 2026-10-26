@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import Image from 'next/image';
+import { useTranslations } from 'next-intl';
 import {
   User,
   Mail,
@@ -27,7 +28,9 @@ import {
 import { isStrongPassword, isValidCPF, isValidBirthday, maskCPF, maskCEP } from '@/lib/validators';
 import PhoneInput, { type PhoneValue } from '@/components/auth/PhoneInput';
 import PasswordRequirements from '@/components/auth/PasswordRequirements';
-import { FUSO_HORARIO, hojeISO } from '@/lib/datas';
+import { hojeISO } from '@/lib/datas';
+import { useFormatos } from '@/i18n/formatos';
+import SecaoIdioma from './SecaoIdioma';
 
 type Estado = { id: number; uf: string; nome: string };
 type Municipio = { id: number; nome: string };
@@ -60,8 +63,8 @@ type MinhaContaFormProps = {
   endereco: EnderecoData;
 };
 
+// Nomes de marca; "email" (conta por senha) vem das mensagens.
 const PROVIDER_LABEL: Record<string, string> = {
-  email: 'E-mail e senha',
   google: 'Google',
   facebook: 'Facebook',
   apple: 'Apple',
@@ -83,6 +86,12 @@ export default function MinhaContaForm({
   endereco: initialEndereco,
 }: MinhaContaFormProps) {
   const supabase = createClient();
+  const t = useTranslations('MinhaConta');
+  const tAuth = useTranslations('Auth');
+  const tRedefinir = useTranslations('RedefinirSenha');
+  const f = useFormatos();
+  const tComum = useTranslations('Comum');
+  const rotuloProvedor = (p: string) => (p === 'email' ? t('provedorEmail') : PROVIDER_LABEL[p] ?? p);
 
   // ─── Dados pessoais ───
   const [name, setName] = useState(initialName);
@@ -159,7 +168,7 @@ export default function MinhaContaForm({
       if (!res.ok) throw new Error();
       const data = (await res.json()) as Record<string, string>;
       if (data.erro) {
-        setCepError('CEP não encontrado. Verifique o número ou preencha manualmente.');
+        setCepError(t('endereco.cepNaoEncontrado'));
         return;
       }
       setEndereco((prev) => ({
@@ -178,7 +187,7 @@ export default function MinhaContaForm({
         municipio_id: mun ? String(mun.id) : '',
       }));
     } catch {
-      setCepError('Erro ao consultar o CEP. Preencha manualmente.');
+      setCepError(t('endereco.cepErro'));
     } finally {
       setCepLoading(false);
     }
@@ -191,14 +200,11 @@ export default function MinhaContaForm({
     const res = await atualizarEndereco(endereco);
     setSavingEndereco(false);
     if (res.ok) {
-      setEndMsg({ type: 'ok', text: 'Endereço atualizado com sucesso.' });
+      setEndMsg({ type: 'ok', text: t('endereco.atualizado') });
     } else {
       setEndMsg({
         type: 'erro',
-        text:
-          res.error === 'nao_autenticado'
-            ? 'Sua sessão expirou. Entre novamente.'
-            : 'Não foi possível salvar. Tente novamente.',
+        text: res.error === 'nao_autenticado' ? t('dados.sessao') : t('dados.naoFoiPossivelSalvar'),
       });
     }
   }
@@ -208,19 +214,19 @@ export default function MinhaContaForm({
     setProfileMsg(null);
 
     if (name.trim().length < 2) {
-      setProfileMsg({ type: 'erro', text: 'Informe seu nome completo.' });
+      setProfileMsg({ type: 'erro', text: t('dados.informeNome') });
       return;
     }
     if (cpf && !isValidCPF(cpf)) {
-      setProfileMsg({ type: 'erro', text: 'CPF inválido.' });
+      setProfileMsg({ type: 'erro', text: tAuth('cpfInvalido') });
       return;
     }
     if (phone.e164 && !phone.valid) {
-      setProfileMsg({ type: 'erro', text: 'Número de celular inválido.' });
+      setProfileMsg({ type: 'erro', text: t('dados.celularInvalido') });
       return;
     }
     if (birthday && !isValidBirthday(birthday)) {
-      setProfileMsg({ type: 'erro', text: 'Data de nascimento inválida.' });
+      setProfileMsg({ type: 'erro', text: t('dados.nascimentoInvalido') });
       return;
     }
 
@@ -229,14 +235,14 @@ export default function MinhaContaForm({
     setSavingProfile(false);
 
     if (res.ok) {
-      setProfileMsg({ type: 'ok', text: 'Dados atualizados com sucesso.' });
+      setProfileMsg({ type: 'ok', text: t('dados.atualizados') });
     } else {
       const map: Record<string, string> = {
-        nao_autenticado: 'Sua sessão expirou. Entre novamente.',
-        nome_invalido: 'Informe seu nome completo.',
-        cpf_invalido: 'CPF inválido.',
-        nascimento_invalido: 'Data de nascimento inválida.',
-        erro: 'Não foi possível salvar. Tente novamente.',
+        nao_autenticado: t('dados.sessao'),
+        nome_invalido: t('dados.informeNome'),
+        cpf_invalido: tAuth('cpfInvalido'),
+        nascimento_invalido: t('dados.nascimentoInvalido'),
+        erro: t('dados.naoFoiPossivelSalvar'),
       };
       setProfileMsg({ type: 'erro', text: map[res.error] ?? map.erro });
     }
@@ -247,11 +253,11 @@ export default function MinhaContaForm({
     setPwMsg(null);
 
     if (!isStrongPassword(novaSenha)) {
-      setPwMsg({ type: 'erro', text: 'A nova senha não atende a todos os requisitos.' });
+      setPwMsg({ type: 'erro', text: t('seguranca.requisitos') });
       return;
     }
     if (novaSenha !== confirm) {
-      setPwMsg({ type: 'erro', text: 'As senhas não coincidem.' });
+      setPwMsg({ type: 'erro', text: tRedefinir('naoCoincidem') });
       return;
     }
 
@@ -264,7 +270,7 @@ export default function MinhaContaForm({
     });
     if (signInError) {
       setSavingPw(false);
-      setPwMsg({ type: 'erro', text: 'Senha atual incorreta.' });
+      setPwMsg({ type: 'erro', text: t('seguranca.atualIncorreta') });
       return;
     }
 
@@ -273,9 +279,9 @@ export default function MinhaContaForm({
 
     if (updateError) {
       if (updateError.message.includes('different from the old password')) {
-        setPwMsg({ type: 'erro', text: 'A nova senha deve ser diferente da atual.' });
+        setPwMsg({ type: 'erro', text: tRedefinir('erros.diferente') });
       } else {
-        setPwMsg({ type: 'erro', text: 'Não foi possível alterar a senha. Tente novamente.' });
+        setPwMsg({ type: 'erro', text: t('seguranca.falha') });
       }
       return;
     }
@@ -283,7 +289,7 @@ export default function MinhaContaForm({
     setCurrent('');
     setNovaSenha('');
     setConfirm('');
-    setPwMsg({ type: 'ok', text: 'Senha alterada com sucesso.' });
+    setPwMsg({ type: 'ok', text: t('seguranca.sucesso') });
   }
 
   const inputBase =
@@ -293,10 +299,11 @@ export default function MinhaContaForm({
 
   // Atalhos (tabs-âncora) para as seções da página.
   const secoes = [
-    { id: 'dados-pessoais', label: 'Dados pessoais' },
-    { id: 'meu-endereco', label: 'Meu endereço' },
-    { id: 'notificacoes', label: 'Notificações' },
-    { id: 'seguranca', label: 'Segurança' },
+    { id: 'dados-pessoais', label: t('secoes.dadosPessoais') },
+    { id: 'meu-endereco', label: t('secoes.endereco') },
+    { id: 'notificacoes', label: t('secoes.notificacoes') },
+    { id: 'idioma', label: t('secoes.idioma') },
+    { id: 'seguranca', label: t('secoes.seguranca') },
   ];
   const [secaoAtiva, setSecaoAtiva] = useState(secoes[0].id);
 
@@ -330,7 +337,7 @@ export default function MinhaContaForm({
     <div className="mt-8 space-y-6">
       {/* Atalhos das seções (tabs-âncora) */}
       <nav
-        aria-label="Seções da conta"
+        aria-label={t('secoes.rotulo')}
         className="sticky top-16 z-10 -mx-1 flex gap-1 overflow-x-auto rounded-2xl border border-slate-100 bg-white/90 p-1.5 shadow-sm backdrop-blur"
       >
         {secoes.map((s) => (
@@ -370,23 +377,18 @@ export default function MinhaContaForm({
             <h2 className="truncate text-lg font-bold text-marinho">{name}</h2>
             <p className="truncate text-sm text-slate-500">{email}</p>
             <p className="mt-0.5 text-xs text-slate-400">
-              Cliente desde{' '}
-              {new Date(createdAt).toLocaleDateString('pt-BR', { timeZone: FUSO_HORARIO, 
-                day: '2-digit',
-                month: 'long',
-                year: 'numeric',
-              })}
+              {t('clienteDesde', { data: f.data(createdAt, { day: '2-digit', month: 'long', year: 'numeric' }) })}
             </p>
           </div>
         </div>
         <div className="mt-4 flex flex-wrap gap-2 border-t border-slate-100 pt-4">
-          <span className="text-xs font-medium text-slate-400">Login vinculado:</span>
+          <span className="text-xs font-medium text-slate-400">{t('loginVinculado')}</span>
           {providers.map((p) => (
             <span
               key={p}
               className="rounded-full bg-slate-100 px-2.5 py-0.5 text-xs font-medium text-slate-600"
             >
-              {PROVIDER_LABEL[p] ?? p}
+              {rotuloProvedor(p)}
             </span>
           ))}
         </div>
@@ -394,13 +396,13 @@ export default function MinhaContaForm({
 
       {/* Dados pessoais */}
       <form id="dados-pessoais" onSubmit={handleProfileSubmit} className="scroll-mt-32 rounded-2xl border border-slate-100 bg-white p-6 shadow-sm sm:p-8">
-        <h3 className="text-base font-bold text-marinho">Dados pessoais</h3>
-        <p className="mt-0.5 text-sm text-slate-500">Atualize suas informações de contato.</p>
+        <h3 className="text-base font-bold text-marinho">{t('secoes.dadosPessoais')}</h3>
+        <p className="mt-0.5 text-sm text-slate-500">{t('dados.subtitulo')}</p>
 
         <div className="mt-6 space-y-4">
           <div>
             <label htmlFor="name" className="mb-2 block text-xs font-bold uppercase tracking-wider text-marinho">
-              Nome completo
+              {tAuth('nome')}
             </label>
             <div className="relative">
               <User className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
@@ -417,7 +419,7 @@ export default function MinhaContaForm({
 
           <div>
             <label className="mb-2 block text-xs font-bold uppercase tracking-wider text-marinho">
-              E-mail
+              {tAuth('email')}
             </label>
             <div className="relative">
               <Mail className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
@@ -428,12 +430,12 @@ export default function MinhaContaForm({
                 className={`${inputClass} cursor-not-allowed border-slate-200 text-slate-500`}
               />
             </div>
-            <p className="mt-1.5 text-xs text-slate-400">O e-mail não pode ser alterado.</p>
+            <p className="mt-1.5 text-xs text-slate-400">{t('dados.emailFixo')}</p>
           </div>
 
           <div>
             <label htmlFor="cpf" className="mb-2 block text-xs font-bold uppercase tracking-wider text-marinho">
-              CPF
+              {tAuth('cpf')}
             </label>
             <div className="relative">
               <IdCard className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
@@ -447,19 +449,19 @@ export default function MinhaContaForm({
                 className={`${inputClass} ${cpfInvalid ? 'border-red-300' : 'border-slate-200'}`}
               />
             </div>
-            {cpfInvalid && <p className="mt-1.5 text-xs text-red-500">CPF inválido.</p>}
+            {cpfInvalid && <p className="mt-1.5 text-xs text-red-500">{tAuth('cpfInvalido')}</p>}
           </div>
 
           <div>
             <label className="mb-2 block text-xs font-bold uppercase tracking-wider text-marinho">
-              Celular
+              {tAuth('celular')}
             </label>
             <PhoneInput onChange={setPhone} initialE164={initialPhone ?? undefined} disabled={savingProfile} />
           </div>
 
           <div>
             <label htmlFor="birthday" className="mb-2 block text-xs font-bold uppercase tracking-wider text-marinho">
-              Data de nascimento <span className="font-normal normal-case text-slate-400">(opcional)</span>
+              {t('dados.nascimento')} <span className="font-normal normal-case text-slate-400">{t('dados.opcional')}</span>
             </label>
             <div className="relative">
               <Calendar className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
@@ -472,7 +474,7 @@ export default function MinhaContaForm({
                 className={`${inputClass} ${birthdayInvalid ? 'border-red-300' : 'border-slate-200'}`}
               />
             </div>
-            {birthdayInvalid && <p className="mt-1.5 text-xs text-red-500">Data de nascimento inválida.</p>}
+            {birthdayInvalid && <p className="mt-1.5 text-xs text-red-500">{t('dados.nascimentoInvalido')}</p>}
           </div>
         </div>
 
@@ -494,7 +496,7 @@ export default function MinhaContaForm({
           disabled={savingProfile}
           className="mt-6 flex items-center justify-center gap-2 rounded-xl bg-marinho px-6 py-3 text-sm font-semibold text-white shadow-lg shadow-marinho/20 transition-all hover:bg-marinho-escuro disabled:cursor-not-allowed disabled:opacity-60"
         >
-          {savingProfile ? <Loader2 className="h-5 w-5 animate-spin" /> : 'Salvar alterações'}
+          {savingProfile ? <Loader2 className="h-5 w-5 animate-spin" /> : t('dados.salvar')}
         </button>
       </form>
 
@@ -502,17 +504,17 @@ export default function MinhaContaForm({
       <form id="meu-endereco" onSubmit={handleEnderecoSubmit} className="scroll-mt-32 rounded-2xl border border-slate-100 bg-white p-6 shadow-sm sm:p-8">
         <div className="flex items-center gap-2">
           <MapPin className="h-5 w-5 text-marinho" />
-          <h3 className="text-base font-bold text-marinho">Meu endereço</h3>
+          <h3 className="text-base font-bold text-marinho">{t('secoes.endereco')}</h3>
         </div>
         <p className="mt-0.5 text-sm text-slate-500">
-          Opcional. Informe o CEP para preencher automaticamente.
+          {t('endereco.subtitulo')}
         </p>
 
         <div className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-6">
           {/* CEP */}
           <div className="sm:col-span-2">
             <label htmlFor="cep" className="mb-2 block text-xs font-bold uppercase tracking-wider text-marinho">
-              CEP
+              {t('endereco.cep')}
             </label>
             <div className="relative">
               <input
@@ -534,7 +536,7 @@ export default function MinhaContaForm({
           {/* Estado */}
           <div className="sm:col-span-2">
             <label htmlFor="estado" className="mb-2 block text-xs font-bold uppercase tracking-wider text-marinho">
-              Estado
+              {t('endereco.estado')}
             </label>
             <select
               id="estado"
@@ -542,7 +544,7 @@ export default function MinhaContaForm({
               onChange={(e) => handleEstadoChange(e.target.value)}
               className={`${inputField} border-slate-200`}
             >
-              <option value="">Selecione</option>
+              <option value="">{t('endereco.selecione')}</option>
               {estados.map((e) => (
                 <option key={e.id} value={e.id}>
                   {e.nome} ({e.uf})
@@ -554,7 +556,7 @@ export default function MinhaContaForm({
           {/* Município */}
           <div className="sm:col-span-2">
             <label htmlFor="municipio" className="mb-2 block text-xs font-bold uppercase tracking-wider text-marinho">
-              Município
+              {t('endereco.municipio')}
             </label>
             <select
               id="municipio"
@@ -563,7 +565,7 @@ export default function MinhaContaForm({
               disabled={!endereco.estado_id || loadingMunicipios}
               className={`${inputField} border-slate-200 disabled:cursor-not-allowed disabled:opacity-60`}
             >
-              <option value="">{loadingMunicipios ? 'Carregando…' : 'Selecione'}</option>
+              <option value="">{loadingMunicipios ? tComum('carregando') : t('endereco.selecione')}</option>
               {municipios.map((m) => (
                 <option key={m.id} value={m.id}>
                   {m.nome}
@@ -575,7 +577,7 @@ export default function MinhaContaForm({
           {/* Bairro */}
           <div className="sm:col-span-3">
             <label htmlFor="bairro" className="mb-2 block text-xs font-bold uppercase tracking-wider text-marinho">
-              Bairro
+              {t('endereco.bairro')}
             </label>
             <input
               id="bairro"
@@ -589,14 +591,14 @@ export default function MinhaContaForm({
           {/* Logradouro */}
           <div className="sm:col-span-3">
             <label htmlFor="logradouro" className="mb-2 block text-xs font-bold uppercase tracking-wider text-marinho">
-              Logradouro
+              {t('endereco.logradouro')}
             </label>
             <input
               id="logradouro"
               type="text"
               value={endereco.logradouro}
               onChange={(e) => setEnd('logradouro', e.target.value)}
-              placeholder="Rua, avenida…"
+              placeholder={t('endereco.logradouroPlaceholder')}
               className={`${inputField} border-slate-200`}
             />
           </div>
@@ -604,7 +606,7 @@ export default function MinhaContaForm({
           {/* Número */}
           <div className="sm:col-span-2">
             <label htmlFor="numero" className="mb-2 block text-xs font-bold uppercase tracking-wider text-marinho">
-              Número
+              {t('endereco.numero')}
             </label>
             <input
               id="numero"
@@ -618,14 +620,14 @@ export default function MinhaContaForm({
           {/* Complemento */}
           <div className="sm:col-span-4">
             <label htmlFor="complemento" className="mb-2 block text-xs font-bold uppercase tracking-wider text-marinho">
-              Complemento
+              {t('endereco.complemento')}
             </label>
             <input
               id="complemento"
               type="text"
               value={endereco.complemento}
               onChange={(e) => setEnd('complemento', e.target.value)}
-              placeholder="Apto, bloco, referência…"
+              placeholder={t('endereco.complementoPlaceholder')}
               className={`${inputField} border-slate-200`}
             />
           </div>
@@ -649,7 +651,7 @@ export default function MinhaContaForm({
           disabled={savingEndereco}
           className="mt-6 flex items-center justify-center gap-2 rounded-xl bg-marinho px-6 py-3 text-sm font-semibold text-white shadow-lg shadow-marinho/20 transition-all hover:bg-marinho-escuro disabled:cursor-not-allowed disabled:opacity-60"
         >
-          {savingEndereco ? <Loader2 className="h-5 w-5 animate-spin" /> : 'Salvar endereço'}
+          {savingEndereco ? <Loader2 className="h-5 w-5 animate-spin" /> : t('endereco.salvar')}
         </button>
       </form>
 
@@ -657,24 +659,24 @@ export default function MinhaContaForm({
       <div id="notificacoes" className="scroll-mt-32 rounded-2xl border border-slate-100 bg-white p-6 shadow-sm sm:p-8">
         <div className="flex items-center gap-2">
           <Bell className="h-5 w-5 text-marinho" />
-          <h3 className="text-base font-bold text-marinho">Notificações</h3>
+          <h3 className="text-base font-bold text-marinho">{t('secoes.notificacoes')}</h3>
         </div>
-        <p className="mt-0.5 text-sm text-slate-500">Escolha o que deseja receber por e-mail.</p>
+        <p className="mt-0.5 text-sm text-slate-500">{t('notificacoes.subtitulo')}</p>
 
         <div className="mt-6 flex items-center justify-between gap-4">
           <div className="min-w-0">
             <p className="text-sm font-medium text-slate-700">
-              Receber e-mail de notificação de novas conversas
+              {t('notificacoes.conversas')}
             </p>
             <p className="mt-0.5 text-xs text-slate-400">
-              Avisamos por e-mail quando você tiver novas mensagens não lidas no chat.
+              {t('notificacoes.conversasAjuda')}
             </p>
           </div>
           <button
             type="button"
             role="switch"
             aria-checked={notifConversas}
-            aria-label="Receber e-mail de notificação de novas conversas"
+            aria-label={t('notificacoes.conversas')}
             onClick={handleToggleNotifConversas}
             disabled={savingNotif}
             className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors disabled:opacity-60 ${
@@ -690,26 +692,28 @@ export default function MinhaContaForm({
         </div>
 
         <p className="mt-6 rounded-xl bg-slate-50 px-4 py-3 text-xs leading-relaxed text-slate-500">
-          Avisos sobre suas reservas e pagamentos (confirmação, cancelamento, pagamento aprovado ou
-          recusado, prazo para pagar e reembolso) são sempre enviados por e-mail e ficam no sino de{' '}
-          <a href="/notificacoes" className="font-semibold text-marinho hover:underline">Notificações</a>.
+          {t.rich('notificacoes.sempre', {
+            link: (texto) => <a href="/notificacoes" className="font-semibold text-marinho hover:underline">{texto}</a>,
+          })}
         </p>
       </div>
+
+      <SecaoIdioma />
 
       {/* Segurança / senha */}
       <div id="seguranca" className="scroll-mt-32 rounded-2xl border border-slate-100 bg-white p-6 shadow-sm sm:p-8">
         <div className="flex items-center gap-2">
           <ShieldCheck className="h-5 w-5 text-marinho" />
-          <h3 className="text-base font-bold text-marinho">Segurança</h3>
+          <h3 className="text-base font-bold text-marinho">{t('secoes.seguranca')}</h3>
         </div>
 
         {canChangePassword ? (
           <>
-            <p className="mt-0.5 text-sm text-slate-500">Altere a senha da sua conta.</p>
+            <p className="mt-0.5 text-sm text-slate-500">{t('seguranca.subtitulo')}</p>
             <form onSubmit={handlePasswordSubmit} className="mt-6 space-y-4">
               <div>
                 <label htmlFor="current" className="mb-2 block text-xs font-bold uppercase tracking-wider text-marinho">
-                  Senha atual
+                  {t('seguranca.senhaAtual')}
                 </label>
                 <div className="relative">
                   <Lock className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
@@ -724,6 +728,7 @@ export default function MinhaContaForm({
                   <button
                     type="button"
                     onClick={() => setShowPw((v) => !v)}
+                    aria-label={showPw ? tAuth('ocultarSenha') : tAuth('mostrarSenha')}
                     className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 transition-colors hover:text-slate-600"
                   >
                     {showPw ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
@@ -733,7 +738,7 @@ export default function MinhaContaForm({
 
               <div>
                 <label htmlFor="nova" className="mb-2 block text-xs font-bold uppercase tracking-wider text-marinho">
-                  Nova senha
+                  {tRedefinir('novaSenha')}
                 </label>
                 <div className="relative">
                   <Lock className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
@@ -742,7 +747,7 @@ export default function MinhaContaForm({
                     type={showPw ? 'text' : 'password'}
                     value={novaSenha}
                     onChange={(e) => setNovaSenha(e.target.value)}
-                    placeholder="Crie uma senha segura"
+                    placeholder={tAuth('senhaPlaceholderCriar')}
                     minLength={8}
                     required
                     className={`${inputBase} pl-11 pr-12 border-slate-200`}
@@ -753,7 +758,7 @@ export default function MinhaContaForm({
 
               <div>
                 <label htmlFor="confirm" className="mb-2 block text-xs font-bold uppercase tracking-wider text-marinho">
-                  Confirmar nova senha
+                  {tRedefinir('confirmar')}
                 </label>
                 <div className="relative">
                   <Lock className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
@@ -762,7 +767,7 @@ export default function MinhaContaForm({
                     type={showPw ? 'text' : 'password'}
                     value={confirm}
                     onChange={(e) => setConfirm(e.target.value)}
-                    placeholder="Repita a nova senha"
+                    placeholder={tRedefinir('repita')}
                     minLength={8}
                     required
                     className={`${inputClass} border-slate-200`}
@@ -788,7 +793,7 @@ export default function MinhaContaForm({
                 disabled={savingPw}
                 className="flex items-center justify-center gap-2 rounded-xl bg-marinho px-6 py-3 text-sm font-semibold text-white shadow-lg shadow-marinho/20 transition-all hover:bg-marinho-escuro disabled:cursor-not-allowed disabled:opacity-60"
               >
-                {savingPw ? <Loader2 className="h-5 w-5 animate-spin" /> : 'Alterar senha'}
+                {savingPw ? <Loader2 className="h-5 w-5 animate-spin" /> : t('seguranca.alterar')}
               </button>
             </form>
           </>
@@ -796,8 +801,7 @@ export default function MinhaContaForm({
           <div className="mt-4 flex items-start gap-3 rounded-xl bg-slate-50 p-4">
             <Info className="mt-0.5 h-4 w-4 shrink-0 text-slate-400" />
             <p className="text-sm text-slate-500">
-              Sua conta usa login social ({providers.map((p) => PROVIDER_LABEL[p] ?? p).join(', ')}), então
-              não há senha para alterar aqui. Gerencie o acesso diretamente no seu provedor.
+              {t('seguranca.social', { provedores: providers.map(rotuloProvedor).join(', ') })}
             </p>
           </div>
         )}

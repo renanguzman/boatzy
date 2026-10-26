@@ -2,6 +2,7 @@
 
 import { useState, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
+import { useTranslations } from 'next-intl';
 import { Mail, ArrowLeft, ArrowRight, Loader2 } from 'lucide-react';
 import Link from 'next/link';
 import Image from 'next/image';
@@ -9,12 +10,15 @@ import { resetPasswordClient } from '@/lib/supabase/reset-password-client';
 
 function RecuperarSenhaForm() {
   const searchParams = useSearchParams();
+  const t = useTranslations('RecuperarSenha');
+  const tAuth = useTranslations('Auth');
+  const tRaiz = useTranslations();
 
   // `error=link-invalido` chega do /auth/confirm quando o link do e-mail expirou ou já foi usado
   const [email, setEmail] = useState('');
   const [error, setError] = useState(
     searchParams.get('error') === 'link-invalido'
-      ? 'O link de recuperação é inválido ou expirou. Solicite um novo abaixo.'
+      ? t('linkInvalido')
       : ''
   );
   const [success, setSuccess] = useState(false);
@@ -30,7 +34,7 @@ function RecuperarSenhaForm() {
     });
 
     if (authError) {
-      setError(translateError(authError));
+      setError(tRaiz(translateError(authError)));
       setLoading(false);
       return;
     }
@@ -45,13 +49,12 @@ function RecuperarSenhaForm() {
         <div className="w-16 h-16 bg-turquesa/10 rounded-full flex items-center justify-center mx-auto mb-4">
           <Mail className="w-8 h-8 text-turquesa" />
         </div>
-        <h2 className="text-xl font-bold text-marinho mb-2">Verifique seu e-mail</h2>
+        <h2 className="text-xl font-bold text-marinho mb-2">{tAuth('verifiqueEmail')}</h2>
         <p className="text-slate-500 text-sm mb-6">
-          Se existir uma conta para <strong>{email}</strong>, enviamos um link para redefinir sua
-          senha. Confira também a caixa de spam.
+          {t.rich('seExistir', { email, b: (texto) => <strong>{texto}</strong> })}
         </p>
         <Link href="/entrar" className="text-marinho text-sm font-medium hover:underline">
-          Voltar para o login
+          {t('voltarLogin')}
         </Link>
       </div>
     );
@@ -59,15 +62,15 @@ function RecuperarSenhaForm() {
 
   return (
     <>
-      <h1 className="text-xl font-bold text-marinho mb-2">Recuperar senha</h1>
+      <h1 className="text-xl font-bold text-marinho mb-2">{t('titulo')}</h1>
       <p className="text-slate-500 text-sm mb-6">
-        Informe o e-mail da sua conta e enviaremos um link para você redefinir a senha.
+        {t('texto')}
       </p>
 
       <form onSubmit={handleSubmit} className="space-y-4">
         <div>
           <label htmlFor="email" className="block text-xs font-bold text-marinho tracking-wider uppercase mb-2">
-            E-mail
+            {tAuth('email')}
           </label>
           <div className="relative">
             <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
@@ -76,7 +79,7 @@ function RecuperarSenhaForm() {
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              placeholder="joao@exemplo.com"
+              placeholder={tAuth('emailPlaceholder')}
               required
               className="w-full pl-11 pr-4 py-3.5 rounded-xl border border-slate-200 bg-slate-50/50 text-sm text-grafite placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-marinho/20 focus:border-marinho transition-all"
             />
@@ -98,7 +101,7 @@ function RecuperarSenhaForm() {
             <Loader2 className="w-5 h-5 animate-spin" />
           ) : (
             <>
-              Enviar link de recuperação
+              {t('enviar')}
               <ArrowRight className="w-4 h-4" />
             </>
           )}
@@ -111,7 +114,7 @@ function RecuperarSenhaForm() {
           className="inline-flex items-center gap-1 text-sm text-marinho font-medium hover:underline"
         >
           <ArrowLeft className="w-4 h-4" />
-          Voltar para o login
+          {t('voltarLogin')}
         </Link>
       </div>
     </>
@@ -119,6 +122,7 @@ function RecuperarSenhaForm() {
 }
 
 export default function RecuperarSenhaPage() {
+  const t = useTranslations('RecuperarSenha');
   return (
     <div className="min-h-screen flex flex-col items-center justify-center bg-areia px-4 py-12">
       <div className="w-full max-w-md">
@@ -134,7 +138,7 @@ export default function RecuperarSenhaPage() {
             />
           </Link>
           <p className="text-slate-500 text-sm mt-3">
-            Recupere o acesso à sua conta
+            {t('subtitulo')}
           </p>
         </div>
 
@@ -154,17 +158,18 @@ function baseUrl(): string {
   return process.env.NEXT_PUBLIC_APP_URL ?? window.location.origin;
 }
 
-function translateError(error: { code?: string; message: string }): string {
+/** Erro do Supabase Auth → chave da mensagem. */
+function translateError(error: { code?: string; message: string }) {
   if (
     error.code === 'over_email_send_rate_limit' ||
     error.code === 'over_request_rate_limit' ||
     error.message.includes('rate limit') ||
     error.message.includes('Too many requests')
   ) {
-    return 'Muitas solicitações. Aguarde alguns minutos e tente novamente.';
+    return 'RecuperarSenha.erros.muitas' as const;
   }
   if (error.code === 'email_address_invalid' || error.message.includes('Unable to validate email')) {
-    return 'E-mail inválido.';
+    return 'Auth.erros.emailInvalido' as const;
   }
-  return 'Não foi possível enviar o e-mail. Tente novamente.';
+  return 'RecuperarSenha.erros.falha' as const;
 }

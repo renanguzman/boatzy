@@ -1,9 +1,10 @@
 'use client';
 
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { useTranslations } from 'next-intl';
 import { BadgeCheck, CalendarDays, ShieldCheck } from 'lucide-react';
 import GuestPicker from '@/components/home/search/GuestPicker';
-import { formatCurrency } from '@/lib/utils';
+import { useFormatos } from '@/i18n/formatos';
 import { useCart } from './CartContext';
 import { useDataReserva } from './DataReservaContext';
 import OpcionaisRoteiro from './OpcionaisRoteiro';
@@ -13,12 +14,11 @@ import CalendarioReserva from './CalendarioReserva';
 import BarraReservaMobile from './BarraReservaMobile';
 import { rastrear } from '@/lib/analytics';
 import { useModoPreview } from '@/components/preview/ModoPreview';
-import { FUSO_HORARIO, formatarData } from '@/lib/datas';
-import { capacidadeMaxima, mensagemCapacidadeExcedida } from '@/lib/capacidade';
+import { capacidadeMaxima } from '@/lib/capacidade';
 import { valoresParaCliente } from '@/lib/pagamentos/valores';
 import { decomporPreco } from '@/lib/precos-calendario';
 import {
-  mensagemIndisponivel, periodoIndisponivel, type CalendarioCliente, type StatusPublico,
+  motivoIndisponivel, periodoIndisponivel, type CalendarioCliente, type StatusPublico,
 } from '@/lib/disponibilidade';
 
 type ActivePanel = 'date' | 'guests' | null;
@@ -58,11 +58,6 @@ type Props = {
   capacidade?: number | null;
 };
 
-const MODALIDADE_INFO: Record<Modalidade, { label: string; unidade: string; linha: string }> = {
-  roteiro: { label: 'Roteiro', unidade: '/passeio', linha: 'Passeio' },
-  diaria: { label: 'Por Diária', unidade: '/diária', linha: 'Diárias' },
-};
-
 /** Topo da coluna fixa quando o card cabe na tela (abaixo do header) — o antigo `top-24`. */
 const TOPO_STICKY = 96;
 /** Respiro entre o fim da coluna ("Converse com o dono") e a borda de baixo da tela. */
@@ -87,12 +82,17 @@ export default function BookingCard({
   precoDiariaMinimo = 1,
   capacidade = null,
 }: Props) {
-  // Modelos disponíveis para este roteiro, na ordem em que aparecem nas abas.
-  const modalidadesDisponiveis: { id: Modalidade; label: string }[] = [
-    ...(preco != null ? [{ id: 'roteiro' as const, label: MODALIDADE_INFO.roteiro.label }] : []),
-    ...(precoDiariaAtivo && precoDiariaValor != null
-      ? [{ id: 'diaria' as const, label: MODALIDADE_INFO.diaria.label }]
-      : []),
+  const t = useTranslations('Reservar');
+  const tDisp = useTranslations('Disponibilidade');
+  const tFlex = useTranslations('CamposBusca.data');
+  const tCards = useTranslations('Cards');
+  const f = useFormatos();
+
+  // Modelos disponíveis para este roteiro, na ordem em que aparecem nas abas
+  // (rótulo em `Reservar.modalidade`, unidade em `Formatos.unidadePreco`).
+  const modalidadesDisponiveis: Modalidade[] = [
+    ...(preco != null ? ['roteiro' as const] : []),
+    ...(precoDiariaAtivo && precoDiariaValor != null ? ['diaria' as const] : []),
   ];
 
   // Escolhas da reserva (data, flexibilidade, modelo, diárias) — vêm pré-preenchidas
@@ -101,9 +101,9 @@ export default function BookingCard({
     data: dateISO, flex, setData,
     modalidade: modalidadeEscolhida, setModalidade, diarias, setDiarias,
   } = useDataReserva();
-  const modalidade: Modalidade = modalidadesDisponiveis.some((m) => m.id === modalidadeEscolhida)
+  const modalidade: Modalidade = modalidadesDisponiveis.includes(modalidadeEscolhida)
     ? modalidadeEscolhida
-    : modalidadesDisponiveis[0]?.id ?? 'roteiro';
+    : modalidadesDisponiveis[0] ?? 'roteiro';
 
   /** Máximo de pessoas: capacidade do roteiro/embarcação (null = sem limite). */
   const limitePessoas = capacidadeMaxima(capacidade);
@@ -242,33 +242,33 @@ export default function BookingCard({
     ? valores.total
     : precoCabecalho != null ? precoCabecalho + opcionaisCliente : null;
   const unidadeBarra = selectedAddons.length > 0
-    ? 'com opcionais'
+    ? t('barra.comOpcionais')
     : modalidade === 'diaria' && multiplicador > 1
-      ? `total (${multiplicador} diárias)`
-      : MODALIDADE_INFO[modalidade].unidade;
+      ? t('barra.totalDiarias', { count: multiplicador })
+      : f.unidadePreco(modalidade);
 
   function handleReserve() {
     // Data e Pessoas são obrigatórios para solicitar a reserva.
     if (!dateISO) {
-      setError('Selecione a data da reserva.');
+      setError(t('erros.selecioneData'));
       setActive('date');
       return;
     }
     const problema = periodoIndisponivel(statusDe, dateISO, checkout ?? dateISO);
     if (problema) {
       setError(problema === 'indisponivel' && modalidade === 'diaria'
-        ? 'Este período inclui uma data indisponível. Escolha outra data ou reduza as diárias.'
-        : mensagemIndisponivel(problema, calendario.dataMaxima));
+        ? t('erros.periodoIndisponivel')
+        : tDisp(motivoIndisponivel(problema), { data: f.data(calendario.dataMaxima) }));
       setActive('date');
       return;
     }
     if (guests < 1) {
-      setError('Informe o número de pessoas.');
+      setError(t('erros.informePessoas'));
       setActive('guests');
       return;
     }
     if (limitePessoas != null && guests > limitePessoas) {
-      setError(mensagemCapacidadeExcedida(limitePessoas));
+      setError(f.capacidadeExcedida(limitePessoas));
       setActive('guests');
       return;
     }
@@ -283,7 +283,7 @@ export default function BookingCard({
     if (selectedAddons.length > 0) params.set('adicionais', selectedAddons.map((a) => a.id).join(','));
     // Pré-visualização do painel: valida como no site, mas não reserva.
     if (preview.ativo) { preview.avisar(); return; }
-    window.location.href = `/reservas/novo?${params.toString()}`;
+    window.location.assign(`/reservas/novo?${params.toString()}`);
   }
 
   return (
@@ -300,17 +300,17 @@ export default function BookingCard({
           <div className="mb-5 flex gap-1 rounded-xl bg-slate-100 p-1">
             {modalidadesDisponiveis.map((m) => (
               <button
-                key={m.id}
+                key={m}
                 type="button"
                 onClick={() => {
-                  setModalidade(m.id);
+                  setModalidade(m);
                   setError(null);
                 }}
                 className={`flex-1 rounded-lg py-2 text-xs font-semibold transition-colors ${
-                  modalidade === m.id ? 'bg-white text-marinho shadow-sm' : 'text-slate-500 hover:text-slate-700'
+                  modalidade === m ? 'bg-white text-marinho shadow-sm' : 'text-slate-500 hover:text-slate-700'
                 }`}
               >
-                {m.label}
+                {t(`modalidade.${m}`)}
               </button>
             ))}
           </div>
@@ -322,28 +322,28 @@ export default function BookingCard({
             <>
               {mostrarAPartirDe && (
                 <span className="block text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-0.5">
-                  a partir de
+                  {t('aPartirDe')}
                 </span>
               )}
               <div className="flex items-baseline gap-1">
-                <span className="text-3xl font-bold text-marinho">{formatCurrency(precoCabecalho)}</span>
-                <span className="text-sm text-slate-500">{MODALIDADE_INFO[modalidade].unidade}</span>
+                <span className="text-3xl font-bold text-marinho">{f.moeda(precoCabecalho)}</span>
+                <span className="text-sm text-slate-500">{f.unidadePreco(modalidade)}</span>
               </div>
               {precoVariaPorData && (
                 <p className="mt-1 text-xs text-slate-400">
-                  {dateISO ? 'Valor para a data selecionada.' : 'O preço varia conforme a data.'}
+                  {dateISO ? t('valorDataSelecionada') : t('precoVaria')}
                 </p>
               )}
             </>
           ) : (
-            <span className="text-lg font-semibold text-slate-500">Consulte o preço</span>
+            <span className="text-lg font-semibold text-slate-500">{tCards('consultePreco')}</span>
           )}
         </div>
 
         {/* Date field — abre o calendário do roteiro (o mesmo que o gestor configura) */}
         <div ref={campoDataRef} className="mb-3 relative">
           <p className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider mb-1.5">
-            {modalidade === 'diaria' ? 'Check-in' : 'Data'}
+            {modalidade === 'diaria' ? t('checkin') : t('data')}
           </p>
           <button type="button" onClick={() => open('date')} aria-expanded={active === 'date'}
             className={`w-full flex items-center gap-2 text-left rounded-xl border px-4 py-3 transition-all ${
@@ -352,11 +352,11 @@ export default function BookingCard({
             <CalendarDays className="h-4 w-4 text-slate-400 shrink-0" />
             {dateISO ? (
               <span className="text-sm font-medium text-grafite truncate">
-                {formatarData(dateISO, { weekday: 'short', day: '2-digit', month: 'short' })}
-                {flex > 0 && <span className="text-slate-500"> · ±{flex} {flex === 1 ? 'dia' : 'dias'}</span>}
+                {f.data(dateISO, { weekday: 'short', day: '2-digit', month: 'short' })}
+                {flex > 0 && <span className="text-slate-500"> · {tFlex('flex', { count: flex })}</span>}
               </span>
             ) : (
-              <span className="text-sm text-slate-400">Escolha a data</span>
+              <span className="text-sm text-slate-400">{t('escolhaData')}</span>
             )}
           </button>
           {active === 'date' && (
@@ -378,10 +378,10 @@ export default function BookingCard({
           )}
           {modalidade === 'diaria' && checkout && (
             <p className="mt-1.5 text-xs text-slate-500">
-              Check-out em{' '}
-              <span className="font-medium text-slate-700">
-                {new Date(`${checkout}T12:00:00`).toLocaleDateString('pt-BR', { timeZone: FUSO_HORARIO, day: '2-digit', month: 'long', year: 'numeric' })}
-              </span>
+              {t.rich('checkoutEm', {
+                data: f.data(checkout, { day: '2-digit', month: 'long', year: 'numeric' }),
+                b: (texto) => <span className="font-medium text-slate-700">{texto}</span>,
+              })}
             </p>
           )}
         </div>
@@ -396,9 +396,7 @@ export default function BookingCard({
               onOpen={() => {}}
               onClose={() => {}}
               inline
-              label="Diárias"
-              singular="diária"
-              plural="diárias"
+              unidade="diarias"
               min={Math.max(1, precoDiariaMinimo)}
             />
           </div>
@@ -407,7 +405,7 @@ export default function BookingCard({
         {/* Guests field */}
         <div ref={campoPessoasRef} className="mb-4">
           <p className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider mb-1.5">
-            Pessoas
+            {t('pessoas')}
           </p>
           <div className="border border-slate-200 rounded-xl overflow-visible">
             <GuestPicker
@@ -426,11 +424,11 @@ export default function BookingCard({
           </div>
           {ajustadoPara != null ? (
             <p className="mt-1.5 text-xs text-amber-700">
-              Este passeio comporta até {ajustadoPara} {ajustadoPara === 1 ? 'pessoa' : 'pessoas'} — ajustamos o tamanho do grupo.
+              {t('ajustado', { count: ajustadoPara })}
             </p>
           ) : limitePessoas != null ? (
             <p className="mt-1.5 text-xs text-slate-400">
-              Até {limitePessoas} {limitePessoas === 1 ? 'pessoa' : 'pessoas'} a bordo, sem contar a tripulação.
+              {t('limite', { count: limitePessoas })}
             </p>
           ) : null}
         </div>
@@ -444,15 +442,15 @@ export default function BookingCard({
           <div className="space-y-2 py-4 border-t border-slate-100">
             <div className="flex items-center justify-between text-sm">
               <span className="text-slate-600">
-                {MODALIDADE_INFO[modalidade].linha}
+                {t(`linha.${modalidade}`)}
                 {multiplicador > 1 ? ` × ${multiplicador}` : ''}
               </span>
-              <span className="font-medium text-grafite">{formatCurrency(valores.passeio)}</span>
+              <span className="font-medium text-grafite">{f.moeda(valores.passeio)}</span>
             </div>
             {totalAdicionais > 0 && (
               <div className="flex items-center justify-between text-sm">
-                <span className="text-slate-600">Adicionais</span>
-                <span className="font-medium text-grafite">{formatCurrency(valores.adicionais)}</span>
+                <span className="text-slate-600">{t('adicionais')}</span>
+                <span className="font-medium text-grafite">{f.moeda(valores.adicionais)}</span>
               </div>
             )}
           </div>
@@ -461,17 +459,17 @@ export default function BookingCard({
         {valores && (
           <div className="py-4 border-t border-slate-200">
             <div className="flex items-center justify-between">
-              <span className="text-base font-bold text-marinho">Total</span>
-              <span className="text-xl font-bold text-marinho">{formatCurrency(valores.total)}</span>
+              <span className="text-base font-bold text-marinho">{t('total')}</span>
+              <span className="text-xl font-bold text-marinho">{f.moeda(valores.total)}</span>
             </div>
             {/* Referência para grupos: o preço é do passeio (barco), dividido aqui só como estimativa. */}
             {guests > 1 && (
               <p className="mt-1 text-right text-xs font-medium text-turquesa-escuro">
-                ≈ {formatCurrency(valores.total / guests)} por pessoa ({guests} pessoas)
+                {t('porPessoa', { valor: f.moeda(valores.total / guests), count: guests })}
               </p>
             )}
             <p className="mt-1 text-[11px] text-slate-400">
-              Cupom de desconto pode ser aplicado na confirmação.
+              {t('cupom')}
             </p>
           </div>
         )}
@@ -481,7 +479,7 @@ export default function BookingCard({
           onClick={handleReserve}
           className="w-full bg-marinho hover:bg-marinho-escuro text-white font-semibold py-3.5 rounded-xl transition-all hover:shadow-lg hover:shadow-marinho/25 hover:scale-[1.01] active:scale-[0.99] flex items-center justify-center gap-2 cursor-pointer mt-4"
         >
-          Solicitar Reserva →
+          {t('solicitar')}
         </button>
 
         {error && (
@@ -492,18 +490,18 @@ export default function BookingCard({
 
         {/* Solicitar não compromete: o pagamento só vem depois da confirmação do dono */}
         <p className="mt-2.5 text-center text-xs font-medium text-turquesa-escuro">
-          Sem cobrança agora — você só paga depois que o dono confirmar.
+          {t('semCobranca')}
         </p>
 
         {/* Trust badges — só o que o produto garante (repasse 48h após o passeio, anúncio aprovado) */}
         <div className="mt-4 space-y-2">
           <div className="flex items-center gap-2 text-xs text-slate-500">
             <ShieldCheck className="h-3.5 w-3.5 text-turquesa shrink-0" />
-            <span>Pagamento protegido: o dono só recebe depois do passeio</span>
+            <span>{t('pagamentoProtegido')}</span>
           </div>
           <div className="flex items-center gap-2 text-xs text-slate-500">
             <BadgeCheck className="h-3.5 w-3.5 text-turquesa shrink-0" />
-            <span>Anúncio aprovado pela equipe Boatzy</span>
+            <span>{t('anuncioAprovado')}</span>
           </div>
         </div>
       </div>
@@ -520,11 +518,11 @@ export default function BookingCard({
           cliente vai pagar, com os opcionais já incluídos */}
       <BarraReservaMobile
         rotulo={dateISO
-          ? formatarData(dateISO, { weekday: 'short', day: '2-digit', month: 'short' })
-          : mostrarAPartirDe ? 'A partir de' : modalidade === 'diaria' ? 'Por diária' : 'Valor'}
-        valor={valorBarra != null ? formatCurrency(valorBarra) : null}
+          ? f.data(dateISO, { weekday: 'short', day: '2-digit', month: 'short' })
+          : mostrarAPartirDe ? t('aPartirDe') : modalidade === 'diaria' ? t('barra.porDiaria') : t('barra.valor')}
+        valor={valorBarra != null ? f.moeda(valorBarra) : null}
         unidade={unidadeBarra}
-        acao={dateISO ? 'Reservar' : 'Ver datas'}
+        acao={dateISO ? t('barra.reservar') : t('barra.verDatas')}
         onAcao={abrirReservaPelaBarra}
         card={cardRef}
       />

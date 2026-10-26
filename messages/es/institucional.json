@@ -1,0 +1,215 @@
+{
+  "Sobre": {
+    "metaTitulo": "Sobre Boatzy — alquiler de embarcaciones sin complicaciones",
+    "metaDescricao": "Boatzy nació en Florianópolis para profesionalizar el alquiler de embarcaciones en Brasil: reserva online, precio claro y seguridad para ambas partes.",
+    "altHero": "Yate navegando al atardecer",
+    "heroTitulo": "Hacer el mar accesible.",
+    "heroTexto": "Boatzy es la plataforma que conecta a quien quiere navegar con quien tiene una embarcación. Reserva online, precio claro y seguridad para ambas partes, desde la moto de agua por una hora hasta el yate de fin de semana.",
+    "origem": {
+      "titulo": "Nació en Florianópolis, donde el mar es parte de la rutina.",
+      "p1": "Florianópolis vive en torno al agua. Hay marinas, rampas, muelles y una temporada náutica que mueve a toda la ciudad. Aun así, alquilar una embarcación aquí siempre dependió de conocer a alguien.",
+      "p2": "El mercado funcionaba, pero de manera informal: precio acordado por mensaje, disponibilidad confirmada con un \"déjame ver\", pago sin garantía para ninguna de las partes y ninguna referencia sobre quién estaba del otro lado.",
+      "p3": "Para quien quería navegar, eso significaba no saber por dónde empezar. Para quien tenía una embarcación, significaba gestionar el alquiler en los ratos libres y ver el barco parado la mayor parte del año.",
+      "p4": "Mientras reservar un alojamiento, un auto o un vuelo pasó a ser cuestión de minutos, alquilar una embarcación siguió siendo una negociación.",
+      "p5": "Boatzy existe para acortar esa distancia: llevar al mercado náutico el estándar que el cliente ya espera de cualquier servicio digital: transparencia, practicidad y seguridad."
+    },
+    "ladosTitulo": "Dos lados, una plataforma.",
+    "navegar": {
+      "titulo": "Para quien quiere navegar",
+      "texto": "Comparas embarcaciones, ves el precio final, conoces al propietario y lees las reseñas de quienes ya fueron, todo antes de decidir. Reservas por la plataforma, con pago protegido, y llegas a la hora acordada. El resto del día es tuyo."
+    },
+    "proprietario": {
+      "titulo": "Para quien tiene una embarcación",
+      "texto": "Tu barco generando ingresos, sin complicaciones. Tú defines el precio y la disponibilidad, y decides quién sube a bordo. Boatzy se encarga de la difusión, la reserva, el pago y la relación con el cliente. Se acabó negociar por mensaje en tres grupos distintos."
+    },
+    "principiosTitulo": "Lo que nos guía.",
+    "principios": {
+      "simplicidade": {
+        "titulo": "Simplicidad",
+        "texto": "Reservar una embarcación debe ser tan simple como reservar un alojamiento. Si el usuario necesita una llamada para entenderlo, el producto falló."
+      },
+      "acesso": {
+        "titulo": "Acceso",
+        "texto": "El mar no es un privilegio de quien tiene barco. La plataforma fue construida para atender desde el paseo de una hora hasta el fin de semana a bordo, con opciones para distintos públicos y presupuestos."
+      },
+      "confianca": {
+        "titulo": "Confianza",
+        "texto": "Propietarios verificados, pago protegido y soporte disponible. En un marketplace, la confianza no es un diferencial: es el producto."
+      }
+    },
+    "expansao": {
+      "titulo": "Empezamos por Florianópolis. No pensamos quedarnos ahí.",
+      "p1": "La elección del primer mercado fue deliberada. Un marketplace náutico se sostiene en la calidad de la oferta, y la calidad se construye de cerca: conociendo las marinas, las embarcaciones y los propietarios uno a uno.",
+      "p2": "La plataforma, sin embargo, fue diseñada desde el inicio para escalar. El modelo de verificación, el flujo de reserva y la estructura de pago funcionan igual en cualquier ciudad costera, y la expansión por Brasil ya está en el plan.",
+      "p3": "El objetivo es simple de enunciar y exigente de ejecutar: hacer de Boatzy la forma estándar de alquilar una embarcación en Brasil."
+    },
+    "ctaTitulo": "Súmate.",
+    "ctaNavegar": "El próximo buen día ya tiene fecha. Falta el barco.",
+    "ctaVerEmbarcacoes": "Ver embarcaciones",
+    "ctaAnunciar": "Tu embarcación puede trabajar los días en que queda parada.",
+    "ctaQueroAnunciar": "Quiero anunciar",
+    "contato": "Dudas, sugerencias o alianzas:"
+  },
+  "Contato": {
+    "metaTitulo": "Contacto — Boatzy",
+    "metaDescricao": "Habla con el equipo de Boatzy: dudas, elogios, alianzas comerciales o temas financieros.",
+    "titulo": "Habla con nosotros",
+    "subtitulo": "Dudas, elogios, oportunidades comerciales o temas financieros: elige el asunto y envía tu mensaje. Nuestro equipo responde lo antes posible.",
+    "suporte": "Soporte",
+    "prazo": "Respondemos en hasta 2 días hábiles.",
+    "slogan": "Navega con Elegancia.",
+    "aviso": "Atendemos en portugués; los mensajes en inglés o español también son bienvenidos.",
+    "form": {
+      "titulo": "Envía tu mensaje",
+      "nome": "Nombre",
+      "nomePlaceholder": "Tu nombre",
+      "email": "Correo electrónico",
+      "emailPlaceholder": "tu@ejemplo.com",
+      "assunto": "Asunto",
+      "selecioneAssunto": "Selecciona un asunto",
+      "mensagem": "Mensaje",
+      "mensagemPlaceholder": "Cuéntanos en detalle lo que necesitas...",
+      "verificacao": "Verificación: ¿cuánto es {a} + {b}?",
+      "resposta": "Respuesta",
+      "novaConta": "Generar otra cuenta",
+      "enviar": "Enviar mensaje",
+      "enviadaTitulo": "¡Mensaje enviado!",
+      "enviadaTexto": "Gracias por contactarnos, {nome}. Nuestro equipo responderá pronto al correo que indicaste."
+    },
+    "assuntos": {
+      "contato": "Contacto",
+      "duvidas": "Dudas",
+      "elogio": "Elogio",
+      "comercial": "Comercial",
+      "financeiro": "Financiero",
+      "outros": "Otros"
+    },
+    "erros": {
+      "nome": "Ingresa tu nombre.",
+      "email": "Ingresa un correo válido.",
+      "assunto": "Selecciona un asunto.",
+      "mensagemCurta": "Escribe un mensaje de al menos 10 caracteres.",
+      "mensagemLonga": "El mensaje es demasiado largo.",
+      "captcha": "Verificación de seguridad incorrecta. Inténtalo de nuevo.",
+      "envio": "No pudimos enviar tu mensaje ahora. Inténtalo de nuevo en unos instantes."
+    }
+  },
+  "Ajuda": {
+    "metaTitulo": "Centro de Ayuda — Boatzy",
+    "metaDescricao": "Resuelve tus dudas sobre reservas, pagos, registro de embarcaciones, reseñas y más en el Centro de Ayuda de Boatzy.",
+    "titulo": "Centro de Ayuda",
+    "subtitulo": "Reunimos las preguntas más frecuentes sobre reservas, pagos, embarcaciones y mucho más. Usa la búsqueda o navega por los temas.",
+    "buscaPlaceholder": "Busca por palabra clave: reserva, pago, cancelación…",
+    "buscaRotulo": "Buscar en las preguntas frecuentes",
+    "nenhuma": "No se encontraron preguntas.",
+    "encontradas": "{count, plural, one {# pregunta encontrada.} other {# preguntas encontradas.}}",
+    "semResultado": "No encontramos nada para \"{busca}\". Prueba otra palabra clave o escríbenos directamente.",
+    "ctaTitulo": "¿No encontraste tu respuesta?",
+    "ctaTexto": "Habla con nuestro equipo, respondemos en hasta 2 días hábiles.",
+    "ctaBotao": "Contáctanos",
+    "categorias": {
+      "reservas": "Reservas",
+      "pagamentos": "Pagos",
+      "conta": "Cuenta",
+      "embarcacoes": "Embarcaciones y propietarios",
+      "busca": "Búsqueda y favoritos",
+      "avaliacoes": "Reseñas",
+      "seguranca": "Seguridad y confianza",
+      "vendas": "Venta de embarcaciones"
+    },
+    "faq": {
+      "reservar": {
+        "pergunta": "¿Cómo reservo una embarcación o un paseo?",
+        "resposta": "Busca por lugar, fecha y cantidad de personas en la página de inicio o en <buscar>Paseos</buscar>. Al encontrar el paseo o la embarcación ideal, abre los detalles, elige la fecha, la cantidad de personas y los adicionales que quieras, y haz clic en \"Solicitar reserva\". Debes haber iniciado sesión; si aún no lo hiciste, te pediremos que ingreses antes de terminar."
+      },
+      "confirmacao": {
+        "pergunta": "¿Mi reserva se confirma al instante?",
+        "resposta": "No. Al solicitarla, la reserva queda <b>Esperando confirmación</b> y se envía al propietario (gestor) de la embarcación, que puede <b>Aceptar</b> o <b>Rechazar</b> el pedido. Si la acepta, recibes un correo para pagar por Boatzy (Pix o tarjeta) dentro del plazo indicado; mientras tanto la fecha queda reservada para ti, y la reserva queda <b>Confirmada</b> en cuanto se aprueba el pago. Sigues el estado y la respuesta en <reservas>Mis reservas</reservas>."
+      },
+      "cancelar": {
+        "pergunta": "¿Puedo cancelar una reserva después de solicitarla?",
+        "resposta": "Sí. En <reservas>Mis reservas</reservas> encontrarás el botón \"Cancelar reserva\", disponible mientras esté <b>Esperando confirmación</b> o <b>Esperando el pago</b> (no se cobra nada). Para cancelar una reserva ya pagada, habla con el propietario por el chat; la política de plazos y reembolsos se publicará en los Términos de Uso."
+      },
+      "status": {
+        "pergunta": "¿Qué significan los estados de las reservas?",
+        "resposta": "<b>Esperando confirmación</b>: a la espera de la respuesta del propietario. <b>Esperando el pago</b>: el propietario aceptó y tienes un plazo para pagar por Boatzy. <b>Confirmada</b>: pago aprobado, la fecha es tuya. <b>Pago vencido</b>: el plazo terminó sin pago y la fecha quedó libre. <b>Rechazada</b>: el propietario no pudo atenderte. <b>Cancelada</b>: desististe de la reserva. <b>Completada</b>: la fecha del paseo ya pasó y la reserva estaba confirmada; a partir de ahí puedes calificar la experiencia."
+      },
+      "cupom": {
+        "pergunta": "¿Puedo usar un cupón de descuento en la reserva?",
+        "resposta": "Sí. En la página de confirmación de la reserva hay un campo para ingresar el código del cupón; al aplicarlo, el descuento se valida al instante y se refleja en el total estimado antes de enviar la solicitud. Cada cupón tiene un descuento máximo por reserva, ya considerado en el total."
+      },
+      "pagamento": {
+        "pergunta": "¿Cómo funciona el pago de las reservas?",
+        "resposta": "La solicitud es gratuita. Cuando el propietario acepta, pagas por Boatzy con <b>Pix</b> (código QR o copiar y pegar) o <b>tarjeta de crédito</b>, dentro del plazo indicado. El pago lo procesa Asaas, nuestro socio de pagos: con tarjeta, ingresas los datos en el entorno seguro de Asaas y Boatzy no recibe ni guarda el número de la tarjeta. Boatzy retiene el monto y lo transfiere al propietario después del paseo. Los valores que ves en el sitio ya son el total que pagas, sin cargos extra al finalizar."
+      },
+      "criarConta": {
+        "pergunta": "¿Necesito crear una cuenta para reservar un paseo?",
+        "resposta": "Sí, debes haber iniciado sesión para solicitar una reserva, guardar favoritos o conversar con el propietario. Puedes crear una cuenta en <entrar>Ingresar</entrar> con correo y contraseña o usando Google, Facebook o Apple."
+      },
+      "dados": {
+        "pergunta": "¿Cómo edito mis datos personales, CPF, celular o dirección?",
+        "resposta": "Entra en <conta>Mi cuenta</conta> desde el menú de tu avatar. Allí editas nombre, CPF (documento fiscal brasileño), celular, fecha de nacimiento, dirección (con autocompletado por código postal brasileño) y las preferencias de notificación por correo. El cambio de contraseña también está en esa página, disponible solo para cuentas creadas con correo; en las cuentas de inicio de sesión social, la contraseña la gestiona el propio proveedor."
+      },
+      "senha": {
+        "pergunta": "Olvidé mi contraseña. ¿Cómo recupero el acceso?",
+        "resposta": "En la pantalla de inicio de sesión, usa la opción \"¿Olvidaste tu contraseña?\". Recibirás un correo con un enlace para definir una nueva contraseña. Vale tanto para cuentas de cliente como de propietario (el enlace de recuperación del panel es específico para cuentas de gestor)."
+      },
+      "anunciar": {
+        "pergunta": "Tengo una embarcación. ¿Cómo la publico en Boatzy?",
+        "resposta": "Haz clic en \"Publica tu embarcación\" en la parte superior del sitio, o entra directamente al <painel>Panel del Propietario</painel>. Crea tu cuenta de gestor, registra tu embarcación con fotos, comodidades y precios, y luego crea los paseos que ofrece. Las solicitudes de reserva aparecen en \"Agendamentos\" (Reservas), donde confirmas o rechazas cada pedido. El panel está en portugués."
+      },
+      "diferenca": {
+        "pergunta": "¿Cuál es la diferencia entre reservar un paseo y reservar una embarcación?",
+        "resposta": "Un <b>paseo</b> es una salida específica (fecha, duración, adicionales) ofrecida por una embarcación. Reservar la <b>embarcación</b> directamente te permite acordar un uso a medida con el propietario, sin adicionales predefinidos. En ambos casos, el flujo de solicitud, aceptación y pago es el mismo."
+      },
+      "conversar": {
+        "pergunta": "¿Puedo hablar con el propietario antes de reservar?",
+        "resposta": "Sí. En la página del paseo, usa el campo \"Habla con el dueño de la embarcación\" (puedes empezar a escribir ahí mismo) y, en la página de la embarcación, el botón \"Habla con el dueño\". Ambos abren un chat directo dentro de la plataforma. Sigues todas las conversaciones en <conversas>Mis conversaciones</conversas>."
+      },
+      "filtros": {
+        "pergunta": "¿Cómo funcionan los filtros de búsqueda (precio, duración, comodidades)?",
+        "resposta": "En <buscar>Paseos y Embarcaciones</buscar>, usa el botón \"Filtros\" para definir el rango de precio y la duración del paseo, y \"Comodidades\" (en la pestaña Embarcaciones) para exigir elementos específicos, como cocina a bordo o equipo de sonido. También puedes ordenar los resultados por relevancia, calificación, precio o duración. Todos los filtros quedan guardados en el enlace, así que puedes compartir tu búsqueda."
+      },
+      "favoritar": {
+        "pergunta": "¿Cómo guardo un paseo o una embarcación en favoritos?",
+        "resposta": "Haz clic en el ícono de corazón en la tarjeta o en la página de detalles; debes haber iniciado sesión. Todos los elementos guardados quedan reunidos en <favoritos>Favoritos</favoritos>, accesible desde el menú de tu avatar."
+      },
+      "avaliar": {
+        "pergunta": "¿Cómo califico una experiencia después del paseo?",
+        "resposta": "Apenas pasa la fecha del paseo, la reserva pasa a <b>Completada</b> en <reservas>Mis reservas</reservas> y aparece el botón \"Calificar la experiencia\" en la tarjeta: da una nota de 1 a 5 estrellas y, si quieres, deja un comentario. Cada reserva puede calificarse una sola vez."
+      },
+      "moderacao": {
+        "pergunta": "¿Por qué mi reseña todavía no aparece en la página del paseo?",
+        "resposta": "Toda reseña pasa por una moderación simple antes de publicarse, con la etiqueta \"Esperando aprobación\" visible para ti en Mis reservas mientras tanto. Una vez aprobada, cuenta en el promedio y aparece en la lista de comentarios."
+      },
+      "responsabilidade": {
+        "pergunta": "¿Boatzy es responsable de la embarcación o del paseo contratado?",
+        "resposta": "Boatzy actúa como <b>intermediario tecnológico</b>, conectando propietarios y arrendatarios; no somos dueños, operadores ni aseguradores de las embarcaciones publicadas. La relación de alquiler (condiciones, uso, devolución) se establece directamente entre tú y el propietario. Más detalles en los <termos>Términos de Uso</termos>."
+      },
+      "privacidade": {
+        "pergunta": "¿Cómo se protegen mis datos personales?",
+        "resposta": "Tus datos se tratan según nuestra <privacidade>Política de Privacidad</privacidade>, que explica qué información recopilamos, para qué la usamos y cómo puedes solicitar el acceso, la corrección o la eliminación de tus datos."
+      },
+      "vendas": {
+        "pergunta": "¿Boatzy también vende embarcaciones, además de alquilarlas?",
+        "resposta": "Sí. En <vendas>En venta</vendas> encuentras anuncios de embarcaciones en venta, con fotos, especificaciones y contacto directo con el vendedor por el chat de la plataforma."
+      }
+    }
+  },
+  "Erros": {
+    "naoEncontrada": {
+      "metaTitulo": "Página no encontrada — Boatzy",
+      "titulo": "Página no encontrada",
+      "texto": "La dirección puede haber cambiado o el contenido ya no está disponible, como un paseo desactivado o un anuncio ya vendido.",
+      "inicio": "Volver al inicio",
+      "buscar": "Buscar paseos"
+    },
+    "inesperado": {
+      "titulo": "Algo salió mal",
+      "texto": "Tuvimos un problema al cargar esta página. Inténtalo de nuevo; si sigue pasando, escríbenos.",
+      "tentar": "Intentar de nuevo",
+      "inicio": "Ir al inicio",
+      "codigo": "Código: {codigo}"
+    }
+  }
+}

@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { useTranslations } from 'next-intl';
 import { Loader2 } from 'lucide-react';
 
 export type OAuthProvider = 'google' | 'facebook' | 'apple';
@@ -48,6 +49,7 @@ type Props = {
 };
 
 export default function SocialLoginButtons({ onProvider, disabled, compacto = false }: Props) {
+  const t = useTranslations('Auth');
   const [loading, setLoading] = useState<OAuthProvider | null>(null);
 
   async function handle(provider: OAuthProvider) {
@@ -69,13 +71,13 @@ export default function SocialLoginButtons({ onProvider, disabled, compacto = fa
           type="button"
           onClick={() => handle(id)}
           disabled={disabled || loading !== null}
-          aria-label={compacto ? `Continuar com ${label}` : undefined}
+          aria-label={compacto ? t('continuarCom', { provedor: label }) : undefined}
           className={`flex items-center justify-center w-full rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-sm font-medium text-slate-700 transition-all disabled:opacity-60 disabled:cursor-not-allowed ${
             compacto ? 'gap-2 py-2.5' : 'gap-3 py-3'
           }`}
         >
           {loading === id ? <Loader2 className="w-5 h-5 animate-spin" /> : icon}
-          {compacto ? label : `Continuar com ${label}`}
+          {compacto ? label : t('continuarCom', { provedor: label })}
         </button>
       ))}
     </div>

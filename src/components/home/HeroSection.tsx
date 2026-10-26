@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import Image from 'next/image';
+import { useTranslations } from 'next-intl';
 import { Search, X, Compass, ChevronRight, Ship, CreditCard } from 'lucide-react';
 import LocationPicker, { type LocationValue } from './search/LocationPicker';
 import DatePicker, { type DateValue } from './search/DatePicker';
@@ -19,11 +20,12 @@ type ActivePanel = 'location' | 'date' | 'guests' | 'tipo' | 'tipo_venda' | 'loc
 const HERO_VIDEOS = ['/videos/hero02.mp4', '/videos/hero03.mp4', '/videos/hero04.mp4'];
 
 // Instrução mínima para quem chega pela primeira vez: o caminho até a reserva.
+// `id` = chave do texto em `Hero.passos`.
 const PASSOS = [
-  { icon: Search, texto: 'Busque o destino' },
-  { icon: Ship, texto: 'Escolha o roteiro' },
-  { icon: CreditCard, texto: 'Reserve e pague online' },
-];
+  { icon: Search, id: 'buscar' },
+  { icon: Ship, id: 'escolher' },
+  { icon: CreditCard, id: 'reservar' },
+] as const;
 
 type Props = {
   tiposEmbarcacao: TipoEmbarcacaoValue[];
@@ -32,6 +34,8 @@ type Props = {
 };
 
 export default function HeroSection({ tiposEmbarcacao, tiposVenda, locaisVenda }: Props) {
+  const t = useTranslations('Hero');
+  const tComum = useTranslations('Comum');
   const [location, setLocation] = useState<LocationValue | null>(null);
   const [date, setDate] = useState<DateValue | null>(null);
   const [guests, setGuests] = useState(0);
@@ -149,7 +153,7 @@ export default function HeroSection({ tiposEmbarcacao, tiposVenda, locaisVenda }
         {!videoReady && (
           <Image
             src="/images/hero-yacht.png"
-            alt="Iate de luxo ao amanhecer"
+            alt={t('altImagem')}
             fill
             className="object-cover"
             priority
@@ -172,15 +176,13 @@ export default function HeroSection({ tiposEmbarcacao, tiposVenda, locaisVenda }
       {/* Content */}
       <div className="relative z-10 flex flex-col items-center justify-center min-h-[462px] py-8 md:min-h-0 md:h-full md:py-0 px-4 text-center">
         <p className="text-turquesa text-xs md:text-sm font-medium tracking-wider md:tracking-widest uppercase mb-2 md:mb-3">
-          Passeios de barco com reserva 100% online
+          {t('sobretitulo')}
         </p>
         <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold text-white mb-3 tracking-tight">
-          O horizonte é{' '}
-          <span className="text-destaque">seu</span>
-          .
+          {t.rich('titulo', { destaque: (texto) => <span className="text-destaque">{texto}</span> })}
         </h1>
         <p className="text-slate-200 text-sm md:text-lg max-w-xl mb-6 leading-relaxed">
-          Do roteiro ao embarque — faça tudo pelo site, com pagamento seguro, em poucos minutos.
+          {t('subtitulo')}
         </p>
 
         {/* Tipo de busca */}
@@ -225,6 +227,7 @@ export default function HeroSection({ tiposEmbarcacao, tiposVenda, locaisVenda }
                     <button
                       type="button"
                       onClick={() => setLocalidadeVenda(null)}
+                      aria-label={tComum('limpar')}
                       className="absolute right-2 top-1/2 -translate-y-1/2 h-6 w-6 rounded-full bg-slate-100 hover:bg-slate-200 flex items-center justify-center transition-colors"
                     >
                       <X className="h-3.5 w-3.5 text-slate-500" />
@@ -262,10 +265,10 @@ export default function HeroSection({ tiposEmbarcacao, tiposVenda, locaisVenda }
                   type="button"
                   onClick={handleSearch}
                   className="bg-marinho hover:bg-marinho-escuro text-white rounded-xl p-3.5 flex items-center justify-center gap-2 transition-all hover:shadow-lg hover:scale-[1.03] active:scale-[0.97] cursor-pointer shrink-0 w-full md:w-auto"
-                  aria-label="Buscar embarcações à venda"
+                  aria-label={t('buscarVendas')}
                 >
                   <Search className="h-5 w-5" />
-                  <span className="font-semibold md:hidden">Buscar</span>
+                  <span className="font-semibold md:hidden">{tComum('buscar')}</span>
                 </button>
               </>
             ) : (
@@ -286,6 +289,7 @@ export default function HeroSection({ tiposEmbarcacao, tiposVenda, locaisVenda }
                     <button
                       type="button"
                       onClick={() => setTipoEmbarcacao(null)}
+                      aria-label={tComum('limpar')}
                       className="absolute right-2 top-1/2 -translate-y-1/2 h-6 w-6 rounded-full bg-slate-100 hover:bg-slate-200 flex items-center justify-center transition-colors"
                     >
                       <X className="h-3.5 w-3.5 text-slate-500" />
@@ -313,6 +317,7 @@ export default function HeroSection({ tiposEmbarcacao, tiposVenda, locaisVenda }
                   <button
                     type="button"
                     onClick={clearLocation}
+                    aria-label={tComum('limpar')}
                     className="absolute right-2 top-1/2 -translate-y-1/2 h-6 w-6 rounded-full bg-slate-100 hover:bg-slate-200 flex items-center justify-center transition-colors"
                   >
                     <X className="h-3.5 w-3.5 text-slate-500" />
@@ -339,7 +344,7 @@ export default function HeroSection({ tiposEmbarcacao, tiposVenda, locaisVenda }
                 <span className="absolute -top-1.5 left-6 h-3 w-3 rotate-45 rounded-[2px] bg-black/70 backdrop-blur-md" />
                 <div className="relative flex items-center gap-2 whitespace-nowrap rounded-xl bg-black/70 backdrop-blur-md px-3.5 py-2.5 text-xs font-medium tracking-wide text-white shadow-xl shadow-black/40 ring-1 ring-white/10">
                   <Compass className="h-3.5 w-3.5 text-white/80" strokeWidth={1.5} />
-                  Comece sua experiência por aqui
+                  {t('dicaDestino')}
                 </div>
               </div>
             </div>
@@ -361,6 +366,7 @@ export default function HeroSection({ tiposEmbarcacao, tiposVenda, locaisVenda }
                   <button
                     type="button"
                     onClick={clearDate}
+                    aria-label={tComum('limpar')}
                     className="absolute right-2 top-1/2 -translate-y-1/2 h-6 w-6 rounded-full bg-slate-100 hover:bg-slate-200 flex items-center justify-center transition-colors"
                   >
                     <X className="h-3.5 w-3.5 text-slate-500" />
@@ -398,10 +404,10 @@ export default function HeroSection({ tiposEmbarcacao, tiposVenda, locaisVenda }
                 onClick={handleSearch}
                 className="bg-marinho hover:bg-marinho-escuro text-white rounded-xl p-3.5 flex items-center justify-center gap-2 transition-all hover:shadow-lg hover:scale-[1.03] active:scale-[0.97] cursor-pointer shrink-0 w-full md:w-auto"
                 id="search-button"
-                aria-label="Buscar"
+                aria-label={tComum('buscar')}
               >
                 <Search className="h-5 w-5" />
-                <span className="font-semibold md:hidden">Buscar</span>
+                <span className="font-semibold md:hidden">{tComum('buscar')}</span>
               </button>
             </div>
               </>
@@ -411,12 +417,12 @@ export default function HeroSection({ tiposEmbarcacao, tiposVenda, locaisVenda }
 
         {/* Como funciona, em uma linha */}
         <ol className="mt-4 flex flex-wrap items-center justify-center gap-x-3 gap-y-2 text-xs md:text-sm text-white/80">
-          {PASSOS.map(({ icon: Icone, texto }, i) => (
-            <li key={texto} className="flex items-center gap-3">
+          {PASSOS.map(({ icon: Icone, id }, i) => (
+            <li key={id} className="flex items-center gap-3">
               {i > 0 && <ChevronRight aria-hidden className="hidden sm:block h-3.5 w-3.5 text-white/40" />}
               <span className="flex items-center gap-1.5">
                 <Icone aria-hidden className="h-3.5 w-3.5 md:h-4 md:w-4 text-turquesa" />
-                {texto}
+                {t(`passos.${id}`)}
               </span>
             </li>
           ))}

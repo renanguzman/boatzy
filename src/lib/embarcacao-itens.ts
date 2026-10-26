@@ -10,27 +10,19 @@ type ItensEmbarcacao = {
 /**
  * As três categorias do bloco "O que esta embarcação possui" (`EquipamentosEmbarcacao`), na ordem
  * de exibição, ignorando joins sem item. Usado no detalhe do roteiro e na página da embarcação.
+ * Título e contagem de cada categoria ficam nas mensagens (`Embarcacao.categorias.<icone>`).
  */
 export function categoriasDaEmbarcacao(e: ItensEmbarcacao): CategoriaEquipamentos[] {
   return [
     {
-      titulo: 'Equipamentos de Segurança',
-      singular: 'item de segurança',
-      plural: 'itens de segurança',
       icone: 'seguranca',
       itens: e.embarcacao_equipamentos_seguranca.flatMap((ee) => (ee.equipamentos_seguranca ? [ee.equipamentos_seguranca.nome] : [])),
     },
     {
-      titulo: 'Acessórios da Embarcação',
-      singular: 'acessório',
-      plural: 'acessórios',
       icone: 'acessorios',
       itens: e.embarcacao_acessorios.flatMap((ea) => (ea.acessorios ? [ea.acessorios.nome] : [])),
     },
     {
-      titulo: 'Comodidades a bordo',
-      singular: 'comodidade',
-      plural: 'comodidades',
       icone: 'comodidades',
       itens: e.embarcacao_comodidades.flatMap((ec) => (ec.comodidade ? [ec.comodidade.nome] : [])),
     },

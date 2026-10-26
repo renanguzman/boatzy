@@ -1,0 +1,128 @@
+{
+  "ArtigoPasseio": {
+    "sufixoTitulo": "{titulo} — Boatzy",
+    "porQue": {
+      "transparencia": "<b>Transparência total no preço:</b> O valor da tela é o preço final. Sem taxas surpresas ou letras miúdas na hora de pagar.",
+      "tudoSobreBarco": "<b>Tudo sobre o barco em um só lugar:</b> Acesso imediato a fotos, capacidade, comodidades e perfil do dono. Tudo na mão, sem precisar de mensagens extras.",
+      "calendario": "<b>Calendário ao vivo:</b> Veja as datas livres na hora da busca. A agenda é atualizada em tempo real direto pelos proprietários.",
+      "personalize": "<b>Personalize seu passeio:</b> Adicione serviços como marinheiro, bebidas e equipamentos de mergulho com apenas um clique, na mesma reserva.",
+      "cancelamento": "<b>Cancelamento sem dor de cabeça:</b> Regras de cancelamento claras antes do pagamento — inclusive para imprevistos com o clima.",
+      "pagamento": "<b>Pagamento 100% seguro:</b> Seu dinheiro fica protegido pela nossa plataforma e só é repassado ao proprietário após a realização do embarque."
+    },
+    "buscarEmbarcacoes": "Buscar embarcações",
+    "caixa-d-aco": {
+      "metaDescricao": "Descubra como aproveitar a famosa enseada do Caixa D'Aço alugando uma lancha. O roteiro perfeito de festa e natureza (onde foi gravado \"Ai Se Eu Te Pego\") saindo de Floripa ou BC.",
+      "altHero": "Vista aérea da enseada do Caixa D'Aço, em Porto Belo",
+      "intro1": "Se existe um lugar no litoral de Santa Catarina onde o agito se encontra perfeitamente com a natureza intocada, esse lugar é a enseada do Caixa D'Aço, localizada no município de Porto Belo.",
+      "intro2": "Cercada por uma Mata Atlântica exuberante e protegida dos ventos fortes, a baía de águas calmas e esmeraldas atrai embarcações de todos os tamanhos. Por estar estrategicamente posicionada, é um dos destinos mais cobiçados tanto para quem parte das marinas de Florianópolis quanto de Balneário Camboriú.",
+      "baresTitulo": "A Magia dos Bares Flutuantes (E o cenário de \"Ai Se Eu Te Pego\")",
+      "bares1": "O grande charme do Caixa D'Aço são os famosos \"bares flutuantes\". É o cenário ideal para quem busca diversão, música, bons drinks e a oportunidade de socializar com dezenas de outros barcos que ancoram lado a lado durante a alta temporada.",
+      "bares2": "A energia e o visual da enseada são tão únicos que o local foi escolhido como cenário para a gravação do clipe <em>\"Ai Se Eu Te Pego\"</em>, do cantor Michel Teló, gravado exatamente em um desses bares flutuantes e que se tornou um hit global!",
+      "altBar": "Bar flutuante com banda ao vivo e banhistas no Caixa D'Aço",
+      "vipTitulo": "A Experiência VIP: O Caixa D'Aço de Lancha",
+      "vip1": "A verdadeira experiência do Caixa D'Aço só acontece na água. Ao alugar uma lancha particular, você deixa de ser apenas um espectador e se torna um verdadeiro <em>Navegador</em>.",
+      "vip2": "Chegar de lancha permite que você ancore com segurança bem próximo à estrutura dos bares flutuantes, pedindo porções de frutos do mar e bebidas exclusivas que são entregues diretamente no deck do seu barco. Você tem a liberdade de curtir a festa no seu próprio ritmo, com a sua própria playlist tocando no sistema de som da embarcação, e mergulhar nas águas refrescantes a qualquer momento.",
+      "dicaOuro": "<b>Dica de Ouro:</b> O trajeto a partir de Floripa ou Balneário Camboriú já é um espetáculo à parte, passando por praias paradisíacas. Saia cedo para garantir o melhor ponto de ancoragem no Caixa D'Aço, pois a enseada costuma lotar nos finais de semana de sol.",
+      "idealPara": "<b>Ideal para:</b> Despedidas de solteiro(a), grupos de amigos animados, confraternizações e quem busca ver e ser visto.",
+      "altBarcos": "Dezenas de barcos ancorados lado a lado na enseada do Caixa D'Aço",
+      "porQueTitulo": "Por que escolher o Boatzy para essa aventura?",
+      "porQueIntro": "Planejar o seu roteiro para o Caixa D'Aço precisa ser tão relaxante quanto o passeio em si. Ao utilizar a plataforma Boatzy, você garante a melhor experiência de reserva do mercado:",
+      "ctaTitulo": "Pronto para viver o auge do verão catarinense?",
+      "ctaTexto": "Acesse a busca do Boatzy, reserve a lancha ideal para a sua tripulação e prepare-se para um dia inesquecível no Caixa D'Aço!"
+    },
+    "ilha-do-campeche": {
+      "metaTitulo": "Roteiro de Barco para a Ilha do Campeche",
+      "metaDescricao": "Descubra o \"Caribe Brasileiro\": roteiro exclusivo de barco para a Ilha do Campeche.",
+      "altHero": "Ilha do Campeche",
+      "intro1": "Se você está planejando sua viagem para Florianópolis, com certeza já ouviu falar de um lugar onde a areia é incrivelmente branca e a água do mar exibe tons de azul e verde turquesa que parecem ter saído de um filtro de Instagram. Estamos falando da <em>Ilha do Campeche</em>, carinhosamente — e justamente — apelidada de \"Caribe Brasileiro\".",
+      "intro2": "Localizada no sul de Florianópolis, de frente para a Praia do Campeche, a ilha é uma reserva natural tombada pelo IPHAN (Instituto do Patrimônio Histórico e Artístico Nacional), abrigando não apenas uma natureza exuberante, mas também um dos maiores acervos de inscrições rupestres do litoral brasileiro.",
+      "intro3": "Mas a grande dúvida de quem visita a cidade é: <em>qual é a melhor forma de chegar e aproveitar esse paraíso?</em>",
+      "acessoTitulo": "O problema do acesso tradicional",
+      "acesso1": "O acesso à Ilha do Campeche é limitado para preservar a natureza local. A maioria dos turistas acaba optando por transportes tradicionais (como escunas e botes infláveis) que partem da Praia da Armação, Barra da Lagoa ou da própria Praia do Campeche.",
+      "acesso2": "O problema? Esse método costuma envolver acordar de madrugada, enfrentar longas filas, dividir o espaço com dezenas de desconhecidos e, o pior de tudo: ficar engessado aos horários rígidos de ida e volta estipulados pelas associações de barcos.",
+      "altBarcos": "Barcos ancorados nas águas turquesa da Ilha do Campeche",
+      "premiumTitulo": "A Experiência Premium: Chegando à Ilha do Campeche de Lancha Particular",
+      "premium1": "Para quem deseja transformar um simples passeio em uma lembrança inesquecível de luxo e conforto, o <em>aluguel de uma lancha particular</em> é a escolha definitiva.",
+      "premium2": "Ao reservar um barco, você deixa de ser apenas um turista e passa a ser o que chamamos de <em>Navegador</em>. Como um verdadeiro Navegador, você tem a liberdade de ditar o ritmo do seu dia. Imagine embarcar com a sua família ou grupo de amigos em uma lancha só para vocês, com uma infraestrutura completa, navegando pelas águas do sul da ilha até a chegada triunfal na Ilha do Campeche.",
+      "premium3": "Ao invés de desembarcar nas areias lotadas, o seu Comandante ancorará em um ponto estratégico de águas calmas. Você terá o seu próprio \"deck flutuante\" para tomar sol, mergulhar com exclusividade e ouvir a sua própria música, longe da agitação.",
+      "porQueTitulo": "Por que reservar o seu passeio com o Boatzy?",
+      "porQueIntro": "Planejar esse roteiro nunca foi tão fácil. O Boatzy foi desenhado para conectar você aos melhores barcos de Florianópolis com a mesma facilidade de reservar um hotel. Ao escolher a nossa plataforma, você garante:",
+      "porQue": {
+        "transparencia": "<b>Transparência total no preço:</b> O valor que aparece na sua tela é o preço final, sem taxas surpresas ou letras miúdas no momento do checkout.",
+        "tudoSobreBarco": "<b>Tudo sobre o barco em um só lugar:</b> Você tem acesso imediato às fotos da embarcação, capacidade máxima, comodidades inclusas e o perfil do dono do barco.",
+        "calendario": "<b>Calendário ao vivo:</b> Você pode visualizar as datas livres no exato momento da busca, pois a agenda é atualizada em tempo real.",
+        "personalizacao": "<b>Personalização:</b> Na mesma reserva, você pode adicionar serviços extras com apenas um clique, como um marinheiro experiente ou equipamentos de mergulho.",
+        "seguranca": "<b>Segurança financeira:</b> O pagamento é 100% seguro; o seu dinheiro fica protegido pela nossa plataforma e só é repassado ao proprietário após o embarque."
+      },
+      "fazerTitulo": "O que fazer durante o seu dia de barco?",
+      "fazerIntro": "Ao ancorar na Ilha do Campeche, as opções são variadas:",
+      "fazer": {
+        "snorkel": "<b>Mergulho com Snorkel:</b> As águas transparentes e os costões rochosos da ilha são perfeitos para observar peixinhos coloridos, tartarugas e a rica vida marinha. Muitos barcos no Boatzy já incluem os equipamentos!",
+        "churrasco": "<b>Churrasco a bordo:</b> Diversas lanchas disponíveis na plataforma contam com churrasqueira. Leve suas carnes e bebidas favoritas e aproveite um almoço premium em alto mar.",
+        "trilhas": "<b>Trilhas Guiadas:</b> Se quiser pisar em terra firme, você pode desembarcar na praia e contratar os monitores ambientais locais para fazer trilhas pela Mata Atlântica e conhecer as inscrições rupestres milenares."
+      },
+      "dicasTitulo": "Dicas de Ouro para o seu passeio",
+      "dicas": {
+        "antecedencia": "<b>Antecedência é fundamental:</b> A Ilha do Campeche é o destino número um de Floripa no verão. Acesse o Boatzy e garanta o seu barco com semanas de antecedência para os meses de dezembro a março.",
+        "vento": "<b>Condições do vento:</b> O sul da ilha pode sofrer influência do vento Sul. Caso o mar não esteja favorável no dia reservado, não se preocupe! O Boatzy oferece regras de <em>cancelamento sem dor de cabeça</em> para imprevistos com o clima. Nesses casos, os passeios costumam ser redirecionados para a Baía Norte, que é super abrigada e igualmente linda.",
+        "cedo": "<b>Saia cedo:</b> Para aproveitar o mar mais calmo e garantir os melhores pontos de ancoragem (que são limitados pela Marinha), agende sua saída para as 9h da manhã."
+      },
+      "ctaTitulo": "Pronto para viver o melhor dia do seu verão?",
+      "ctaTexto": "Acesse a busca do Boatzy, escolha a lancha que mais combina com o seu grupo e prepare-se para descobrir o Caribe Brasileiro do jeito que você merece. Boa navegação!"
+    },
+    "costa-da-lagoa": {
+      "metaDescricao": "Roteiro de barco pela Lagoa da Conceição até a Costa da Lagoa: gastronomia, cachoeiras e a melhor forma de aproveitar as águas calmas de Florianópolis.",
+      "altHero": "Píer ao pôr do sol na Lagoa da Conceição",
+      "intro": "Nem só de mar aberto vive a cultura náutica de Florianópolis. A Lagoa da Conceição oferece uma das experiências de navegação mais charmosas e seguras da região, perfeita para quem prefere águas sem ondas e cercadas por morros cobertos de Mata Atlântica. Se você procura um roteiro que una tranquilidade, águas calmas e uma imersão na cultura local da ilha, este é o destino definitivo.",
+      "magiaTitulo": "A Magia e a Gastronomia da Costa da Lagoa",
+      "magia1": "O grande destaque de navegar pela região central da ilha é fazer a travessia até a Costa da Lagoa, uma comunidade tradicional onde os carros não chegam. Durante a navegação, o trajeto é deslumbrante, revelando cachoeiras escondidas e mansões cinematográficas.",
+      "magia2": "Como o acesso a essa vila é feito exclusivamente pela água (ou por longas trilhas), a preservação e a paz do local são inigualáveis. O grande atrativo da região é a gastronomia farta e focada em frutos do mar. Ao longo da costa, os restaurantes contam com píeres particulares (conhecidos pelos locais através de números) para que você possa atracar com facilidade, descer e saborear a mais autêntica culinária da ilha.",
+      "restaurantesTitulo": "Sugestões de Restaurantes para Ancorar",
+      "restaurantes": {
+        "cabral": "<b>Restaurante Cabral (Ponto 19):</b> Um dos mais tradicionais e renomados da região, famoso pelo seu grande deck de madeira à beira da lagoa. É o queridinho das lanchas pela sua excelente infraestrutura de atracação. Destaque para a isca de linguado, moqueca e caipirinhas caprichadas.",
+        "ponto16": "<b>Ponto 16 (O Point da Cachoeira):</b> Se você quer conciliar gastronomia e natureza, o Ponto 16 concentra vários restaurantes deliciosos um ao lado do outro. O grande diferencial deste ponto é que, logo atrás dos restaurantes, há o acesso para uma trilha curta e fácil que leva até uma bela cachoeira.",
+        "coracao": "<b>Restaurante Coração de Mãe & Sabor da Costa:</b> Outras opções muito elogiadas para quem busca a clássica \"sequência de camarão\" e peixes grelhados super frescos, em um ambiente rústico e acolhedor com vista para as águas tranquilas."
+      },
+      "gruposTitulo": "O Passeio Ideal para Grupos e Esportes Aquáticos",
+      "grupos": "As águas protegidas dos ventos fortes tornam a Lagoa perfeita para esportes aquáticos. É um roteiro muito procurado e ideal para grupos animados, aniversários e confraternizações. Ao planejar o seu aluguel de barco na Lagoa da Conceição, verifique na plataforma Boatzy os barcos que oferecem pranchas de Stand Up Paddle ou Wakeboard inclusas.",
+      "navegadorTitulo": "A Experiência de ser um Navegador",
+      "navegador": "Fazer o trajeto até os restaurantes da Costa da Lagoa utilizando os barcos públicos (\"baleeiras\") costuma envolver filas e horários estritos. No entanto, ao alugar uma lancha ou pontoon particular, você assume o controle e se torna um verdadeiro Navegador. Você decide a hora de sair, onde parar para dar um mergulho refrescante e em qual píer atracar para o almoço.",
+      "altCanal": "Vista aérea do canal e do píer de barcos na Lagoa da Conceição",
+      "porQueTitulo": "Por que reservar o seu passeio com o Boatzy?",
+      "porQueIntro": "O Boatzy foi desenhado para facilitar a sua conexão com o mar. Reservar a sua embarcação conosco garante uma experiência premium do início ao fim:",
+      "ctaTitulo": "Pronto para desbravar os segredos da Lagoa?",
+      "ctaTexto": "Acesse a busca do Boatzy, encontre o barco perfeito para o seu grupo e prepare-se para um dia inesquecível de gastronomia e diversão!"
+    },
+    "praia-do-tingua": {
+      "metaDescricao": "Descubra por que a Praia do Tinguá, em Governador Celso Ramos, é o destino mais desejado e o ponto de encontro perfeito para lanchas no verão catarinense.",
+      "altHero": "Vista aérea da Praia do Tinguá, em Governador Celso Ramos, cercada de lanchas",
+      "intro": "Se você procura o ponto de encontro mais cobiçado e vibrante do verão catarinense, prepare-se para conhecer a Praia do Tinguá. Localizada estrategicamente no município de Governador Celso Ramos, a poucos minutos de navegação ao norte da Ilha de Santa Catarina, essa enseada é o cenário perfeito para quem deseja unir natureza deslumbrante e muita diversão na água.",
+      "clubeTitulo": "O \"Clube Privado\" ao Ar Livre",
+      "clube1": "O que torna a Praia do Tinguá tão especial é a sua geografia. Com um acesso por via terrestre extremamente difícil e restrito, ela funciona, na prática, como uma praia \"exclusiva\" para quem chega pelo mar. Durante a alta temporada, a enseada se transforma em um verdadeiro desfile de lanchas e iates, atraindo embarcações não apenas de Florianópolis, mas de toda a região costeira.",
+      "clube2": "A grande vantagem deste destino é a sua proteção natural fenomenal contra os ventos fortes dos quadrantes Norte e Nordeste. O resultado? Um mar incrivelmente liso, semelhante a uma enorme piscina natural de águas calmas e transparentes. É o local perfeito para ancorar com total segurança, estender o seu tapete flutuante na água, ligar o sistema de som do barco e curtir o dia com os amigos sob o sol.",
+      "altBarcos": "Barcos ancorados em águas calmas ao amanhecer na Praia do Tinguá",
+      "gastronomiaTitulo": "Gastronomia e Estrutura à Beira-Mar",
+      "gastronomia": "Além do clima de festa e relaxamento nos barcos, a Praia do Tinguá oferece excelentes opções de comodidade. Você pode combinar com o seu Comandante uma parada estratégica nos restaurantes localizados na areia, que costumam oferecer serviço de trapiche para facilitar o desembarque. Há também embarcações de apoio que circulam pela baía vendendo gelo, drinks e petiscos entregues diretamente no deck da sua lancha.",
+      "lemeTitulo": "Assuma o Leme: Seja um Navegador",
+      "leme": "Ao alugar um barco particular, você deixa de ser apenas um turista e assume o papel de um verdadeiro Navegador. Você tem total liberdade para ditar o ritmo do passeio: seja para chegar cedinho e garantir o melhor ponto de ancoragem, fazer um belo churrasco a bordo na hora do almoço (basta buscar no Boatzy por barcos com churrasqueira inclusa) ou simplesmente brindar no final da tarde com o seu grupo.",
+      "porQueTitulo": "Por que escolher o Boatzy?",
+      "porQueIntro": "O Boatzy foi desenhado para facilitar a sua conexão com o mar. Planejar a sua ida ao Tinguá pela nossa plataforma garante:",
+      "ctaTitulo": "Pronto para viver o auge do verão catarinense?",
+      "ctaTexto": "Acesse a busca do Boatzy, reserve a lancha ideal para a sua tripulação e prepare-se para um dia inesquecível na Praia do Tinguá!"
+    },
+    "praia-de-palmas": {
+      "metaDescricao": "Explore a Ilha de Palmas de barco. Um roteiro focado em natureza preservada e mergulho em águas cristalinas na mesma baía da Praia de Palmas, com padrão Bandeira Azul.",
+      "altHero": "Vista aérea da Praia de Palmas, em Governador Celso Ramos",
+      "intro": "Para quem deseja fugir do trânsito intenso e mergulhar em um cenário de natureza intocada, a Ilha de Palmas, em Governador Celso Ramos, é a experiência definitiva. Localizada bem de frente para a extensa e famosa Praia de Palmas, a ilha é um verdadeiro santuário ecológico no litoral catarinense e parada obrigatória para quem busca excelência náutica.",
+      "bandeiraTitulo": "O Selo Bandeira Azul e as Águas Cristalinas",
+      "bandeira1": "Um detalhe fascinante sobre essa região é a excepcional qualidade do seu mar. A Praia de Palmas, logo em frente à ilha, já ostentou o rigoroso selo internacional \"Bandeira Azul\". Essa é uma das certificações ambientais mais cobiçadas do mundo, atestando a altíssima pureza, segurança e a balneabilidade da água.",
+      "bandeira2": "Na prática, navegar e ancorar ao redor da Ilha de Palmas significa mergulhar nessas exatas águas cristalinas, compartilhando a mesma baía de padrão internacional. É uma garantia de que o seu banho de mar será feito em um dos ambientes mais preservados de todo o Sul do Brasil.",
+      "navegadorTitulo": "A Verdadeira Experiência de um Navegador",
+      "navegador": "Sair da posição de turista e se tornar um Navegador ao alugar um barco particular permite que você explore os recantos mais escondidos desta ilha desabitada. Você foge da lotação das areias e ganha o seu próprio deck flutuante privativo. É o local perfeito para praticar snorkel, observar a rica vida marinha entre os costões rochosos e curtir a tranquilidade ouvindo apenas o som do mar.",
+      "porQueTitulo": "Por que escolher o Boatzy?",
+      "porQueIntro": "Planejar o seu roteiro para a Ilha de Palmas precisa ser tão relaxante quanto o passeio em si. Ao utilizar a plataforma Boatzy, você garante a melhor experiência de reserva do mercado:",
+      "ctaTitulo": "Pronto para desbravar águas de padrão internacional?",
+      "ctaTexto": "Acesse a busca do Boatzy, encontre o barco perfeito para o seu grupo e prepare-se para um dia inesquecível de conexão com a natureza!"
+    }
+  }
+}

@@ -1,5 +1,6 @@
 'use server';
 
+import { getTranslations } from 'next-intl/server';
 import { createClient } from '@/lib/supabase/server';
 import { carregarChatReserva, type ChatDonoDados } from '@/lib/chat-dono';
 
@@ -12,14 +13,15 @@ export async function abrirChatReserva(
 ): Promise<{ ok: true; dados: ChatDonoDados } | { ok: false; error: string; semSessao?: boolean }> {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return { ok: false, semSessao: true, error: 'Entre na sua conta para conversar com o dono.' };
+  const t = await getTranslations('Chat.erros');
+  if (!user) return { ok: false, semSessao: true, error: t('entreNaConta') };
 
   const resultado = await carregarChatReserva(reservaId, user.id);
   if (resultado.ok) return resultado;
   return {
     ok: false,
     error: resultado.motivo === 'dono'
-      ? 'Esta reserva é de um item seu — não dá para conversar consigo mesmo.'
-      : 'Não foi possível abrir a conversa com o dono desta reserva.',
+      ? t('reservaSua')
+      : t('falhaReserva'),
   };
 }

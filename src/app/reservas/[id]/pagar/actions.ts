@@ -1,5 +1,6 @@
 'use server';
 
+import { getTranslations } from 'next-intl/server';
 import { createClient } from '@/lib/supabase/server';
 import { supabaseAdmin } from '@/lib/supabase';
 import { iniciarPagamento, type IniciarPagamentoResultado } from '@/lib/pagamentos/checkout';
@@ -23,7 +24,7 @@ export async function pagarReserva(input: {
   cpf?: string;
 }): Promise<IniciarPagamentoResultado> {
   const userId = await usuarioLogado();
-  if (!userId) return { ok: false, error: 'Sua sessão expirou. Entre novamente para pagar.' };
+  if (!userId) return { ok: false, error: (await getTranslations('Pagamento'))('sessao') };
   return iniciarPagamento({ ...input, userId });
 }
 

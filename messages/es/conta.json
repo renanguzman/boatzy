@@ -1,0 +1,95 @@
+{
+  "MinhaConta": {
+    "titulo": "Mi cuenta",
+    "metaTitulo": "Mi cuenta | Boatzy",
+    "subtitulo": "Administra tus datos personales y preferencias.",
+    "clientePadrao": "Cliente",
+    "secoes": {
+      "rotulo": "Secciones de la cuenta",
+      "dadosPessoais": "Datos personales",
+      "endereco": "Mi dirección",
+      "notificacoes": "Notificaciones",
+      "idioma": "Idioma",
+      "seguranca": "Seguridad"
+    },
+    "clienteDesde": "Cliente desde el {data}",
+    "loginVinculado": "Inicio de sesión vinculado:",
+    "provedorEmail": "Correo y contraseña",
+    "dados": {
+      "subtitulo": "Actualiza tu información de contacto.",
+      "emailFixo": "El correo no se puede cambiar.",
+      "nascimento": "Fecha de nacimiento",
+      "opcional": "(opcional)",
+      "nascimentoInvalido": "Fecha de nacimiento no válida.",
+      "salvar": "Guardar cambios",
+      "atualizados": "Datos actualizados.",
+      "informeNome": "Ingresa tu nombre completo.",
+      "celularInvalido": "Número de celular no válido.",
+      "sessao": "Tu sesión expiró. Ingresa nuevamente.",
+      "naoFoiPossivelSalvar": "No se pudo guardar. Inténtalo de nuevo."
+    },
+    "endereco": {
+      "subtitulo": "Opcional. Para direcciones en Brasil, ingresa el CEP (código postal) para completar automáticamente.",
+      "cep": "CEP (código postal)",
+      "cepNaoEncontrado": "CEP no encontrado. Revisa el número o completa manualmente.",
+      "cepErro": "Error al consultar el CEP. Completa manualmente.",
+      "estado": "Estado",
+      "selecione": "Selecciona",
+      "municipio": "Municipio",
+      "bairro": "Barrio",
+      "logradouro": "Calle",
+      "logradouroPlaceholder": "Calle, avenida…",
+      "numero": "Número",
+      "complemento": "Complemento",
+      "complementoPlaceholder": "Depto., bloque, referencia…",
+      "salvar": "Guardar dirección",
+      "atualizado": "Dirección actualizada."
+    },
+    "notificacoes": {
+      "subtitulo": "Elige qué quieres recibir por correo.",
+      "conversas": "Recibir avisos por correo de nuevos mensajes",
+      "conversasAjuda": "Te avisamos por correo cuando tengas mensajes nuevos sin leer en el chat.",
+      "sempre": "Los avisos sobre tus reservas y pagos (confirmación, cancelación, pago aprobado o rechazado, plazo para pagar y reembolso) siempre se envían por correo y aparecen en <link>Notificaciones</link>."
+    },
+    "idioma": {
+      "subtitulo": "Idioma del sitio. La elección queda guardada en tu cuenta y vale en cualquier dispositivo.",
+      "emailsPt": "Por ahora, los correos de Boatzy se envían en portugués."
+    },
+    "seguranca": {
+      "subtitulo": "Cambia la contraseña de tu cuenta.",
+      "senhaAtual": "Contraseña actual",
+      "alterar": "Cambiar contraseña",
+      "requisitos": "La nueva contraseña no cumple todos los requisitos.",
+      "atualIncorreta": "Contraseña actual incorrecta.",
+      "falha": "No se pudo cambiar la contraseña. Inténtalo de nuevo.",
+      "sucesso": "Contraseña cambiada.",
+      "social": "Tu cuenta usa inicio de sesión social ({provedores}), así que no hay contraseña para cambiar aquí. Administra el acceso directamente con tu proveedor."
+    }
+  },
+  "MinhasConversas": {
+    "metaTitulo": "Mis conversaciones",
+    "titulo": "Mis conversaciones",
+    "subtitulo": "Tus conversaciones con los gestores: reservas de paseos, embarcaciones y anuncios de venta.",
+    "vazioTitulo": "Todavía no tienes conversaciones",
+    "vazioTexto": "Cuando converses con un gestor sobre una reserva o un anuncio de venta, la conversación aparecerá aquí.",
+    "explorar": "Explorar Boatzy",
+    "iniciarConversa": "Iniciar conversación",
+    "diasAtras": "hace {n, plural, one {# día} other {# días}}",
+    "voltar": "Volver a Mis conversaciones"
+  },
+  "Favoritos": {
+    "metaTitulo": "Favoritos",
+    "titulo": "Favoritos",
+    "subtitulo": "Los paseos y embarcaciones que guardaste para decidir con calma.",
+    "vazioTitulo": "Todavía no tienes favoritos",
+    "vazioTexto": "Toca el corazón de un paseo o de una embarcación para guardarlos aquí.",
+    "explorar": "Explorar paseos",
+    "secoes": {
+      "roteiros": "Paseos",
+      "embarcacoes": "Embarcaciones",
+      "venda": "En venta"
+    },
+    "remover": "Quitar de favoritos",
+    "embarcacaoPadrao": "Embarcación"
+  }
+}

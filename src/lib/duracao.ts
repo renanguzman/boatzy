@@ -46,35 +46,17 @@ export function duracaoTexto(horas: number | null | undefined): string | null {
   return `${numero} ${Number(valor) === 1 ? 'hora' : 'horas'}`;
 }
 
-/** Faixas prontas do painel de filtros de /buscar (min/max em horas, inclusivos). */
-export const DURACAO_PRESETS: { label: string; min: number | null; max: number | null }[] = [
-  { label: 'Até 3 horas', min: null, max: 3 },
-  { label: '3 a 6 horas', min: 3, max: 6 },
-  { label: '6 a 12 horas', min: 6, max: 12 },
-  { label: 'Dia inteiro (12h a 1 dia)', min: 12, max: 24 },
-  { label: 'Mais de 1 dia', min: 24.01, max: null },
-];
-
-/** Rótulo curto da faixa de duração selecionada (chip e botão de filtros). */
-export function faixaDuracaoLabel(min: number | null, max: number | null): string | null {
-  if (min == null && max == null) return null;
-  const preset = DURACAO_PRESETS.find((p) => p.min === min && p.max === max);
-  if (preset) return preset.label;
-  const fmt = (h: number) => duracaoTexto(h) ?? `${h}h`;
-  if (min != null && max != null) return `${fmt(min)} a ${fmt(max)}`;
-  if (min != null) return `A partir de ${fmt(min)}`;
-  return `Até ${fmt(max as number)}`;
-}
-
-/** Rótulo curto da faixa de preço selecionada. */
-export function faixaPrecoLabel(min: number | null, max: number | null): string | null {
-  if (min == null && max == null) return null;
-  const fmt = (v: number) =>
-    v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 });
-  if (min != null && max != null) return `${fmt(min)} a ${fmt(max)}`;
-  if (min != null) return `A partir de ${fmt(min)}`;
-  return `Até ${fmt(max as number)}`;
-}
+/**
+ * Faixas prontas do painel de filtros de /buscar (min/max em horas, inclusivos).
+ * Rótulo no idioma do site: `Busca.duracaoPresets.<id>`.
+ */
+export const DURACAO_PRESETS = [
+  { id: 'ate3', min: null, max: 3 },
+  { id: 'de3a6', min: 3, max: 6 },
+  { id: 'de6a12', min: 6, max: 12 },
+  { id: 'diaInteiro', min: 12, max: 24 },
+  { id: 'maisDe1Dia', min: 24.01, max: null },
+] as const satisfies readonly { id: string; min: number | null; max: number | null }[];
 
 const MINUTOS_POR_DIA = HORAS_POR_DIA * 60;
 

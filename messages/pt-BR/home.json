@@ -1,0 +1,62 @@
+{
+  "Hero": {
+    "altImagem": "Iate de luxo ao amanhecer",
+    "sobretitulo": "Passeios de barco com reserva 100% online",
+    "titulo": "O horizonte é <destaque>seu</destaque>.",
+    "subtitulo": "Do roteiro ao embarque — faça tudo pelo site, com pagamento seguro, em poucos minutos.",
+    "buscarVendas": "Buscar embarcações à venda",
+    "dicaDestino": "Comece sua experiência por aqui",
+    "passos": {
+      "buscar": "Busque o destino",
+      "escolher": "Escolha o roteiro",
+      "reservar": "Reserve e pague online"
+    }
+  },
+  "Home": {
+    "novosRoteiros": {
+      "sobretitulo": "Roteiros Selecionados",
+      "titulo": "Novos <destaque>Roteiros</destaque>",
+      "verMais": "Ver Mais",
+      "verTodos": "Ver Todos os Roteiros"
+    },
+    "novasEmbarcacoes": {
+      "sobretitulo": "Coleção de Destaque",
+      "titulo": "Novas <destaque>Embarcações</destaque>",
+      "verTodas": "Ver Todas",
+      "verTodasEmbarcacoes": "Ver Todas as Embarcações"
+    },
+    "avaliacoes": {
+      "sobretitulo": "Avaliações reais",
+      "titulo": "Quem navegou, <destaque>recomenda</destaque>",
+      "descricao": "Notas 5 estrelas de clientes que reservaram e fizeram o passeio pelo Boatzy.",
+      "nota5": "Nota 5 de 5"
+    },
+    "beneficios": {
+      "sobretitulo": "Por que reservar com o Boatzy",
+      "titulo": "Navegue com <destaque>tranquilidade</destaque>",
+      "cta": "Encontre seu roteiro",
+      "precoFinal": {
+        "titulo": "Preço final, sem surpresa",
+        "descricao": "O valor que você vê na tela é o que você paga. Sem taxas escondidas."
+      },
+      "pagamento": {
+        "titulo": "Pagamento protegido",
+        "descricao": "Seu dinheiro só é repassado ao dono do barco depois do passeio."
+      },
+      "cancelamento": {
+        "titulo": "Cancelamento sem drama",
+        "descricao": "Regras claras antes de pagar, inclusive para dias de mau tempo."
+      },
+      "agenda": {
+        "titulo": "Agenda de verdade",
+        "descricao": "Datas atualizadas pelos donos. Viu livre, pode reservar."
+      }
+    },
+    "experiencias": {
+      "sobretitulo": "Inspire-se",
+      "titulo": "Coleção de <destaque>experiências</destaque>",
+      "anterior": "Experiência anterior",
+      "proxima": "Próxima experiência"
+    }
+  }
+}

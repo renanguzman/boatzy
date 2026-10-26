@@ -2,10 +2,11 @@
 
 import { useCallback, useId, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { useTranslations } from 'next-intl';
 import { ArrowRight, MessageCircle } from 'lucide-react';
 import { useModoPreview } from '@/components/preview/ModoPreview';
 import { ChatDonoDialog, saudacaoPasseio } from '@/components/chat/ChatDonoModal';
-import { formatarData } from '@/lib/datas';
+import { useFormatos } from '@/i18n/formatos';
 
 /** Mesmo teto do envio no chat (`enviarMensagem`, src/lib/chat-actions.ts). */
 const MAX_MENSAGEM = 4000;
@@ -27,6 +28,9 @@ type Props = {
  */
 export default function ContatoDono({ roteiroId, roteiroNome, dataISO, pessoas }: Props) {
   const router = useRouter();
+  const t = useTranslations('ContatoDono');
+  const tChat = useTranslations('Chat');
+  const f = useFormatos();
   const preview = useModoPreview();
   const idCampo = useId();
   const [texto, setTexto] = useState('');
@@ -73,10 +77,10 @@ export default function ContatoDono({ roteiroId, roteiroNome, dataISO, pessoas }
         </span>
         <div className="min-w-0">
           <label htmlFor={idCampo} className="block text-sm font-semibold text-marinho leading-snug">
-            Ficou com dúvida? Fale com o dono da embarcação
+            {t('titulo')}
           </label>
           <p className="text-xs text-slate-500 leading-relaxed mt-0.5">
-            A conversa acontece aqui pelo Boatzy, antes de você reservar.
+            {t('subtitulo')}
           </p>
         </div>
       </div>
@@ -91,7 +95,7 @@ export default function ContatoDono({ roteiroId, roteiroNome, dataISO, pessoas }
         }}
         rows={2}
         maxLength={MAX_MENSAGEM}
-        placeholder="Olá! Gostaria de saber se…"
+        placeholder={t('placeholder')}
         className="mt-4 block w-full resize-none rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-700 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-marinho/20 focus:border-marinho/40 transition"
       />
 
@@ -103,7 +107,7 @@ export default function ContatoDono({ roteiroId, roteiroNome, dataISO, pessoas }
         // Amarelo de destaque da paleta (uso pontual): texto marinho, contraste 8,8:1.
         className="group mt-3 w-full flex items-center justify-center gap-2 py-2.5 rounded-xl bg-destaque text-marinho shadow-sm shadow-destaque/40 hover:brightness-95 active:scale-[0.99] text-sm font-bold transition disabled:opacity-70"
       >
-        Conversar com o dono
+        {t('botao')}
         <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
       </button>
 
@@ -114,7 +118,7 @@ export default function ContatoDono({ roteiroId, roteiroNome, dataISO, pessoas }
         origem="roteiro"
         rascunho={rascunho}
         onSemSessao={irParaLogin}
-        saudacao={saudacaoPasseio(roteiroNome, { dataLabel: dataISO ? formatarData(dataISO) : null, pessoas })}
+        saudacao={saudacaoPasseio(tChat, roteiroNome, { dataLabel: dataISO ? f.data(dataISO) : null, pessoas })}
       />
     </form>
   );

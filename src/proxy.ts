@@ -1,5 +1,6 @@
 import { createServerClient } from '@supabase/ssr';
 import { NextResponse, type NextRequest } from 'next/server';
+import { HEADER_AREA, isRotaInterna } from '@/i18n/config';
 
 const painelPublicRoutes = [
   /^\/painel\/login(\/|$)/,
@@ -23,6 +24,12 @@ function isAdministratorPublic(pathname: string) {
 }
 
 export async function proxy(request: NextRequest) {
+  // Painel e administrador ficam sempre em pt-BR (src/i18n/request.ts). O header
+  // só é definido aqui — o que vier do navegador é descartado. Vai junto da
+  // request repassada abaixo (`NextResponse.next({ request })`).
+  request.headers.delete(HEADER_AREA);
+  if (isRotaInterna(request.nextUrl.pathname)) request.headers.set(HEADER_AREA, 'interno');
+
   // Cria a resposta base e o cliente Supabase SSR que lê/escreve cookies.
   let supabaseResponse = NextResponse.next({ request });
 

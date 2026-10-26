@@ -1,3 +1,4 @@
+import { useTranslations } from 'next-intl';
 import { Ban, ShieldAlert } from 'lucide-react';
 
 /**
@@ -8,15 +9,16 @@ import { Ban, ShieldAlert } from 'lucide-react';
  * ícones de cada regra, para sinalizar sem deixar o bloco com cara de erro.
  */
 export default function RegrasEmbarcacao({ regras }: { regras: string[] | null | undefined }) {
+  const t = useTranslations('Embarcacao.regras');
   if (!regras || regras.length === 0) return null;
 
   return (
-    <section aria-label="Regras a bordo" className="rounded-xl border border-slate-100 bg-white overflow-hidden">
+    <section aria-label={t('titulo')} className="rounded-xl border border-slate-100 bg-white overflow-hidden">
       <h3 className="flex items-center gap-2 border-b border-slate-100 bg-slate-100/70 px-4 py-2.5">
         <ShieldAlert className="h-4 w-4 shrink-0 text-destaque" />
-        <span className="text-sm font-semibold text-marinho">Regras a bordo</span>
+        <span className="text-sm font-semibold text-marinho">{t('titulo')}</span>
         <span className="ml-auto text-[11px] font-medium text-slate-400 tabular-nums">
-          {regras.length} {regras.length === 1 ? 'regra' : 'regras'}
+          {t('contagem', { count: regras.length })}
         </span>
       </h3>
       <ul className="divide-y divide-slate-100 px-4">

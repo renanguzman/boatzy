@@ -1,0 +1,188 @@
+{
+  "StatusReserva": {
+    "pendente": {
+      "label": "Esperando confirmación",
+      "note": "Tu solicitud fue enviada. El dueño la analizará y responderá pronto."
+    },
+    "aguardando_pagamento": {
+      "label": "Esperando el pago",
+      "note": "El dueño aceptó tu solicitud. Completa el pago para asegurar la fecha."
+    },
+    "expirada": {
+      "label": "Pago vencido",
+      "note": "El plazo de pago terminó y la solicitud venció. No se cobró ningún valor."
+    },
+    "confirmada": {
+      "label": "Confirmada",
+      "note": "Reserva confirmada por el dueño."
+    },
+    "recusada": {
+      "label": "Rechazada",
+      "note": "El dueño rechazó esta solicitud."
+    },
+    "cancelada": {
+      "label": "Cancelada",
+      "note": "Cancelaste esta reserva."
+    },
+    "concluida": {
+      "label": "Completada",
+      "note": "Experiencia realizada. Cuéntanos cómo fue: ¡tu opinión ayuda a otros clientes!"
+    }
+  },
+  "MinhasReservas": {
+    "titulo": "Mis reservas",
+    "metaTitulo": "Mis reservas | Boatzy",
+    "subtitulo": "Sigue el estado de tus solicitudes y la respuesta del dueño.",
+    "vazioTitulo": "Todavía no tienes reservas",
+    "vazioTexto": "Explora los paseos disponibles y haz tu primera solicitud.",
+    "explorar": "Explorar paseos",
+    "dataFlex": "{data} (± {count, plural, one {# día} other {# días}})",
+    "solicitadaEm": "Solicitada el {data}",
+    "adicionais": "Extras",
+    "totalEstimado": "Total estimado",
+    "pagamentoPendente": "Pago pendiente · Pedido #{numero}",
+    "pagueAte": "Paga antes del {data} para asegurar la fecha.",
+    "pagar": "Pagar {valor}",
+    "pagamentoConfirmado": "Pago confirmado · Pedido #{numero}",
+    "respostaGestor": "Respuesta del dueño",
+    "respondidaEm": "Respondida el {data}",
+    "quemAtende": "Quién te va a atender",
+    "gestorEmbarcacao": "Responsable de la embarcación",
+    "verDetalhes": "Ver detalles →",
+    "cancelar": {
+      "botao": "Cancelar reserva",
+      "confirmar": "¿Cancelar esta reserva?",
+      "sim": "Sí, cancelar"
+    },
+    "avaliacao": {
+      "sua": "Tu opinión",
+      "aguardandoAprovacao": "Esperando aprobación",
+      "enviadaEm": "Enviada el {data}",
+      "avaliar": "Calificar la experiencia",
+      "comoFoi": "¿Cómo fue tu experiencia?",
+      "estrelas": "{count, plural, one {# estrella} other {# estrellas}}",
+      "deCinco": "{nota} de 5",
+      "placeholder": "Cuéntanos cómo fue el paseo (opcional)",
+      "enviar": "Enviar opinión",
+      "agoraNao": "Ahora no"
+    },
+    "erros": {
+      "sessao": "Sesión vencida. Ingresa nuevamente.",
+      "naoEncontrada": "Reserva no encontrada.",
+      "pagaNaoCancela": "Las reservas pagadas todavía no se pueden cancelar en el sitio. Habla con el dueño por el chat para acordar la cancelación.",
+      "naoPodeCancelar": "Esta reserva ya no se puede cancelar.",
+      "naoFoiPossivelAgora": "No se pudo cancelar ahora.",
+      "erroCancelar": "Error al cancelar la reserva. Inténtalo de nuevo.",
+      "nota": "Elige una calificación de 1 a 5 estrellas.",
+      "comentarioLongo": "El comentario puede tener como máximo 2000 caracteres.",
+      "soConcluidas": "Solo se pueden calificar reservas completadas.",
+      "jaAvaliou": "Ya calificaste esta reserva.",
+      "erroAvaliar": "Error al enviar la opinión. Inténtalo de nuevo."
+    },
+    "chat": {
+      "voltarReserva": "Volver a la reserva"
+    }
+  },
+  "DetalheReserva": {
+    "reservaCodigo": "Reserva {codigo}",
+    "etapas": {
+      "solicitacaoEnviada": "Solicitud enviada",
+      "respostaDono": "Respuesta del dueño",
+      "aguardandoAnalise": "Esperando el análisis",
+      "naoAceita": "No aceptada por el dueño",
+      "canceladaPorVoce": "Cancelada por ti",
+      "aceitaPeloDono": "Aceptada por el dueño",
+      "confirmadaPeloDono": "Confirmada por el dueño",
+      "pagamento": "Pago",
+      "depoisAceite": "Después de la aceptación",
+      "pagueAte": "Paga antes del {data}",
+      "aguardando": "Pendiente",
+      "prazoExpirou": "El plazo de pago venció",
+      "pagamentoAprovado": "Pago aprobado",
+      "reembolsado": "Reembolsado",
+      "reembolsoParcial": "Reembolso parcial",
+      "passeioRealizado": "Paseo realizado",
+      "diaPasseio": "Día del paseo"
+    },
+    "seuPasseio": "Tu paseo",
+    "periodo": "Período",
+    "data": "Fecha",
+    "ate": "hasta",
+    "flexivel": "Flexible en ± {count, plural, one {# día} other {# días}}",
+    "pessoas": "Personas",
+    "saida": "Salida",
+    "retornoAproximado": "Regreso aproximado",
+    "duracao": "Duración",
+    "duracaoDe": "Duración de {duracao}",
+    "embarcacao": "Embarcación",
+    "donoEmbarcacao": "Dueño de la embarcación",
+    "embarqueDesembarque": "Embarque y desembarque",
+    "solicitadaEm": "Solicitada el",
+    "pontoEncontro": "Punto de encuentro",
+    "abrirMapa": "Abrir en el mapa",
+    "opcionaisIncluidos": "Extras incluidos",
+    "respostaDono": "Respuesta del dueño",
+    "situacao": "Estado de la reserva",
+    "recado": "Mensaje",
+    "valores": "Valores",
+    "precoACombinar": "Precio a convenir con el dueño: se define cuando acepte la solicitud.",
+    "linhaPasseio": "Paseo",
+    "linhaPasseioDiarias": "Paseo ({count, plural, one {# día} other {# días}})",
+    "linhaPasseioPessoas": "Paseo ({count, plural, one {# persona} other {# personas}})",
+    "opcionais": "Extras",
+    "total": "Total",
+    "totalEstimado": "Total estimado",
+    "taxasIncluidas": "Tasas incluidas",
+    "taxasIncluidasPedido": "Tasas incluidas · Pedido #{numero}",
+    "pagamento": "Pago",
+    "itemSeu": "Esta reserva es de un anuncio tuyo: no hay conversación contigo mismo.",
+    "verRoteiro": "Ver la página del paseo",
+    "termosAceitos": "Términos de uso de la reserva (versión {versao}) aceptados el {data} · Protocolo <mono>{protocolo}</mono>",
+    "imprimir": "Imprimir o guardar en PDF",
+    "comprovante": {
+      "titulo": "Comprobante de pago",
+      "pedidoReserva": "Pedido #{numero} · Reserva {codigo}",
+      "valorPago": "Valor pagado",
+      "dataPagamento": "Fecha del pago",
+      "forma": "Forma de pago",
+      "aVista": "en un pago",
+      "pagador": "Pagador",
+      "recebedor": "Beneficiario",
+      "recebedorValor": "Boatzy — intermediación del pago",
+      "idTransacao": "ID de la transacción",
+      "idPix": "ID Pix (end-to-end)",
+      "numeroFatura": "N.º de factura",
+      "referenteA": "Correspondiente a",
+      "opcionaisLista": "Extras: {lista}",
+      "passeioOpcionais": "Paseo y extras",
+      "totalPago": "Total pagado",
+      "reembolsos": "Reembolsos",
+      "estornadoEm": "Reembolsado el {data}",
+      "emAndamento": "En curso desde el {data}",
+      "prazoExtrato": "El plazo para que el valor aparezca en tu resumen depende de tu banco o de la emisora de la tarjeta.",
+      "processado": "Pago procesado por Boatzy (Asaas). Comprobante emitido el {data}.",
+      "operadora": "Comprobante de la operadora"
+    },
+    "selo": {
+      "pago": "Pago aprobado",
+      "reembolsado": "Reembolsado",
+      "reembolsado_parcial": "Reembolso parcial",
+      "em_disputa": "En disputa"
+    },
+    "statusPagamento": {
+      "pendente": "No se cobra nada ahora. Si el dueño acepta, pagas por Boatzy (Pix o tarjeta) para asegurar la fecha.",
+      "semOnline": "Reserva confirmada sin pago online por Boatzy. Acuerda el pago con el dueño por el chat.",
+      "nenhum": "No se cobró ningún valor por esta reserva.",
+      "aguardando": "Esperando el pago",
+      "reembolsado": "Pago reembolsado",
+      "reembolsoParcial": "Reembolso parcial",
+      "emContestacao": "Pago en disputa",
+      "aprovado": "Pago aprobado",
+      "protegido": "El dueño solo cobra después del paseo: tu pago queda protegido por Boatzy.",
+      "expirado": "Plazo de pago vencido",
+      "expiradoTexto": "No se cobró ningún valor. Si aún quieres el paseo, haz una nueva solicitud.",
+      "cancelado": "Pedido cancelado",
+      "nenhumCobrado": "No se cobró ningún valor."
+    }
+  }
+}

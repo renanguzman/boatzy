@@ -1,5 +1,6 @@
 'use server';
 
+import { getTranslations } from 'next-intl/server';
 import { sendEmail } from '@/lib/email';
 import { gerarDesafioCaptcha, verificarDesafioCaptcha, type DesafioCaptcha } from '@/lib/contato-captcha';
 import { ASSUNTOS_CONTATO, type AssuntoContato } from './constants';
@@ -28,6 +29,7 @@ export async function enviarContato(input: EnviarContatoInput): Promise<EnviarCo
   const email = input.email.trim();
   const mensagem = input.mensagem.trim();
   const assunto = input.assunto.trim();
+  const t = await getTranslations('Contato.erros');
 
   // Honeypot: campo invisível para humanos; se veio preenchido, é bot.
   // Responde "sucesso" para não dar pista de que foi bloqueado.
@@ -36,19 +38,19 @@ export async function enviarContato(input: EnviarContatoInput): Promise<EnviarCo
   }
 
   if (!nome || nome.length < 2) {
-    return { ok: false, error: 'Informe seu nome.' };
+    return { ok: false, error: t('nome') };
   }
   if (!EMAIL_REGEX.test(email)) {
-    return { ok: false, error: 'Informe um e-mail válido.' };
+    return { ok: false, error: t('email') };
   }
   if (!ASSUNTOS_CONTATO.includes(assunto as AssuntoContato)) {
-    return { ok: false, error: 'Selecione um assunto.' };
+    return { ok: false, error: t('assunto') };
   }
   if (!mensagem || mensagem.length < 10) {
-    return { ok: false, error: 'Escreva uma mensagem com pelo menos 10 caracteres.' };
+    return { ok: false, error: t('mensagemCurta') };
   }
   if (mensagem.length > 5000) {
-    return { ok: false, error: 'Mensagem muito longa.' };
+    return { ok: false, error: t('mensagemLonga') };
   }
 
   const respostaNum = Number(input.captchaResposta);
@@ -59,7 +61,7 @@ export async function enviarContato(input: EnviarContatoInput): Promise<EnviarCo
     respostaNum
   );
   if (!captchaOk) {
-    return { ok: false, error: 'Verificação de segurança incorreta. Tente novamente.' };
+    return { ok: false, error: t('captcha') };
   }
 
   const html = `
@@ -82,7 +84,7 @@ export async function enviarContato(input: EnviarContatoInput): Promise<EnviarCo
 
   if (!res.ok) {
     console.error('[enviarContato] falha ao enviar e-mail:', res.error);
-    return { ok: false, error: 'Não foi possível enviar sua mensagem agora. Tente novamente em instantes.' };
+    return { ok: false, error: t('envio') };
   }
 
   return { ok: true };

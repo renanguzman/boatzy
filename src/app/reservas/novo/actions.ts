@@ -1,15 +1,16 @@
 'use server';
 
 import { after } from 'next/server';
+import { getTranslations } from 'next-intl/server';
 import { createClient } from '@/lib/supabase/server';
 import { supabaseAdmin } from '@/lib/supabase';
 import { getMotivoPeriodoIndisponivel, somarDiasISO } from '@/lib/reservas';
-import { mensagemIndisponivel } from '@/lib/disponibilidade';
+import { motivoIndisponivel } from '@/lib/disponibilidade';
 import { getTaxaEfetiva } from '@/lib/taxas';
 import { expirarPedidosVencidosSemFalhar } from '@/lib/pagamentos/pedidos';
 import { notificarGestorNovaSolicitacao } from '@/lib/emails/reserva-solicitada';
-import { formatCurrencyPrecise } from '@/lib/utils';
-import { capacidadeMaxima, mensagemCapacidadeExcedida } from '@/lib/capacidade';
+import { capacidadeMaxima } from '@/lib/capacidade';
+import { getFormatos } from '@/i18n/formatos-servidor';
 import type { CupomTipoDesconto, ReservaModalidadePreco } from '@/types/supabase';
 
 /** Modelos aceitos em novas solicitações ('pessoa' existe no banco só para reservas antigas). */
@@ -118,7 +119,8 @@ async function precoRoteiroNaData(
  * vindo do cliente.
  */
 async function resolverAlvo(input: ResolverAlvoInput): Promise<ResolverAlvoResult> {
-  if (!input.roteiroId) return { ok: false, error: 'Roteiro inválido.' };
+  const t = await getTranslations();
+  if (!input.roteiroId) return { ok: false, error: t('ErrosReserva.roteiroInvalido') };
   const { data: roteiro, error: roteiroErr } = await supabaseAdmin
     .from('roteiro')
     .select(`
@@ -129,10 +131,10 @@ async function resolverAlvo(input: ResolverAlvoInput): Promise<ResolverAlvoResul
     .eq('id', input.roteiroId)
     .eq('ativo', true)
     .single();
-  if (roteiroErr || !roteiro) return { ok: false, error: 'Roteiro não encontrado ou indisponível.' };
+  if (roteiroErr || !roteiro) return { ok: false, error: t('Disponibilidade.inexistente') };
 
   if (input.modalidade === 'diaria' && !roteiro.preco_diaria_ativo) {
-    return { ok: false, error: 'Este roteiro não tem o modelo Por Diária disponível.' };
+    return { ok: false, error: t('ErrosReserva.semDiaria') };
   }
 
   // No modelo Roteiro o preço do dia vem de `get_preco_roteiro`, que aplica as
@@ -208,7 +210,8 @@ type ValidarRegrasResult = { ok: true; cupom: CupomValidado } | { ok: false; err
  */
 async function validarRegrasCupom(codigoBruto: string, clienteId: string, subtotal: number): Promise<ValidarRegrasResult> {
   const codigo = codigoBruto.trim().toUpperCase().replace(/\s+/g, '');
-  if (!codigo) return { ok: false, error: 'Informe um código de cupom.' };
+  const [t, f] = await Promise.all([getTranslations('ErrosReserva.cupom'), getFormatos()]);
+  if (!codigo) return { ok: false, error: t('informe') };
 
   const { data: cupom } = await supabaseAdmin
     .from('cupom')
@@ -219,17 +222,17 @@ async function validarRegrasCupom(codigoBruto: string, clienteId: string, subtot
     .eq('codigo', codigo)
     .maybeSingle();
 
-  if (!cupom) return { ok: false, error: 'Cupom inválido.' };
-  if (!cupom.ativo) return { ok: false, error: 'Este cupom não está mais disponível.' };
+  if (!cupom) return { ok: false, error: t('invalido') };
+  if (!cupom.ativo) return { ok: false, error: t('indisponivel') };
 
   const hoje = hojeISO(); // horário de Brasília (o servidor roda em UTC)
-  if (cupom.data_inicio && cupom.data_inicio > hoje) return { ok: false, error: 'Este cupom ainda não é válido.' };
-  if (cupom.data_fim && cupom.data_fim < hoje) return { ok: false, error: 'Este cupom expirou.' };
+  if (cupom.data_inicio && cupom.data_inicio > hoje) return { ok: false, error: t('naoValido') };
+  if (cupom.data_fim && cupom.data_fim < hoje) return { ok: false, error: t('expirou') };
 
   if (cupom.valor_minimo_pedido != null && subtotal < Number(cupom.valor_minimo_pedido)) {
     return {
       ok: false,
-      error: `Este cupom exige um pedido mínimo de ${formatCurrencyPrecise(Number(cupom.valor_minimo_pedido))}.`,
+      error: t('minimo', { valor: f.moedaCentavos(Number(cupom.valor_minimo_pedido)) }),
     };
   }
 
@@ -239,7 +242,7 @@ async function validarRegrasCupom(codigoBruto: string, clienteId: string, subtot
       .select('id', { count: 'exact', head: true })
       .eq('cupom_id', cupom.id);
     if ((count ?? 0) >= cupom.limite_uso_total) {
-      return { ok: false, error: 'Este cupom atingiu o limite de usos.' };
+      return { ok: false, error: t('limiteUsos') };
     }
   }
 
@@ -250,7 +253,7 @@ async function validarRegrasCupom(codigoBruto: string, clienteId: string, subtot
       .eq('cupom_id', cupom.id)
       .eq('cliente_id', clienteId);
     if ((count ?? 0) >= cupom.limite_uso_por_cliente) {
-      return { ok: false, error: 'Você já utilizou este cupom o máximo de vezes permitido.' };
+      return { ok: false, error: t('limiteCliente') };
     }
   }
 
@@ -279,10 +282,8 @@ async function checarBloqueioCupom(clienteId: string): Promise<{ bloqueado: bool
   return { bloqueado, bloqueadoAte: bloqueado ? bloqueadoAte : null };
 }
 
-const MSG_BLOQUEADO = 'Muitas tentativas incorretas com cupom. Tente novamente mais tarde.';
-
-// O cliente não vê a taxa de serviço, então a mensagem não a menciona.
-const MSG_CUPOM_SEM_TAXA = 'Este cupom não se aplica a esta reserva.';
+// Mensagens no idioma do cliente: `ErrosReserva.cupom.bloqueado` e `.naoSeAplica` (esta não
+// menciona a taxa de serviço, que o cliente não vê).
 
 function arredondarCentavos(v: number): number {
   return Math.round(v * 100) / 100;
@@ -331,11 +332,12 @@ export type ValidarCupomResult =
 export async function validarCupom(input: ValidarCupomInput): Promise<ValidarCupomResult> {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return { ok: false, error: 'Você precisa estar logado para aplicar um cupom.' };
+  const t = await getTranslations('ErrosReserva.cupom');
+  if (!user) return { ok: false, error: t('logado') };
 
   const bloqueio = await checarBloqueioCupom(user.id);
   if (bloqueio.bloqueado) {
-    return { ok: false, error: MSG_BLOQUEADO, bloqueadoAte: bloqueio.bloqueadoAte! };
+    return { ok: false, error: t('bloqueado'), bloqueadoAte: bloqueio.bloqueadoAte! };
   }
 
   const alvoResult = await resolverAlvo({ ...input, modalidade: input.modalidade ?? 'roteiro' });
@@ -343,7 +345,7 @@ export async function validarCupom(input: ValidarCupomInput): Promise<ValidarCup
 
   const { alvo, adicionais } = alvoResult;
   if (alvo.precoUnitario == null) {
-    return { ok: false, error: 'Este item não tem um valor definido para aplicar cupom.' };
+    return { ok: false, error: t('semValor') };
   }
 
   const totalAdicionais = adicionais.reduce((sum, a) => sum + Number(a.valor), 0);
@@ -359,14 +361,14 @@ export async function validarCupom(input: ValidarCupomInput): Promise<ValidarCup
 
   if (!resultado.ok) {
     if (status?.bloqueado) {
-      return { ok: false, error: MSG_BLOQUEADO, bloqueadoAte: status.bloqueado_ate ?? undefined };
+      return { ok: false, error: t('bloqueado'), bloqueadoAte: status.bloqueado_ate ?? undefined };
     }
     return { ok: false, error: resultado.error };
   }
 
   const taxaServicoBruta = Math.round(subtotal * (alvo.taxaPercent / 100));
   const descontoValor = limitarDescontoATaxa(resultado.cupom.descontoValor, taxaServicoBruta);
-  if (descontoValor <= 0) return { ok: false, error: MSG_CUPOM_SEM_TAXA };
+  if (descontoValor <= 0) return { ok: false, error: t('naoSeAplica') };
 
   return {
     ok: true,
@@ -386,15 +388,16 @@ export async function criarReserva(input: CriarReservaInput): Promise<CriarReser
   const {
     data: { user },
   } = await supabase.auth.getUser();
-  if (!user) return { ok: false, error: 'Você precisa estar logado para solicitar uma reserva.' };
+  const [t, f] = await Promise.all([getTranslations(), getFormatos()]);
+  if (!user) return { ok: false, error: t('ErrosReserva.logadoReserva') };
 
   // Validação dos campos obrigatórios.
-  if (!input.data || !ISO_DATE.test(input.data)) return { ok: false, error: 'Data inválida.' };
-  if (!input.pessoas || input.pessoas < 1) return { ok: false, error: 'Informe o número de pessoas.' };
+  if (!input.data || !ISO_DATE.test(input.data)) return { ok: false, error: t('ErrosReserva.dataInvalida') };
+  if (!input.pessoas || input.pessoas < 1) return { ok: false, error: t('Reservar.erros.informePessoas') };
 
   const modalidade: ModalidadeReserva = input.modalidade ?? 'roteiro';
   if (modalidade === 'diaria' && (!input.diarias || input.diarias < 1)) {
-    return { ok: false, error: 'Informe a quantidade de diárias.' };
+    return { ok: false, error: t('ErrosReserva.informeDiarias') };
   }
 
   const alvoResult = await resolverAlvo({ ...input, modalidade, pessoas: input.pessoas });
@@ -404,12 +407,12 @@ export async function criarReserva(input: CriarReservaInput): Promise<CriarReser
   if (modalidade === 'diaria' && input.diarias! < alvo.precoDiariaMinimo) {
     return {
       ok: false,
-      error: `Este roteiro exige no mínimo ${alvo.precoDiariaMinimo} diária${alvo.precoDiariaMinimo > 1 ? 's' : ''}.`,
+      error: t('ErrosReserva.minimoDiarias', { count: alvo.precoDiariaMinimo }),
     };
   }
   // Capacidade da embarcação/roteiro — a tela já limita, mas a URL pode ser editada.
   if (alvo.capacidadeMaxima != null && input.pessoas > alvo.capacidadeMaxima) {
-    return { ok: false, error: mensagemCapacidadeExcedida(alvo.capacidadeMaxima) };
+    return { ok: false, error: f.capacidadeExcedida(alvo.capacidadeMaxima) };
   }
 
   const dataFim = modalidade === 'diaria' ? somarDiasISO(input.data, input.diarias! - 1) : null;
@@ -423,7 +426,7 @@ export async function criarReserva(input: CriarReservaInput): Promise<CriarReser
   // um passeio por dia, em qualquer roteiro dele).
   const motivo = await getMotivoPeriodoIndisponivel(alvo.roteiroId, input.data, dataFim ?? input.data);
   if (motivo) {
-    return { ok: false, error: mensagemIndisponivel(motivo, dataMaximaReservaISO(alvo.janelaMeses)) };
+    return { ok: false, error: t(`Disponibilidade.${motivoIndisponivel(motivo)}`, { data: f.data(dataMaximaReservaISO(alvo.janelaMeses)) }) };
   }
 
   // Cálculo (servidor) — mesma fórmula do resumo/BookingCard.
@@ -440,7 +443,7 @@ export async function criarReserva(input: CriarReservaInput): Promise<CriarReser
   const termoVigente = await obterTermoParaAceite('reserva_cliente', user.id);
   if (termoVigente) {
     if (!input.aceiteTermo) {
-      return { ok: false, error: 'Leia e aceite os termos da reserva para continuar.', aceiteCodigo: 'aceite_ausente' };
+      return { ok: false, error: t('ErrosReserva.aceiteTermos'), aceiteCodigo: 'aceite_ausente' };
     }
     const validacao = await validarAceite({
       identificador: 'reserva_cliente',
@@ -460,12 +463,12 @@ export async function criarReserva(input: CriarReservaInput): Promise<CriarReser
 
   if (input.cupomCodigo && input.cupomCodigo.trim()) {
     if (precoUnitario == null || totalBruto == null) {
-      return { ok: false, error: 'Este item não tem um valor definido para aplicar cupom.' };
+      return { ok: false, error: t('ErrosReserva.cupom.semValor') };
     }
 
     const bloqueio = await checarBloqueioCupom(user.id);
     if (bloqueio.bloqueado) {
-      return { ok: false, error: MSG_BLOQUEADO };
+      return { ok: false, error: t('ErrosReserva.cupom.bloqueado') };
     }
 
     const resultado = await validarRegrasCupom(input.cupomCodigo, user.id, subtotal);
@@ -477,7 +480,7 @@ export async function criarReserva(input: CriarReservaInput): Promise<CriarReser
 
     cupomAplicado = { id: resultado.cupom.id, codigo: resultado.cupom.codigo };
     descontoValor = limitarDescontoATaxa(resultado.cupom.descontoValor, taxaServico ?? 0);
-    if (descontoValor <= 0) return { ok: false, error: MSG_CUPOM_SEM_TAXA };
+    if (descontoValor <= 0) return { ok: false, error: t('ErrosReserva.cupom.naoSeAplica') };
   }
 
   const totalEstimado = totalBruto != null ? Math.max(0, totalBruto - descontoValor) : null;
@@ -514,7 +517,7 @@ export async function criarReserva(input: CriarReservaInput): Promise<CriarReser
     .single();
 
   if (insertErr || !reserva) {
-    return { ok: false, error: insertErr?.message ?? 'Não foi possível criar a reserva.' };
+    return { ok: false, error: insertErr?.message ?? t('ErrosReserva.falhaCriar') };
   }
 
   // Snapshot dos adicionais.
@@ -531,7 +534,7 @@ export async function criarReserva(input: CriarReservaInput): Promise<CriarReser
     if (addErr) {
       // Reverte a reserva para não deixar registro órfão sem os itens escolhidos.
       await supabaseAdmin.from('reserva').delete().eq('id', reserva.id);
-      return { ok: false, error: 'Não foi possível registrar os adicionais da reserva.' };
+      return { ok: false, error: t('ErrosReserva.falhaAdicionais') };
     }
   }
 
@@ -561,7 +564,7 @@ export async function criarReserva(input: CriarReservaInput): Promise<CriarReser
       await supabaseAdmin.from('reserva').delete().eq('id', reserva.id);
       return {
         ok: false,
-        error: 'Esse cupom deixou de estar disponível enquanto sua solicitação era processada. Tente novamente sem o cupom ou com outro código.',
+        error: t('ErrosReserva.cupom.deixouDeValer'),
       };
     }
   }

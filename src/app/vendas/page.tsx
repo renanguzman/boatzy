@@ -1,4 +1,6 @@
 import Link from 'next/link';
+import type { Metadata } from 'next';
+import { getTranslations } from 'next-intl/server';
 import { SlidersHorizontal, X } from 'lucide-react';
 import Header from '@/components/layout/Header';
 import Footer from '@/components/layout/Footer';
@@ -6,6 +8,8 @@ import { supabaseAdmin } from '@/lib/supabase';
 import { createClient } from '@/lib/supabase/server';
 import { getFiltrosVenda } from '@/lib/vendas-filtros';
 import { anoVendaLabel, valorVendaLabel } from '@/components/home/search/venda/labels';
+import { getFormatos } from '@/i18n/formatos-servidor';
+import { getCatalogo } from '@/i18n/catalogo-servidor';
 import type { LocalidadeVendaValue } from '@/components/home/search/venda/LocalidadeVendaPicker';
 import FiltrosVendaLaterais from './_components/FiltrosVendaLaterais';
 import AbasBusca from '../buscar/_components/AbasBusca';
@@ -48,8 +52,19 @@ function getPageNumbers(current: number, total: number): (number | '…')[] {
   return pages;
 }
 
+export async function generateMetadata(): Promise<Metadata> {
+  return { title: (await getTranslations('Vendas'))('metaTitulo') };
+}
+
 export default async function VendasPage({ searchParams }: { searchParams: Promise<SearchParams> }) {
   const params = await searchParams;
+  const [t, tBusca, tCampos, f, { traduzir }] = await Promise.all([
+    getTranslations('Vendas'),
+    getTranslations('Busca'),
+    getTranslations('CamposVenda'),
+    getFormatos(),
+    getCatalogo(),
+  ]);
 
   const tipoId = params.tipo || null;
   const estadoId = params.estado ? parseInt(params.estado) : null;
@@ -151,7 +166,7 @@ export default async function VendasPage({ searchParams }: { searchParams: Promi
       const m = d.embarcacao?.municipios;
       return [{
         id: d.id,
-        nome: d.embarcacao?.nome ?? 'Embarcação',
+        nome: d.embarcacao?.nome ?? t('embarcacaoPadrao'),
         fabricante: d.fabricante,
         ano_modelo: d.ano_modelo,
         ano_fabricacao: d.ano_fabricacao,
@@ -185,29 +200,28 @@ export default async function VendasPage({ searchParams }: { searchParams: Promi
   }
 
   // Título contextual
-  const sujeito = tipo ? `${tipo.nome} à venda` : 'Embarcações à venda';
-  let titulo = sujeito;
-  if (localSelecionado) {
-    titulo = localSelecionado.municipioNome
-      ? `${sujeito} em ${localSelecionado.municipioNome}, ${localSelecionado.uf}`
-      : `${sujeito} em ${localSelecionado.estadoNome}`;
-  }
+  const local = localSelecionado
+    ? localSelecionado.municipioNome
+      ? `${localSelecionado.municipioNome}, ${localSelecionado.uf}`
+      : localSelecionado.estadoNome
+    : null;
+  const titulo = local
+    ? tipo ? t('titulo.tipoEm', { tipo: traduzir('tipo', tipo.nome), local }) : t('titulo.geralEm', { local })
+    : tipo ? t('titulo.tipo', { tipo: traduzir('tipo', tipo.nome) }) : t('titulo.geral');
 
   // Chips de filtros ativos
-  const anoLabel = anoVendaLabel({ min: params.ano_min ?? '', max: params.ano_max ?? '' });
-  const valorLabel = valorVendaLabel({ min: params.preco_min ?? '', max: params.preco_max ?? '' });
+  const anoLabel = anoVendaLabel({ min: params.ano_min ?? '', max: params.ano_max ?? '' }, tCampos);
+  const valorLabel = valorVendaLabel({ min: params.preco_min ?? '', max: params.preco_max ?? '' }, tCampos, f);
   const chips: { label: string; remove: Partial<Record<keyof SearchParams, undefined>> }[] = [];
-  if (tipo) chips.push({ label: `Tipo: ${tipo.nome}`, remove: { tipo: undefined } });
+  if (tipo) chips.push({ label: tBusca('chips.tipo', { tipo: traduzir('tipo', tipo.nome) }), remove: { tipo: undefined } });
   if (localSelecionado) {
     chips.push({
-      label: localSelecionado.municipioNome
-        ? `${localSelecionado.municipioNome}, ${localSelecionado.uf}`
-        : localSelecionado.estadoNome,
+      label: local!,
       remove: { estado: undefined, cidade: undefined },
     });
   }
-  if (anoLabel) chips.push({ label: `Ano: ${anoLabel}`, remove: { ano_min: undefined, ano_max: undefined } });
-  if (valorLabel) chips.push({ label: `Valor: ${valorLabel}`, remove: { preco_min: undefined, preco_max: undefined } });
+  if (anoLabel) chips.push({ label: t('chips.ano', { faixa: anoLabel }), remove: { ano_min: undefined, ano_max: undefined } });
+  if (valorLabel) chips.push({ label: t('chips.valor', { faixa: valorLabel }), remove: { preco_min: undefined, preco_max: undefined } });
 
   const inicioFaixa = total > 0 ? from + 1 : 0;
   const fimFaixa = Math.min(from + POR_PAGINA, total);
@@ -223,9 +237,7 @@ export default async function VendasPage({ searchParams }: { searchParams: Promi
             <div className="min-w-0">
               <h1 className="text-2xl md:text-3xl font-bold text-marinho">{titulo}</h1>
               <p className="text-sm text-slate-500 mt-1">
-                {total > 0
-                  ? `${total} anúncio${total !== 1 ? 's' : ''} encontrado${total !== 1 ? 's' : ''}`
-                  : 'Nenhum resultado com os filtros atuais'}
+                {total > 0 ? t('encontrados', { count: total }) : tBusca('nenhumResultadoFiltros')}
               </p>
             </div>
             <AbasBusca aba="venda" />
@@ -240,14 +252,19 @@ export default async function VendasPage({ searchParams }: { searchParams: Promi
               totalResultados={total}
             />
 
-            <section className="min-w-0" aria-label="Resultados">
+            <section className="min-w-0" aria-label={tBusca('resultados')}>
               {/* Barra de resultados: faixa exibida + chips ativos */}
               <div className="mb-5 flex flex-col gap-3">
                 <p className="text-sm text-slate-500">
                   {total > 0 ? (
-                    <>Exibindo <strong className="text-slate-700">{inicioFaixa}–{fimFaixa}</strong> de <strong className="text-slate-700">{total}</strong></>
+                    tBusca.rich('exibindo', {
+                      inicio: inicioFaixa,
+                      fim: fimFaixa,
+                      total,
+                      b: (texto) => <strong className="text-slate-700">{texto}</strong>,
+                    })
                   ) : (
-                    'Nenhum resultado'
+                    tBusca('nenhumResultado')
                   )}
                 </p>
 
@@ -260,7 +277,7 @@ export default async function VendasPage({ searchParams }: { searchParams: Promi
                           key={chip.label}
                           href={buildPageUrl(removeParams, {})}
                           scroll={false}
-                          aria-label={`Remover filtro ${chip.label}`}
+                          aria-label={tBusca('removerFiltro', { filtro: chip.label })}
                           className="flex items-center gap-1.5 text-xs font-medium text-marinho bg-marinho/[0.06] border border-marinho/10 rounded-full pl-3 pr-2 py-1.5 hover:bg-marinho/10 transition-colors group"
                         >
                           {chip.label}
@@ -280,17 +297,15 @@ export default async function VendasPage({ searchParams }: { searchParams: Promi
                       <SlidersHorizontal className="h-8 w-8 text-slate-300" />
                     </div>
                     <h2 className="text-lg font-semibold text-slate-700 mb-2">
-                      Nenhuma embarcação à venda encontrada
+                      {t('vazioTitulo')}
                     </h2>
-                    <p className="text-sm text-slate-400 max-w-sm">
-                      Tente outro tipo, ampliar a faixa de valor/ano ou explorar outras localidades.
-                    </p>
+                    <p className="text-sm text-slate-400 max-w-sm">{t('vazioTexto')}</p>
                     {chips.length > 0 && (
                       <Link
                         href="/vendas"
                         className="mt-6 px-5 py-2.5 bg-marinho hover:bg-marinho-escuro text-white text-sm font-semibold rounded-xl transition-colors"
                       >
-                        Limpar filtros
+                        {tBusca('vazio.limparFiltros')}
                       </Link>
                     )}
                   </div>
@@ -310,6 +325,7 @@ export default async function VendasPage({ searchParams }: { searchParams: Promi
                     {pagina > 1 && (
                       <Link
                         href={buildPageUrl(params, { pagina: String(pagina - 1) })}
+                        aria-label={tBusca('paginacao.anterior')}
                         className="h-9 w-9 flex items-center justify-center rounded-xl border border-slate-200 text-slate-600 hover:bg-white hover:shadow-sm transition-all text-sm"
                       >
                         ‹
@@ -339,6 +355,7 @@ export default async function VendasPage({ searchParams }: { searchParams: Promi
                     {pagina < totalPaginas && (
                       <Link
                         href={buildPageUrl(params, { pagina: String(pagina + 1) })}
+                        aria-label={tBusca('paginacao.proxima')}
                         className="h-9 w-9 flex items-center justify-center rounded-xl border border-slate-200 text-slate-600 hover:bg-white hover:shadow-sm transition-all text-sm"
                       >
                         ›

@@ -25,6 +25,17 @@ function validarNome(nome: string): { ok: true; nome: string } | { ok: false; er
   return { ok: true, nome: limpo };
 }
 
+/** Traduções opcionais (inglês/espanhol): vazio vira NULL e o site cai no nome em português. */
+function validarTraducoes(
+  nomeEn: string,
+  nomeEs: string,
+): { ok: true; nome_en: string | null; nome_es: string | null } | { ok: false; error: string } {
+  const en = nomeEn.trim();
+  const es = nomeEs.trim();
+  if (en.length > 80 || es.length > 80) return { ok: false, error: 'Tradução muito longa (máximo 80 caracteres).' };
+  return { ok: true, nome_en: en || null, nome_es: es || null };
+}
+
 function erroDuplicado(code: string | undefined, artigo: string, nomeExibicao: string): string | null {
   if (code !== '23505') return null;
   return `Já existe ${artigo} ${nomeExibicao} com esse nome.`;
@@ -32,24 +43,28 @@ function erroDuplicado(code: string | undefined, artigo: string, nomeExibicao: s
 
 // ─── Acessórios ───────────────────────────────────────────────────────────────
 
-export async function criarAcessorio(nome: string): Promise<ActionResult> {
+export async function criarAcessorio(nome: string, nomeEn = '', nomeEs = ''): Promise<ActionResult> {
   const auth = await requireAdmin();
   if (!auth.ok) return { ok: false, error: auth.error };
   const nomeResult = validarNome(nome);
   if (!nomeResult.ok) return { ok: false, error: nomeResult.error };
+  const traducoes = validarTraducoes(nomeEn, nomeEs);
+  if (!traducoes.ok) return { ok: false, error: traducoes.error };
 
-  const { error } = await supabaseAdmin.from('acessorios').insert({ nome: nomeResult.nome });
+  const { error } = await supabaseAdmin.from('acessorios').insert({ nome: nomeResult.nome, nome_en: traducoes.nome_en, nome_es: traducoes.nome_es });
   if (error) return { ok: false, error: erroDuplicado(error.code, 'um', 'acessório') ?? error.message };
   return { ok: true };
 }
 
-export async function atualizarAcessorio(id: string, nome: string): Promise<ActionResult> {
+export async function atualizarAcessorio(id: string, nome: string, nomeEn = '', nomeEs = ''): Promise<ActionResult> {
   const auth = await requireAdmin();
   if (!auth.ok) return { ok: false, error: auth.error };
   const nomeResult = validarNome(nome);
   if (!nomeResult.ok) return { ok: false, error: nomeResult.error };
+  const traducoes = validarTraducoes(nomeEn, nomeEs);
+  if (!traducoes.ok) return { ok: false, error: traducoes.error };
 
-  const { error } = await supabaseAdmin.from('acessorios').update({ nome: nomeResult.nome }).eq('id', id);
+  const { error } = await supabaseAdmin.from('acessorios').update({ nome: nomeResult.nome, nome_en: traducoes.nome_en, nome_es: traducoes.nome_es }).eq('id', id);
   if (error) return { ok: false, error: erroDuplicado(error.code, 'um', 'acessório') ?? error.message };
   return { ok: true };
 }
@@ -79,24 +94,28 @@ export async function excluirAcessorio(id: string, confirmado = false): Promise<
 
 // ─── Comodidades ──────────────────────────────────────────────────────────────
 
-export async function criarComodidade(nome: string): Promise<ActionResult> {
+export async function criarComodidade(nome: string, nomeEn = '', nomeEs = ''): Promise<ActionResult> {
   const auth = await requireAdmin();
   if (!auth.ok) return { ok: false, error: auth.error };
   const nomeResult = validarNome(nome);
   if (!nomeResult.ok) return { ok: false, error: nomeResult.error };
+  const traducoes = validarTraducoes(nomeEn, nomeEs);
+  if (!traducoes.ok) return { ok: false, error: traducoes.error };
 
-  const { error } = await supabaseAdmin.from('comodidade').insert({ nome: nomeResult.nome });
+  const { error } = await supabaseAdmin.from('comodidade').insert({ nome: nomeResult.nome, nome_en: traducoes.nome_en, nome_es: traducoes.nome_es });
   if (error) return { ok: false, error: erroDuplicado(error.code, 'uma', 'comodidade') ?? error.message };
   return { ok: true };
 }
 
-export async function atualizarComodidade(id: string, nome: string): Promise<ActionResult> {
+export async function atualizarComodidade(id: string, nome: string, nomeEn = '', nomeEs = ''): Promise<ActionResult> {
   const auth = await requireAdmin();
   if (!auth.ok) return { ok: false, error: auth.error };
   const nomeResult = validarNome(nome);
   if (!nomeResult.ok) return { ok: false, error: nomeResult.error };
+  const traducoes = validarTraducoes(nomeEn, nomeEs);
+  if (!traducoes.ok) return { ok: false, error: traducoes.error };
 
-  const { error } = await supabaseAdmin.from('comodidade').update({ nome: nomeResult.nome }).eq('id', id);
+  const { error } = await supabaseAdmin.from('comodidade').update({ nome: nomeResult.nome, nome_en: traducoes.nome_en, nome_es: traducoes.nome_es }).eq('id', id);
   if (error) return { ok: false, error: erroDuplicado(error.code, 'uma', 'comodidade') ?? error.message };
   return { ok: true };
 }
@@ -120,24 +139,28 @@ export async function excluirComodidade(id: string, confirmado = false): Promise
 
 // ─── Equipamentos de segurança ────────────────────────────────────────────────
 
-export async function criarEquipamentoSeguranca(nome: string): Promise<ActionResult> {
+export async function criarEquipamentoSeguranca(nome: string, nomeEn = '', nomeEs = ''): Promise<ActionResult> {
   const auth = await requireAdmin();
   if (!auth.ok) return { ok: false, error: auth.error };
   const nomeResult = validarNome(nome);
   if (!nomeResult.ok) return { ok: false, error: nomeResult.error };
+  const traducoes = validarTraducoes(nomeEn, nomeEs);
+  if (!traducoes.ok) return { ok: false, error: traducoes.error };
 
-  const { error } = await supabaseAdmin.from('equipamentos_seguranca').insert({ nome: nomeResult.nome });
+  const { error } = await supabaseAdmin.from('equipamentos_seguranca').insert({ nome: nomeResult.nome, nome_en: traducoes.nome_en, nome_es: traducoes.nome_es });
   if (error) return { ok: false, error: erroDuplicado(error.code, 'um', 'equipamento de segurança') ?? error.message };
   return { ok: true };
 }
 
-export async function atualizarEquipamentoSeguranca(id: string, nome: string): Promise<ActionResult> {
+export async function atualizarEquipamentoSeguranca(id: string, nome: string, nomeEn = '', nomeEs = ''): Promise<ActionResult> {
   const auth = await requireAdmin();
   if (!auth.ok) return { ok: false, error: auth.error };
   const nomeResult = validarNome(nome);
   if (!nomeResult.ok) return { ok: false, error: nomeResult.error };
+  const traducoes = validarTraducoes(nomeEn, nomeEs);
+  if (!traducoes.ok) return { ok: false, error: traducoes.error };
 
-  const { error } = await supabaseAdmin.from('equipamentos_seguranca').update({ nome: nomeResult.nome }).eq('id', id);
+  const { error } = await supabaseAdmin.from('equipamentos_seguranca').update({ nome: nomeResult.nome, nome_en: traducoes.nome_en, nome_es: traducoes.nome_es }).eq('id', id);
   if (error) return { ok: false, error: erroDuplicado(error.code, 'um', 'equipamento de segurança') ?? error.message };
   return { ok: true };
 }

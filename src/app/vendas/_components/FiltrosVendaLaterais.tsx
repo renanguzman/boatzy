@@ -1,8 +1,11 @@
 'use client';
 
 import { useMemo } from 'react';
+import { useLocale, useTranslations } from 'next-intl';
+import { LOCALE_INTL } from '@/i18n/config';
 import { CalendarRange, ChevronDown, MapPin, Ship, Wallet } from 'lucide-react';
 import PainelFiltros from '@/components/busca/PainelFiltros';
+import { useCatalogo } from '@/i18n/CatalogoProvider';
 import { useNavegacaoBusca } from '@/components/busca/NavegacaoBusca';
 import { ChipFiltro, FaixaNumerica, FiltroSecao } from '@/components/busca/CamposFiltro';
 import type { TipoVendaOption } from '@/components/home/search/venda/TipoVendaPicker';
@@ -28,6 +31,12 @@ const selectCls = `w-full appearance-none rounded-xl border border-slate-200 bg-
  */
 export default function FiltrosVendaLaterais({ params, tipos, locais, totalResultados }: Props) {
   const { ir } = useNavegacaoBusca();
+  const { traduzir, ordenar } = useCatalogo();
+  const t = useTranslations('Vendas.filtros');
+  const tCampos = useTranslations('CamposVenda');
+  const tBusca = useTranslations('Busca.filtros');
+  const tComum = useTranslations('Comum');
+  const local = LOCALE_INTL[useLocale()];
   const anoAtual = new Date().getFullYear();
 
   function aplicar(alteracoes: Partial<Record<keyof VendasSearchParams, string | null>>) {
@@ -41,14 +50,14 @@ export default function FiltrosVendaLaterais({ params, tipos, locais, totalResul
       e.total += l.total;
       map.set(l.estadoId, e);
     }
-    return [...map.values()].sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR'));
-  }, [locais]);
+    return [...map.values()].sort((a, b) => a.nome.localeCompare(b.nome, local));
+  }, [locais, local]);
 
   const cidades = useMemo(
     () => locais
       .filter((l) => String(l.estadoId) === params.estado)
-      .sort((a, b) => a.municipioNome.localeCompare(b.municipioNome, 'pt-BR')),
-    [locais, params.estado],
+      .sort((a, b) => a.municipioNome.localeCompare(b.municipioNome, local)),
+    [locais, params.estado, local],
   );
 
   const ativos = [
@@ -60,29 +69,29 @@ export default function FiltrosVendaLaterais({ params, tipos, locais, totalResul
 
   return (
     <PainelFiltros ativos={ativos} limparHref="/vendas" totalResultados={totalResultados}>
-      <FiltroSecao titulo="Tipo de embarcação" icone={Ship}>
+      <FiltroSecao titulo={tBusca('tipoEmbarcacao')} icone={Ship}>
         <div className="flex flex-wrap gap-1.5">
-          <ChipFiltro ativo={!params.tipo} onClick={() => aplicar({ tipo: null })}>Todos</ChipFiltro>
-          {tipos.map((t) => (
+          <ChipFiltro ativo={!params.tipo} onClick={() => aplicar({ tipo: null })}>{tBusca('todos')}</ChipFiltro>
+          {ordenar(tipos, 'tipo').map((t) => (
             <ChipFiltro key={t.id} ativo={params.tipo === t.id}
               onClick={() => aplicar({ tipo: params.tipo === t.id ? null : t.id })}>
-              {t.nome}
+              {traduzir('tipo', t.nome)}
             </ChipFiltro>
           ))}
         </div>
       </FiltroSecao>
 
-      <FiltroSecao titulo="Localização" icone={MapPin}
-        acao={params.estado ? { label: 'Limpar', onClick: () => aplicar({ estado: null, cidade: null }) } : null}>
+      <FiltroSecao titulo={t('localizacao')} icone={MapPin}
+        acao={params.estado ? { label: tComum('limpar'), onClick: () => aplicar({ estado: null, cidade: null }) } : null}>
         <div className="space-y-2">
           <label className="relative block">
-            <span className="sr-only">Estado</span>
+            <span className="sr-only">{tCampos('local.estado')}</span>
             <select
               className={selectCls}
               value={params.estado ?? ''}
               onChange={(e) => aplicar({ estado: e.target.value || null, cidade: null })}
             >
-              <option value="">Todos os estados</option>
+              <option value="">{t('todosEstados')}</option>
               {estados.map((e) => (
                 <option key={e.id} value={e.id}>{e.nome} ({e.total})</option>
               ))}
@@ -90,14 +99,14 @@ export default function FiltrosVendaLaterais({ params, tipos, locais, totalResul
             <ChevronDown className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
           </label>
           <label className="relative block">
-            <span className="sr-only">Cidade</span>
+            <span className="sr-only">{t('cidade')}</span>
             <select
               className={selectCls}
               value={params.cidade ?? ''}
               disabled={!params.estado}
               onChange={(e) => aplicar({ cidade: e.target.value || null })}
             >
-              <option value="">{params.estado ? 'Todo o estado' : 'Escolha um estado primeiro'}</option>
+              <option value="">{params.estado ? tCampos('local.todoEstado') : t('escolhaEstado')}</option>
               {cidades.map((c) => (
                 <option key={c.municipioId} value={c.municipioId}>{c.municipioNome} ({c.total})</option>
               ))}
@@ -107,24 +116,24 @@ export default function FiltrosVendaLaterais({ params, tipos, locais, totalResul
         </div>
       </FiltroSecao>
 
-      <FiltroSecao titulo="Ano do modelo" icone={CalendarRange}
-        acao={params.ano_min || params.ano_max ? { label: 'Limpar', onClick: () => aplicar({ ano_min: null, ano_max: null }) } : null}>
+      <FiltroSecao titulo={tCampos('ano.titulo')} icone={CalendarRange}
+        acao={params.ano_min || params.ano_max ? { label: tComum('limpar'), onClick: () => aplicar({ ano_min: null, ano_max: null }) } : null}>
         <FaixaNumerica
           key={`ano-${params.ano_min ?? ''}-${params.ano_max ?? ''}`}
-          rotulo="Ano do modelo"
+          rotulo={tCampos('ano.titulo')}
           min={params.ano_min ?? ''}
           max={params.ano_max ?? ''}
-          placeholderMin="De"
-          placeholderMax={`Até ${anoAtual + 1}`}
+          placeholderMin={tCampos('ano.de')}
+          placeholderMax={tCampos('ano.ateAnoPlaceholder', { ano: anoAtual + 1 })}
           onAplicar={(a, b) => aplicar({ ano_min: a || null, ano_max: b || null })}
         />
       </FiltroSecao>
 
-      <FiltroSecao titulo="Valor" icone={Wallet}
-        acao={params.preco_min || params.preco_max ? { label: 'Limpar', onClick: () => aplicar({ preco_min: null, preco_max: null }) } : null}>
+      <FiltroSecao titulo={tCampos('valor.rotulo')} icone={Wallet}
+        acao={params.preco_min || params.preco_max ? { label: tComum('limpar'), onClick: () => aplicar({ preco_min: null, preco_max: null }) } : null}>
         <FaixaNumerica
           key={`valor-${params.preco_min ?? ''}-${params.preco_max ?? ''}`}
-          rotulo="Valor"
+          rotulo={tCampos('valor.rotulo')}
           prefixo="R$"
           step={10000}
           min={params.preco_min ?? ''}

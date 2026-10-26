@@ -175,6 +175,25 @@ export function calendarioClienteLocal(params: {
 /** Dias além da data máxima que o site carrega (continuação de reservas Por Diária). */
 export const DIAS_APOS_JANELA = 31;
 
+export type MotivoIndisponivel = 'fora_janela' | 'nao_opera' | 'passado' | 'inexistente' | 'invalido' | 'indisponivel';
+
+/**
+ * Motivo que impede a reserva — chave da mensagem no site (`Disponibilidade.<motivo>`, no
+ * idioma do cliente). `mensagemIndisponivel` é a mesma mensagem em pt-BR (painel).
+ */
+export function motivoIndisponivel(s: SituacaoDia | StatusPublico | 'inexistente' | 'invalido'): MotivoIndisponivel {
+  switch (s) {
+    case 'fora_janela':
+    case 'nao_opera':
+    case 'passado':
+    case 'inexistente':
+    case 'invalido':
+      return s;
+    default:
+      return 'indisponivel';
+  }
+}
+
 /** Mensagem do checkout para a situação que impede a reserva. */
 export function mensagemIndisponivel(s: SituacaoDia | StatusPublico | 'inexistente' | 'invalido', dataMaxima: string): string {
   switch (s) {

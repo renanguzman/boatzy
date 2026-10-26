@@ -1,4 +1,5 @@
 import { notFound, redirect } from 'next/navigation';
+import { getTranslations } from 'next-intl/server';
 import Header from '@/components/layout/Header';
 import { createClient } from '@/lib/supabase/server';
 import { carregarChatReserva } from '@/lib/chat-dono';
@@ -18,6 +19,7 @@ export default async function ChatGestorPage({ params }: { params: Promise<{ id:
     notFound();
   }
   const { conversaId, interlocutor, mensagens, avisoCiente, origemTipo, origemLabel } = resultado.dados;
+  const t = await getTranslations('MinhasReservas.chat');
 
   return (
     <div className="h-screen flex flex-col">
@@ -28,7 +30,7 @@ export default async function ChatGestorPage({ params }: { params: Promise<{ id:
           meId={user.id}
           interlocutor={interlocutor}
           voltarHref={`/minhas-reservas/${reservaId}`}
-          voltarLabel="Voltar para a reserva"
+          voltarLabel={t('voltarReserva')}
           mensagensIniciais={mensagens}
           contexto={{ tipo: origemTipo, label: origemLabel }}
           avisoCienteInicial={avisoCiente}

@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
+import { useTranslations, type Messages } from 'next-intl';
 import {
   Backpack, Baby, CalendarCog, CloudRain, ExternalLink, Loader2, MapPin, MessageCircle, PackageCheck, Route,
   UtensilsCrossed, X,
@@ -12,25 +13,37 @@ import { abrirChatReserva } from '@/app/minhas-reservas/[id]/chat/actions';
 import type { ChatDonoDados } from '@/lib/chat-dono';
 import { rastrearUmaVez } from '@/lib/analytics';
 
-/** Dúvidas mais comuns antes de reservar um passeio — um clique vira a mensagem. */
-const SUGESTOES: SugestaoChat[] = [
-  { rotulo: 'Ponto de embarque', icone: MapPin, texto: 'Onde fica o ponto de embarque e com quanto tempo de antecedência devo chegar?' },
-  { rotulo: 'O que está incluso', icone: PackageCheck, texto: 'O que está incluso no passeio e o que eu preciso levar?' },
-  { rotulo: 'Comida e bebida', icone: UtensilsCrossed, texto: 'Posso levar comida e bebida a bordo? Tem cooler ou gelo disponível?' },
-  { rotulo: 'Crianças a bordo', icone: Baby, texto: 'Vou com crianças. Tem colete salva-vidas infantil a bordo?' },
-  { rotulo: 'Se o tempo virar', icone: CloudRain, texto: 'Se o tempo estiver ruim no dia, como funciona? Dá para remarcar?' },
-  { rotulo: 'Ajustar o roteiro', icone: Route, texto: 'É possível ajustar o roteiro ou incluir alguma parada?' },
-];
+type TradutorChat = ReturnType<typeof useTranslations<'Chat'>>;
+type IdSugestao = keyof Messages['Chat']['sugestoes'];
 
-/** Dúvidas de quem já tem a reserva — preparação para o dia e ajustes. */
-export const SUGESTOES_RESERVA: SugestaoChat[] = [
-  { rotulo: 'Ponto de encontro', icone: MapPin, texto: 'Pode me confirmar o ponto de encontro e com quanto tempo de antecedência devo chegar?' },
-  { rotulo: 'O que levar', icone: Backpack, texto: 'O que eu preciso levar para o passeio?' },
-  { rotulo: 'Comida e bebida', icone: UtensilsCrossed, texto: 'Posso levar comida e bebida a bordo? Tem cooler ou gelo disponível?' },
-  { rotulo: 'Crianças a bordo', icone: Baby, texto: 'Vou com crianças. Tem colete salva-vidas infantil a bordo?' },
-  { rotulo: 'Se o tempo virar', icone: CloudRain, texto: 'Se o tempo estiver ruim no dia, como funciona? Dá para remarcar?' },
-  { rotulo: 'Alterar a reserva', icone: CalendarCog, texto: 'Preciso fazer uma alteração na reserva (data ou número de pessoas). É possível?' },
-];
+/**
+ * Assuntos sugeridos (`Chat.sugestoes.<id>` — rótulo e mensagem no idioma do cliente):
+ * dúvidas antes de reservar (`roteiro`) e de quem já tem a reserva (`reserva`).
+ */
+const SUGESTOES: Record<'roteiro' | 'reserva', { id: IdSugestao; icone: SugestaoChat['icone'] }[]> = {
+  roteiro: [
+    { id: 'pontoEmbarque', icone: MapPin },
+    { id: 'incluso', icone: PackageCheck },
+    { id: 'comidaBebida', icone: UtensilsCrossed },
+    { id: 'criancas', icone: Baby },
+    { id: 'tempo', icone: CloudRain },
+    { id: 'ajustarRoteiro', icone: Route },
+  ],
+  reserva: [
+    { id: 'pontoEncontro', icone: MapPin },
+    { id: 'oQueLevar', icone: Backpack },
+    { id: 'comidaBebida', icone: UtensilsCrossed },
+    { id: 'criancas', icone: Baby },
+    { id: 'tempo', icone: CloudRain },
+    { id: 'alterarReserva', icone: CalendarCog },
+  ],
+};
+
+/** Sugestões do chat com o dono no idioma do site. */
+export function useSugestoesChat(tipo: 'roteiro' | 'reserva'): SugestaoChat[] {
+  const t = useTranslations('Chat.sugestoes');
+  return SUGESTOES[tipo].map(({ id, icone }) => ({ rotulo: t(`${id}.rotulo`), texto: t(`${id}.texto`), icone }));
+}
 
 /** De onde a conversa parte: um roteiro (antes de reservar) ou uma reserva do cliente. */
 export type AlvoChatDono = { tipo: 'roteiro'; id: string } | { tipo: 'reserva'; id: string };
@@ -43,15 +56,21 @@ type Estado =
 
 /**
  * Abertura das mensagens sugeridas, com o que o cliente já escolheu: "Olá! Tenho interesse no
- * passeio "X" para 07/11/2026, com 4 pessoas." (sem data, só o passeio).
+ * passeio "X" para 07/11/2026, com 4 pessoas." (sem data, só o passeio). `t` = `useTranslations('Chat')`.
  */
 export function saudacaoPasseio(
+  t: TradutorChat,
   roteiroNome: string,
-  { verbo = 'Tenho interesse no', dataLabel, pessoas }: { verbo?: string; dataLabel?: string | null; pessoas?: number } = {},
+  { acao = 'interesse', dataLabel, pessoas }: { acao?: 'interesse' | 'solicitando'; dataLabel?: string | null; pessoas?: number } = {},
 ): string {
-  const quando = dataLabel ? ` para ${dataLabel}` : '';
-  const quem = dataLabel && pessoas ? `, com ${pessoas} ${pessoas === 1 ? 'pessoa' : 'pessoas'}` : '';
-  return `Olá! ${verbo} passeio "${roteiroNome}"${quando}${quem}.`;
+  return t('saudacao', {
+    acao,
+    nome: roteiroNome,
+    temData: dataLabel ? 'sim' : 'nao',
+    data: dataLabel ?? '',
+    temPessoas: pessoas ? 'sim' : 'nao',
+    pessoas: pessoas ?? 0,
+  });
 }
 
 /**
@@ -69,7 +88,7 @@ export function ChatDonoDialog({
   aberto,
   onFechar,
   saudacao,
-  sugestoes = SUGESTOES,
+  sugestoes: sugestoesProp,
   rascunho,
   origem,
   onSemSessao,
@@ -85,6 +104,9 @@ export function ChatDonoDialog({
   origem: 'reserva' | 'roteiro' | 'minhas_reservas';
   onSemSessao?: () => void;
 }) {
+  const t = useTranslations('Chat.dialogo');
+  const sugestoesRoteiro = useSugestoesChat('roteiro');
+  const sugestoes = sugestoesProp ?? sugestoesRoteiro;
   const [estado, setEstado] = useState<Estado>({ status: 'fechado' });
   const painelRef = useRef<HTMLDivElement>(null);
   const hrefNovaAba = alvo.tipo === 'roteiro' ? `/roteiros/${alvo.id}/chat` : `/minhas-reservas/${alvo.id}/chat`;
@@ -139,7 +161,7 @@ export function ChatDonoDialog({
         ref={painelRef}
         role="dialog"
         aria-modal="true"
-        aria-label="Conversa com o dono da embarcação"
+        aria-label={t('rotulo')}
         tabIndex={-1}
         className="relative w-full h-[100dvh] sm:h-[min(44rem,90dvh)] sm:max-w-xl bg-white sm:rounded-2xl overflow-hidden shadow-2xl outline-none animate-fade-in"
       >
@@ -161,21 +183,21 @@ export function ChatDonoDialog({
         ) : (
           <div className="flex h-full flex-col">
             <div className="flex items-center justify-between gap-3 border-b border-slate-200 px-4 sm:px-5 py-3">
-              <p className="text-sm font-semibold text-marinho">Conversa com o dono</p>
+              <p className="text-sm font-semibold text-marinho">{t('titulo')}</p>
               <button
                 type="button"
                 onClick={onFechar}
                 className="w-9 h-9 flex items-center justify-center rounded-lg text-slate-400 hover:text-marinho hover:bg-slate-100 transition-colors"
               >
                 <X className="w-5 h-5" />
-                <span className="sr-only">Fechar conversa</span>
+                <span className="sr-only">{t('fechar')}</span>
               </button>
             </div>
             <div className="flex flex-1 flex-col items-center justify-center gap-3 p-6 text-center">
               {estado.status === 'carregando' ? (
                 <>
                   <Loader2 className="h-6 w-6 animate-spin text-marinho" />
-                  <p className="text-sm text-slate-500">Abrindo a conversa…</p>
+                  <p className="text-sm text-slate-500">{t('abrindo')}</p>
                 </>
               ) : (
                 <>
@@ -186,7 +208,7 @@ export function ChatDonoDialog({
                       onClick={() => void carregar()}
                       className="rounded-xl bg-marinho px-4 py-2 text-sm font-semibold text-white hover:bg-marinho-escuro"
                     >
-                      Tentar de novo
+                      {t('tentarDeNovo')}
                     </button>
                     <a
                       href={hrefNovaAba}
@@ -194,7 +216,7 @@ export function ChatDonoDialog({
                       rel="noopener noreferrer"
                       className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 px-4 py-2 text-sm font-semibold text-marinho hover:bg-slate-50"
                     >
-                      Abrir em nova aba <ExternalLink className="h-3.5 w-3.5" />
+                      {t('abrirNovaAba')} <ExternalLink className="h-3.5 w-3.5" />
                     </a>
                   </div>
                 </>
@@ -224,6 +246,7 @@ export default function ChatDonoModal({
   dataLabel: string;
   pessoas: number;
 }) {
+  const t = useTranslations('Chat');
   const [aberto, setAberto] = useState(false);
   const botaoRef = useRef<HTMLButtonElement>(null);
 
@@ -244,9 +267,9 @@ export default function ChatDonoModal({
       >
         <span className="flex items-center gap-2 text-sm font-semibold">
           <MessageCircle className="h-4 w-4" />
-          Converse com o dono da embarcação deste Roteiro
+          {t('botaoConfirmacao.titulo')}
         </span>
-        <span className="text-xs text-white/70">Tire dúvidas sem sair desta página</span>
+        <span className="text-xs text-white/70">{t('botaoConfirmacao.subtitulo')}</span>
       </button>
 
       <ChatDonoDialog
@@ -254,7 +277,7 @@ export default function ChatDonoModal({
         aberto={aberto}
         onFechar={fechar}
         origem="reserva"
-        saudacao={saudacaoPasseio(roteiroNome, { verbo: 'Estou solicitando o', dataLabel, pessoas })}
+        saudacao={saudacaoPasseio(t, roteiroNome, { acao: 'solicitando', dataLabel, pessoas })}
       />
     </>
   );

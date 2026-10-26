@@ -1,6 +1,8 @@
 'use client';
 
 import { useMemo, useState } from 'react';
+import { useLocale, useTranslations } from 'next-intl';
+import { LOCALE_INTL } from '@/i18n/config';
 import { MapPin, Check, ChevronLeft, ChevronRight } from 'lucide-react';
 
 /** Linha de vendas_locais: município (com estado) que possui anúncio ativo. */
@@ -34,6 +36,8 @@ type Props = {
 };
 
 export default function LocalidadeVendaPicker({ options, value, onChange, isOpen, onOpen, onClose, compact }: Props) {
+  const t = useTranslations('CamposVenda.local');
+  const idioma = useLocale();
   // Estado sendo navegado no dropdown (etapa 2: escolher a cidade).
   const [estadoAberto, setEstadoAberto] = useState<number | null>(null);
 
@@ -47,8 +51,8 @@ export default function LocalidadeVendaPicker({ options, value, onChange, isOpen
         porId.set(l.estadoId, { estadoId: l.estadoId, estadoNome: l.estadoNome, uf: l.uf, total: l.total });
       }
     }
-    return [...porId.values()].sort((a, b) => a.estadoNome.localeCompare(b.estadoNome, 'pt-BR'));
-  }, [options]);
+    return [...porId.values()].sort((a, b) => a.estadoNome.localeCompare(b.estadoNome, LOCALE_INTL[idioma]));
+  }, [options, idioma]);
 
   const cidadesDoEstado = useMemo(
     () => options.filter((l) => l.estadoId === estadoAberto),
@@ -58,7 +62,7 @@ export default function LocalidadeVendaPicker({ options, value, onChange, isOpen
   const label = value
     ? value.municipioNome
       ? `${value.municipioNome}, ${value.uf}`
-      : `${value.estadoNome} (todo o estado)`
+      : t('estadoInteiro', { estado: value.estadoNome })
     : null;
 
   function abrir() {
@@ -77,14 +81,14 @@ export default function LocalidadeVendaPicker({ options, value, onChange, isOpen
         } ${isOpen ? 'ring-2 ring-marinho bg-white shadow-md' : 'hover:bg-slate-50'}`}
       >
         <span className={`block font-bold text-slate-500 uppercase tracking-wider mb-0.5 ${compact ? 'text-[9px]' : 'text-[10px]'}`}>
-          Localidade
+          {t('rotulo')}
         </span>
         {label ? (
           <span className={`font-medium text-grafite whitespace-nowrap ${compact ? 'text-xs' : 'text-sm'}`}>
             {label}
           </span>
         ) : (
-          <span className={`text-slate-400 whitespace-nowrap ${compact ? 'text-xs' : 'text-sm'}`}>Onde? (opcional)</span>
+          <span className={`text-slate-400 whitespace-nowrap ${compact ? 'text-xs' : 'text-sm'}`}>{t('placeholder')}</span>
         )}
       </button>
 
@@ -93,10 +97,10 @@ export default function LocalidadeVendaPicker({ options, value, onChange, isOpen
           {estadoAberto == null ? (
             <>
               <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider px-3 pt-2 pb-1">
-                Estado
+                {t('estado')}
               </p>
               {estados.length === 0 ? (
-                <p className="text-sm text-slate-400 px-3 py-3">Nenhuma localidade disponível.</p>
+                <p className="text-sm text-slate-400 px-3 py-3">{t('nenhuma')}</p>
               ) : (
                 estados.map((e) => {
                   const active = value?.estadoId === e.estadoId;
@@ -126,7 +130,7 @@ export default function LocalidadeVendaPicker({ options, value, onChange, isOpen
                 className="w-full flex items-center gap-1.5 text-left rounded-xl px-3 py-2 text-xs font-semibold text-slate-500 hover:bg-slate-50 transition-colors uppercase tracking-wider"
               >
                 <ChevronLeft className="h-3.5 w-3.5" />
-                {estados.find((e) => e.estadoId === estadoAberto)?.estadoNome ?? 'Estados'}
+                {estados.find((e) => e.estadoId === estadoAberto)?.estadoNome ?? t('estados')}
               </button>
 
               {/* Todo o estado (cidade opcional) */}
@@ -152,7 +156,7 @@ export default function LocalidadeVendaPicker({ options, value, onChange, isOpen
                     }`}
                   >
                     <MapPin className={`h-4 w-4 shrink-0 ${active ? 'text-marinho' : 'text-slate-400'}`} />
-                    <span className="flex-1 truncate">Todo o estado</span>
+                    <span className="flex-1 truncate">{t('todoEstado')}</span>
                     {active && <Check className="h-4 w-4 text-marinho shrink-0" />}
                   </button>
                 );

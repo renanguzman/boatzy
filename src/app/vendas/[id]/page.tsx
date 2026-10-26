@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
+import { getTranslations } from 'next-intl/server';
 import {
   MapPin,
   Users,
@@ -22,7 +23,8 @@ import AvaliacoesSection, { type AvaliacaoPublica } from '@/components/avaliacoe
 import VendaSidebar from './_components/VendaSidebar';
 import { supabaseAdmin } from '@/lib/supabase';
 import { createClient } from '@/lib/supabase/server';
-import { formatarComprimento } from '@/lib/comprimento';
+import { getFormatos } from '@/i18n/formatos-servidor';
+import NomeCatalogo from '@/i18n/NomeCatalogo';
 import { ordenarImagens } from '@/lib/galeria';
 
 type AnuncioDetalhe = {
@@ -54,8 +56,6 @@ type AnuncioDetalhe = {
   } | null;
 };
 
-const brl = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 });
-
 /** "Renan Guzman" → "R***** G*****" (dados do vendedor ficam ocultos até o clique). */
 function mascararNome(nome: string): string {
   return nome
@@ -67,6 +67,12 @@ function mascararNome(nome: string): string {
 
 export default async function VendaDetalhePage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
+  const [t, tVendas, tRoteiro, f] = await Promise.all([
+    getTranslations('Venda'),
+    getTranslations('Vendas'),
+    getTranslations('Roteiro'),
+    getFormatos(),
+  ]);
 
   const { data, error } = await supabaseAdmin
     .from('anuncio_venda')
@@ -140,13 +146,13 @@ export default async function VendaDetalhePage({ params }: { params: Promise<{ i
                 {reduzido && (
                   <span className="inline-flex items-center gap-1 text-xs font-bold text-marinho bg-destaque px-3 py-1.5 rounded-full">
                     <ArrowDownRight className="h-3 w-3" />
-                    Preço reduzido
+                    {tVendas('precoReduzido')}
                   </span>
                 )}
                 {emb.embarcacao_tipo && (
                   <span className="inline-flex items-center gap-1 text-xs font-medium text-marinho bg-marinho/10 px-3 py-1.5 rounded-full">
                     <Anchor className="h-3 w-3" />
-                    {emb.embarcacao_tipo.nome}
+                    <NomeCatalogo categoria="tipo" nome={emb.embarcacao_tipo.nome} />
                   </span>
                 )}
               </div>
@@ -160,10 +166,10 @@ export default async function VendaDetalhePage({ params }: { params: Promise<{ i
               )}
 
               <div className="flex items-baseline gap-3 mb-8">
-                <span className="text-3xl font-bold text-marinho">{brl.format(Number(anuncio.preco))}</span>
+                <span className="text-3xl font-bold text-marinho">{f.moeda(Number(anuncio.preco))}</span>
                 {reduzido && (
                   <span className="text-base text-slate-400 line-through">
-                    {brl.format(Number(anterior!.preco))}
+                    {f.moeda(Number(anterior!.preco))}
                   </span>
                 )}
               </div>
@@ -174,18 +180,15 @@ export default async function VendaDetalhePage({ params }: { params: Promise<{ i
                   <LogIn className="h-6 w-6 text-white" />
                 </div>
                 <h2 className="text-lg font-bold text-marinho">
-                  Entre para ver os detalhes deste anúncio
+                  {t('gate.titulo')}
                 </h2>
-                <p className="text-sm text-slate-500 mt-2 max-w-md mx-auto">
-                  Ficha técnica completa, fotos, histórico de preço, dados do vendedor e chat
-                  direto pela plataforma — disponíveis para usuários cadastrados.
-                </p>
+                <p className="text-sm text-slate-500 mt-2 max-w-md mx-auto">{t('gate.texto')}</p>
                 <Link
                   href={`/entrar?redirect_to=${encodeURIComponent(`/vendas/${id}`)}`}
                   className="inline-flex items-center gap-2 mt-6 px-6 py-3 rounded-xl bg-marinho hover:bg-marinho-escuro text-white text-sm font-semibold transition-colors"
                 >
                   <LogIn className="h-4 w-4" />
-                  Entrar ou criar conta
+                  {t('gate.botao')}
                 </Link>
               </div>
             </div>
@@ -223,15 +226,15 @@ export default async function VendaDetalhePage({ params }: { params: Promise<{ i
     .maybeSingle();
 
   const specs: { icon: typeof Users; label: string; value: string }[] = [
-    { icon: Factory, label: 'Fabricante', value: anuncio.fabricante },
-    { icon: CalendarRange, label: 'Ano modelo/fab.', value: `${anuncio.ano_modelo}/${anuncio.ano_fabricacao}` },
+    { icon: Factory, label: t('specs.fabricante'), value: anuncio.fabricante },
+    { icon: CalendarRange, label: t('specs.anoModeloFab'), value: `${anuncio.ano_modelo}/${anuncio.ano_fabricacao}` },
   ];
-  if (emb.capacidade) specs.push({ icon: Users, label: 'Capacidade', value: `${emb.capacidade} pessoas` });
-  const comprimento = formatarComprimento(emb.comprimento, emb.comprimento_unidade);
-  if (comprimento) specs.push({ icon: Ruler, label: 'Comprimento', value: comprimento });
-  if (emb.quartos) specs.push({ icon: DoorOpen, label: 'Quartos', value: String(emb.quartos) });
-  if (emb.banheiros) specs.push({ icon: Bath, label: 'Banheiros', value: String(emb.banheiros) });
-  if (emb.tripulacao) specs.push({ icon: LifeBuoy, label: 'Tripulação', value: String(emb.tripulacao) });
+  if (emb.capacidade) specs.push({ icon: Users, label: t('specs.capacidade'), value: f.pessoas(emb.capacidade) });
+  const comprimento = f.comprimento(emb.comprimento, emb.comprimento_unidade);
+  if (comprimento) specs.push({ icon: Ruler, label: t('specs.comprimento'), value: comprimento });
+  if (emb.quartos) specs.push({ icon: DoorOpen, label: tRoteiro('embarcacao.quartos'), value: String(emb.quartos) });
+  if (emb.banheiros) specs.push({ icon: Bath, label: tRoteiro('embarcacao.banheiros'), value: String(emb.banheiros) });
+  if (emb.tripulacao) specs.push({ icon: LifeBuoy, label: tRoteiro('embarcacao.tripulacao'), value: String(emb.tripulacao) });
 
   return (
     <div className="min-h-screen bg-white">
@@ -250,13 +253,13 @@ export default async function VendaDetalhePage({ params }: { params: Promise<{ i
                 {reduzido && (
                   <span className="inline-flex items-center gap-1 text-xs font-bold text-marinho bg-destaque px-3 py-1.5 rounded-full">
                     <ArrowDownRight className="h-3 w-3" />
-                    Preço reduzido
+                    {tVendas('precoReduzido')}
                   </span>
                 )}
                 {emb.embarcacao_tipo && (
                   <span className="inline-flex items-center gap-1 text-xs font-medium text-marinho bg-marinho/10 px-3 py-1.5 rounded-full">
                     <Anchor className="h-3 w-3" />
-                    {emb.embarcacao_tipo.nome}
+                    <NomeCatalogo categoria="tipo" nome={emb.embarcacao_tipo.nome} />
                   </span>
                 )}
               </div>
@@ -273,7 +276,7 @@ export default async function VendaDetalhePage({ params }: { params: Promise<{ i
               {/* Detalhes da venda */}
               {anuncio.descricao_venda && (
                 <div className="mb-8">
-                  <h2 className="text-xl font-bold text-marinho mb-3">Sobre esta venda</h2>
+                  <h2 className="text-xl font-bold text-marinho mb-3">{t('sobreVenda')}</h2>
                   <p className="text-slate-600 text-sm leading-relaxed max-w-2xl whitespace-pre-line">
                     {anuncio.descricao_venda}
                   </p>
@@ -298,7 +301,7 @@ export default async function VendaDetalhePage({ params }: { params: Promise<{ i
               {/* Descrição da embarcação */}
               {emb.descricao && (
                 <div className="mb-10">
-                  <h2 className="text-xl font-bold text-marinho mb-3">Sobre a embarcação</h2>
+                  <h2 className="text-xl font-bold text-marinho mb-3">{t('sobreEmbarcacao')}</h2>
                   <p className="text-slate-600 text-sm leading-relaxed max-w-2xl">{emb.descricao}</p>
                 </div>
               )}
@@ -306,7 +309,7 @@ export default async function VendaDetalhePage({ params }: { params: Promise<{ i
               {/* Comodidades */}
               {emb.embarcacao_comodidades.length > 0 && (
                 <div className="mb-10">
-                  <h2 className="text-xl font-bold text-marinho mb-4">Comodidades a bordo</h2>
+                  <h2 className="text-xl font-bold text-marinho mb-4">{(await getTranslations('Embarcacao.categorias.comodidades'))('titulo')}</h2>
                   <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
                     {emb.embarcacao_comodidades.map((ec, i) =>
                       ec.comodidade ? (
@@ -315,7 +318,7 @@ export default async function VendaDetalhePage({ params }: { params: Promise<{ i
                           className="flex items-center gap-2.5 p-3 rounded-xl border border-slate-100 bg-slate-50/60"
                         >
                           <CheckCircle2 className="h-4 w-4 text-turquesa shrink-0" />
-                          <span className="text-sm text-slate-700 leading-tight">{ec.comodidade.nome}</span>
+                          <span className="text-sm text-slate-700 leading-tight"><NomeCatalogo categoria="comodidade" nome={ec.comodidade.nome} /></span>
                         </div>
                       ) : null,
                     )}
@@ -326,7 +329,7 @@ export default async function VendaDetalhePage({ params }: { params: Promise<{ i
               {/* Localização (cidade/bairro — endereço exato não é exposto na venda) */}
               {emb.latitude && emb.longitude && (
                 <div className="mb-10">
-                  <h2 className="text-xl font-bold text-marinho mb-4">Localização</h2>
+                  <h2 className="text-xl font-bold text-marinho mb-4">{tRoteiro('localizacao.titulo')}</h2>
                   <LocalizacaoMap lat={Number(emb.latitude)} lng={Number(emb.longitude)} />
                   <div className="mt-4 flex items-start gap-3 p-4 rounded-xl bg-slate-50 border border-slate-100">
                     <MapPin className="h-4 w-4 text-marinho mt-0.5 shrink-0" />
@@ -341,7 +344,7 @@ export default async function VendaDetalhePage({ params }: { params: Promise<{ i
               {/* Avaliações da embarcação (roteiros feitos nela) */}
               <AvaliacoesSection
                 avaliacoes={avaliacoes}
-                emptyLabel="Ainda não há avaliações para esta embarcação."
+                emptyLabel={t('semAvaliacoes')}
               />
             </div>
 

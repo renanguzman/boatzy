@@ -1,0 +1,91 @@
+{
+  "CamposVenda": {
+    "tipo": {
+      "rotulo": "Tipo",
+      "placeholder": "Qual tipo?",
+      "titulo": "Tipo de embarcação",
+      "nenhum": "Nenhum tipo disponível."
+    },
+    "local": {
+      "rotulo": "Localidade",
+      "placeholder": "Onde? (opcional)",
+      "estado": "Estado",
+      "estados": "Estados",
+      "nenhuma": "Nenhuma localidade disponível.",
+      "todoEstado": "Todo o estado",
+      "estadoInteiro": "{estado} (todo o estado)"
+    },
+    "ano": {
+      "rotulo": "Ano",
+      "placeholder": "Qualquer ano",
+      "titulo": "Ano do modelo",
+      "de": "De",
+      "ate": "Até",
+      "emDiante": "{ano} em diante",
+      "ateAno": "até {ano}",
+      "ateAnoPlaceholder": "Até {ano}"
+    },
+    "valor": {
+      "rotulo": "Valor",
+      "placeholder": "Qualquer valor",
+      "titulo": "Faixa de valor",
+      "aPartirDe": "a partir de {valor}",
+      "ate": "até {valor}"
+    }
+  },
+  "Vendas": {
+    "metaTitulo": "Embarcações à venda",
+    "titulo": {
+      "geral": "Embarcações à venda",
+      "tipo": "{tipo} à venda",
+      "geralEm": "Embarcações à venda em {local}",
+      "tipoEm": "{tipo} à venda em {local}"
+    },
+    "encontrados": "{count, plural, one {# anúncio encontrado} other {# anúncios encontrados}}",
+    "chips": {
+      "ano": "Ano: {faixa}",
+      "valor": "Valor: {faixa}"
+    },
+    "vazioTitulo": "Nenhuma embarcação à venda encontrada",
+    "vazioTexto": "Tente outro tipo, ampliar a faixa de valor/ano ou explorar outras localidades.",
+    "filtros": {
+      "localizacao": "Localização",
+      "cidade": "Cidade",
+      "todosEstados": "Todos os estados",
+      "escolhaEstado": "Escolha um estado primeiro"
+    },
+    "precoReduzido": "Preço reduzido",
+    "embarcacaoPadrao": "Embarcação"
+  },
+  "Venda": {
+    "gate": {
+      "titulo": "Entre para ver os detalhes deste anúncio",
+      "texto": "Ficha técnica completa, fotos, histórico de preço, dados do vendedor e chat direto pela plataforma — disponíveis para usuários cadastrados.",
+      "botao": "Entrar ou criar conta"
+    },
+    "specs": {
+      "fabricante": "Fabricante",
+      "anoModeloFab": "Ano modelo/fab.",
+      "capacidade": "Capacidade",
+      "comprimento": "Comprimento"
+    },
+    "sobreVenda": "Sobre esta venda",
+    "sobreEmbarcacao": "Sobre a embarcação",
+    "semAvaliacoes": "Ainda não há avaliações para esta embarcação.",
+    "deXPor": "De <riscado>{valor}</riscado> por",
+    "reduzidoEm": "Preço reduzido em {data}",
+    "seuAnuncio": "Este é o seu anúncio",
+    "naoContaFunil": "Interações suas não contam no funil de vendas.",
+    "gerenciar": "Gerenciar anúncio no painel",
+    "vendedor": "Vendedor",
+    "revelar": "Revelar contato do vendedor",
+    "conversar": "Conversar com o vendedor",
+    "negocieSeguro": "Negocie por dentro da plataforma com mais segurança",
+    "textoCompartilhar": "Confira a \"{nome}\" à venda no Boatzy por {preco}!",
+    "chat": {
+      "descricao": "Vendedor · conversa pelo Boatzy",
+      "voltar": "Voltar para o anúncio",
+      "rascunho": "Olá! Tenho interesse na \"{nome}\" anunciada por {preco}. Podemos conversar?"
+    }
+  }
+}

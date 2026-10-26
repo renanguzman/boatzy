@@ -1,467 +1,204 @@
+import type { ReactNode } from 'react';
 import type { Metadata } from 'next';
+import { getTranslations } from 'next-intl/server';
 import Header from '@/components/layout/Header';
 import Footer from '@/components/layout/Footer';
+import CabecalhoLegal from '@/components/legal/CabecalhoLegal';
 
-export const metadata: Metadata = {
-  title: 'Política de Privacidade — Boatzy',
-  description:
-    'Saiba como o Boatzy trata seus dados pessoais em conformidade com a LGPD e o Marco Civil da Internet.',
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getTranslations('PoliticaPrivacidade');
+  return { title: t('metaTitulo'), description: t('metaDescricao') };
+}
+
+const tituloClass = 'text-xl font-semibold text-grafite';
+const listaClass = 'mt-3 list-disc space-y-1 pl-5';
+const linkClass = 'text-marinho underline hover:no-underline';
+
+const marcacao = {
+  b: (texto: ReactNode) => <strong>{texto}</strong>,
+  em: (texto: ReactNode) => <em>{texto}</em>,
+  email: (texto: ReactNode) => <a href="mailto:adm@boatzy.app" className={linkClass}>{texto}</a>,
 };
 
-export default function PrivacyPage() {
+const LINHAS_BASE_LEGAL = ['conta', 'login', 'operar', 'personalizar', 'avisos', 'legal', 'fraude'] as const;
+
+/** Itens da tabela de cookies: nome técnico (não se traduz), origem, categoria e duração. */
+const COOKIES = [
+  { nome: 'sb-…-auth-token', item: 'auth', origem: 'supabase', categoria: 'necessario', duracao: 'propria' },
+  { nome: 'NEXT_LOCALE', item: 'idioma', origem: 'boatzy', categoria: 'necessario', duracao: 'propria' },
+  { nome: 'boatzy_recent_locations', item: 'locais', origem: 'navegador', categoria: 'necessario', duracao: 'ateLimpar' },
+  { nome: 'boatzy:tutorial-painel:v1', item: 'tutorial', origem: 'navegador', categoria: 'necessario', duracao: 'ateLimpar' },
+  { nome: 'ga:…', item: 'gaLocal', origem: 'navegador', categoria: 'medicao', duracao: 'ateLimpar' },
+  { nome: '_ga', item: 'ga', origem: 'ga', categoria: 'medicao', duracao: 'doisAnos' },
+  { nome: '_ga_4QJF8H6EDJ', item: 'gaSessao', origem: 'ga', categoria: 'medicao', duracao: 'doisAnos' },
+] as const;
+
+export default async function PrivacyPage() {
+  const t = await getTranslations('PoliticaPrivacidade');
+  const r = (chave: Parameters<typeof t.rich>[0]) => t.rich(chave, marcacao);
+
   return (
     <>
       <Header />
 
       <main className="flex-1 bg-areia">
-        {/* Hero */}
-        <section className="bg-marinho text-white">
-          <div className="mx-auto max-w-3xl px-4 sm:px-6 lg:px-8 py-16">
-            <h1 className="text-3xl sm:text-4xl font-bold tracking-tight">
-              Política de Privacidade
-            </h1>
-            <p className="mt-3 text-sm text-slate-300">
-              Última atualização: 25/10/2026
-            </p>
-          </div>
-        </section>
+        <CabecalhoLegal titulo={t('titulo')} atualizadoEm="2026-10-26" />
 
         <div className="mx-auto max-w-3xl px-4 sm:px-6 lg:px-8 py-12">
           {/* Aviso de status */}
           <div className="rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
-            <p>
-              <strong>Status:</strong> Minuta provisória (v1) — versão
-              preliminar destinada a atender aos requisitos de login social
-              (Facebook/Meta) na fase de desenvolvimento da plataforma.{' '}
-              <strong>Não é a versão final.</strong> Recomenda-se revisão por
-              advogado de direito digital antes do lançamento oficial e após a
-              constituição da empresa (CNPJ).
-            </p>
+            <p>{r('status')}</p>
           </div>
 
           <article className="mt-10 space-y-10 text-slate-700 leading-relaxed">
-            {/* 1 */}
             <section>
-              <h2 className="text-xl font-semibold text-grafite">
-                1. Quem somos
-              </h2>
-              <p className="mt-3">
-                O <strong>Boatzy</strong> (&quot;Boatzy&quot;, &quot;nós&quot;
-                ou &quot;plataforma&quot;) é um projeto em desenvolvimento que
-                está construindo uma plataforma digital de intermediação de
-                aluguel de embarcações — conectando pessoas que desejam alugar
-                barcos (Locatários) a proprietários que os disponibilizam
-                (Anunciantes).
-              </p>
-              <p className="mt-3">
-                Esta Política de Privacidade explica como tratamos os dados
-                pessoais de quem acessa ou se cadastra na plataforma, em
-                conformidade com a{' '}
-                <strong>
-                  Lei nº 13.709/2018 (Lei Geral de Proteção de Dados — LGPD)
-                </strong>{' '}
-                e o{' '}
-                <strong>
-                  Marco Civil da Internet (Lei nº 12.965/2014)
-                </strong>
-                .
-              </p>
-              <ul className="mt-3 list-disc space-y-1 pl-5">
-                <li>
-                  <strong>
-                    Responsável pelo tratamento dos dados (Controlador):
-                  </strong>{' '}
-                  Boatzy — projeto em desenvolvimento{' '}
-                  <em>
-                    (razão social e CNPJ a serem incluídos após a constituição
-                    da empresa)
-                  </em>
-                </li>
-                <li>
-                  <strong>Canal de contato para assuntos de privacidade:</strong>{' '}
-                  <a
-                    href="mailto:adm@boatzy.app"
-                    className="text-marinho underline hover:no-underline"
-                  >
-                    adm@boatzy.app
-                  </a>
-                </li>
-                <li>
-                  <strong>Site:</strong> boatzy.app
-                </li>
+              <h2 className={tituloClass}>{t('s1.titulo')}</h2>
+              <p className="mt-3">{r('s1.p1')}</p>
+              <p className="mt-3">{r('s1.p2')}</p>
+              <ul className={listaClass}>
+                <li>{r('s1.controlador')}</li>
+                <li>{r('s1.canal')}</li>
+                <li>{r('s1.site')}</li>
               </ul>
             </section>
 
-            {/* 2 */}
             <section>
-              <h2 className="text-xl font-semibold text-grafite">
-                2. Quais dados coletamos
-              </h2>
-              <p className="mt-3">
-                Nesta fase, coletamos os dados estritamente necessários para
-                criar e identificar sua conta:
-              </p>
-              <p className="mt-3 font-medium text-grafite">
-                a) Dados que você nos fornece ao se cadastrar via login do
-                Facebook:
-              </p>
+              <h2 className={tituloClass}>{t('s2.titulo')}</h2>
+              <p className="mt-3">{t('s2.p1')}</p>
+              <p className="mt-3 font-medium text-grafite">{t('s2.a')}</p>
               <ul className="mt-2 list-disc space-y-1 pl-5">
-                <li>Nome completo</li>
-                <li>Endereço de e-mail</li>
-                <li>Gênero</li>
-                <li>Cidade</li>
-                <li>Foto de perfil</li>
+                {(['a1', 'a2', 'a3', 'a4', 'a5'] as const).map((i) => <li key={i}>{t(`s2.${i}`)}</li>)}
               </ul>
-              <p className="mt-3 font-medium text-grafite">
-                b) Dados coletados automaticamente quando você usa a plataforma:
-              </p>
+              <p className="mt-3 font-medium text-grafite">{t('s2.b')}</p>
               <ul className="mt-2 list-disc space-y-1 pl-5">
-                <li>Endereço de IP, tipo de dispositivo e navegador</li>
-                <li>
-                  Dados de navegação e de uso (páginas acessadas, data e hora)
-                </li>
-                <li>Cookies e tecnologias semelhantes (ver seção 6)</li>
+                {(['b1', 'b2', 'b3'] as const).map((i) => <li key={i}>{t(`s2.${i}`)}</li>)}
               </ul>
               <blockquote className="mt-4 border-l-4 border-slate-300 pl-4 italic text-slate-600">
-                Aplicamos o princípio da <strong>minimização</strong>:
-                coletamos apenas o necessário para o funcionamento da plataforma
-                na fase atual. Não coletamos dados sensíveis (origem racial,
-                opinião política, saúde, vida sexual etc.).
+                {r('s2.minimizacao')}
               </blockquote>
             </section>
 
-            {/* 3 */}
             <section>
-              <h2 className="text-xl font-semibold text-grafite">
-                3. Como e por que usamos seus dados
-              </h2>
-              <p className="mt-3">
-                Usamos seus dados pelas seguintes finalidades e bases legais
-                previstas na LGPD:
-              </p>
+              <h2 className={tituloClass}>{t('s3.titulo')}</h2>
+              <p className="mt-3">{t('s3.p1')}</p>
               <div className="mt-4 overflow-x-auto">
                 <table className="w-full border-collapse text-sm">
                   <thead>
                     <tr className="bg-slate-100 text-left">
-                      <th className="border border-slate-200 px-3 py-2 font-semibold text-grafite">
-                        Finalidade
-                      </th>
-                      <th className="border border-slate-200 px-3 py-2 font-semibold text-grafite">
-                        Base legal (LGPD)
-                      </th>
+                      <th className="border border-slate-200 px-3 py-2 font-semibold text-grafite">{t('s3.finalidade')}</th>
+                      <th className="border border-slate-200 px-3 py-2 font-semibold text-grafite">{t('s3.base')}</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {[
-                      [
-                        'Criar, identificar e autenticar sua conta',
-                        'Execução de contrato (art. 7º, V)',
-                      ],
-                      [
-                        'Permitir o login pela conta do Facebook',
-                        'Execução de contrato / consentimento',
-                      ],
-                      [
-                        'Operar, manter e melhorar a plataforma',
-                        'Legítimo interesse (art. 7º, IX)',
-                      ],
-                      [
-                        'Personalizar sua experiência e comunicações (ex.: tratamento adequado)',
-                        'Legítimo interesse / consentimento',
-                      ],
-                      [
-                        'Comunicar avisos importantes sobre sua conta',
-                        'Execução de contrato',
-                      ],
-                      [
-                        'Cumprir obrigações legais e regulatórias',
-                        'Obrigação legal (art. 7º, II)',
-                      ],
-                      [
-                        'Prevenir fraudes e garantir a segurança',
-                        'Legítimo interesse',
-                      ],
-                    ].map(([finalidade, base]) => (
-                      <tr key={finalidade}>
-                        <td className="border border-slate-200 px-3 py-2 align-top">
-                          {finalidade}
-                        </td>
-                        <td className="border border-slate-200 px-3 py-2 align-top">
-                          {base}
-                        </td>
+                    {LINHAS_BASE_LEGAL.map((linha) => (
+                      <tr key={linha}>
+                        <td className="border border-slate-200 px-3 py-2 align-top">{t(`s3.linhas.${linha}.f`)}</td>
+                        <td className="border border-slate-200 px-3 py-2 align-top">{t(`s3.linhas.${linha}.b`)}</td>
                       </tr>
                     ))}
                   </tbody>
                 </table>
               </div>
               <p className="mt-4">
-                <strong>Não vendemos seus dados pessoais.</strong>
+                <strong>{t('s3.naoVendemos')}</strong>
               </p>
             </section>
 
-            {/* 4 */}
             <section>
-              <h2 className="text-xl font-semibold text-grafite">
-                4. Com quem compartilhamos
-              </h2>
-              <p className="mt-3">
-                Podemos compartilhar dados apenas quando necessário e nas
-                seguintes situações:
-              </p>
-              <ul className="mt-3 list-disc space-y-1 pl-5">
-                <li>
-                  <strong>Provedores de tecnologia</strong> que nos apoiam
-                  (hospedagem, autenticação, análise) — apenas o necessário e
-                  sob obrigação de confidencialidade.
-                </li>
-                <li>
-                  <strong>Meta/Facebook</strong>, quando você opta por usar o
-                  login social — o tratamento dos dados pela Meta é regido pela
-                  política de privacidade dela.
-                </li>
-                <li>
-                  <strong>Autoridades públicas</strong>, quando exigido por lei,
-                  ordem judicial ou para defesa de direitos.
-                </li>
+              <h2 className={tituloClass}>{t('s4.titulo')}</h2>
+              <p className="mt-3">{t('s4.p1')}</p>
+              <ul className={listaClass}>
+                <li>{r('s4.i1')}</li>
+                <li>{r('s4.i2')}</li>
+                <li>{r('s4.i3')}</li>
               </ul>
-              <p className="mt-3">
-                Não compartilhamos seus dados com terceiros para fins de
-                marketing sem o seu consentimento.
-              </p>
+              <p className="mt-3">{t('s4.p2')}</p>
             </section>
 
-            {/* 5 */}
             <section>
-              <h2 className="text-xl font-semibold text-grafite">
-                5. Por quanto tempo guardamos
-              </h2>
-              <p className="mt-3">
-                Mantemos seus dados pelo tempo necessário para as finalidades
-                descritas ou para cumprir obrigações legais. Você pode solicitar
-                a exclusão da sua conta e dos seus dados a qualquer momento pelo
-                e-mail{' '}
-                <a
-                  href="mailto:adm@boatzy.app"
-                  className="text-marinho underline hover:no-underline"
-                >
-                  adm@boatzy.app
-                </a>
-                , ressalvadas as informações que a lei exige que sejam mantidas.
-              </p>
+              <h2 className={tituloClass}>{t('s5.titulo')}</h2>
+              <p className="mt-3">{r('s5.p')}</p>
             </section>
 
-            {/* 6 */}
             <section id="cookies" className="scroll-mt-24">
-              <h2 className="text-xl font-semibold text-grafite">
-                6. Cookies e tecnologias semelhantes
-              </h2>
-              <p className="mt-3">
-                Cookies são pequenos arquivos guardados no seu navegador. Também
-                usamos o armazenamento local do navegador, que funciona de forma
-                parecida. Separamos o que usamos em duas categorias:
-              </p>
+              <h2 className={tituloClass}>{t('s6.titulo')}</h2>
+              <p className="mt-3">{t('s6.p1')}</p>
               <ul className="mt-3 list-disc pl-6 space-y-2">
-                <li>
-                  <strong>Necessários</strong> — indispensáveis para a
-                  plataforma funcionar (manter você conectado e guardar
-                  preferências do site). Ficam sempre
-                  ativos, com base na execução do contrato e no legítimo
-                  interesse (art. 7º, V e IX, da LGPD).
-                </li>
-                <li>
-                  <strong>Medição</strong> — o Google Analytics, que nos mostra
-                  de forma estatística como o site é usado (páginas visitadas, de
-                  onde vêm os acessos, tipo de aparelho e região aproximada) para
-                  melhorarmos o Boatzy, com base no legítimo interesse (art. 7º,
-                  IX, da LGPD). Não usamos cookies de publicidade.
-                </li>
+                <li>{r('s6.necessarios')}</li>
+                <li>{r('s6.medicao')}</li>
               </ul>
 
-              <h3 className="mt-6 font-semibold text-grafite">Como controlar os cookies</h3>
-              <p className="mt-3">
-                Quando você está conectado, as estatísticas de Medição são
-                associadas a um código interno da sua conta — nunca ao seu nome
-                ou e-mail. Você pode bloquear ou apagar cookies a qualquer
-                momento nas configurações do seu navegador; bloquear os cookies
-                de Medição não limita o uso da plataforma, mas bloquear os
-                Necessários pode impedir o login.
-              </p>
+              <h3 className="mt-6 font-semibold text-grafite">{t('s6.controlarTitulo')}</h3>
+              <p className="mt-3">{t('s6.controlar')}</p>
 
-              <h3 className="mt-6 font-semibold text-grafite">Cookies e itens que usamos</h3>
+              <h3 className="mt-6 font-semibold text-grafite">{t('s6.tabelaTitulo')}</h3>
               <div className="mt-3 overflow-x-auto rounded-lg border border-slate-200 bg-white">
                 <table className="w-full min-w-[640px] text-left text-sm">
                   <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
                     <tr>
-                      <th className="py-2 pl-3 pr-3 font-semibold">Nome</th>
-                      <th className="py-2 pr-3 font-semibold">De quem</th>
-                      <th className="py-2 pr-3 font-semibold">Categoria</th>
-                      <th className="py-2 pr-3 font-semibold">Para quê</th>
-                      <th className="py-2 pr-3 font-semibold">Duração</th>
+                      <th className="py-2 pl-3 pr-3 font-semibold">{t('s6.colunas.nome')}</th>
+                      <th className="py-2 pr-3 font-semibold">{t('s6.colunas.deQuem')}</th>
+                      <th className="py-2 pr-3 font-semibold">{t('s6.colunas.categoria')}</th>
+                      <th className="py-2 pr-3 font-semibold">{t('s6.colunas.paraQue')}</th>
+                      <th className="py-2 pr-3 font-semibold">{t('s6.colunas.duracao')}</th>
                     </tr>
                   </thead>
                   <tbody className="[&_td:first-child]:pl-3">
-                    <tr className="border-t border-slate-100 align-top">
-                      <td className="py-2 pr-3 font-mono text-xs text-grafite">sb-…-auth-token</td>
-                      <td className="py-2 pr-3">Boatzy (Supabase)</td>
-                      <td className="py-2 pr-3">Necessário</td>
-                      <td className="py-2 pr-3">Mantém você conectado com segurança.</td>
-                      <td className="py-2">Sessão de login (renovada enquanto você usa)</td>
-                    </tr>
-                    <tr className="border-t border-slate-100 align-top">
-                      <td className="py-2 pr-3 font-mono text-xs text-grafite">boatzy_recent_locations</td>
-                      <td className="py-2 pr-3">Boatzy (armazenamento do navegador)</td>
-                      <td className="py-2 pr-3">Necessário</td>
-                      <td className="py-2 pr-3">Lembra os últimos destinos buscados neste aparelho.</td>
-                      <td className="py-2">Até você limpar os dados do navegador</td>
-                    </tr>
-                    <tr className="border-t border-slate-100 align-top">
-                      <td className="py-2 pr-3 font-mono text-xs text-grafite">boatzy:tutorial-painel:v1</td>
-                      <td className="py-2 pr-3">Boatzy (armazenamento do navegador)</td>
-                      <td className="py-2 pr-3">Necessário</td>
-                      <td className="py-2 pr-3">Lembra que o tutorial do painel do anunciante já foi visto.</td>
-                      <td className="py-2">Até você limpar os dados do navegador</td>
-                    </tr>
-                    <tr className="border-t border-slate-100 align-top">
-                      <td className="py-2 pr-3 font-mono text-xs text-grafite">ga:…</td>
-                      <td className="py-2 pr-3">Boatzy (armazenamento do navegador)</td>
-                      <td className="py-2 pr-3">Medição</td>
-                      <td className="py-2 pr-3">Evita contar duas vezes o mesmo evento estatístico.</td>
-                      <td className="py-2">Até você limpar os dados do navegador</td>
-                    </tr>
-                    <tr className="border-t border-slate-100 align-top">
-                      <td className="py-2 pr-3 font-mono text-xs text-grafite">_ga</td>
-                      <td className="py-2 pr-3">Google Analytics</td>
-                      <td className="py-2 pr-3">Medição</td>
-                      <td className="py-2 pr-3">Distingue visitantes de forma estatística.</td>
-                      <td className="py-2">2 anos</td>
-                    </tr>
-                    <tr className="border-t border-slate-100 align-top">
-                      <td className="py-2 pr-3 font-mono text-xs text-grafite">_ga_4QJF8H6EDJ</td>
-                      <td className="py-2 pr-3">Google Analytics</td>
-                      <td className="py-2 pr-3">Medição</td>
-                      <td className="py-2 pr-3">Mantém o estado da visita para as estatísticas.</td>
-                      <td className="py-2">2 anos</td>
-                    </tr>
+                    {COOKIES.map((c) => (
+                      <tr key={c.nome} className="border-t border-slate-100 align-top">
+                        <td className="py-2 pr-3 font-mono text-xs text-grafite">{c.nome}</td>
+                        <td className="py-2 pr-3">{t(`s6.origem.${c.origem}`)}</td>
+                        <td className="py-2 pr-3">{t(`s6.categorias.${c.categoria}`)}</td>
+                        <td className="py-2 pr-3">{t(`s6.itens.${c.item}.para`)}</td>
+                        <td className="py-2">
+                          {c.duracao === 'propria'
+                            ? t(`s6.itens.${c.item as 'auth' | 'idioma'}.duracao`)
+                            : t(`s6.${c.duracao}`)}
+                        </td>
+                      </tr>
+                    ))}
                   </tbody>
                 </table>
               </div>
-              <p className="mt-3 text-sm text-slate-500">
-                O Google Analytics é um serviço da Google LLC, que pode tratar
-                dados fora do Brasil conforme as garantias da sua própria
-                política de privacidade (policies.google.com/privacy).
-              </p>
+              <p className="mt-3 text-sm text-slate-500">{t('s6.google')}</p>
             </section>
 
-            {/* 7 */}
-            <section>
-              <h2 className="text-xl font-semibold text-grafite">
-                7. Segurança
-              </h2>
-              <p className="mt-3">
-                Adotamos medidas técnicas e organizacionais razoáveis para
-                proteger seus dados contra acesso não autorizado, perda ou
-                alteração. Nenhum sistema é 100% seguro, mas trabalhamos para
-                reduzir riscos e responder a eventuais incidentes.
-              </p>
-            </section>
+            {(['s7', 's8'] as const).map((s) => (
+              <section key={s}>
+                <h2 className={tituloClass}>{t(`${s}.titulo`)}</h2>
+                <p className="mt-3">{t(`${s}.p`)}</p>
+              </section>
+            ))}
 
-            {/* 8 */}
             <section>
-              <h2 className="text-xl font-semibold text-grafite">
-                8. Transferência internacional
-              </h2>
-              <p className="mt-3">
-                Alguns de nossos provedores de tecnologia podem estar
-                localizados fora do Brasil. Nesses casos, adotamos salvaguardas
-                para que seus dados continuem protegidos conforme a LGPD.
-              </p>
-            </section>
-
-            {/* 9 */}
-            <section>
-              <h2 className="text-xl font-semibold text-grafite">
-                9. Seus direitos como titular
-              </h2>
-              <p className="mt-3">
-                Nos termos do art. 18 da LGPD, você pode, a qualquer momento:
-              </p>
-              <ul className="mt-3 list-disc space-y-1 pl-5">
-                <li>Confirmar a existência de tratamento dos seus dados</li>
-                <li>Acessar seus dados</li>
-                <li>
-                  Corrigir dados incompletos, inexatos ou desatualizados
-                </li>
-                <li>
-                  Solicitar anonimização, bloqueio ou eliminação de dados
-                  desnecessários
-                </li>
-                <li>Solicitar a portabilidade dos dados</li>
-                <li>
-                  Revogar o consentimento e solicitar a exclusão da conta
-                </li>
-                <li>
-                  Obter informação sobre com quem compartilhamos seus dados
-                </li>
+              <h2 className={tituloClass}>{t('s9.titulo')}</h2>
+              <p className="mt-3">{t('s9.p1')}</p>
+              <ul className={listaClass}>
+                {(['i1', 'i2', 'i3', 'i4', 'i5', 'i6', 'i7'] as const).map((i) => <li key={i}>{t(`s9.${i}`)}</li>)}
               </ul>
-              <p className="mt-3">
-                Para exercer qualquer um desses direitos, escreva para{' '}
-                <a
-                  href="mailto:adm@boatzy.app"
-                  className="text-marinho underline hover:no-underline"
-                >
-                  adm@boatzy.app
-                </a>
-                .
-              </p>
+              <p className="mt-3">{r('s9.p2')}</p>
             </section>
 
-            {/* 10 */}
-            <section>
-              <h2 className="text-xl font-semibold text-grafite">
-                10. Menores de idade
-              </h2>
-              <p className="mt-3">
-                A plataforma é destinada a maiores de 18 anos. Não coletamos
-                intencionalmente dados de menores de idade. Se identificarmos
-                esse tipo de coleta, os dados serão excluídos.
-              </p>
-            </section>
+            {(['s10', 's11'] as const).map((s) => (
+              <section key={s}>
+                <h2 className={tituloClass}>{t(`${s}.titulo`)}</h2>
+                <p className="mt-3">{t(`${s}.p`)}</p>
+              </section>
+            ))}
 
-            {/* 11 */}
             <section>
-              <h2 className="text-xl font-semibold text-grafite">
-                11. Alterações desta Política
-              </h2>
+              <h2 className={tituloClass}>{t('s12.titulo')}</h2>
+              <p className="mt-3">{t('s12.p')}</p>
               <p className="mt-3">
-                Podemos atualizar esta Política periodicamente, especialmente
-                conforme a plataforma evolui. A data da última atualização será
-                sempre indicada no topo. Mudanças relevantes serão comunicadas
-                pelos canais disponíveis.
-              </p>
-            </section>
-
-            {/* 12 */}
-            <section>
-              <h2 className="text-xl font-semibold text-grafite">
-                12. Contato
-              </h2>
-              <p className="mt-3">
-                Dúvidas, solicitações ou reclamações sobre privacidade e
-                proteção de dados:
-              </p>
-              <p className="mt-3">
-                📧{' '}
+                {'📧 '}
                 <a
                   href="mailto:adm@boatzy.app"
                   className="font-semibold text-marinho underline hover:no-underline"
                 >
-                  adm@boatzy.app
+                  {'adm@boatzy.app'}
                 </a>
               </p>
-              <p className="mt-3 text-sm italic text-slate-500">
-                Encarregado pelo Tratamento de Dados (DPO) a ser designado após
-                a constituição da empresa.
-              </p>
+              <p className="mt-3 text-sm italic text-slate-500">{t('s12.dpo')}</p>
             </section>
           </article>
         </div>

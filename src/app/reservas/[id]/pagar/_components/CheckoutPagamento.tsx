@@ -2,11 +2,12 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { useTranslations } from 'next-intl';
 import { QrCode, CreditCard, Loader2, Copy, Check, ShieldCheck, Clock, FlaskConical } from 'lucide-react';
 import type { FormaPagamentoCodigo } from '@/types/supabase';
 import { rastrear } from '@/lib/analytics';
 import { maskCPF } from '@/lib/validators';
-import { formatCurrencyPrecise } from '@/lib/utils';
+import { useFormatos } from '@/i18n/formatos';
 import { consultarStatusPedido, pagarReserva } from '../actions';
 
 export type FormaCheckout = { codigo: FormaPagamentoCodigo; nome: string; opcoesParcelas: number[] };
@@ -40,6 +41,8 @@ export default function CheckoutPagamento({
   reservaId, valorTotal, expiraEm, formas, precisaCpf, formaInicial, pixInicial, retornoCartao, sandbox,
 }: Props) {
   const router = useRouter();
+  const t = useTranslations('Pagamento');
+  const f = useFormatos();
   const [forma, setForma] = useState<FormaPagamentoCodigo>(formaInicial ?? formas[0]?.codigo ?? 'pix');
   const [parcelas, setParcelas] = useState(1);
   const [cpf, setCpf] = useState('');
@@ -70,7 +73,7 @@ export default function CheckoutPagamento({
 
   async function pagar(formaEscolhida: FormaPagamentoCodigo) {
     if (precisaCpf && !cpf) {
-      setErro({ texto: 'Informe seu CPF para pagar.', campo: 'cpf' });
+      setErro({ texto: t('informeCpf'), campo: 'cpf' });
       return;
     }
     setCarregando(true);
@@ -107,16 +110,16 @@ export default function CheckoutPagamento({
     return (
       <div className="rounded-2xl border border-slate-200 bg-white shadow-sm p-6 text-center">
         <Loader2 className="h-8 w-8 text-marinho animate-spin mx-auto" />
-        <h2 className="mt-3 text-lg font-bold text-marinho">Confirmando seu pagamento…</h2>
+        <h2 className="mt-3 text-lg font-bold text-marinho">{t('confirmando')}</h2>
         <p className="mt-1 text-sm text-slate-500">
-          Assim que o Asaas confirmar, esta página é atualizada sozinha. Pode levar alguns instantes.
+          {t('confirmandoTexto')}
         </p>
         <button
           type="button"
           onClick={() => router.replace(`/reservas/${reservaId}/pagar`)}
           className="mt-4 text-sm font-medium text-marinho hover:underline"
         >
-          Voltar às formas de pagamento
+          {t('voltarFormas')}
         </button>
       </div>
     );
@@ -126,20 +129,19 @@ export default function CheckoutPagamento({
     <div className="rounded-2xl border border-slate-200 bg-white shadow-sm overflow-hidden">
       <div className="p-5 border-b border-slate-100 flex items-center justify-between gap-3">
         <div>
-          <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">Total a pagar</p>
-          <p className="text-2xl font-bold text-marinho">{formatCurrencyPrecise(valorTotal)}</p>
+          <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">{t('totalAPagar')}</p>
+          <p className="text-2xl font-bold text-marinho">{f.moedaCentavos(valorTotal)}</p>
         </div>
         <div className="text-right text-xs text-slate-500">
-          <p className="flex items-center gap-1 justify-end"><Clock className="h-3.5 w-3.5" /> Prazo para pagar</p>
-          <p className="font-semibold text-slate-700">{restante > 0 ? formatRestante(restante) : 'encerrado'}</p>
+          <p className="flex items-center gap-1 justify-end"><Clock className="h-3.5 w-3.5" /> {t('prazo')}</p>
+          <p className="font-semibold text-slate-700">{restante > 0 ? formatRestante(restante) : t('encerrado')}</p>
         </div>
       </div>
 
       {sandbox && (
         <div className="mx-5 mt-5 flex items-start gap-2 rounded-xl bg-amber-50 border border-amber-100 px-3 py-2 text-xs text-amber-800">
           <FlaskConical className="h-4 w-4 shrink-0 mt-0.5" />
-          Ambiente de testes (sandbox): o Pix não pode ser pago por um banco real — confirme a cobrança no painel do Asaas.
-          No cartão, use 4444 4444 4444 4444, CVV 123 e validade futura.
+          {t('sandbox')}
         </div>
       )}
 
@@ -168,7 +170,7 @@ export default function CheckoutPagamento({
 
           {precisaCpf && (
             <label className="block">
-              <span className="text-xs font-semibold text-slate-600">CPF do pagador</span>
+              <span className="text-xs font-semibold text-slate-600">{t('cpfPagador')}</span>
               <input
                 inputMode="numeric"
                 value={cpf}
@@ -178,13 +180,13 @@ export default function CheckoutPagamento({
                   erro?.campo === 'cpf' ? 'border-red-300' : 'border-slate-200'
                 }`}
               />
-              <span className="block mt-1 text-[11px] text-slate-400">Exigido para emitir a cobrança. Fica salvo no seu cadastro.</span>
+              <span className="block mt-1 text-[11px] text-slate-400">{t('cpfAjuda')}</span>
             </label>
           )}
 
           {forma === 'cartao_credito' && formaAtual && formaAtual.opcoesParcelas.length > 1 && (
             <label className="block">
-              <span className="text-xs font-semibold text-slate-600">Parcelamento</span>
+              <span className="text-xs font-semibold text-slate-600">{t('parcelamento')}</span>
               <select
                 value={parcelas}
                 onChange={(e) => setParcelas(Number(e.target.value))}
@@ -192,7 +194,7 @@ export default function CheckoutPagamento({
               >
                 {formaAtual.opcoesParcelas.map((n) => (
                   <option key={n} value={n}>
-                    {n === 1 ? `À vista — ${formatCurrencyPrecise(valorTotal)}` : `${n}x de ${formatCurrencyPrecise(valorTotal / n)}`}
+                    {n === 1 ? t('aVista', { valor: f.moedaCentavos(valorTotal) }) : t('parcelas', { n, valor: f.moedaCentavos(valorTotal / n) })}
                   </option>
                 ))}
               </select>
@@ -202,8 +204,7 @@ export default function CheckoutPagamento({
           {forma === 'cartao_credito' && (
             <p className="flex items-start gap-2 text-xs text-slate-500">
               <ShieldCheck className="h-4 w-4 text-turquesa-escuro shrink-0" />
-              Você vai digitar os dados do cartão no ambiente seguro do Asaas, nosso parceiro de pagamentos.
-              O Boatzy não recebe nem guarda o número do cartão.
+              {t('cartaoSeguro')}
             </p>
           )}
 
@@ -216,7 +217,7 @@ export default function CheckoutPagamento({
             className="w-full inline-flex items-center justify-center gap-2 rounded-xl bg-marinho hover:bg-marinho-escuro disabled:opacity-60 px-4 py-3 text-sm font-semibold text-white transition-colors"
           >
             {carregando ? <Loader2 className="h-4 w-4 animate-spin" /> : forma === 'pix' ? <QrCode className="h-4 w-4" /> : <CreditCard className="h-4 w-4" />}
-            {forma === 'pix' ? 'Gerar QR Code Pix' : 'Pagar com cartão'}
+            {forma === 'pix' ? t('gerarPix') : t('pagarCartao')}
           </button>
         </div>
       )}
@@ -224,17 +225,17 @@ export default function CheckoutPagamento({
       {/* Pix gerado */}
       {pix && (
         <div className="p-5 space-y-4 text-center">
-          <p className="text-sm text-slate-600">Abra o app do seu banco, escolha pagar com Pix e escaneie o código:</p>
+          <p className="text-sm text-slate-600">{t('abraApp')}</p>
           {/* eslint-disable-next-line @next/next/no-img-element -- imagem base64 gerada pelo Asaas */}
           <img
             src={`data:image/png;base64,${pix.imagem}`}
-            alt="QR Code Pix"
+            alt={t('qrAlt')}
             width={220}
             height={220}
             className="mx-auto rounded-xl border border-slate-100"
           />
           <div className="text-left">
-            <p className="text-xs font-semibold text-slate-600 mb-1">Ou use o Pix copia e cola</p>
+            <p className="text-xs font-semibold text-slate-600 mb-1">{t('copiaECola')}</p>
             <div className="flex items-stretch gap-2">
               <input readOnly value={pix.payload} className="flex-1 min-w-0 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-600" />
               <button
@@ -243,19 +244,19 @@ export default function CheckoutPagamento({
                 className="inline-flex items-center gap-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 px-3 text-sm font-semibold text-marinho"
               >
                 {copiado ? <Check className="h-4 w-4 text-turquesa-escuro" /> : <Copy className="h-4 w-4" />}
-                {copiado ? 'Copiado' : 'Copiar'}
+                {copiado ? t('copiado') : t('copiar')}
               </button>
             </div>
           </div>
           <p className="flex items-center justify-center gap-2 text-sm text-slate-500">
-            <Loader2 className="h-4 w-4 animate-spin" /> Aguardando o pagamento — a página atualiza sozinha.
+            <Loader2 className="h-4 w-4 animate-spin" /> {t('aguardando')}
           </p>
           <button
             type="button"
             onClick={() => { setPix(null); setErro(null); }}
             className="text-sm font-medium text-marinho hover:underline"
           >
-            Escolher outra forma de pagamento
+            {t('outraForma')}
           </button>
         </div>
       )}

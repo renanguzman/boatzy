@@ -6,7 +6,12 @@
  * seguinte entre 21h e meia-noite. Toda data exibida ou "hoje" calculado deve
  * passar por aqui (ou usar `timeZone: FUSO_HORARIO`). Funciona igual no
  * servidor e no navegador.
+ *
+ * O fuso é sempre o de Brasília, em qualquer idioma; o `idioma` (padrão
+ * pt-BR, o do painel e do admin) muda só o formato — SPEC §94.5.
  */
+
+import { IDIOMA_PADRAO, LOCALE_INTL, type Idioma } from '@/i18n/config';
 
 export const FUSO_HORARIO = 'America/Sao_Paulo';
 
@@ -24,6 +29,13 @@ export function paraData(valor: string | Date): Date {
 
 function valido(d: Date): boolean {
   return !Number.isNaN(d.getTime());
+}
+
+/** Hora no costume de cada idioma: 24h em pt-BR e es (20:39), 12h em en-US (8:39 PM). */
+export function opcoesHora(idioma: Idioma): Intl.DateTimeFormatOptions {
+  return idioma === 'en-US'
+    ? { hour: 'numeric', minute: '2-digit' }
+    : { hour: '2-digit', minute: '2-digit', hourCycle: 'h23' };
 }
 
 /** 'AAAA-MM-DD' de um instante no horário de Brasília. */
@@ -62,36 +74,38 @@ export function partesNoFuso(d: Date): { ano: number; mes: number; dia: number }
   return { ano, mes: mes - 1, dia };
 }
 
-/** Data formatada (padrão 30/09/2026). Aceita timestamp ISO ou 'AAAA-MM-DD'. */
+/** Data formatada (padrão 30/09/2026; en-US 09/30/2026). Aceita timestamp ISO ou 'AAAA-MM-DD'. */
 export function formatarData(
   valor: string | Date | null | undefined,
   opts: Intl.DateTimeFormatOptions = { day: '2-digit', month: '2-digit', year: 'numeric' },
+  idioma: Idioma = IDIOMA_PADRAO,
 ): string {
   if (!valor) return '—';
   const d = paraData(valor);
   if (!valido(d)) return '—';
-  return d.toLocaleDateString('pt-BR', { ...opts, timeZone: FUSO_HORARIO });
+  return d.toLocaleDateString(LOCALE_INTL[idioma], { ...opts, timeZone: FUSO_HORARIO });
 }
 
 /** Data e hora (padrão 30/09/2026, 20:39). */
 export function formatarDataHora(
   valor: string | Date | null | undefined,
   opts: { segundos?: boolean } = {},
+  idioma: Idioma = IDIOMA_PADRAO,
 ): string {
   if (!valor) return '—';
   const d = paraData(valor);
   if (!valido(d)) return '—';
-  return d.toLocaleString('pt-BR', {
+  return d.toLocaleString(LOCALE_INTL[idioma], {
     day: '2-digit', month: '2-digit', year: 'numeric',
-    hour: '2-digit', minute: '2-digit', ...(opts.segundos ? { second: '2-digit' } : {}),
+    ...opcoesHora(idioma), ...(opts.segundos ? { second: '2-digit' } : {}),
     timeZone: FUSO_HORARIO,
   });
 }
 
-/** Só a hora (20:39). */
-export function formatarHora(valor: string | Date | null | undefined): string {
+/** Só a hora (20:39; en-US 8:39 PM). */
+export function formatarHora(valor: string | Date | null | undefined, idioma: Idioma = IDIOMA_PADRAO): string {
   if (!valor) return '—';
   const d = paraData(valor);
   if (!valido(d)) return '—';
-  return d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', timeZone: FUSO_HORARIO });
+  return d.toLocaleTimeString(LOCALE_INTL[idioma], { ...opcoesHora(idioma), timeZone: FUSO_HORARIO });
 }

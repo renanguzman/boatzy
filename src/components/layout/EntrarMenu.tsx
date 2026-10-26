@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
+import { useTranslations } from 'next-intl';
 import { User, Briefcase, ChevronDown } from 'lucide-react';
 
 type Props = {
@@ -13,6 +14,7 @@ type Props = {
 export default function EntrarMenu({ entrarClienteUrl }: Props) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
+  const t = useTranslations('Header');
 
   useEffect(() => {
     function onClick(e: MouseEvent) {
@@ -39,7 +41,7 @@ export default function EntrarMenu({ entrarClienteUrl }: Props) {
         className="flex items-center gap-2 rounded-full border border-slate-200 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 hover:border-marinho hover:text-marinho transition-all"
       >
         <User className="h-4 w-4" />
-        <span>Entrar</span>
+        <span>{t('entrar')}</span>
         <ChevronDown className={`h-3.5 w-3.5 text-slate-400 transition-transform ${open ? 'rotate-180' : ''}`} />
       </button>
 
@@ -49,7 +51,7 @@ export default function EntrarMenu({ entrarClienteUrl }: Props) {
           className="absolute right-0 mt-2 w-64 rounded-2xl border border-slate-100 bg-white shadow-xl shadow-slate-900/5 overflow-hidden z-50 animate-in fade-in slide-in-from-top-1"
         >
           <div className="px-4 py-3 border-b border-slate-100">
-            <p className="text-sm font-semibold text-marinho">Como você quer entrar?</p>
+            <p className="text-sm font-semibold text-marinho">{t('comoQuerEntrar')}</p>
           </div>
 
           <nav className="py-1.5">
@@ -63,8 +65,8 @@ export default function EntrarMenu({ entrarClienteUrl }: Props) {
                 <User className="h-4 w-4 text-marinho" />
               </span>
               <span>
-                <span className="block font-medium">Entrar como Cliente</span>
-                <span className="block text-xs text-slate-400">Alugar embarcações e roteiros</span>
+                <span className="block font-medium">{t('entrarComoCliente')}</span>
+                <span className="block text-xs text-slate-400">{t('entrarComoClienteDescricao')}</span>
               </span>
             </Link>
             <Link
@@ -77,8 +79,8 @@ export default function EntrarMenu({ entrarClienteUrl }: Props) {
                 <Briefcase className="h-4 w-4 text-marinho" />
               </span>
               <span>
-                <span className="block font-medium">Entrar como Proprietário</span>
-                <span className="block text-xs text-slate-400">Anunciar e gerenciar embarcações</span>
+                <span className="block font-medium">{t('entrarComoProprietario')}</span>
+                <span className="block text-xs text-slate-400">{t('entrarComoProprietarioDescricao')}</span>
               </span>
             </Link>
           </nav>

@@ -2,6 +2,7 @@ import 'server-only';
 
 import { isIP } from 'node:net';
 import { headers } from 'next/headers';
+import { getTranslations } from 'next-intl/server';
 import { createClient } from '@/lib/supabase/server';
 import { supabaseAdmin } from '@/lib/supabase';
 import type { Database } from '@/types/supabase';
@@ -159,24 +160,24 @@ export type AceiteRegistrado = { ok: true; aceiteId: string; evidenciaHash: stri
  * digitada ausente ou que não confere com o cadastro.
  */
 export async function validarAceite(input: RegistrarAceiteInput): Promise<AceitePreparado | Falha> {
-  const [termo, usuario] = await Promise.all([buscarVigente(input.identificador), buscarUsuario(input.userId)]);
+  const [termo, usuario, t] = await Promise.all([
+    buscarVigente(input.identificador),
+    buscarUsuario(input.userId),
+    getTranslations('Termos'),
+  ]);
 
   if (!termo) {
-    return { ok: false, codigo: 'termo_indisponivel', error: 'Este termo não está disponível no momento. Tente novamente mais tarde.' };
+    return { ok: false, codigo: 'termo_indisponivel', error: t('erros.termoIndisponivel') };
   }
   if (termo.id !== input.termoId) {
-    return {
-      ok: false,
-      codigo: 'versao_desatualizada',
-      error: 'O termo foi atualizado enquanto você o lia. Leia a nova versão para prosseguir.',
-    };
+    return { ok: false, codigo: 'versao_desatualizada', error: t('erros.versaoDesatualizada') };
   }
-  if (!usuario) return { ok: false, codigo: 'usuario_invalido', error: 'Usuário não encontrado.' };
+  if (!usuario) return { ok: false, codigo: 'usuario_invalido', error: t('erros.usuarioNaoEncontrado') };
 
   const ev = input.evidencias;
   const rolouAteFim = ev.rolouAteFim === true;
   if (termo.exige_rolagem_completa && !rolouAteFim) {
-    return { ok: false, codigo: 'leitura_incompleta', error: 'Leia o termo até o final para prosseguir.' };
+    return { ok: false, codigo: 'leitura_incompleta', error: t('erros.leituraIncompleta') };
   }
 
   let confirmacao: Pick<AceiteInsert, 'confirmacao_tipo' | 'confirmacao_valor' | 'confirmacao_confere'> = {
@@ -192,7 +193,7 @@ export async function validarAceite(input: RegistrarAceiteInput): Promise<Aceite
         return {
           ok: false,
           codigo: 'confirmacao_invalida',
-          error: `A confirmação não confere. Digite ${exigida.rotulo}.`,
+          error: t('erros.confirmacaoInvalida', { rotulo: t(`rotuloConfirmacao.${exigida.tipo}`) }),
         };
       }
       confirmacao = { confirmacao_tipo: exigida.tipo, confirmacao_valor: digitado, confirmacao_confere: true };
@@ -248,7 +249,7 @@ export async function gravarAceite(
 
   if (error || !data) {
     console.error('[termos] falha ao gravar aceite', error);
-    return { ok: false, codigo: 'erro', error: 'Não foi possível registrar o aceite do termo. Tente novamente.' };
+    return { ok: false, codigo: 'erro', error: (await getTranslations('Termos'))('erros.erroRegistro') };
   }
   return { ok: true, aceiteId: data.id, evidenciaHash: data.evidencia_hash, aceitoEm: data.aceito_em };
 }

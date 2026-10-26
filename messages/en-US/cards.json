@@ -1,0 +1,24 @@
+{
+  "Cards": {
+    "novo": "New",
+    "adicionarFavorito": "Add to favorites",
+    "removerFavorito": "Remove from favorites",
+    "consultePreco": "Price on request",
+    "avaliacoes": "{count, plural, one {# review} other {# reviews}}",
+    "ateNPessoas": "up to {count, plural, one {# person} other {# people}}",
+    "roteiroAnterior": "Previous trip",
+    "proximoRoteiro": "Next trip",
+    "semRoteirosEmbarcacao": "This boat has no active trips at the moment."
+  },
+  "Galeria": {
+    "contador": "{atual} of {total, plural, one {# photo} other {# photos}}",
+    "fechar": "Close gallery",
+    "anterior": "Previous photo",
+    "proxima": "Next photo",
+    "foto": "Photo {n}",
+    "miniatura": "Thumbnail {n}",
+    "verTodasN": "See all {count} photos",
+    "verTodas": "See all ({count})",
+    "semFotos": "No photos available"
+  }
+}

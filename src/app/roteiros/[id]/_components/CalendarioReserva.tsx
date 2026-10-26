@@ -1,27 +1,16 @@
 'use client';
 
 import { useMemo, useState } from 'react';
+import { useTranslations } from 'next-intl';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
-import { formatarData } from '@/lib/datas';
+import { useFormatos } from '@/i18n/formatos';
 import { somarDiasISO } from '@/lib/precos-calendario';
 import {
-  mensagemIndisponivel, periodoIndisponivel, type CalendarioCliente, type DiaReserva, type StatusPublico,
+  motivoIndisponivel, periodoIndisponivel, type CalendarioCliente, type DiaReserva, type StatusPublico,
 } from '@/lib/disponibilidade';
 
-const MESES = [
-  'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
-  'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro',
-];
-const DOW = ['D', 'S', 'T', 'Q', 'Q', 'S', 'S'];
-const DOW_LONGOS = ['Domingo', 'Segunda-feira', 'Terça-feira', 'Quarta-feira', 'Quinta-feira', 'Sexta-feira', 'Sábado'];
-
-function brl(v: number): string {
-  return v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
-}
-/** Valor compacto para caber na célula: "4.600" (R$ na legenda). */
-function compacto(v: number): string {
-  return Math.round(v).toLocaleString('pt-BR');
-}
+// Meses, dias da semana e valores no idioma do site (useFormatos). Na célula, o valor vai
+// compacto para caber ("4.600" / "4,600") — o R$ está na legenda.
 function isoDe(ano: number, mes: number, dia: number): string {
   return `${ano}-${String(mes + 1).padStart(2, '0')}-${String(dia).padStart(2, '0')}`;
 }
@@ -46,6 +35,11 @@ type Props = {
 export default function CalendarioReserva({
   calendario, selecionada, onSelecionar, modalidade, diarias = 1, meses = 2,
 }: Props) {
+  const t = useTranslations('Calendario');
+  const tComum = useTranslations('Comum');
+  const tData = useTranslations('CamposBusca.data');
+  const tDisp = useTranslations('Disponibilidade');
+  const f = useFormatos();
   const porData = useMemo(() => new Map(calendario.dias.map(d => [d.data, d])), [calendario.dias]);
   const hoje = calendario.dias[0]?.data ?? calendario.dataMaxima;
   const [anoIni, mesIni] = hoje.split('-').map(Number);
@@ -73,15 +67,18 @@ export default function CalendarioReserva({
     <div>
       <div className="flex items-center justify-between gap-2 mb-3">
         <button type="button" onClick={() => setOffset(o => Math.max(0, o - 1))} disabled={offset === 0}
-          aria-label="Mês anterior"
+          aria-label={tComum('mesAnterior')}
           className="p-2 rounded-full text-slate-700 hover:bg-slate-100 disabled:text-slate-200 disabled:hover:bg-transparent transition-colors">
           <ChevronLeft className="h-4 w-4" />
         </button>
         <p className="text-xs text-slate-500 text-center">
-          Reservas abertas até <strong className="font-semibold text-slate-700">{formatarData(calendario.dataMaxima)}</strong>
+          {tData.rich('reservasAbertasAte', {
+            data: f.data(calendario.dataMaxima),
+            destaque: (texto) => <strong className="font-semibold text-slate-700">{texto}</strong>,
+          })}
         </p>
         <button type="button" onClick={() => setOffset(o => Math.min(totalMeses - 1, o + 1))} disabled={offset >= totalMeses - 1}
-          aria-label="Próximo mês"
+          aria-label={tComum('proximoMes')}
           className="p-2 rounded-full text-slate-700 hover:bg-slate-100 disabled:text-slate-200 disabled:hover:bg-transparent transition-colors">
           <ChevronRight className="h-4 w-4" />
         </button>
@@ -107,21 +104,21 @@ export default function CalendarioReserva({
       {problema && selecionada && (
         <p className="mt-3 rounded-lg bg-red-50 px-3 py-2 text-xs text-red-700" role="alert">
           {problema === 'indisponivel'
-            ? `O período de ${diarias} diária${diarias > 1 ? 's' : ''} a partir de ${formatarData(selecionada)} inclui um dia indisponível. Escolha outra data de saída ou reduza as diárias.`
-            : mensagemIndisponivel(problema, calendario.dataMaxima)}
+            ? t('periodoConflito', { count: diarias, data: f.data(selecionada) })
+            : tDisp(motivoIndisponivel(problema), { data: f.data(calendario.dataMaxima) })}
         </p>
       )}
 
       <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1 text-[11px] text-slate-500">
         {modalidade === 'roteiro' ? (
           <>
-            <span>Valores do passeio em R$, por data</span>
-            <span className="flex items-center gap-1.5"><span className="h-2 w-2 rounded-full bg-turquesa" /> Menor preço do mês</span>
+            <span>{t('legendaValores')}</span>
+            <span className="flex items-center gap-1.5"><span className="h-2 w-2 rounded-full bg-turquesa" /> {t('menorPreco')}</span>
           </>
         ) : (
-          <span>Escolha o dia de saída — o período das diárias aparece destacado.</span>
+          <span>{t('legendaDiaria')}</span>
         )}
-        <span className="flex items-center gap-1.5"><span className="line-through text-slate-300">12</span> Indisponível</span>
+        <span className="flex items-center gap-1.5"><span className="line-through text-slate-300">{f.numero(12)}</span> {t('indisponivel')}</span>
       </div>
     </div>
   );
@@ -132,6 +129,8 @@ function Mes({ ano, mes, hoje, porData, dataMaxima, selecionada, fimPeriodo, mod
   selecionada: string | null; fimPeriodo: string | null; modalidade: 'roteiro' | 'diaria';
   onSelecionar: (iso: string) => void;
 }) {
+  const t = useTranslations('Calendario');
+  const f = useFormatos();
   const diasNoMes = new Date(Date.UTC(ano, mes + 1, 0)).getUTCDate();
   const primeiroDow = new Date(Date.UTC(ano, mes, 1)).getUTCDay();
   const datas = Array.from({ length: diasNoMes }, (_, i) => isoDe(ano, mes, i + 1));
@@ -149,10 +148,10 @@ function Mes({ ano, mes, hoje, porData, dataMaxima, selecionada, fimPeriodo, mod
       <p className={`mb-2 rounded-lg py-1.5 text-center text-sm font-semibold transition-colors ${
         temSelecionada ? 'bg-marinho text-white' : 'bg-slate-50 text-marinho'
       }`}>
-        {MESES[mes]} {ano}
+        {f.meses()[mes]} {ano}
       </p>
       <div className="grid grid-cols-7 gap-0.5">
-        {DOW.map((d, i) => (
+        {f.diasSemana('narrow').map((d, i) => (
           <div key={i} className="pb-1 text-center text-[10px] font-semibold text-slate-400">{d}</div>
         ))}
         {Array.from({ length: primeiroDow }, (_, i) => <div key={`v${i}`} />)}
@@ -165,12 +164,14 @@ function Mes({ ano, mes, hoje, porData, dataMaxima, selecionada, fimPeriodo, mod
           const noPeriodo = modalidade === 'diaria' && !!selecionada && !!fimPeriodo && iso > selecionada && iso <= fimPeriodo;
           const conflito = noPeriodo && status === 'indisponivel';
           const riscado = status === 'indisponivel' || status === 'nao_opera';
-          const titulo = `${DOW_LONGOS[new Date(Date.UTC(ano, mes, dia)).getUTCDay()]}, ${formatarData(iso)} — ${
-            podeIniciar
-              ? (modalidade === 'roteiro' && d?.total != null ? brl(d.total) : 'disponível')
-              : status === 'fora_janela' ? `reservas abertas até ${formatarData(dataMaxima)}`
-              : status === 'passado' ? 'data passada' : 'indisponível'
-          }`;
+          const titulo = t('tituloDia', {
+            diaSemana: f.diasSemana('long')[new Date(Date.UTC(ano, mes, dia)).getUTCDay()],
+            data: f.data(iso),
+            situacao: podeIniciar
+              ? (modalidade === 'roteiro' && d?.total != null ? f.moedaCentavos(d.total) : t('situacao.disponivel'))
+              : status === 'fora_janela' ? t('situacao.foraJanela', { data: f.data(dataMaxima) })
+              : status === 'passado' ? t('situacao.passado') : t('situacao.indisponivel'),
+          });
           return (
             <button key={iso} type="button" disabled={!podeIniciar} onClick={() => onSelecionar(iso)} title={titulo}
               aria-pressed={selecionado}
@@ -189,7 +190,7 @@ function Mes({ ano, mes, hoje, porData, dataMaxima, selecionada, fimPeriodo, mod
                 <span className={`mt-1 text-[10px] leading-none tabular-nums ${
                   selecionado ? 'text-white/80' : d.total === menor ? 'font-semibold text-turquesa-escuro' : 'text-slate-500'
                 }`}>
-                  {compacto(d.total)}
+                  {f.numero(Math.round(d.total))}
                 </span>
               )}
             </button>

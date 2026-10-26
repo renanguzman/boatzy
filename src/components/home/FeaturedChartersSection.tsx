@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import { ArrowRight } from 'lucide-react';
+import { getTranslations } from 'next-intl/server';
 import { createClient } from '@/lib/supabase/server';
 import { getRoteirosRecentes, getFavoritosRoteiroSet } from '@/lib/roteiros-top';
 import FeaturedRoteiros, { type FeaturedRoteiroItem } from './FeaturedRoteiros';
@@ -10,7 +11,7 @@ export default async function FeaturedChartersSection() {
   // avaliações suficientes, voltar ao ranking: trocar por
   // `getRoteirosTopAvaliados({ limit: 3 })`, tirar `porProximidade={false}`
   // do <FeaturedRoteiros> e restaurar o título "Roteiros Mais Bem Avaliados".
-  const roteiros = await getRoteirosRecentes(3);
+  const [roteiros, t] = await Promise.all([getRoteirosRecentes(3), getTranslations('Home.novosRoteiros')]);
 
   // Sem nenhum roteiro ativo na plataforma, a seção não aparece.
   if (roteiros.length === 0) return null;
@@ -38,20 +39,17 @@ export default async function FeaturedChartersSection() {
         <div className="flex items-end justify-between mb-8">
           <div>
             <p className="text-xs font-semibold text-turquesa-escuro uppercase tracking-widest mb-1">
-              Roteiros Selecionados
+              {t('sobretitulo')}
             </p>
             <h2 className="text-2xl md:text-3xl font-bold text-marinho">
-              Novos{' '}
-              <span className="bg-gradient-to-r from-marinho to-turquesa bg-clip-text text-transparent">
-                Roteiros
-              </span>
+              {t.rich('titulo', { destaque: (texto) => <span className="bg-gradient-to-r from-marinho to-turquesa bg-clip-text text-transparent">{texto}</span> })}
             </h2>
           </div>
           <Link
             href="/buscar"
             className="hidden md:flex items-center gap-1.5 text-sm font-medium text-marinho hover:text-turquesa-escuro transition-colors group"
           >
-            Ver Mais
+            {t('verMais')}
             <ArrowRight className="h-4 w-4 group-hover:translate-x-0.5 transition-transform" />
           </Link>
         </div>
@@ -65,7 +63,7 @@ export default async function FeaturedChartersSection() {
             href="/buscar"
             className="inline-flex items-center gap-1.5 text-sm font-medium text-marinho"
           >
-            Ver Todos os Roteiros
+            {t('verTodos')}
             <ArrowRight className="h-4 w-4" />
           </Link>
         </div>

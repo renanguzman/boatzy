@@ -2,6 +2,7 @@
 
 import { useTransition } from 'react';
 import { useRouter } from 'next/navigation';
+import { useTranslations } from 'next-intl';
 import { Heart, Loader2 } from 'lucide-react';
 import {
   alternarFavorito,
@@ -19,6 +20,7 @@ export default function RemoverFavoritoButton({
   embarcacaoId?: string;
   anuncioVendaId?: string;
 }) {
+  const t = useTranslations('Favoritos');
   const router = useRouter();
   const [pending, startTransition] = useTransition();
 
@@ -43,7 +45,7 @@ export default function RemoverFavoritoButton({
       ) : (
         <Heart className="h-3.5 w-3.5 fill-red-500 text-red-500" />
       )}
-      Remover dos favoritos
+      {t('remover')}
     </button>
   );
 }

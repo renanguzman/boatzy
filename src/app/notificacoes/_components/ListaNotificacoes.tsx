@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
+import { useTranslations } from 'next-intl';
 import { Bell, CheckCheck, Loader2 } from 'lucide-react';
 import NotificacaoItem from '@/components/notificacoes/NotificacaoItem';
 import { useNotificacoes } from '@/components/notificacoes/useNotificacoes';
@@ -10,6 +11,7 @@ const PAGINA = 20;
 
 /** Histórico completo do cliente: filtro Todas/Não lidas, marcar todas, "Carregar mais". */
 export default function ListaNotificacoes({ userId }: { userId: string }) {
+  const t = useTranslations('Notificacoes');
   const [filtro, setFiltro] = useState<'todas' | 'nao_lidas'>('todas');
   const [limite, setLimite] = useState(PAGINA);
   const { itens, naoLidas, total, carregando, marcarLida, marcarTodasLidas } = useNotificacoes(userId, {
@@ -18,8 +20,8 @@ export default function ListaNotificacoes({ userId }: { userId: string }) {
   });
 
   const abas = [
-    { valor: 'todas' as const, rotulo: 'Todas' },
-    { valor: 'nao_lidas' as const, rotulo: `Não lidas${naoLidas > 0 ? ` (${naoLidas})` : ''}` },
+    { valor: 'todas' as const, rotulo: t('abas.todas') },
+    { valor: 'nao_lidas' as const, rotulo: naoLidas > 0 ? t('abas.naoLidasN', { count: naoLidas }) : t('abas.naoLidas') },
   ];
 
   return (
@@ -47,7 +49,7 @@ export default function ListaNotificacoes({ userId }: { userId: string }) {
             className="inline-flex items-center gap-1.5 text-xs font-semibold text-marinho hover:text-turquesa-escuro"
           >
             <CheckCheck className="h-4 w-4" />
-            Marcar todas como lidas
+            {t('marcarTodas')}
           </button>
         )}
       </div>
@@ -62,19 +64,17 @@ export default function ListaNotificacoes({ userId }: { userId: string }) {
             <Bell className="h-7 w-7 text-slate-300" />
           </div>
           <h2 className="text-lg font-semibold text-slate-700">
-            {filtro === 'nao_lidas' ? 'Tudo em dia por aqui' : 'Nenhuma notificação ainda'}
+            {filtro === 'nao_lidas' ? t('lista.tudoEmDia') : t('lista.nenhumaAinda')}
           </h2>
           <p className="text-sm text-slate-400 mt-1 max-w-sm">
-            {filtro === 'nao_lidas'
-              ? 'Você já viu todas as suas notificações.'
-              : 'Quando o gestor responder sua solicitação, o pagamento for processado ou chegar uma mensagem, o aviso aparece aqui.'}
+            {filtro === 'nao_lidas' ? t('lista.viuTodas') : t('lista.quando')}
           </p>
           {filtro === 'todas' && (
             <Link
               href="/buscar"
               className="mt-6 px-5 py-2.5 bg-marinho hover:bg-marinho-escuro text-white text-sm font-semibold rounded-xl transition-colors"
             >
-              Explorar passeios
+              {t('lista.explorar')}
             </Link>
           )}
         </div>
@@ -92,7 +92,7 @@ export default function ListaNotificacoes({ userId }: { userId: string }) {
                 onClick={() => setLimite((l) => l + PAGINA)}
                 className="rounded-xl border border-slate-200 bg-white px-5 py-2.5 text-sm font-semibold text-marinho hover:border-marinho/40"
               >
-                Carregar mais
+                {t('lista.carregarMais')}
               </button>
             </div>
           )}

@@ -1,8 +1,9 @@
 import Image from 'next/image';
 import Link from 'next/link';
 import { Quote, Star, MapPin, ArrowRight } from 'lucide-react';
+import { getTranslations } from 'next-intl/server';
 import { getAvaliacoesCincoEstrelas } from '@/lib/avaliacoes';
-import { formatarData } from '@/lib/datas';
+import { getFormatos } from '@/i18n/formatos-servidor';
 
 /**
  * Prova social da home: avaliações reais nota 5 (aprovadas, com comentário),
@@ -11,22 +12,20 @@ import { formatarData } from '@/lib/datas';
 export default async function AvaliacoesHomeSection() {
   const avaliacoes = await getAvaliacoesCincoEstrelas(6);
   if (avaliacoes.length === 0) return null;
+  const [t, f] = await Promise.all([getTranslations('Home.avaliacoes'), getFormatos()]);
 
   return (
     <section className="py-16 bg-areia" id="avaliacoes-section">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <div className="mb-8">
           <p className="text-xs font-semibold text-turquesa-escuro uppercase tracking-widest mb-1">
-            Avaliações reais
+            {t('sobretitulo')}
           </p>
           <h2 className="text-2xl md:text-3xl font-bold text-marinho">
-            Quem navegou,{' '}
-            <span className="bg-gradient-to-r from-marinho to-turquesa bg-clip-text text-transparent">
-              recomenda
-            </span>
+            {t.rich('titulo', { destaque: (texto) => <span className="bg-gradient-to-r from-marinho to-turquesa bg-clip-text text-transparent">{texto}</span> })}
           </h2>
           <p className="mt-2 text-sm text-slate-500">
-            Notas 5 estrelas de clientes que reservaram e fizeram o passeio pelo Boatzy.
+            {t('descricao')}
           </p>
         </div>
 
@@ -38,7 +37,7 @@ export default async function AvaliacoesHomeSection() {
               className="flex flex-col w-full md:w-[calc(50%-12px)] lg:w-[calc(33.333%-16px)] rounded-2xl border border-slate-100 bg-white p-6 shadow-sm"
             >
               <div className="flex items-center justify-between">
-                <span className="inline-flex items-center gap-0.5" aria-label="Nota 5 de 5">
+                <span className="inline-flex items-center gap-0.5" aria-label={t('nota5')}>
                   {[1, 2, 3, 4, 5].map((n) => (
                     <Star key={n} className="h-4 w-4 fill-destaque text-destaque" />
                   ))}
@@ -61,7 +60,7 @@ export default async function AvaliacoesHomeSection() {
                 <div className="min-w-0">
                   <p className="text-sm font-semibold text-marinho truncate">{a.autor}</p>
                   <p className="text-xs text-slate-400">
-                    {formatarData(a.created_at, { month: 'long', year: 'numeric' })}
+                    {f.data(a.created_at, { month: 'long', year: 'numeric' })}
                   </p>
                 </div>
               </div>

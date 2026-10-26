@@ -1,0 +1,24 @@
+{
+  "Cards": {
+    "novo": "Nuevo",
+    "adicionarFavorito": "Agregar a favoritos",
+    "removerFavorito": "Quitar de favoritos",
+    "consultePreco": "Consulta el precio",
+    "avaliacoes": "{count, plural, one {# opinión} other {# opiniones}}",
+    "ateNPessoas": "hasta {count, plural, one {# persona} other {# personas}}",
+    "roteiroAnterior": "Paseo anterior",
+    "proximoRoteiro": "Siguiente paseo",
+    "semRoteirosEmbarcacao": "Esta embarcación no tiene paseos activos en este momento."
+  },
+  "Galeria": {
+    "contador": "{atual} de {total, plural, one {# foto} other {# fotos}}",
+    "fechar": "Cerrar galería",
+    "anterior": "Foto anterior",
+    "proxima": "Foto siguiente",
+    "foto": "Foto {n}",
+    "miniatura": "Miniatura {n}",
+    "verTodasN": "Ver las {count} fotos",
+    "verTodas": "Ver todas ({count})",
+    "semFotos": "No hay fotos disponibles"
+  }
+}

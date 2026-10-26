@@ -1,7 +1,9 @@
 'use client';
 
 import { useState } from 'react';
+import { useTranslations } from 'next-intl';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { useFormatos, type Formatos } from '@/i18n/formatos';
 
 export type DateValue = {
   date: Date;
@@ -25,22 +27,8 @@ type Props = {
   dataMaxima?: Date;
 };
 
-const MESES = [
-  'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
-  'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro',
-];
-
-const MESES_CURTOS = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'];
-
-const DIAS_SEMANA = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
-
-const FLEX_OPTIONS: { label: string; value: DateValue['flexibility'] }[] = [
-  { label: 'Data exata', value: 0 },
-  { label: '±1 dia', value: 1 },
-  { label: '±2 dias', value: 2 },
-  { label: '±3 dias', value: 3 },
-  { label: '±7 dias', value: 7 },
-];
+// Meses e dias da semana vêm do `Intl` no idioma do site (useFormatos).
+const FLEX_OPTIONS: DateValue['flexibility'][] = [0, 1, 2, 3, 7];
 
 function isSameDay(a: Date, b: Date) {
   return a.getFullYear() === b.getFullYear() &&
@@ -54,12 +42,10 @@ function isInRange(day: Date, center: Date, flex: number) {
   return diff <= flex && diff > 0;
 }
 
-function formatDateDisplay(v: DateValue) {
-  const d = v.date;
-  const dia = d.getDate();
-  const mes = MESES_CURTOS[d.getMonth()];
-  if (v.flexibility === 0) return `${dia} de ${mes}.`;
-  return `${dia} de ${mes}. ±${v.flexibility} ${v.flexibility === 1 ? 'dia' : 'dias'}`;
+/** "12 de out." / "Oct 12" / "12 oct", com a flexibilidade: "12 de out. ±2 dias". */
+function formatDateDisplay(v: DateValue, f: Formatos, rotuloFlex: (dias: number) => string) {
+  const data = f.dataLocal(v.date, { day: 'numeric', month: 'short' });
+  return v.flexibility === 0 ? data : `${data} ${rotuloFlex(v.flexibility)}`;
 }
 
 function getDaysInMonth(year: number, month: number) {
@@ -81,11 +67,9 @@ type MonthCalendarProps = {
   dataMaxima?: Date;
 };
 
-function fmtDataCurta(d: Date) {
-  return `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear()}`;
-}
-
 function MonthCalendar({ year, month, selected, flexibility, today, onSelect, isDateDisabled, dataMaxima }: MonthCalendarProps) {
+  const t = useTranslations('CamposBusca.data');
+  const f = useFormatos();
   const daysInMonth = getDaysInMonth(year, month);
   const firstDay = getFirstDayOfWeek(year, month);
   const cells: (Date | null)[] = [];
@@ -96,10 +80,10 @@ function MonthCalendar({ year, month, selected, flexibility, today, onSelect, is
   return (
     <div className="flex-1">
       <p className="text-center text-sm font-semibold text-grafite mb-3">
-        {MESES[month]} {year}
+        {f.meses()[month]} {year}
       </p>
       <div className="grid grid-cols-7 gap-y-1">
-        {DIAS_SEMANA.map((d) => (
+        {f.diasSemana().map((d) => (
           <div key={d} className="text-center text-[11px] font-medium text-slate-400 pb-1">
             {d}
           </div>
@@ -121,8 +105,8 @@ function MonthCalendar({ year, month, selected, flexibility, today, onSelect, is
               disabled={isDisabled}
               onClick={() => !isDisabled && onSelect(date)}
               title={
-                isAfterMax ? `Reservas abertas até ${fmtDataCurta(dataMaxima!)}`
-                : isUnavailable && !isPast ? 'Indisponível para este roteiro'
+                isAfterMax ? t('reservasAbertasAteSimples', { data: f.dataLocal(dataMaxima!) })
+                : isUnavailable && !isPast ? t('indisponivel')
                 : undefined
               }
               className={[
@@ -148,6 +132,10 @@ function MonthCalendar({ year, month, selected, flexibility, today, onSelect, is
 }
 
 export default function DatePicker({ value, onChange, isOpen, onOpen, onClose, compact, semRotulo, isDateDisabled, alinhamentoPainel = 'centro', dataMaxima }: Props) {
+  const t = useTranslations('CamposBusca.data');
+  const tComum = useTranslations('Comum');
+  const f = useFormatos();
+  const rotuloFlex = (dias: number) => t('flex', { count: dias });
   const today = new Date();
   today.setHours(0, 0, 0, 0);
 
@@ -225,15 +213,15 @@ export default function DatePicker({ value, onChange, isOpen, onOpen, onClose, c
       >
         {!semRotulo && (
           <span className={`block font-bold text-slate-500 uppercase tracking-wider mb-0.5 ${compact ? 'text-[9px]' : 'text-[10px]'}`}>
-            Data
+            {t('rotulo')}
           </span>
         )}
         {value ? (
           <span className={`font-medium text-grafite truncate block ${compact ? 'text-xs' : 'text-sm'}`}>
-            {formatDateDisplay(value)}
+            {formatDateDisplay(value, f, rotuloFlex)}
           </span>
         ) : (
-          <span className={`text-slate-400 ${compact ? 'text-xs' : 'text-sm'}`}>Quando?</span>
+          <span className={`text-slate-400 ${compact ? 'text-xs' : 'text-sm'}`}>{t('placeholder')}</span>
         )}
       </button>
 
@@ -246,6 +234,7 @@ export default function DatePicker({ value, onChange, isOpen, onOpen, onClose, c
               type="button"
               onClick={prevMonth}
               disabled={!canGoPrev}
+              aria-label={tComum('mesAnterior')}
               className={`p-2 rounded-full transition-colors ${
                 canGoPrev ? 'hover:bg-slate-100 text-slate-700' : 'text-slate-200 cursor-default'
               }`}
@@ -255,7 +244,10 @@ export default function DatePicker({ value, onChange, isOpen, onOpen, onClose, c
             <div className="flex-1 text-center">
               {dataMaxima && (
                 <span className="text-xs text-slate-400">
-                  Reservas abertas até <span className="font-medium text-slate-600">{fmtDataCurta(dataMaxima)}</span>
+                  {t.rich('reservasAbertasAte', {
+                    data: f.dataLocal(dataMaxima),
+                    destaque: (texto) => <span className="font-medium text-slate-600">{texto}</span>,
+                  })}
                 </span>
               )}
             </div>
@@ -263,6 +255,7 @@ export default function DatePicker({ value, onChange, isOpen, onOpen, onClose, c
               type="button"
               onClick={nextMonth}
               disabled={!canGoNext}
+              aria-label={tComum('proximoMes')}
               className={`p-2 rounded-full transition-colors ${
                 canGoNext ? 'hover:bg-slate-100 text-slate-700' : 'text-slate-200 cursor-default'
               }`}
@@ -300,16 +293,16 @@ export default function DatePicker({ value, onChange, isOpen, onOpen, onClose, c
           <div className="mt-4 pt-4 border-t border-slate-100 flex items-center gap-2 flex-wrap">
             {FLEX_OPTIONS.map((opt) => (
               <button
-                key={opt.value}
+                key={opt}
                 type="button"
-                onClick={() => handleFlexChange(opt.value)}
+                onClick={() => handleFlexChange(opt)}
                 className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-colors ${
-                  tempFlex === opt.value
+                  tempFlex === opt
                     ? 'bg-marinho text-white border-marinho'
                     : 'bg-white text-slate-600 border-slate-300 hover:border-slate-500'
                 }`}
               >
-                {opt.label}
+                {opt === 0 ? t('dataExata') : rotuloFlex(opt)}
               </button>
             ))}
             <div className="flex-1" />
@@ -318,7 +311,7 @@ export default function DatePicker({ value, onChange, isOpen, onOpen, onClose, c
               onClick={handleClear}
               className="text-xs text-slate-500 underline hover:text-grafite transition-colors"
             >
-              Limpar datas
+              {t('limparDatas')}
             </button>
           </div>
         </div>

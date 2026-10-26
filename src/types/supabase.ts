@@ -353,6 +353,7 @@ export type Database = {
           endereco_numero: string | null;
           endereco_complemento: string | null;
           notif_email_conversas: boolean;
+          idioma: string | null;
           chat_aviso_ciente_em: string | null;
           created_at: string;
           updated_at: string;
@@ -373,6 +374,7 @@ export type Database = {
           endereco_numero?: string | null;
           endereco_complemento?: string | null;
           notif_email_conversas?: boolean;
+          idioma?: string | null;
           chat_aviso_ciente_em?: string | null;
           created_at?: string;
           updated_at?: string;
@@ -393,6 +395,7 @@ export type Database = {
           endereco_numero?: string | null;
           endereco_complemento?: string | null;
           notif_email_conversas?: boolean;
+          idioma?: string | null;
           chat_aviso_ciente_em?: string | null;
           created_at?: string;
           updated_at?: string;
@@ -449,6 +452,7 @@ export type Database = {
           quantidade: number;
           lida_em: string | null;
           criada_em: string;
+          dados: Json | null;
         };
         Insert: {
           id?: string;
@@ -462,6 +466,7 @@ export type Database = {
           conversa_id?: string | null;
           chave?: string | null;
           quantidade?: number;
+          dados?: Json | null;
           lida_em?: string | null;
           criada_em?: string;
         };
@@ -477,6 +482,7 @@ export type Database = {
           conversa_id?: string | null;
           chave?: string | null;
           quantidade?: number;
+          dados?: Json | null;
           lida_em?: string | null;
           criada_em?: string;
         };
@@ -737,9 +743,9 @@ export type Database = {
         Relationships: [];
       };
       embarcacao_tipo: {
-        Row: { id: string; nome: string };
-        Insert: { id?: string; nome: string };
-        Update: { id?: string; nome?: string };
+        Row: { id: string; nome: string; nome_en: string | null; nome_es: string | null };
+        Insert: { id?: string; nome: string; nome_en?: string | null; nome_es?: string | null };
+        Update: { id?: string; nome?: string; nome_en?: string | null; nome_es?: string | null };
         Relationships: [];
       };
       embarcacao: {
@@ -951,9 +957,9 @@ export type Database = {
         Relationships: [];
       };
       comodidade: {
-        Row: { id: string; nome: string };
-        Insert: { id?: string; nome: string };
-        Update: { id?: string; nome?: string };
+        Row: { id: string; nome: string; nome_en: string | null; nome_es: string | null };
+        Insert: { id?: string; nome: string; nome_en?: string | null; nome_es?: string | null };
+        Update: { id?: string; nome?: string; nome_en?: string | null; nome_es?: string | null };
         Relationships: [];
       };
       embarcacao_comodidades: {
@@ -963,9 +969,9 @@ export type Database = {
         Relationships: [];
       };
       equipamentos_seguranca: {
-        Row: { id: string; nome: string };
-        Insert: { id?: string; nome: string };
-        Update: { id?: string; nome?: string };
+        Row: { id: string; nome: string; nome_en: string | null; nome_es: string | null };
+        Insert: { id?: string; nome: string; nome_en?: string | null; nome_es?: string | null };
+        Update: { id?: string; nome?: string; nome_en?: string | null; nome_es?: string | null };
         Relationships: [];
       };
       embarcacao_equipamentos_seguranca: {
@@ -975,9 +981,9 @@ export type Database = {
         Relationships: [];
       };
       acessorios: {
-        Row: { id: string; nome: string };
-        Insert: { id?: string; nome: string };
-        Update: { id?: string; nome?: string };
+        Row: { id: string; nome: string; nome_en: string | null; nome_es: string | null };
+        Insert: { id?: string; nome: string; nome_en?: string | null; nome_es?: string | null };
+        Update: { id?: string; nome?: string; nome_en?: string | null; nome_es?: string | null };
         Relationships: [];
       };
       embarcacao_acessorios: {

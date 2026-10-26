@@ -1,6 +1,8 @@
+import { cookies } from 'next/headers';
 import { createClient } from '@/lib/supabase/server';
 import { supabaseAdmin } from '@/lib/supabase';
 import { NextResponse } from 'next/server';
+import { COOKIE_IDIOMA, OPCOES_COOKIE_IDIOMA, isIdioma } from '@/i18n/config';
 import { addRole } from '@/lib/roles';
 import type { Database } from '@/types/supabase';
 
@@ -63,6 +65,32 @@ export async function GET(request: Request) {
   }
 
   await addRole(user.id, 'cliente');
+  await sincronizarIdioma(user.id);
 
   return NextResponse.redirect(new URL(redirectTo, APP_URL));
+}
+
+/**
+ * Idioma no login (SPEC §94.2) — vale a escolha mais recente: cookie presente
+ * (escolhido neste navegador) vai para o perfil; sem cookie, o do perfil vira
+ * o cookie (escolhido em outro aparelho). Falhas só são registradas: o login
+ * nunca depende disso.
+ */
+async function sincronizarIdioma(userId: string) {
+  const cookieStore = await cookies();
+  const doCookie = cookieStore.get(COOKIE_IDIOMA)?.value;
+
+  const { data, error } = await supabaseAdmin.from('users').select('idioma').eq('id', userId).maybeSingle();
+  if (error) {
+    console.error('[setup-cliente] falha ao ler users.idioma:', error);
+    return;
+  }
+
+  if (isIdioma(doCookie)) {
+    if (data?.idioma === doCookie) return;
+    const { error: erroUpdate } = await supabaseAdmin.from('users').update({ idioma: doCookie }).eq('id', userId);
+    if (erroUpdate) console.error('[setup-cliente] falha ao gravar users.idioma:', erroUpdate);
+  } else if (isIdioma(data?.idioma)) {
+    cookieStore.set(COOKIE_IDIOMA, data.idioma, OPCOES_COOKIE_IDIOMA);
+  }
 }

@@ -10,7 +10,7 @@ import { getAvaliacoesResumoPorRoteiro } from '@/lib/avaliacoes';
 import { precoNaDataDeLinha, type PrecoNaData } from '@/lib/precos-roteiro';
 
 const ROTEIRO_SELECT = `id, nome, descricao, quantidade_pessoas, preco_minimo_cliente, preco_minimo_modelo,
-   duracao,
+   duracao, duracao_horas,
    municipios ( nome, estados ( uf ) ),
    roteiro_imagens ( url_imagem, principal ),
    embarcacao ( embarcacao_tipo ( nome ) )`;

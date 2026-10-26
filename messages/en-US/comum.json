@@ -1,0 +1,39 @@
+{
+  "Comum": {
+    "buscar": "Search",
+    "limpar": "Clear",
+    "aplicar": "Apply",
+    "fechar": "Close",
+    "voltar": "Back",
+    "carregando": "Loading…",
+    "verMais": "See more",
+    "verTodos": "See all",
+    "anterior": "Previous",
+    "proximo": "Next",
+    "mesAnterior": "Previous month",
+    "proximoMes": "Next month",
+    "cancelar": "Cancel",
+    "continuar": "Continue",
+    "salvar": "Save",
+    "tentarNovamente": "Try again",
+    "opcional": "optional",
+    "ou": "or",
+    "erroInesperado": "Something went wrong. Please try again in a moment."
+  },
+  "Formatos": {
+    "duracao": "{unidade, select, dias {{valor, plural, one {# day} other {# days}}} other {{valor, plural, one {# hour} other {# hours}}}}",
+    "retornoDiaSeguinte": "{horario} (next day)",
+    "retornoDias": "{horario} (+{dias} days)",
+    "comprimentoPes": "{valor, number} ft",
+    "comprimentoMetros": "{valor, number} m",
+    "unidadePreco": {
+      "roteiro": "/trip",
+      "diaria": "/day",
+      "pessoa": "/person"
+    },
+    "aPartirDe": "from",
+    "naData": "on {data}",
+    "pessoas": "{count, plural, one {# person} other {# people}}",
+    "capacidadeExcedida": "This trip fits up to {count, plural, one {# person} other {# people}}."
+  }
+}

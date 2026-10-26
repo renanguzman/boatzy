@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import { ArrowRight } from 'lucide-react';
+import { getTranslations } from 'next-intl/server';
 import { createClient } from '@/lib/supabase/server';
 import { getEmbarcacoesRecentes, getFavoritosEmbarcacaoSet } from '@/lib/embarcacoes-top';
 import TopRatedBoats, { type TopRatedItem } from './TopRatedBoats';
@@ -10,7 +11,7 @@ export default async function TopRatedSection() {
   // houver avaliações suficientes, voltar ao ranking: trocar por
   // `getEmbarcacoesTopAvaliadas({ limit: 4 })`, tirar `porProximidade={false}`
   // do <TopRatedBoats> e restaurar o título "Embarcações Mais Bem Avaliadas".
-  const embarcacoes = await getEmbarcacoesRecentes(4);
+  const [embarcacoes, t] = await Promise.all([getEmbarcacoesRecentes(4), getTranslations('Home.novasEmbarcacoes')]);
 
   // Sem nenhuma embarcação ativa com roteiro, a seção não aparece.
   if (embarcacoes.length === 0) return null;
@@ -38,20 +39,17 @@ export default async function TopRatedSection() {
         <div className="flex items-end justify-between mb-8">
           <div>
             <p className="text-xs font-semibold text-turquesa-escuro uppercase tracking-widest mb-1">
-              Coleção de Destaque
+              {t('sobretitulo')}
             </p>
             <h2 className="text-2xl md:text-3xl font-bold text-marinho">
-              Novas{' '}
-              <span className="bg-gradient-to-r from-marinho to-turquesa bg-clip-text text-transparent">
-                Embarcações
-              </span>
+              {t.rich('titulo', { destaque: (texto) => <span className="bg-gradient-to-r from-marinho to-turquesa bg-clip-text text-transparent">{texto}</span> })}
             </h2>
           </div>
           <Link
             href="/buscar?tipo=embarcacao"
             className="hidden md:flex items-center gap-1.5 text-sm font-medium text-marinho hover:text-turquesa-escuro transition-colors group"
           >
-            Ver Todas
+            {t('verTodas')}
             <ArrowRight className="h-4 w-4 group-hover:translate-x-0.5 transition-transform" />
           </Link>
         </div>
@@ -65,7 +63,7 @@ export default async function TopRatedSection() {
             href="/buscar?tipo=embarcacao"
             className="inline-flex items-center gap-1.5 text-sm font-medium text-marinho"
           >
-            Ver Todas as Embarcações
+            {t('verTodasEmbarcacoes')}
             <ArrowRight className="h-4 w-4" />
           </Link>
         </div>

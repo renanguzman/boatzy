@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import Image from 'next/image';
+import { useTranslations } from 'next-intl';
 import {
   X,
   ChevronLeft,
@@ -13,8 +14,10 @@ import {
   Shield,
   Camera,
 } from 'lucide-react';
-import { formatarComprimento } from '@/lib/comprimento';
 import { ordenarImagens } from '@/lib/galeria';
+import { useFormatos } from '@/i18n/formatos';
+import { useCatalogo } from '@/i18n/CatalogoProvider';
+import { useRotulos } from '@/i18n/rotulos';
 
 type Imagem = { id: string; url_imagem: string; titulo: string | null; principal: boolean; ordem: number };
 
@@ -34,13 +37,13 @@ type Props = {
   };
 };
 
-const MODALIDADE: Record<string, string> = {
-  com_capitao: 'Com Capitão',
-  sem_capitao: 'Sem Capitão',
-  opcional: 'Capitão Opcional',
-};
-
 export default function EmbarcacaoFotosModal({ capa, embarcacao }: Props) {
+  const t = useTranslations('Embarcacao');
+  const tGaleria = useTranslations('Galeria');
+  const tComum = useTranslations('Comum');
+  const f = useFormatos();
+  const { traduzir } = useCatalogo();
+  const rotulos = useRotulos();
   const [open, setOpen] = useState(false);
   const [current, setCurrent] = useState(0);
 
@@ -67,11 +70,11 @@ export default function EmbarcacaoFotosModal({ capa, embarcacao }: Props) {
   }, [open, prev, next]);
 
   const specs = [
-    embarcacao.capacidade && { icon: Users, label: `${embarcacao.capacidade} pessoas` },
-    embarcacao.comprimento && { icon: Ruler, label: formatarComprimento(embarcacao.comprimento, embarcacao.comprimento_unidade) ?? '' },
-    embarcacao.quartos && { icon: Bed, label: `${embarcacao.quartos} ${embarcacao.quartos === 1 ? 'quarto' : 'quartos'}` },
-    embarcacao.tripulacao && { icon: Shield, label: `${embarcacao.tripulacao} tripulação` },
-    { icon: Anchor, label: MODALIDADE[embarcacao.modalidade_capitao] ?? embarcacao.modalidade_capitao },
+    embarcacao.capacidade && { icon: Users, label: f.pessoas(embarcacao.capacidade) },
+    embarcacao.comprimento && { icon: Ruler, label: f.comprimento(embarcacao.comprimento, embarcacao.comprimento_unidade) ?? '' },
+    embarcacao.quartos && { icon: Bed, label: t('specs.quartos', { count: embarcacao.quartos }) },
+    embarcacao.tripulacao && { icon: Shield, label: t('specs.tripulacao', { count: embarcacao.tripulacao }) },
+    { icon: Anchor, label: rotulos.capitao(embarcacao.modalidade_capitao) },
   ].filter(Boolean) as { icon: React.ElementType; label: string }[];
 
   return (
@@ -81,7 +84,7 @@ export default function EmbarcacaoFotosModal({ capa, embarcacao }: Props) {
         <button
           type="button"
           onClick={() => { setOpen(true); setCurrent(Math.max(0, imagens.findIndex((i) => i.url_imagem === capa))); }}
-          aria-label={`Ver ${total} ${total === 1 ? 'foto' : 'fotos'} da embarcação ${embarcacao.nome}`}
+          aria-label={t('fotos.verFotos', { count: total, nome: embarcacao.nome })}
           className="group relative block aspect-[16/10] w-full sm:w-60 shrink-0 overflow-hidden rounded-xl bg-slate-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-marinho"
         >
           <Image
@@ -94,7 +97,7 @@ export default function EmbarcacaoFotosModal({ capa, embarcacao }: Props) {
           <span className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent" />
           <span className="absolute bottom-2.5 left-2.5 inline-flex items-center gap-1.5 rounded-full bg-white/95 px-3 py-1 text-xs font-semibold text-marinho shadow-sm transition-colors group-hover:bg-marinho group-hover:text-white">
             <Camera className="h-3.5 w-3.5" />
-            {total} {total === 1 ? 'foto' : 'fotos'}
+            {t('fotos.contagem', { count: total })}
           </span>
         </button>
       ) : (
@@ -121,14 +124,14 @@ export default function EmbarcacaoFotosModal({ capa, embarcacao }: Props) {
               <div className="flex-1 min-w-0">
                 <h2 className="text-base font-bold text-white truncate">{embarcacao.nome}</h2>
                 <p className="text-xs text-white/60">
-                  {embarcacao.embarcacao_tipo?.nome ?? 'Embarcação'}
-                  {total > 0 && ` · ${total} foto${total !== 1 ? 's' : ''}`}
+                  {embarcacao.embarcacao_tipo ? traduzir('tipo', embarcacao.embarcacao_tipo.nome) : t('fotos.embarcacao')}
+                  {total > 0 && ` · ${t('fotos.contagem', { count: total })}`}
                 </p>
               </div>
               <button
                 onClick={() => setOpen(false)}
                 className="h-9 w-9 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center transition-colors shrink-0"
-                aria-label="Fechar"
+                aria-label={tComum('fechar')}
               >
                 <X className="h-4 w-4 text-white" />
               </button>
@@ -138,7 +141,7 @@ export default function EmbarcacaoFotosModal({ capa, embarcacao }: Props) {
             {total === 0 ? (
               <div className="flex-1 flex flex-col items-center justify-center bg-slate-900 py-20 gap-4">
                 <Anchor className="h-12 w-12 text-slate-600" />
-                <p className="text-sm text-slate-500">Nenhuma foto disponível</p>
+                <p className="text-sm text-slate-500">{t('fotos.nenhumaFoto')}</p>
               </div>
             ) : (
               <div className="relative bg-slate-900 flex items-center justify-center" style={{ minHeight: '340px', maxHeight: '54vh' }}>
@@ -147,7 +150,7 @@ export default function EmbarcacaoFotosModal({ capa, embarcacao }: Props) {
                   <Image
                     key={imagens[current].id}
                     src={imagens[current].url_imagem}
-                    alt={imagens[current].titulo ?? `Foto ${current + 1}`}
+                    alt={imagens[current].titulo ?? tGaleria('foto', { n: current + 1 })}
                     fill
                     className="object-contain"
                     sizes="(max-width: 1024px) 100vw, 896px"
@@ -174,14 +177,14 @@ export default function EmbarcacaoFotosModal({ capa, embarcacao }: Props) {
                     <button
                       onClick={prev}
                       className="absolute left-3 top-1/2 -translate-y-1/2 h-10 w-10 rounded-full bg-black/40 hover:bg-black/70 text-white flex items-center justify-center transition-all hover:scale-105 backdrop-blur-sm"
-                      aria-label="Foto anterior"
+                      aria-label={tGaleria('anterior')}
                     >
                       <ChevronLeft className="h-5 w-5" />
                     </button>
                     <button
                       onClick={next}
                       className="absolute right-3 top-1/2 -translate-y-1/2 h-10 w-10 rounded-full bg-black/40 hover:bg-black/70 text-white flex items-center justify-center transition-all hover:scale-105 backdrop-blur-sm"
-                      aria-label="Próxima foto"
+                      aria-label={tGaleria('proxima')}
                     >
                       <ChevronRight className="h-5 w-5" />
                     </button>
@@ -198,7 +201,7 @@ export default function EmbarcacaoFotosModal({ capa, embarcacao }: Props) {
                     key={img.id}
                     onClick={() => setCurrent(i)}
                     title={img.titulo ?? undefined}
-                    aria-label={img.titulo ?? `Foto ${i + 1}`}
+                    aria-label={img.titulo ?? tGaleria('foto', { n: i + 1 })}
                     className={`relative h-14 w-20 rounded-lg overflow-hidden shrink-0 transition-all duration-150 ${
                       i === current
                         ? 'ring-2 ring-turquesa ring-offset-1 ring-offset-slate-950 opacity-100 scale-105'
@@ -207,7 +210,7 @@ export default function EmbarcacaoFotosModal({ capa, embarcacao }: Props) {
                   >
                     <Image
                       src={img.url_imagem}
-                      alt={img.titulo ?? `Miniatura ${i + 1}`}
+                      alt={img.titulo ?? tGaleria('miniatura', { n: i + 1 })}
                       fill
                       className="object-cover"
                       sizes="80px"

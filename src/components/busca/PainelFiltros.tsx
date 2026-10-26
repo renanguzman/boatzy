@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
+import { useTranslations } from 'next-intl';
 import { Loader2, SlidersHorizontal, X } from 'lucide-react';
 import { useNavegacaoBusca } from './NavegacaoBusca';
 
@@ -22,6 +23,7 @@ type Props = {
  * (a página atualiza por trás), então a gaveta só precisa ser fechada.
  */
 export default function PainelFiltros({ ativos, limparHref, totalResultados, children }: Props) {
+  const t = useTranslations('Filtros');
   const { pendente, ir } = useNavegacaoBusca();
   const [aberto, setAberto] = useState(false);
 
@@ -46,13 +48,13 @@ export default function PainelFiltros({ ativos, limparHref, totalResultados, chi
         <span className="h-8 w-8 rounded-lg bg-marinho/[0.06] flex items-center justify-center">
           <SlidersHorizontal className="h-4 w-4 text-marinho" />
         </span>
-        <h2 className="text-base font-bold text-marinho">Filtros</h2>
+        <h2 className="text-base font-bold text-marinho">{t('titulo')}</h2>
         {ativos > 0 && (
           <span className="h-5 min-w-5 px-1.5 rounded-full bg-marinho text-white text-[11px] font-bold flex items-center justify-center">
             {ativos}
           </span>
         )}
-        {pendente && <Loader2 className="h-4 w-4 animate-spin text-slate-400" aria-label="Atualizando resultados" />}
+        {pendente && <Loader2 className="h-4 w-4 animate-spin text-slate-400" aria-label={t('atualizando')} />}
       </div>
       <div className="flex items-center gap-1">
         {ativos > 0 && (
@@ -62,14 +64,14 @@ export default function PainelFiltros({ ativos, limparHref, totalResultados, chi
             onClick={(e) => { e.preventDefault(); ir(limparHref); }}
             className="text-xs font-semibold text-marinho hover:text-turquesa-escuro px-2 py-1.5 rounded-lg hover:bg-slate-50"
           >
-            Limpar tudo
+            {t('limparTudo')}
           </Link>
         )}
         <button
           type="button"
           onClick={() => setAberto(false)}
           className="lg:hidden h-9 w-9 rounded-full hover:bg-slate-100 flex items-center justify-center"
-          aria-label="Fechar filtros"
+          aria-label={t('fechar')}
         >
           <X className="h-5 w-5 text-slate-500" />
         </button>
@@ -87,7 +89,7 @@ export default function PainelFiltros({ ativos, limparHref, totalResultados, chi
           text-sm font-semibold text-marinho shadow-sm hover:bg-slate-50"
       >
         <SlidersHorizontal className="h-4 w-4" />
-        Filtros
+        {t('titulo')}
         {ativos > 0 && (
           <span className="h-5 min-w-5 px-1.5 rounded-full bg-marinho text-white text-[11px] font-bold flex items-center justify-center">
             {ativos}
@@ -100,7 +102,7 @@ export default function PainelFiltros({ ativos, limparHref, totalResultados, chi
           <div className="absolute inset-0 bg-slate-900/40 backdrop-blur-[1px] lg:hidden" onClick={() => setAberto(false)} aria-hidden />
         )}
         <aside
-          aria-label="Filtros da busca"
+          aria-label={t('rotuloPainel')}
           className={`bg-white lg:rounded-2xl lg:border lg:border-slate-100 lg:shadow-sm
             ${aberto ? 'absolute inset-0 sm:left-auto sm:w-[26rem] flex flex-col lg:static lg:w-auto lg:block' : ''}`}
         >
@@ -117,8 +119,8 @@ export default function PainelFiltros({ ativos, limparHref, totalResultados, chi
               >
                 {pendente && <Loader2 className="h-4 w-4 animate-spin" />}
                 {totalResultados > 0
-                  ? `Ver ${totalResultados} resultado${totalResultados !== 1 ? 's' : ''}`
-                  : 'Nenhum resultado — ajuste os filtros'}
+                  ? t('verResultados', { count: totalResultados })
+                  : t('semResultados')}
               </button>
             </div>
           )}

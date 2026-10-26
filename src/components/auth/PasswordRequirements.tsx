@@ -1,5 +1,6 @@
 'use client';
 
+import { useTranslations } from 'next-intl';
 import { Check, X } from 'lucide-react';
 import { PASSWORD_RULES } from '@/lib/validators';
 
@@ -13,6 +14,7 @@ type PasswordRequirementsProps = {
  * (estado neutro); ao digitar, cada regra vira verde (ok) ou permanece pendente.
  */
 export default function PasswordRequirements({ password }: PasswordRequirementsProps) {
+  const t = useTranslations('Auth.regrasSenha');
   const touched = password.length > 0;
 
   return (
@@ -33,7 +35,7 @@ export default function PasswordRequirements({ password }: PasswordRequirementsP
               {ok ? <Check className="h-3 w-3" /> : <X className="h-3 w-3" />}
             </span>
             <span className={ok ? 'text-turquesa-escuro' : touched ? 'text-slate-600' : 'text-slate-400'}>
-              {rule.label}
+              {t(rule.id)}
             </span>
           </li>
         );

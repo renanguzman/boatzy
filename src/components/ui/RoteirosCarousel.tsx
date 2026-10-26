@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
+import { useTranslations } from 'next-intl';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import RoteiroCard, { type RoteiroCardData, type AvaliacaoResumoCard } from '@/app/buscar/_components/RoteiroCard';
 import type { PrecoNaData } from '@/lib/precos-roteiro';
@@ -27,6 +28,7 @@ export default function RoteirosCarousel({
   /** Querystring (sem '?') repassada ao detalhe do roteiro para pré-preencher data/pessoas. */
   query?: string;
 }) {
+  const t = useTranslations('Cards');
   const scrollerRef = useRef<HTMLDivElement>(null);
   const [canScrollPrev, setCanScrollPrev] = useState(false);
   const [canScrollNext, setCanScrollNext] = useState(items.length > 1);
@@ -67,7 +69,7 @@ export default function RoteirosCarousel({
               type="button"
               onClick={() => scroll('left')}
               disabled={!canScrollPrev}
-              aria-label="Roteiro anterior"
+              aria-label={t('roteiroAnterior')}
               className="h-9 w-9 flex items-center justify-center rounded-xl border border-slate-200 text-slate-600 hover:bg-white hover:shadow-sm transition-all disabled:opacity-30 disabled:pointer-events-none"
             >
               <ChevronLeft className="h-4 w-4" />
@@ -76,7 +78,7 @@ export default function RoteirosCarousel({
               type="button"
               onClick={() => scroll('right')}
               disabled={!canScrollNext}
-              aria-label="Próximo roteiro"
+              aria-label={t('proximoRoteiro')}
               className="h-9 w-9 flex items-center justify-center rounded-xl border border-slate-200 text-slate-600 hover:bg-white hover:shadow-sm transition-all disabled:opacity-30 disabled:pointer-events-none"
             >
               <ChevronRight className="h-4 w-4" />
@@ -87,7 +89,7 @@ export default function RoteirosCarousel({
 
       {items.length === 0 ? (
         <p className="text-sm text-slate-400 py-8 text-center border border-dashed border-slate-200 rounded-xl">
-          Esta embarcação não tem roteiros ativos no momento.
+          {t('semRoteirosEmbarcacao')}
         </p>
       ) : (
         <div

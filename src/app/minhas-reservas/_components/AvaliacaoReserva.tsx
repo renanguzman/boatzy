@@ -2,9 +2,10 @@
 
 import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
+import { useTranslations } from 'next-intl';
 import { Loader2, Star } from 'lucide-react';
 import { criarAvaliacao } from '../actions';
-import { FUSO_HORARIO } from '@/lib/datas';
+import { useFormatos } from '@/i18n/formatos';
 
 type AvaliacaoExistente = {
   nota: number;
@@ -37,6 +38,9 @@ function Estrelas({ nota, tamanho = 'h-4 w-4' }: { nota: number; tamanho?: strin
  */
 export default function AvaliacaoReserva({ reservaId, avaliacao }: Props) {
   const router = useRouter();
+  const t = useTranslations('MinhasReservas.avaliacao');
+  const tErros = useTranslations('MinhasReservas.erros');
+  const f = useFormatos();
   const [pending, startTransition] = useTransition();
   const [aberto, setAberto] = useState(false);
   const [nota, setNota] = useState(0);
@@ -48,20 +52,17 @@ export default function AvaliacaoReserva({ reservaId, avaliacao }: Props) {
     return (
       <div className="rounded-xl border border-amber-100 bg-amber-50/60 p-3.5">
         <div className="flex items-center gap-2 mb-1 flex-wrap">
-          <span className="text-sm font-semibold text-amber-700">Sua avaliação</span>
+          <span className="text-sm font-semibold text-amber-700">{t('sua')}</span>
           <Estrelas nota={avaliacao.nota} />
           {avaliacao.status === 'pendente' && (
             <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-slate-200 text-slate-600">
-              Aguardando aprovação
+              {t('aguardandoAprovacao')}
             </span>
           )}
         </div>
         {avaliacao.comentario && <p className="text-sm text-slate-600">{avaliacao.comentario}</p>}
         <p className="mt-1.5 text-xs text-slate-400">
-          Enviada em{' '}
-          {new Date(avaliacao.created_at).toLocaleDateString('pt-BR', { timeZone: FUSO_HORARIO, 
-            day: '2-digit', month: '2-digit', year: 'numeric',
-          })}
+          {t('enviadaEm', { data: f.data(avaliacao.created_at) })}
         </p>
       </div>
     );
@@ -75,7 +76,7 @@ export default function AvaliacaoReserva({ reservaId, avaliacao }: Props) {
         className="inline-flex items-center gap-1.5 rounded-xl bg-marinho hover:bg-marinho-escuro text-white px-4 py-2 text-sm font-semibold transition-colors"
       >
         <Star className="h-4 w-4" />
-        Avaliar experiência
+        {t('avaliar')}
       </button>
     );
   }
@@ -83,7 +84,7 @@ export default function AvaliacaoReserva({ reservaId, avaliacao }: Props) {
   function submeter() {
     setErro(null);
     if (nota < 1) {
-      setErro('Escolha uma nota de 1 a 5 estrelas.');
+      setErro(tErros('nota'));
       return;
     }
     startTransition(async () => {
@@ -98,7 +99,7 @@ export default function AvaliacaoReserva({ reservaId, avaliacao }: Props) {
 
   return (
     <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
-      <p className="text-sm font-semibold text-marinho mb-2">Como foi sua experiência?</p>
+      <p className="text-sm font-semibold text-marinho mb-2">{t('comoFoi')}</p>
 
       <div className="flex items-center gap-1 mb-3" onMouseLeave={() => setHover(0)}>
         {[1, 2, 3, 4, 5].map((n) => (
@@ -107,7 +108,7 @@ export default function AvaliacaoReserva({ reservaId, avaliacao }: Props) {
             type="button"
             onClick={() => setNota(n)}
             onMouseEnter={() => setHover(n)}
-            aria-label={`${n} estrela${n > 1 ? 's' : ''}`}
+            aria-label={t('estrelas', { count: n })}
             className="p-0.5 transition-transform hover:scale-110"
           >
             <Star
@@ -118,7 +119,7 @@ export default function AvaliacaoReserva({ reservaId, avaliacao }: Props) {
           </button>
         ))}
         {nota > 0 && (
-          <span className="ml-2 text-xs font-medium text-slate-500">{nota} de 5</span>
+          <span className="ml-2 text-xs font-medium text-slate-500">{t('deCinco', { nota })}</span>
         )}
       </div>
 
@@ -127,7 +128,7 @@ export default function AvaliacaoReserva({ reservaId, avaliacao }: Props) {
         onChange={(e) => setComentario(e.target.value)}
         maxLength={2000}
         rows={3}
-        placeholder="Conte como foi o passeio (opcional)"
+        placeholder={t('placeholder')}
         className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-marinho/30 resize-none"
       />
 
@@ -141,7 +142,7 @@ export default function AvaliacaoReserva({ reservaId, avaliacao }: Props) {
           className="inline-flex items-center gap-1.5 rounded-xl bg-marinho hover:bg-marinho-escuro disabled:opacity-60 text-white px-4 py-2 text-sm font-semibold transition-colors"
         >
           {pending && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
-          Enviar avaliação
+          {t('enviar')}
         </button>
         <button
           type="button"
@@ -149,7 +150,7 @@ export default function AvaliacaoReserva({ reservaId, avaliacao }: Props) {
           disabled={pending}
           className="rounded-xl border border-slate-300 text-slate-600 hover:bg-white px-4 py-2 text-sm font-semibold transition-colors"
         >
-          Agora não
+          {t('agoraNao')}
         </button>
       </div>
     </div>

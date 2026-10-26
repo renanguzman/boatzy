@@ -1,9 +1,10 @@
 'use client';
 
 import { useState } from 'react';
+import { useTranslations } from 'next-intl';
 import { CheckCircle2, Loader2, RefreshCw, Send } from 'lucide-react';
 import { enviarContato, novoDesafioCaptcha } from '../actions';
-import { ASSUNTOS_CONTATO } from '../constants';
+import { ASSUNTOS_CONTATO, CHAVE_ASSUNTO } from '../constants';
 import type { DesafioCaptcha } from '@/lib/contato-captcha';
 
 const inputClass =
@@ -12,6 +13,7 @@ const inputClass =
 const labelClass = 'block text-xs font-bold text-marinho tracking-wider uppercase mb-2';
 
 export default function ContactForm({ desafioInicial }: { desafioInicial: DesafioCaptcha }) {
+  const t = useTranslations('Contato');
   const [nome, setNome] = useState('');
   const [email, setEmail] = useState('');
   const [assunto, setAssunto] = useState('');
@@ -71,18 +73,15 @@ export default function ContactForm({ desafioInicial }: { desafioInicial: Desafi
         <div className="w-16 h-16 bg-turquesa/10 rounded-full flex items-center justify-center mx-auto mb-4">
           <CheckCircle2 className="w-8 h-8 text-turquesa" />
         </div>
-        <h2 className="text-xl font-bold text-marinho mb-2">Mensagem enviada!</h2>
-        <p className="text-slate-500 text-sm">
-          Obrigado por entrar em contato, {nome.split(' ')[0]}. Nossa equipe vai responder em breve
-          no e-mail informado.
-        </p>
+        <h2 className="text-xl font-bold text-marinho mb-2">{t('form.enviadaTitulo')}</h2>
+        <p className="text-slate-500 text-sm">{t('form.enviadaTexto', { nome: nome.split(' ')[0] })}</p>
       </div>
     );
   }
 
   return (
     <form onSubmit={handleSubmit} className="space-y-5">
-      <h2 className="text-lg font-bold text-marinho">Envie sua mensagem</h2>
+      <h2 className="text-lg font-bold text-marinho">{t('form.titulo')}</h2>
 
       {/* Honeypot — invisível para humanos, campo-armadilha para bots */}
       <input
@@ -98,25 +97,25 @@ export default function ContactForm({ desafioInicial }: { desafioInicial: Desafi
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div>
-          <label htmlFor="nome" className={labelClass}>Nome</label>
+          <label htmlFor="nome" className={labelClass}>{t('form.nome')}</label>
           <input
             id="nome"
             type="text"
             value={nome}
             onChange={(e) => setNome(e.target.value)}
-            placeholder="Seu nome"
+            placeholder={t('form.nomePlaceholder')}
             required
             className={inputClass}
           />
         </div>
         <div>
-          <label htmlFor="email" className={labelClass}>E-mail</label>
+          <label htmlFor="email" className={labelClass}>{t('form.email')}</label>
           <input
             id="email"
             type="email"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
-            placeholder="voce@exemplo.com"
+            placeholder={t('form.emailPlaceholder')}
             required
             className={inputClass}
           />
@@ -124,7 +123,7 @@ export default function ContactForm({ desafioInicial }: { desafioInicial: Desafi
       </div>
 
       <div>
-        <label htmlFor="assunto" className={labelClass}>Assunto</label>
+        <label htmlFor="assunto" className={labelClass}>{t('form.assunto')}</label>
         <select
           id="assunto"
           value={assunto}
@@ -133,23 +132,23 @@ export default function ContactForm({ desafioInicial }: { desafioInicial: Desafi
           className={inputClass}
         >
           <option value="" disabled>
-            Selecione um assunto
+            {t('form.selecioneAssunto')}
           </option>
           {ASSUNTOS_CONTATO.map((opcao) => (
             <option key={opcao} value={opcao}>
-              {opcao}
+              {t(`assuntos.${CHAVE_ASSUNTO[opcao]}`)}
             </option>
           ))}
         </select>
       </div>
 
       <div>
-        <label htmlFor="mensagem" className={labelClass}>Mensagem</label>
+        <label htmlFor="mensagem" className={labelClass}>{t('form.mensagem')}</label>
         <textarea
           id="mensagem"
           value={mensagem}
           onChange={(e) => setMensagem(e.target.value)}
-          placeholder="Conte com detalhes o que você precisa..."
+          placeholder={t('form.mensagemPlaceholder')}
           required
           minLength={10}
           rows={5}
@@ -160,7 +159,7 @@ export default function ContactForm({ desafioInicial }: { desafioInicial: Desafi
       {/* Verificador humano: soma simples */}
       <div>
         <label htmlFor="captcha" className={labelClass}>
-          Verificação: quanto é {desafio.a} + {desafio.b}?
+          {t('form.verificacao', { a: desafio.a, b: desafio.b })}
         </label>
         <div className="flex items-center gap-2">
           <input
@@ -169,7 +168,7 @@ export default function ContactForm({ desafioInicial }: { desafioInicial: Desafi
             inputMode="numeric"
             value={captchaResposta}
             onChange={(e) => setCaptchaResposta(e.target.value)}
-            placeholder="Resposta"
+            placeholder={t('form.resposta')}
             required
             className={`${inputClass} max-w-[140px]`}
           />
@@ -177,7 +176,7 @@ export default function ContactForm({ desafioInicial }: { desafioInicial: Desafi
             type="button"
             onClick={trocarDesafio}
             disabled={refreshingCaptcha}
-            aria-label="Gerar nova conta"
+            aria-label={t('form.novaConta')}
             className="h-11 w-11 flex items-center justify-center rounded-xl border border-slate-200 text-slate-500 hover:text-marinho hover:border-marinho transition-colors disabled:opacity-60"
           >
             <RefreshCw className={`h-4 w-4 ${refreshingCaptcha ? 'animate-spin' : ''}`} />
@@ -200,7 +199,7 @@ export default function ContactForm({ desafioInicial }: { desafioInicial: Desafi
           <Loader2 className="w-5 h-5 animate-spin" />
         ) : (
           <>
-            Enviar mensagem
+            {t('form.enviar')}
             <Send className="w-4 h-4" />
           </>
         )}

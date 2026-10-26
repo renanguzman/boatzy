@@ -1,0 +1,203 @@
+{
+  "CamposBusca": {
+    "data": {
+      "rotulo": "Date",
+      "placeholder": "When?",
+      "dataExata": "Exact date",
+      "flex": "±{count, plural, one {# day} other {# days}}",
+      "reservasAbertasAte": "Bookings open until <destaque>{data}</destaque>",
+      "reservasAbertasAteSimples": "Bookings open until {data}",
+      "indisponivel": "Unavailable for this trip",
+      "limparDatas": "Clear dates"
+    },
+    "local": {
+      "rotulo": "Destination",
+      "placeholder": "Where to?",
+      "inputRoteiros": "City or trip name",
+      "inputCidade": "Departure city",
+      "proximoDeMim": "Near me",
+      "geoNegada": "We don't have access to your location. To search near you, allow location access for Boatzy in your browser (the icon next to the site address) and try again.",
+      "geoFalhou": "We couldn't get your location right now. Try again or type a destination.",
+      "comPasseios": "Boat tours on Boatzy",
+      "populares": "Popular destinations",
+      "totalRoteiros": "{count, plural, one {# trip} other {# trips}}",
+      "recentes": "Recent searches",
+      "minimoLetras": "Type at least 2 letters",
+      "nenhumDestino": "No destinations found",
+      "roteiros": "Trips",
+      "outrasCidades": "Other cities"
+    },
+    "quantidade": {
+      "pessoas": {
+        "rotulo": "Guests",
+        "placeholder": "How many?",
+        "titulo": "Group size",
+        "valor": "{count, plural, one {# guest} other {# guests}}",
+        "remover": "Remove a guest",
+        "adicionar": "Add a guest",
+        "maximo": "Up to {count, plural, one {# guest} other {# guests}}"
+      },
+      "diarias": {
+        "rotulo": "Days",
+        "placeholder": "How many?",
+        "titulo": "Number of days",
+        "valor": "{count, plural, one {# day} other {# days}}",
+        "remover": "Remove a day",
+        "adicionar": "Add a day",
+        "maximo": "Up to {count, plural, one {# day} other {# days}}"
+      }
+    },
+    "tipoEmbarcacao": {
+      "rotulo": "Boat",
+      "placeholder": "What type?",
+      "titulo": "Boat type",
+      "nenhum": "No types available."
+    }
+  },
+  "Busca": {
+    "semRoteiroNaLocalidade": "Boatzy doesn't have any trips in this area yet",
+    "semEmbarcacaoNaLocalidade": "Boatzy doesn't have any boats in this area yet",
+    "titulo": {
+      "roteiro": {
+        "disponiveis": "Available trips",
+        "em": "Trips in {local}",
+        "perto": "Trips near you"
+      },
+      "embarcacao": {
+        "disponiveis": "Available boats",
+        "em": "Boats in {local}",
+        "perto": "Boats near you"
+      }
+    },
+    "tituloComTipo": {
+      "roteiro": {
+        "disponiveis": "Available {tipo} trips",
+        "em": "{tipo} trips in {local}",
+        "perto": "{tipo} trips near you"
+      },
+      "embarcacao": {
+        "disponiveis": "Available boats: {tipo}",
+        "em": "Boats in {local}: {tipo}",
+        "perto": "Boats near you: {tipo}"
+      }
+    },
+    "encontrados": {
+      "roteiro": "{count, plural, one {# trip found} other {# trips found}}",
+      "embarcacao": "{count, plural, one {# boat found} other {# boats found}}"
+    },
+    "nenhumResultadoFiltros": "No results with the current filters",
+    "resultados": "Results",
+    "exibindo": "Showing <b>{inicio}–{fim}</b> of <b>{total}</b>",
+    "nenhumResultado": "No results",
+    "removerFiltro": "Remove filter {filtro}",
+    "chips": {
+      "tipo": "Type: {tipo}",
+      "dataFlex": "{data} ± {count, plural, one {# day} other {# days}}",
+      "grupo": "Group: {count, plural, one {# guest} other {# guests}}",
+      "preco": "Price: {faixa}",
+      "duracao": "Duration: {faixa}",
+      "comodidades": "Amenities: {count}",
+      "acessorios": "Accessories: {count}",
+      "equipamentos": "Safety equipment: {count}",
+      "cobranca": "Pricing: {modelos}"
+    },
+    "faixa": {
+      "entre": "{min} to {max}",
+      "aPartirDe": "From {min}",
+      "ate": "Up to {max}"
+    },
+    "vazio": {
+      "embarcacaoComTipo": "No {tipo} boats found",
+      "embarcacao": "No boats found",
+      "roteiroComTipo": "No {tipo} trips found",
+      "roteiro": "No trips found",
+      "dicaOutroDestinoEmbarcacoes": "Try another destination or see all available boats.",
+      "dicaOutroDestinoRoteiros": "Try another destination or see all available trips.",
+      "dicaTipo": "Try another boat type, adjust the filters or explore other destinations.",
+      "dicaFiltros": "Try adjusting the filters or exploring other destinations.",
+      "limparFiltros": "Clear filters",
+      "limparDuracao": "Clear duration",
+      "limparTipo": "Clear type filter",
+      "verTodasEmbarcacoes": "See all boats",
+      "verTodosRoteiros": "See all trips"
+    },
+    "paginacao": {
+      "anterior": "Previous page",
+      "proxima": "Next page",
+      "pagina": "Page {n}"
+    },
+    "ordenar": {
+      "rotulo": "Sort by",
+      "relevancia": "Relevance",
+      "recentes": "Newest",
+      "avaliacao": "Top rated",
+      "preco_asc": "Lowest price",
+      "preco_desc": "Highest price",
+      "duracao_asc": "Shortest",
+      "duracao_desc": "Longest"
+    },
+    "modelosPreco": {
+      "roteiro": "Per trip",
+      "diaria": "Per day"
+    },
+    "duracaoPresets": {
+      "ate3": "Up to 3 hours",
+      "de3a6": "3 to 6 hours",
+      "de6a12": "6 to 12 hours",
+      "diaInteiro": "Full day (12h to 1 day)",
+      "maisDe1Dia": "More than 1 day"
+    },
+    "filtros": {
+      "destino": "Destination",
+      "data": "Date",
+      "quantidadePessoas": "Number of guests",
+      "tipoEmbarcacao": "Boat type",
+      "todos": "All",
+      "faixaPreco": "Price range",
+      "preco": "Price",
+      "duracaoPasseio": "Trip duration",
+      "duracaoHoras": "Duration in hours",
+      "ajudaHoras": "In hours — 1 day equals 24 h.",
+      "modeloCobranca": "Pricing model",
+      "ajudaModelos": "Leave all unselected to see every model.",
+      "comodidades": "Amenities",
+      "comodidadesPlaceholder": "E.g.: grill, sound system…",
+      "comodidadesVazio": "No amenities found.",
+      "acessorios": "Accessories",
+      "acessoriosPlaceholder": "E.g.: kayak, grill…",
+      "acessoriosVazio": "No accessories found.",
+      "equipamentos": "Safety Equipment",
+      "equipamentosPlaceholder": "E.g.: life jacket, fire extinguisher…",
+      "equipamentosVazio": "No equipment found.",
+      "limparContagem": "Clear ({count})"
+    },
+    "mapa": {
+      "titulo": "Results map",
+      "nestaPagina": "{count, plural, one {# result on this page} other {# results on this page}}",
+      "comLocalizacao": "{pontos} of {total} with a location",
+      "erro": "The map couldn't be loaded.",
+      "carregando": "Loading map…",
+      "verDetalhes": "See details"
+    }
+  },
+  "Filtros": {
+    "qualquer": "Any",
+    "buscarPlaceholder": "Search…",
+    "nenhumItem": "No items found.",
+    "limparBusca": "Clear search",
+    "verMenos": "See less",
+    "verTodas": "See all ({count})",
+    "minimo": "Min",
+    "maximo": "Max",
+    "rotuloMinimo": "Minimum {rotulo}",
+    "rotuloMaximo": "Maximum {rotulo}",
+    "ate": "to",
+    "titulo": "Filters",
+    "atualizando": "Updating results",
+    "limparTudo": "Clear all",
+    "fechar": "Close filters",
+    "rotuloPainel": "Search filters",
+    "verResultados": "See {count, plural, one {# result} other {# results}}",
+    "semResultados": "No results — adjust the filters"
+  }
+}

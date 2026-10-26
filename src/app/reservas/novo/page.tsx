@@ -1,4 +1,5 @@
 import { redirect } from 'next/navigation';
+import { getTranslations } from 'next-intl/server';
 import Link from 'next/link';
 import { Users, CalendarDays } from 'lucide-react';
 import Header from '@/components/layout/Header';
@@ -16,7 +17,7 @@ import OpcionaisCheckout, { SelecaoOpcionaisProvider, type OpcionalCheckout } fr
 import PrevisaoTempoCard from './_components/PrevisaoTempoCard';
 import GaleriaReserva from './_components/GaleriaReserva';
 import ChatDonoModal from '@/components/chat/ChatDonoModal';
-import { FUSO_HORARIO, formatarData } from '@/lib/datas';
+import { getFormatos } from '@/i18n/formatos-servidor';
 import { ordenarImagens } from '@/lib/galeria';
 
 const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
@@ -33,21 +34,24 @@ type SearchParams = {
   diarias?: string;
 };
 
-function formatDateLabel(iso: string, flex: number): string {
-  const label = new Date(iso + 'T12:00:00').toLocaleDateString('pt-BR', { timeZone: FUSO_HORARIO, 
-    day: '2-digit',
-    month: 'long',
-    year: 'numeric',
-  });
-  return flex > 0 ? `${label} ± ${flex} dia${flex > 1 ? 's' : ''}` : label;
-}
-
 export default async function NovaReservaPage({
   searchParams,
 }: {
   searchParams: Promise<SearchParams>;
 }) {
   const sp = await searchParams;
+  const [t, tData, tPessoas, tDiarias, f] = await Promise.all([
+    getTranslations('NovaReserva'),
+    getTranslations('CamposBusca.data'),
+    getTranslations('CamposBusca.quantidade.pessoas'),
+    getTranslations('CamposBusca.quantidade.diarias'),
+    getFormatos(),
+  ]);
+  /** "12 de setembro de 2026", com a flexibilidade da busca: "… ±2 dias". */
+  const formatDateLabel = (iso: string, flexDias: number) => {
+    const label = f.data(iso, { day: '2-digit', month: 'long', year: 'numeric' });
+    return flexDias > 0 ? `${label} ${tData('flex', { count: flexDias })}` : label;
+  };
 
   // Só roteiro é reservável: a embarcação não tem preço nem disponibilidade
   // próprios (links antigos com `?embarcacao=` caem na busca).
@@ -92,7 +96,6 @@ export default async function NovaReservaPage({
   let modalidade: 'roteiro' | 'diaria' = 'roteiro';
   let diarias: number | undefined;
   let multiplicador = 1;
-  const rotuloLinha = 'Diária';
 
   // Todos os opcionais do roteiro — o cliente pode adicionar ou retirar aqui (os ids da query
   // são só a seleção inicial).
@@ -217,12 +220,12 @@ export default async function NovaReservaPage({
 
       <main className="flex-1 max-w-3xl w-full mx-auto px-4 py-10">
         <Link href={voltarHref} className="text-sm text-slate-500 hover:text-slate-700">
-          ← Voltar ao roteiro
+          {t('voltar')}
         </Link>
 
-        <h1 className="mt-3 text-2xl font-bold text-marinho">Confirmar solicitação de reserva</h1>
+        <h1 className="mt-3 text-2xl font-bold text-marinho">{t('titulo')}</h1>
         <p className="text-sm text-slate-500 mt-1">
-          Revise os dados abaixo. Após o envio, o gestor analisará sua solicitação; se aceitar, você paga pelo Boatzy (Pix ou cartão) para garantir a data.
+          {t('subtitulo')}
         </p>
 
         <div className="mt-6 rounded-2xl border border-slate-200 bg-white shadow-sm overflow-hidden">
@@ -240,7 +243,7 @@ export default async function NovaReservaPage({
 
         {/* Chat com o dono em modal, por cima da confirmação (com atalho para nova aba). Oculto para o próprio dono. */}
         {user.id !== ownerId && (
-          <ChatDonoModal roteiroId={alvoId} roteiroNome={nome} dataLabel={formatarData(data)} pessoas={pessoas} />
+          <ChatDonoModal roteiroId={alvoId} roteiroNome={nome} dataLabel={f.data(data)} pessoas={pessoas} />
         )}
 
         {previsaoTempo && (
@@ -264,13 +267,13 @@ export default async function NovaReservaPage({
               </div>
               <div>
                 <p className="text-[10px] text-slate-500 uppercase tracking-wider font-medium">
-                  {modalidade === 'diaria' ? 'Período' : 'Data'}
+                  {modalidade === 'diaria' ? t('periodo') : t('data')}
                 </p>
                 {modalidade === 'diaria' && diarias ? (
                   <p className="text-sm font-semibold text-grafite">
                     {formatDateLabel(data, 0)} → {formatDateLabel(somarDiasISO(data, diarias - 1), 0)}
                     <span className="block text-xs font-normal text-slate-400">
-                      {diarias} diária{diarias > 1 ? 's' : ''}
+                      {tDiarias('valor', { count: diarias })}
                     </span>
                   </p>
                 ) : (
@@ -283,9 +286,9 @@ export default async function NovaReservaPage({
                 <Users className="h-4 w-4 text-marinho" />
               </div>
               <div>
-                <p className="text-[10px] text-slate-500 uppercase tracking-wider font-medium">Pessoas</p>
+                <p className="text-[10px] text-slate-500 uppercase tracking-wider font-medium">{t('pessoas')}</p>
                 <p className="text-sm font-semibold text-grafite">
-                  {pessoas} {pessoas === 1 ? 'pessoa' : 'pessoas'}
+                  {tPessoas('valor', { count: pessoas })}
                 </p>
               </div>
             </div>
@@ -304,7 +307,6 @@ export default async function NovaReservaPage({
           diarias={diarias}
           precoUnitario={precoUnitario}
           multiplicador={multiplicador}
-          rotuloLinha={rotuloLinha}
           taxaPercent={taxaPercent}
           termo={termo}
         />

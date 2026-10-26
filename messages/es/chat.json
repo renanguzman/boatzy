@@ -1,0 +1,94 @@
+{
+  "Chat": {
+    "saudacao": "¡Hola! {acao, select, solicitando {Estoy solicitando el} other {Me interesa el}} paseo \"{nome}\"{temData, select, sim { para el {data}{temPessoas, select, sim {, con {pessoas, plural, one {# persona} other {# personas}}} other {}}} other {}}.",
+    "sugestoes": {
+      "pontoEmbarque": {
+        "rotulo": "Punto de embarque",
+        "texto": "¿Dónde está el punto de embarque y con cuánta anticipación debo llegar?"
+      },
+      "incluso": {
+        "rotulo": "Qué incluye",
+        "texto": "¿Qué incluye el paseo y qué necesito llevar?"
+      },
+      "comidaBebida": {
+        "rotulo": "Comida y bebida",
+        "texto": "¿Puedo llevar comida y bebida a bordo? ¿Hay conservadora o hielo disponible?"
+      },
+      "criancas": {
+        "rotulo": "Niños a bordo",
+        "texto": "Voy con niños. ¿Hay chalecos salvavidas para niños a bordo?"
+      },
+      "tempo": {
+        "rotulo": "Si cambia el clima",
+        "texto": "Si el clima está malo ese día, ¿cómo funciona? ¿Se puede reprogramar?"
+      },
+      "ajustarRoteiro": {
+        "rotulo": "Ajustar el recorrido",
+        "texto": "¿Es posible ajustar el recorrido o agregar alguna parada?"
+      },
+      "pontoEncontro": {
+        "rotulo": "Punto de encuentro",
+        "texto": "¿Me confirmas el punto de encuentro y con cuánta anticipación debo llegar?"
+      },
+      "oQueLevar": {
+        "rotulo": "Qué llevar",
+        "texto": "¿Qué necesito llevar para el paseo?"
+      },
+      "alterarReserva": {
+        "rotulo": "Cambiar la reserva",
+        "texto": "Necesito hacer un cambio en la reserva (fecha o cantidad de personas). ¿Es posible?"
+      }
+    },
+    "dialogo": {
+      "rotulo": "Conversación con el dueño de la embarcación",
+      "titulo": "Conversación con el dueño",
+      "fechar": "Cerrar conversación",
+      "abrindo": "Abriendo la conversación…",
+      "tentarDeNovo": "Intentar de nuevo",
+      "abrirNovaAba": "Abrir en otra pestaña"
+    },
+    "botaoConfirmacao": {
+      "titulo": "Habla con el dueño de la embarcación de este paseo",
+      "subtitulo": "Resuelve tus dudas sin salir de esta página"
+    },
+    "caixa": {
+      "referenteA": "Sobre: {label} ({tipo})",
+      "origem": {
+        "venda": "Venta",
+        "roteiro": "Paseo",
+        "embarcacao": "Embarcación"
+      },
+      "abrirNovaAba": "Abrir la conversación en otra pestaña",
+      "fecharVoltar": "Cerrar y volver a la reserva",
+      "sobreOQue": "¿De qué quieres hablar?",
+      "toqueAssunto": "Toca un tema: el mensaje ya viene escrito, solo revísalo y envíalo.",
+      "nenhumaMensagem": "Todavía no hay mensajes",
+      "envieAPrimeira": "Envía el primer mensaje para iniciar la conversación.",
+      "hoje": "Hoy",
+      "ontem": "Ayer",
+      "placeholder": "Escribe un mensaje...",
+      "enviar": "Enviar"
+    },
+    "aviso": {
+      "titulo": "Comunicación exclusiva por la plataforma",
+      "p1": "Como plataforma de intermediación, Boatzy recomienda que toda la comunicación relacionada con esta atención —dudas, acuerdos de precios, cambios y demás gestiones— se realice exclusivamente por esta conversación, dentro del sitio. Este canal es el que nos permite ofrecer el soporte previsto en los Términos de uso y en la Política de privacidad de la plataforma, incluso en caso de dudas o eventuales desacuerdos entre las partes.",
+      "p2": "Boatzy no se responsabiliza, en ningún caso, por gestiones, acuerdos, pagos, daños o perjuicios derivados de comunicaciones realizadas por otros medios (como WhatsApp, teléfono, correo electrónico o redes sociales) que no se hayan formalizado dentro de la plataforma. Fuera de este canal, Boatzy no tiene forma de mediar la negociación ni de garantizar el cumplimiento de lo acordado entre las partes.",
+      "p3": "Al hacer clic en \"Entendido\", declaras estar de acuerdo con esta orientación.",
+      "ciente": "Entendido"
+    },
+    "descricaoDono": "Dueño de la embarcación · conversación en Boatzy",
+    "erros": {
+      "entreNaConta": "Ingresa a tu cuenta para hablar con el dueño.",
+      "roteiroSeu": "Este paseo es tuyo: no puedes conversar contigo mismo.",
+      "reservaSua": "Esta reserva es de un anuncio tuyo: no puedes conversar contigo mismo.",
+      "falhaRoteiro": "No se pudo abrir la conversación con el dueño de este paseo.",
+      "falhaReserva": "No se pudo abrir la conversación con el dueño de esta reserva."
+    },
+    "saudacaoReserva": "¡Hola! Sobre mi reserva de \"{item}\" para el {data} (código {codigo}).",
+    "conversarComDono": "Hablar con el dueño",
+    "rascunhoRoteiro": "¡Hola! Me interesa el paseo \"{nome}\". ¿Podemos conversar?",
+    "voltarRoteiro": "Volver al paseo",
+    "rascunhoEmbarcacao": "¡Hola! Me interesa la embarcación \"{nome}\". ¿Podemos conversar?",
+    "voltarEmbarcacao": "Volver a la embarcación"
+  }
+}

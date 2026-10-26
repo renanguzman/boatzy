@@ -1,4 +1,6 @@
 import { redirect } from 'next/navigation';
+import type { Metadata } from 'next';
+import { getTranslations } from 'next-intl/server';
 import Link from 'next/link';
 import Image from 'next/image';
 import {
@@ -12,14 +14,12 @@ import { createClient } from '@/lib/supabase/server';
 import { supabaseAdmin } from '@/lib/supabase';
 import { concluirReservasVencidas } from '@/lib/reservas';
 import { expirarPedidosVencidosSemFalhar } from '@/lib/pagamentos/pedidos';
-import { formatarDataHoraBR } from '@/lib/termos/formato';
-import { formatCurrency } from '@/lib/utils';
+import { getFormatos } from '@/i18n/formatos-servidor';
 import type { ReservaStatus, AvaliacaoStatus, PedidoStatus } from '@/types/supabase';
 import CancelarReservaButton from './_components/CancelarReservaButton';
 import { STATUS } from './_lib/status';
 import ConversarDonoReserva from './_components/ConversarDonoReserva';
 import AvaliacaoReserva from './_components/AvaliacaoReserva';
-import { FUSO_HORARIO, formatarData } from '@/lib/datas';
 import { precoComTaxa } from '@/lib/pagamentos/valores';
 
 type AvaliacaoResumo = { nota: number; comentario: string | null; created_at: string; status: AvaliacaoStatus };
@@ -68,22 +68,6 @@ type ReservaCliente = {
 
 type PedidoCliente = { numero: number; status: PedidoStatus; expira_em: string | null; pago_em: string | null; valor_total: number };
 
-function formatData(iso: string, flex: number | null): string {
-  const label = new Date(iso + 'T12:00:00').toLocaleDateString('pt-BR', { timeZone: FUSO_HORARIO, 
-    weekday: 'long',
-    day: '2-digit',
-    month: 'long',
-    year: 'numeric',
-  });
-  return flex && flex > 0 ? `${label} (± ${flex} dia${flex > 1 ? 's' : ''})` : label;
-}
-
-function formatDateTime(iso: string): string {
-  return new Date(iso).toLocaleString('pt-BR', { timeZone: FUSO_HORARIO, 
-    day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit',
-  });
-}
-
 function formatTelefone(digits: string | null): string | null {
   if (!digits) return null;
   const d = onlyDigits(digits);
@@ -96,12 +80,29 @@ function thumb(r: ReservaCliente): string | null {
   return (imgs.find((i) => i.principal) ?? imgs[0])?.url_imagem ?? null;
 }
 
+export async function generateMetadata(): Promise<Metadata> {
+  return { title: (await getTranslations('MinhasReservas'))('metaTitulo') };
+}
+
 export default async function MinhasReservasPage() {
   const supabase = await createClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();
   if (!user) redirect('/entrar?redirect_to=/minhas-reservas');
+  const [t, tStatus, tTipo, tPessoas, tPag, tChat, f] = await Promise.all([
+    getTranslations('MinhasReservas'),
+    getTranslations('StatusReserva'),
+    getTranslations('Pagamento.tipo'),
+    getTranslations('CamposBusca.quantidade.pessoas'),
+    getTranslations('Pagamento'),
+    getTranslations('Chat'),
+    getFormatos(),
+  ]);
+  const formatData = (iso: string, flex: number | null) => {
+    const label = f.data(iso, { weekday: 'long', day: '2-digit', month: 'long', year: 'numeric' });
+    return flex && flex > 0 ? t('dataFlex', { data: label, count: flex }) : label;
+  };
 
   // Transições lazy antes de listar: pagamento vencido → expirada; confirmada com data passada → concluída.
   await expirarPedidosVencidosSemFalhar();
@@ -138,9 +139,9 @@ export default async function MinhasReservasPage() {
       <Header />
 
       <main className="flex-1 max-w-4xl w-full mx-auto px-4 py-10">
-        <h1 className="text-2xl font-bold text-marinho">Minhas reservas</h1>
+        <h1 className="text-2xl font-bold text-marinho">{t('titulo')}</h1>
         <p className="text-sm text-slate-500 mt-1">
-          Acompanhe o status das suas solicitações e a resposta do gestor.
+          {t('subtitulo')}
         </p>
 
         {reservas.length === 0 ? (
@@ -148,15 +149,15 @@ export default async function MinhasReservasPage() {
             <div className="h-14 w-14 rounded-2xl bg-slate-100 flex items-center justify-center mb-4">
               <Compass className="h-7 w-7 text-slate-300" />
             </div>
-            <h2 className="text-lg font-semibold text-slate-700">Você ainda não tem reservas</h2>
+            <h2 className="text-lg font-semibold text-slate-700">{t('vazioTitulo')}</h2>
             <p className="text-sm text-slate-400 mt-1 max-w-sm">
-              Explore os roteiros disponíveis e faça sua primeira solicitação.
+              {t('vazioTexto')}
             </p>
             <Link
               href="/buscar"
               className="mt-6 px-5 py-2.5 bg-marinho hover:bg-marinho-escuro text-white text-sm font-semibold rounded-xl transition-colors"
             >
-              Explorar roteiros
+              {t('explorar')}
             </Link>
           </div>
         ) : (
@@ -206,7 +207,7 @@ export default async function MinhasReservasPage() {
                         <div className="min-w-0">
                           <div className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-slate-400">
                             <TipoIcon className="h-3 w-3" />
-                            {r.tipo === 'embarcacao' ? 'Embarcação' : 'Roteiro'}
+                            {tTipo(r.tipo)}
                           </div>
                           <h2 className="mt-0.5 text-base font-bold text-marinho truncate">
                             <Link href={`/minhas-reservas/${r.id}`} className="hover:text-turquesa-escuro transition-colors">
@@ -221,7 +222,7 @@ export default async function MinhasReservasPage() {
                         </div>
                         <span className={`shrink-0 inline-flex items-center gap-1 rounded-full px-3 py-1 text-xs font-semibold ${s.badge}`}>
                           <s.Icon className="h-3.5 w-3.5" />
-                          {s.label}
+                          {tStatus(`${r.status}.label`)}
                         </span>
                       </div>
                     </div>
@@ -235,11 +236,11 @@ export default async function MinhasReservasPage() {
                     </div>
                     <div className="flex items-center gap-2 text-slate-600">
                       <Users className="h-4 w-4 text-slate-400 shrink-0" />
-                      {r.quantidade_pessoas} {r.quantidade_pessoas === 1 ? 'pessoa' : 'pessoas'}
+                      {tPessoas('valor', { count: r.quantidade_pessoas })}
                     </div>
                     <div className="flex items-center gap-2 text-slate-400">
                       <Clock className="h-4 w-4 shrink-0" />
-                      <span className="text-xs">Solicitada em {formatDateTime(r.solicitado_em)}</span>
+                      <span className="text-xs">{t('solicitadaEm', { data: f.dataHora(r.solicitado_em) })}</span>
                     </div>
                   </div>
 
@@ -249,13 +250,13 @@ export default async function MinhasReservasPage() {
                       <div className="rounded-xl bg-slate-50 border border-slate-100 p-3">
                         <div className="flex items-center gap-1.5 mb-2">
                           <ShoppingCart className="h-3.5 w-3.5 text-slate-500" />
-                          <span className="text-xs font-semibold text-slate-600">Adicionais</span>
+                          <span className="text-xs font-semibold text-slate-600">{t('adicionais')}</span>
                         </div>
                         <div className="space-y-1">
                           {r.reserva_adicional.map((a) => (
                             <div key={a.id} className="flex items-center justify-between text-xs text-slate-600">
                               <span>{a.descricao}</span>
-                              <span className="font-medium">{formatCurrency(precoComTaxa(Number(a.valor), Number(r.taxa_percent ?? 0)))}</span>
+                              <span className="font-medium">{f.moeda(precoComTaxa(Number(a.valor), Number(r.taxa_percent ?? 0)))}</span>
                             </div>
                           ))}
                         </div>
@@ -267,17 +268,17 @@ export default async function MinhasReservasPage() {
                   {r.desconto_valor > 0 && (
                     <div className="px-4 pb-2 flex items-center justify-between">
                       <span className="text-sm text-turquesa-escuro">
-                        Desconto{r.cupom_codigo ? ` (${r.cupom_codigo})` : ''}
+                        {r.cupom_codigo ? tPag('descontoCupom', { cupom: r.cupom_codigo }) : tPag('desconto')}
                       </span>
-                      <span className="text-sm font-medium text-turquesa-escuro">-{formatCurrency(r.desconto_valor)}</span>
+                      <span className="text-sm font-medium text-turquesa-escuro">-{f.moeda(r.desconto_valor)}</span>
                     </div>
                   )}
 
                   {/* Total */}
                   {r.total_estimado != null && (
                     <div className="px-4 pb-4 flex items-center justify-between">
-                      <span className="text-sm text-slate-500">Total estimado</span>
-                      <span className="text-base font-bold text-marinho">{formatCurrency(r.total_estimado)}</span>
+                      <span className="text-sm text-slate-500">{t('totalEstimado')}</span>
+                      <span className="text-base font-bold text-marinho">{f.moeda(r.total_estimado)}</span>
                     </div>
                   )}
 
@@ -286,10 +287,10 @@ export default async function MinhasReservasPage() {
                     <div className="px-4 pb-4">
                       <div className="rounded-xl border border-violet-200 bg-violet-50 p-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                         <div className="text-sm text-violet-800">
-                          <p className="font-semibold">Pagamento pendente · Pedido #{pedido.numero}</p>
+                          <p className="font-semibold">{t('pagamentoPendente', { numero: pedido.numero })}</p>
                           {pedido.expira_em && (
                             <p className="text-xs text-violet-700 mt-0.5">
-                              Pague até {formatarDataHoraBR(pedido.expira_em)} para garantir a data.
+                              {t('pagueAte', { data: f.dataHora(pedido.expira_em) })}
                             </p>
                           )}
                         </div>
@@ -298,7 +299,7 @@ export default async function MinhasReservasPage() {
                           className="inline-flex items-center justify-center gap-1.5 rounded-xl bg-marinho hover:bg-marinho-escuro px-4 py-2.5 text-sm font-semibold text-white transition-colors whitespace-nowrap"
                         >
                           <CreditCard className="h-4 w-4" />
-                          Pagar {formatCurrency(Number(pedido.valor_total))}
+                          {t('pagar', { valor: f.moeda(Number(pedido.valor_total)) })}
                         </Link>
                       </div>
                     </div>
@@ -307,10 +308,10 @@ export default async function MinhasReservasPage() {
                     <div className="px-4 pb-4">
                       <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-turquesa-escuro">
                         <BadgeCheck className="h-4 w-4" />
-                        Pagamento confirmado · Pedido #{pedido.numero}
-                        {pedido.pago_em && ` · ${formatarDataHoraBR(pedido.pago_em)}`}
+                        {t('pagamentoConfirmado', { numero: pedido.numero })}
+                        {pedido.pago_em && ` · ${f.dataHora(pedido.pago_em)}`}
                         <Link href={`/minhas-reservas/${r.id}#comprovante`} className="font-semibold text-marinho hover:underline">
-                          Ver comprovante
+                          {tPag('verComprovante')}
                         </Link>
                       </div>
                     </div>
@@ -322,15 +323,15 @@ export default async function MinhasReservasPage() {
                       <div className="rounded-xl border border-indigo-100 bg-indigo-50/60 p-3.5">
                         <div className="flex items-center gap-1.5 mb-1">
                           <MessageSquare className="h-4 w-4 text-indigo-500" />
-                          <span className="text-sm font-semibold text-indigo-700">Resposta do gestor</span>
+                          <span className="text-sm font-semibold text-indigo-700">{t('respostaGestor')}</span>
                         </div>
                         <p className="text-sm text-slate-600">{r.observacao_gestor}</p>
                         {r.respondido_em && (
-                          <p className="mt-2 text-xs text-slate-400">Respondida em {formatDateTime(r.respondido_em)}</p>
+                          <p className="mt-2 text-xs text-slate-400">{t('respondidaEm', { data: f.dataHora(r.respondido_em) })}</p>
                         )}
                       </div>
                     ) : (
-                      <div className={`rounded-xl border p-3 text-xs font-medium ${s.noteClass}`}>{s.note}</div>
+                      <div className={`rounded-xl border p-3 text-xs font-medium ${s.noteClass}`}>{tStatus(`${r.status}.note`)}</div>
                     )}
                   </div>
 
@@ -340,7 +341,7 @@ export default async function MinhasReservasPage() {
                       <div className="rounded-xl border border-slate-200 bg-slate-50/70 p-3.5">
                         <div className="flex items-center gap-1.5 mb-2.5">
                           <Users className="h-4 w-4 text-marinho" />
-                          <span className="text-sm font-semibold text-marinho">Quem vai te atender</span>
+                          <span className="text-sm font-semibold text-marinho">{t('quemAtende')}</span>
                         </div>
                         <div className="flex flex-wrap gap-3">
                           {atendentes.map((m, i) => {
@@ -363,7 +364,7 @@ export default async function MinhasReservasPage() {
                                 <div className="min-w-0">
                                   <p className="text-sm text-slate-700 flex items-center gap-1">
                                     {m.is_gestor && <Crown className="h-3.5 w-3.5 text-amber-500 shrink-0" />}
-                                    {m.is_gestor ? 'Gestor da embarcação' : m.nome_completo}
+                                    {m.is_gestor ? t('gestorEmbarcacao') : m.nome_completo}
                                   </p>
                                   {tel && (
                                     <p className="text-xs text-slate-400 flex items-center gap-1">
@@ -391,13 +392,13 @@ export default async function MinhasReservasPage() {
                     {chatIndisponivel ? (
                       <span className="inline-flex items-center gap-2 text-sm font-medium text-slate-300">
                         <MessageCircle className="h-4 w-4" />
-                        Conversar com o dono
+                        {tChat('conversarComDono')}
                       </span>
                     ) : (
                       <ConversarDonoReserva
                         reservaId={r.id}
                         itemNome={r.roteiro?.nome ?? r.item_nome}
-                        dataLabel={formatarData(r.data_reserva)}
+                        dataLabel={f.data(r.data_reserva)}
                         naoLidas={naoLidas}
                         variante="link"
                       />
@@ -408,7 +409,7 @@ export default async function MinhasReservasPage() {
                         href={`/minhas-reservas/${r.id}`}
                         className="text-sm font-semibold text-marinho hover:text-turquesa-escuro transition-colors"
                       >
-                        Ver detalhes →
+                        {t('verDetalhes')}
                       </Link>
                     </div>
                   </div>

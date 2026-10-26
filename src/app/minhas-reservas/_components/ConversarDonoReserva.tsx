@@ -2,8 +2,9 @@
 
 import { useCallback, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { useTranslations } from 'next-intl';
 import { MessageCircle } from 'lucide-react';
-import { ChatDonoDialog, SUGESTOES_RESERVA } from '@/components/chat/ChatDonoModal';
+import { ChatDonoDialog, useSugestoesChat } from '@/components/chat/ChatDonoModal';
 
 /**
  * "Conversar com o dono" de uma reserva (lista e detalhe de Minhas reservas): abre a conversa em
@@ -26,6 +27,8 @@ export default function ConversarDonoReserva({
   variante: 'botao' | 'link';
 }) {
   const router = useRouter();
+  const t = useTranslations('Chat');
+  const sugestoes = useSugestoesChat('reserva');
   const [aberto, setAberto] = useState(false);
   const botaoRef = useRef<HTMLButtonElement>(null);
 
@@ -64,7 +67,7 @@ export default function ConversarDonoReserva({
         {variante === 'botao' ? (
           <>
             <MessageCircle className="h-4 w-4" />
-            Conversar com o dono
+            {t('conversarComDono')}
             {contador}
           </>
         ) : (
@@ -73,7 +76,7 @@ export default function ConversarDonoReserva({
               <MessageCircle className="h-4 w-4" />
               {contador}
             </span>
-            Conversar com o dono
+            {t('conversarComDono')}
           </>
         )}
       </button>
@@ -83,8 +86,8 @@ export default function ConversarDonoReserva({
         aberto={aberto}
         onFechar={fechar}
         origem="minhas_reservas"
-        sugestoes={SUGESTOES_RESERVA}
-        saudacao={`Olá! Sobre a minha reserva de "${itemNome}" para ${dataLabel} (código ${reservaId.slice(0, 8).toUpperCase()}).`}
+        sugestoes={sugestoes}
+        saudacao={t('saudacaoReserva', { item: itemNome, data: dataLabel, codigo: reservaId.slice(0, 8).toUpperCase() })}
       />
     </>
   );

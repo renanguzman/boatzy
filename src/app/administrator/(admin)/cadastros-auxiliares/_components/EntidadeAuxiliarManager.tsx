@@ -3,23 +3,26 @@
 import { useMemo, useState, useTransition } from 'react';
 import { Check, Loader2, Pencil, Plus, Search, Trash2, X } from 'lucide-react';
 
-export type ItemAuxiliar = { id: string; nome: string };
+export type ItemAuxiliar = { id: string; nome: string; nome_en: string | null; nome_es: string | null };
 
 type Props = {
   titulo: string;
   itens: ItemAuxiliar[];
   icon: React.ElementType;
   placeholderNovo: string;
-  onCriar: (nome: string) => Promise<{ ok: boolean; error?: string }>;
-  onAtualizar: (id: string, nome: string) => Promise<{ ok: boolean; error?: string }>;
+  onCriar: (nome: string, nomeEn: string, nomeEs: string) => Promise<{ ok: boolean; error?: string }>;
+  onAtualizar: (id: string, nome: string, nomeEn: string, nomeEs: string) => Promise<{ ok: boolean; error?: string }>;
   /** Sem `confirmado`, retorna `error: 'EM_USO'` + `vinculos` se o item estiver em uso. */
   onExcluir: (id: string, confirmado?: boolean) => Promise<{ ok: boolean; error?: string; vinculos?: number }>;
   /** Chamado após qualquer mutação bem-sucedida, para a página recarregar os dados do servidor. */
   onRefresh: () => void;
 };
 
+const campoTraducaoCls = `rounded-xl border border-slate-200 px-3.5 py-2 text-sm text-slate-800
+  placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-[#0B2447]/20 focus:border-[#0B2447]/40 transition`;
+
 /**
- * CRUD simples (id + nome) para um catálogo auxiliar — reutilizado para
+ * CRUD simples (id + nome em português + tradução opcional em inglês/espanhol) para um catálogo auxiliar — reutilizado para
  * Acessórios, Comodidades e Equipamentos de Segurança em `/administrator/cadastros-auxiliares`.
  * Lista com busca local, adição inline, edição inline e exclusão com aviso
  * de vínculos existentes (a ligação com embarcação é `ON DELETE CASCADE`).
@@ -29,8 +32,12 @@ export default function EntidadeAuxiliarManager({
 }: Props) {
   const [busca, setBusca] = useState('');
   const [novoNome, setNovoNome] = useState('');
+  const [novoEn, setNovoEn] = useState('');
+  const [novoEs, setNovoEs] = useState('');
   const [editandoId, setEditandoId] = useState<string | null>(null);
   const [editandoNome, setEditandoNome] = useState('');
+  const [editandoEn, setEditandoEn] = useState('');
+  const [editandoEs, setEditandoEs] = useState('');
   const [erro, setErro] = useState<string | null>(null);
   const [pendingId, setPendingId] = useState<string | 'novo' | null>(null);
   const [, startTransition] = useTransition();
@@ -47,10 +54,12 @@ export default function EntidadeAuxiliarManager({
     setErro(null);
     setPendingId('novo');
     startTransition(async () => {
-      const result = await onCriar(nome);
+      const result = await onCriar(nome, novoEn, novoEs);
       setPendingId(null);
       if (result.ok) {
         setNovoNome('');
+        setNovoEn('');
+        setNovoEs('');
         onRefresh();
       } else {
         setErro(result.error ?? 'Erro ao criar.');
@@ -61,6 +70,8 @@ export default function EntidadeAuxiliarManager({
   function iniciarEdicao(item: ItemAuxiliar) {
     setEditandoId(item.id);
     setEditandoNome(item.nome);
+    setEditandoEn(item.nome_en ?? '');
+    setEditandoEs(item.nome_es ?? '');
     setErro(null);
   }
 
@@ -75,7 +86,7 @@ export default function EntidadeAuxiliarManager({
     setErro(null);
     setPendingId(id);
     startTransition(async () => {
-      const result = await onAtualizar(id, nome);
+      const result = await onAtualizar(id, nome, editandoEn, editandoEs);
       setPendingId(null);
       if (result.ok) {
         cancelarEdicao();
@@ -84,6 +95,13 @@ export default function EntidadeAuxiliarManager({
         setErro(result.error ?? 'Erro ao salvar.');
       }
     });
+  }
+
+  function teclasEdicao(id: string) {
+    return (e: React.KeyboardEvent) => {
+      if (e.key === 'Enter') { e.preventDefault(); handleSalvarEdicao(id); }
+      if (e.key === 'Escape') cancelarEdicao();
+    };
   }
 
   function handleExcluir(item: ItemAuxiliar) {
@@ -153,6 +171,22 @@ export default function EntidadeAuxiliarManager({
             Adicionar
           </button>
         </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 -mt-2">
+          <input
+            className={campoTraducaoCls}
+            placeholder="Inglês (opcional)"
+            aria-label="Nome em inglês"
+            value={novoEn}
+            onChange={(e) => setNovoEn(e.target.value)}
+          />
+          <input
+            className={campoTraducaoCls}
+            placeholder="Espanhol (opcional)"
+            aria-label="Nome em espanhol"
+            value={novoEs}
+            onChange={(e) => setNovoEs(e.target.value)}
+          />
+        </div>
 
         {/* Busca local */}
         {itens.length > 6 && (
@@ -184,17 +218,35 @@ export default function EntidadeAuxiliarManager({
                 <li key={item.id} className="flex items-center gap-2 px-2 py-2">
                   {isEditando ? (
                     <>
-                      <input
-                        autoFocus
-                        className="flex-1 rounded-lg border border-[#0B2447]/30 px-3 py-1.5 text-sm text-slate-800
-                          focus:outline-none focus:ring-2 focus:ring-[#0B2447]/20"
-                        value={editandoNome}
-                        onChange={(e) => setEditandoNome(e.target.value)}
-                        onKeyDown={(e) => {
-                          if (e.key === 'Enter') { e.preventDefault(); handleSalvarEdicao(item.id); }
-                          if (e.key === 'Escape') cancelarEdicao();
-                        }}
-                      />
+                      <div className="flex-1 grid grid-cols-1 sm:grid-cols-3 gap-2">
+                        <input
+                          autoFocus
+                          aria-label="Nome em português"
+                          className="rounded-lg border border-[#0B2447]/30 px-3 py-1.5 text-sm text-slate-800
+                            focus:outline-none focus:ring-2 focus:ring-[#0B2447]/20"
+                          value={editandoNome}
+                          onChange={(e) => setEditandoNome(e.target.value)}
+                          onKeyDown={teclasEdicao(item.id)}
+                        />
+                        <input
+                          aria-label="Nome em inglês"
+                          placeholder="Inglês"
+                          className="rounded-lg border border-[#0B2447]/30 px-3 py-1.5 text-sm text-slate-800
+                            focus:outline-none focus:ring-2 focus:ring-[#0B2447]/20"
+                          value={editandoEn}
+                          onChange={(e) => setEditandoEn(e.target.value)}
+                          onKeyDown={teclasEdicao(item.id)}
+                        />
+                        <input
+                          aria-label="Nome em espanhol"
+                          placeholder="Espanhol"
+                          className="rounded-lg border border-[#0B2447]/30 px-3 py-1.5 text-sm text-slate-800
+                            focus:outline-none focus:ring-2 focus:ring-[#0B2447]/20"
+                          value={editandoEs}
+                          onChange={(e) => setEditandoEs(e.target.value)}
+                          onKeyDown={teclasEdicao(item.id)}
+                        />
+                      </div>
                       <button
                         type="button"
                         title="Salvar"
@@ -215,7 +267,18 @@ export default function EntidadeAuxiliarManager({
                     </>
                   ) : (
                     <>
-                      <span className="flex-1 text-sm text-slate-700">{item.nome}</span>
+                      <span className="flex-1 min-w-0 text-sm text-slate-700">
+                        {item.nome}
+                        {item.nome_en && item.nome_es ? (
+                          <span className="block truncate text-xs text-slate-400">
+                            {item.nome_en} · {item.nome_es}
+                          </span>
+                        ) : (
+                          <span className="block text-xs text-amber-600">
+                            Sem tradução {!item.nome_en && !item.nome_es ? 'em inglês e espanhol' : !item.nome_en ? 'em inglês' : 'em espanhol'} — o site mostra o nome em português
+                          </span>
+                        )}
+                      </span>
                       <button
                         type="button"
                         title="Editar"

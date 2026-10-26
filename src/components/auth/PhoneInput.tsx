@@ -1,9 +1,11 @@
 'use client';
 
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { useLocale, useTranslations } from 'next-intl';
 import { ChevronDown, Search, Phone } from 'lucide-react';
 import { COUNTRIES, DEFAULT_COUNTRY, type Country } from '@/lib/countries';
 import { applyPhoneMask, maskDigitCount, onlyDigits } from '@/lib/validators';
+import { LOCALE_INTL } from '@/i18n/config';
 
 export type PhoneValue = {
   /** Número completo em E.164, ex.: +5511912345678 (vazio se sem dígitos). */
@@ -57,6 +59,13 @@ export default function PhoneInput({ onChange, disabled, invalid, initialE164 }:
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState('');
   const containerRef = useRef<HTMLDivElement>(null);
+  const t = useTranslations('Auth.telefone');
+  const idioma = useLocale();
+  // Nome do país no idioma do site (Intl); `Country.name` (pt-BR) fica de reserva.
+  const nomePais = useMemo(() => {
+    const nomes = new Intl.DisplayNames([LOCALE_INTL[idioma]], { type: 'region' });
+    return (c: Country) => nomes.of(c.code) ?? c.name;
+  }, [idioma]);
 
   const mask = country.mask ?? GENERIC_MASK;
   const display = applyPhoneMask(digits, mask);
@@ -84,11 +93,12 @@ export default function PhoneInput({ onChange, disabled, invalid, initialE164 }:
     if (!q) return COUNTRIES;
     return COUNTRIES.filter(
       (c) =>
+        nomePais(c).toLowerCase().includes(q) ||
         c.name.toLowerCase().includes(q) ||
         c.dial.includes(q) ||
         c.code.toLowerCase().includes(q),
     );
-  }, [search]);
+  }, [search, nomePais]);
 
   function handleDigits(raw: string) {
     const limit = country.mask ? maskDigitCount(mask) : 15;
@@ -114,7 +124,7 @@ export default function PhoneInput({ onChange, disabled, invalid, initialE164 }:
           onClick={() => setOpen((v) => !v)}
           disabled={disabled}
           className="flex items-center gap-1.5 pl-3.5 pr-2.5 border-r border-slate-200 text-sm text-slate-700 hover:bg-slate-100/60 rounded-l-xl transition-colors disabled:opacity-60"
-          aria-label="Selecionar país"
+          aria-label={t('selecionarPais')}
         >
           <span className="text-lg leading-none">{country.flag}</span>
           <span className="tabular-nums text-slate-500">{country.dial}</span>
@@ -147,14 +157,14 @@ export default function PhoneInput({ onChange, disabled, invalid, initialE164 }:
                 autoFocus
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                placeholder="Buscar país ou DDI"
+                placeholder={t('buscarPais')}
                 className="w-full pl-9 pr-3 py-2 rounded-lg border border-slate-200 bg-slate-50 text-sm focus:outline-none focus:ring-2 focus:ring-marinho/20 focus:border-marinho"
               />
             </div>
           </div>
           <ul className="max-h-56 overflow-y-auto py-1">
             {filtered.length === 0 && (
-              <li className="px-4 py-3 text-sm text-slate-400 text-center">Nenhum país encontrado</li>
+              <li className="px-4 py-3 text-sm text-slate-400 text-center">{t('nenhumPais')}</li>
             )}
             {filtered.map((c) => (
               <li key={c.code}>
@@ -166,7 +176,7 @@ export default function PhoneInput({ onChange, disabled, invalid, initialE164 }:
                   }`}
                 >
                   <span className="text-lg leading-none">{c.flag}</span>
-                  <span className="flex-1 text-slate-700">{c.name}</span>
+                  <span className="flex-1 text-slate-700">{nomePais(c)}</span>
                   <span className="tabular-nums text-slate-400">{c.dial}</span>
                 </button>
               </li>

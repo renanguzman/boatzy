@@ -1,0 +1,128 @@
+{
+  "ArtigoPasseio": {
+    "sufixoTitulo": "{titulo} — Boatzy",
+    "porQue": {
+      "transparencia": "<b>Fully transparent pricing:</b> The price on screen is the final price. No surprise fees or fine print at checkout.",
+      "tudoSobreBarco": "<b>Everything about the boat in one place:</b> Instant access to photos, capacity, amenities and the owner's profile. All at hand, no extra messages needed.",
+      "calendario": "<b>Live calendar:</b> See available dates right as you search. Owners update their schedules in real time.",
+      "personalize": "<b>Customize your trip:</b> Add services like a deckhand, drinks and snorkeling gear with a single click, in the same booking.",
+      "cancelamento": "<b>Hassle-free cancellation:</b> Clear cancellation rules before you pay — including for bad weather.",
+      "pagamento": "<b>100% secure payment:</b> Your money is protected by our platform and is only released to the owner after the trip takes place."
+    },
+    "buscarEmbarcacoes": "Search boats",
+    "caixa-d-aco": {
+      "metaDescricao": "Find out how to enjoy the famous Caixa D'Aço cove by renting a speedboat. The perfect party-and-nature trip (where \"Ai Se Eu Te Pego\" was filmed), departing from Florianópolis or Balneário Camboriú.",
+      "altHero": "Aerial view of the Caixa D'Aço cove in Porto Belo",
+      "intro1": "If there's one place on the Santa Catarina coast where the buzz meets untouched nature perfectly, it's the Caixa D'Aço cove, in the town of Porto Belo.",
+      "intro2": "Surrounded by lush Atlantic Forest and sheltered from strong winds, the bay's calm emerald waters attract boats of every size. Thanks to its strategic location, it's one of the most sought-after destinations for those leaving from the marinas of both Florianópolis and Balneário Camboriú.",
+      "baresTitulo": "The Magic of the Floating Bars (and the Setting of \"Ai Se Eu Te Pego\")",
+      "bares1": "Caixa D'Aço's big draw is its famous \"floating bars\". It's the ideal setting for anyone looking for fun, music, good drinks and the chance to mingle with dozens of other boats anchored side by side during high season.",
+      "bares2": "The cove's energy and scenery are so unique that it was chosen as the location for Michel Teló's music video <em>\"Ai Se Eu Te Pego\"</em>, filmed right at one of these floating bars — and it became a global hit!",
+      "altBar": "Floating bar with a live band and swimmers at Caixa D'Aço",
+      "vipTitulo": "The VIP Experience: Caixa D'Aço by Speedboat",
+      "vip1": "The real Caixa D'Aço experience only happens on the water. By renting a private speedboat, you stop being just a spectator and become a true <em>Navigator</em>.",
+      "vip2": "Arriving by speedboat lets you anchor safely right next to the floating bars and order seafood platters and exclusive drinks delivered straight to your deck. You're free to enjoy the party at your own pace, with your own playlist on the boat's sound system, and dive into the refreshing water whenever you like.",
+      "dicaOuro": "<b>Golden Tip:</b> The ride from Florianópolis or Balneário Camboriú is a show in itself, passing paradise beaches. Leave early to secure the best anchoring spot at Caixa D'Aço — the cove usually fills up on sunny weekends.",
+      "idealPara": "<b>Ideal for:</b> Bachelor and bachelorette parties, lively groups of friends, get-togethers and anyone who wants to see and be seen.",
+      "altBarcos": "Dozens of boats anchored side by side in the Caixa D'Aço cove",
+      "porQueTitulo": "Why choose Boatzy for this adventure?",
+      "porQueIntro": "Planning your Caixa D'Aço trip should be as relaxing as the trip itself. With Boatzy, you get the best booking experience on the market:",
+      "ctaTitulo": "Ready to experience the height of summer in Santa Catarina?",
+      "ctaTexto": "Head to Boatzy's search, book the right speedboat for your crew and get ready for an unforgettable day at Caixa D'Aço!"
+    },
+    "ilha-do-campeche": {
+      "metaTitulo": "Boat Trip to Campeche Island",
+      "metaDescricao": "Discover the \"Brazilian Caribbean\": an exclusive boat trip to Campeche Island.",
+      "altHero": "Campeche Island",
+      "intro1": "If you're planning a trip to Florianópolis, you've surely heard of a place where the sand is incredibly white and the sea shows shades of blue and turquoise that look straight out of an Instagram filter. We're talking about <em>Campeche Island</em>, affectionately — and rightly — nicknamed the \"Brazilian Caribbean\".",
+      "intro2": "Located in the south of Florianópolis, facing Campeche Beach, the island is a nature reserve protected by IPHAN (Brazil's National Historic and Artistic Heritage Institute), home not only to lush nature but also to one of the largest collections of rock carvings on the Brazilian coast.",
+      "intro3": "But the big question for visitors is: <em>what's the best way to get there and enjoy this paradise?</em>",
+      "acessoTitulo": "The problem with the usual way of getting there",
+      "acesso1": "Access to Campeche Island is limited to preserve its nature. Most tourists end up taking traditional transport (like schooners and inflatable boats) leaving from Armação Beach, Barra da Lagoa or Campeche Beach itself.",
+      "acesso2": "The catch? It usually means waking up at dawn, standing in long lines, sharing space with dozens of strangers and, worst of all, being stuck with the rigid departure and return times set by the boat associations.",
+      "altBarcos": "Boats anchored in the turquoise waters of Campeche Island",
+      "premiumTitulo": "The Premium Experience: Arriving at Campeche Island by Private Speedboat",
+      "premium1": "If you want to turn a simple outing into an unforgettable memory of luxury and comfort, <em>renting a private speedboat</em> is the ultimate choice.",
+      "premium2": "When you book a boat, you stop being just a tourist and become what we call a <em>Navigator</em>. As a true Navigator, you set the pace of your day. Picture boarding with your family or friends on a speedboat all to yourselves, fully equipped, cruising the waters of the island's south until your grand arrival at Campeche Island.",
+      "premium3": "Instead of landing on the crowded sand, your Captain will anchor at a strategic spot with calm water. You'll have your own \"floating deck\" to sunbathe, swim in private and listen to your own music, far from the crowds.",
+      "porQueTitulo": "Why book your trip with Boatzy?",
+      "porQueIntro": "Planning this trip has never been easier. Boatzy was designed to connect you with the best boats in Florianópolis as easily as booking a hotel. By choosing our platform, you get:",
+      "porQue": {
+        "transparencia": "<b>Fully transparent pricing:</b> The price on your screen is the final price, with no surprise fees or fine print at checkout.",
+        "tudoSobreBarco": "<b>Everything about the boat in one place:</b> Instant access to the boat's photos, maximum capacity, included amenities and the owner's profile.",
+        "calendario": "<b>Live calendar:</b> See available dates the moment you search, since schedules are updated in real time.",
+        "personalizacao": "<b>Customization:</b> In the same booking, add extra services with a single click, like an experienced deckhand or snorkeling gear.",
+        "seguranca": "<b>Financial security:</b> Payment is 100% secure; your money is protected by our platform and only released to the owner after boarding."
+      },
+      "fazerTitulo": "What to do on your boat day?",
+      "fazerIntro": "Once anchored at Campeche Island, you have plenty of options:",
+      "fazer": {
+        "snorkel": "<b>Snorkeling:</b> The island's clear water and rocky shores are perfect for spotting colorful fish, turtles and rich marine life. Many boats on Boatzy already include the gear!",
+        "churrasco": "<b>Barbecue on board:</b> Many speedboats on the platform come with a grill. Bring your favorite meats and drinks and enjoy a premium lunch out at sea.",
+        "trilhas": "<b>Guided Hikes:</b> If you want to set foot on land, you can go ashore and hire local environmental guides for hikes through the Atlantic Forest to see the ancient rock carvings."
+      },
+      "dicasTitulo": "Golden Tips for Your Trip",
+      "dicas": {
+        "antecedencia": "<b>Book ahead:</b> Campeche Island is Florianópolis' number-one summer destination. Use Boatzy to secure your boat weeks in advance for December through March.",
+        "vento": "<b>Wind conditions:</b> The south of the island can be affected by the southerly wind. If the sea isn't favorable on your booked day, don't worry! Boatzy offers <em>hassle-free cancellation</em> rules for bad weather. In these cases, trips are usually redirected to the North Bay, which is very sheltered and just as beautiful.",
+        "cedo": "<b>Leave early:</b> To enjoy calmer seas and secure the best anchoring spots (limited by the Navy), schedule your departure for 9 a.m."
+      },
+      "ctaTitulo": "Ready for the best day of your summer?",
+      "ctaTexto": "Head to Boatzy's search, pick the speedboat that best suits your group and get ready to discover the Brazilian Caribbean the way you deserve. Happy sailing!"
+    },
+    "costa-da-lagoa": {
+      "metaDescricao": "A boat trip across Lagoa da Conceição to Costa da Lagoa: great food, waterfalls and the best way to enjoy Florianópolis' calm waters.",
+      "altHero": "Pier at sunset on Lagoa da Conceição",
+      "intro": "Florianópolis' boating culture isn't just about the open sea. Lagoa da Conceição offers one of the most charming and safest boating experiences in the region, perfect for those who prefer wave-free water surrounded by hills covered in Atlantic Forest. If you're looking for a trip that combines tranquility, calm water and a dive into the island's local culture, this is the place.",
+      "magiaTitulo": "The Magic and Food of Costa da Lagoa",
+      "magia1": "The highlight of boating in the center of the island is crossing to Costa da Lagoa, a traditional community that cars can't reach. The route is stunning, revealing hidden waterfalls and cinematic mansions along the way.",
+      "magia2": "Since the village can only be reached by water (or long hiking trails), its preservation and peace are unmatched. The area's main attraction is its generous, seafood-focused cuisine. Along the shore, restaurants have private piers (known locally by numbers) so you can dock easily, step off and enjoy the island's most authentic food.",
+      "restaurantesTitulo": "Restaurants Worth Docking At",
+      "restaurantes": {
+        "cabral": "<b>Restaurante Cabral (Stop 19):</b> One of the most traditional and renowned in the area, famous for its large wooden deck on the lagoon. It's a favorite among speedboats for its excellent docking facilities. Don't miss the fried flounder strips, moqueca and generous caipirinhas.",
+        "ponto16": "<b>Stop 16 (The Waterfall Spot):</b> If you want to combine food and nature, Stop 16 has several delicious restaurants side by side. What sets it apart is that, right behind the restaurants, a short and easy trail leads to a beautiful waterfall.",
+        "coracao": "<b>Restaurante Coração de Mãe & Sabor da Costa:</b> Other highly praised options for the classic \"shrimp tasting menu\" and super-fresh grilled fish, in a rustic, cozy setting overlooking the calm water."
+      },
+      "gruposTitulo": "The Ideal Trip for Groups and Water Sports",
+      "grupos": "Sheltered from strong winds, the lagoon is perfect for water sports. It's a very popular trip, ideal for lively groups, birthdays and get-togethers. When planning your boat rental on Lagoa da Conceição, check Boatzy for boats that include stand-up paddleboards or wakeboards.",
+      "navegadorTitulo": "The Experience of Being a Navigator",
+      "navegador": "Getting to the Costa da Lagoa restaurants on the public boats (\"baleeiras\") usually means lines and strict schedules. But when you rent a private speedboat or pontoon, you take control and become a true Navigator. You decide when to leave, where to stop for a refreshing swim and which pier to dock at for lunch.",
+      "altCanal": "Aerial view of the canal and boat pier on Lagoa da Conceição",
+      "porQueTitulo": "Why book your trip with Boatzy?",
+      "porQueIntro": "Boatzy was designed to bring you closer to the sea. Booking your boat with us means a premium experience from start to finish:",
+      "ctaTitulo": "Ready to explore the lagoon's secrets?",
+      "ctaTexto": "Head to Boatzy's search, find the perfect boat for your group and get ready for an unforgettable day of food and fun!"
+    },
+    "praia-do-tingua": {
+      "metaDescricao": "Find out why Tinguá Beach, in Governador Celso Ramos, is the most coveted destination and the perfect meeting point for speedboats in Santa Catarina's summer.",
+      "altHero": "Aerial view of Tinguá Beach in Governador Celso Ramos, surrounded by speedboats",
+      "intro": "If you're looking for the most coveted and vibrant meeting point of the Santa Catarina summer, get ready to meet Tinguá Beach. Strategically located in Governador Celso Ramos, just a few minutes by boat north of Santa Catarina Island, this cove is the perfect setting for combining stunning nature with plenty of fun on the water.",
+      "clubeTitulo": "An Open-Air \"Private Club\"",
+      "clube1": "What makes Tinguá Beach so special is its geography. With extremely difficult and restricted access by land, it works in practice as an \"exclusive\" beach for those arriving by sea. In high season, the cove becomes a parade of speedboats and yachts, drawing boats not only from Florianópolis but from the whole coastal region.",
+      "clube2": "This destination's big advantage is its phenomenal natural shelter from strong northerly and northeasterly winds. The result? Incredibly flat water, like a huge natural pool with calm, clear water. It's the perfect spot to anchor in total safety, roll out your floating mat, turn on the boat's sound system and enjoy the day in the sun with friends.",
+      "altBarcos": "Boats anchored in calm water at dawn at Tinguá Beach",
+      "gastronomiaTitulo": "Beachfront Food and Facilities",
+      "gastronomia": "Beyond the party and relaxation on board, Tinguá Beach offers excellent amenities. You can arrange with your Captain a stop at the restaurants on the sand, which usually have a jetty to make landing easy. There are also support boats circling the bay selling ice, drinks and snacks delivered straight to your deck.",
+      "lemeTitulo": "Take the Helm: Be a Navigator",
+      "leme": "When you rent a private boat, you stop being just a tourist and take on the role of a true Navigator. You're completely free to set the pace: arrive early to grab the best anchoring spot, have a barbecue on board at lunchtime (just search Boatzy for boats with a grill) or simply toast with your group in the late afternoon.",
+      "porQueTitulo": "Why choose Boatzy?",
+      "porQueIntro": "Boatzy was designed to bring you closer to the sea. Planning your Tinguá trip on our platform means:",
+      "ctaTitulo": "Ready to experience the height of summer in Santa Catarina?",
+      "ctaTexto": "Head to Boatzy's search, book the right speedboat for your crew and get ready for an unforgettable day at Tinguá Beach!"
+    },
+    "praia-de-palmas": {
+      "metaDescricao": "Explore Palmas Island by boat. A trip focused on pristine nature and swimming in crystal-clear water in the same bay as Palmas Beach, with Blue Flag standards.",
+      "altHero": "Aerial view of Palmas Beach in Governador Celso Ramos",
+      "intro": "For those who want to escape heavy traffic and dive into untouched nature, Palmas Island, in Governador Celso Ramos, is the ultimate experience. Right in front of the long, famous Palmas Beach, the island is a true ecological sanctuary on the Santa Catarina coast and a must-stop for anyone seeking boating excellence.",
+      "bandeiraTitulo": "The Blue Flag Award and Crystal-Clear Water",
+      "bandeira1": "A fascinating detail about this area is the exceptional quality of its sea. Palmas Beach, right across from the island, has held the strict international \"Blue Flag\" award. It's one of the most coveted environmental certifications in the world, attesting to the water's purity, safety and suitability for swimming.",
+      "bandeira2": "In practice, sailing and anchoring around Palmas Island means swimming in that same crystal-clear water, sharing the same world-class bay. It's a guarantee that your swim will be in one of the best-preserved environments in all of southern Brazil.",
+      "navegadorTitulo": "The True Navigator Experience",
+      "navegador": "Going from tourist to Navigator by renting a private boat lets you explore the most hidden corners of this uninhabited island. You escape the crowded sand and get your own private floating deck. It's the perfect spot for snorkeling, watching the rich marine life among the rocky shores and enjoying the peace with nothing but the sound of the sea.",
+      "porQueTitulo": "Why choose Boatzy?",
+      "porQueIntro": "Planning your Palmas Island trip should be as relaxing as the trip itself. With Boatzy, you get the best booking experience on the market:",
+      "ctaTitulo": "Ready to explore world-class waters?",
+      "ctaTexto": "Head to Boatzy's search, find the perfect boat for your group and get ready for an unforgettable day connecting with nature!"
+    }
+  }
+}

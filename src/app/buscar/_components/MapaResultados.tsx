@@ -3,9 +3,12 @@
 import { useCallback, useMemo, useState } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
-import { useJsApiLoader, GoogleMap, MarkerF, InfoWindowF } from '@react-google-maps/api';
+import { GoogleMap, MarkerF, InfoWindowF } from '@react-google-maps/api';
+import { useTranslations } from 'next-intl';
 import { Loader2, Map as MapIcon, ArrowRight } from 'lucide-react';
-import { formatarPreco, type PrecoExibicao } from '@/lib/precos-roteiro';
+import type { PrecoExibicao } from '@/lib/precos-roteiro';
+import { useGoogleMaps } from '@/lib/google-maps';
+import { useFormatos } from '@/i18n/formatos';
 
 /** Um resultado da busca com coordenada — roteiro ou embarcação. */
 export type PontoMapa = {
@@ -27,16 +30,9 @@ type Props = {
   pontos: PontoMapa[];
   /** Total de resultados na página — usado no "X de Y com localização". */
   totalResultados: number;
-  /** Rótulo do item no plural ("roteiros" | "embarcações"). */
-  itemLabelPlural: string;
 };
 
 const CONTAINER_STYLE = { width: '100%', height: '100%' };
-
-// As mesmas libraries de LocalizacaoMap: o loader do @react-google-maps é um
-// singleton por sessão e reclama se for chamado com opções diferentes numa
-// navegação client-side (/buscar → /roteiros/[id]).
-const LIBRARIES: 'places'[] = ['places'];
 
 const MAP_OPTIONS: google.maps.MapOptions = {
   streetViewControl: false,
@@ -68,11 +64,10 @@ function pinIcon(ativo: boolean): google.maps.Icon {
   };
 }
 
-export default function MapaResultados({ pontos, totalResultados, itemLabelPlural }: Props) {
-  const { isLoaded, loadError } = useJsApiLoader({
-    googleMapsApiKey: process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY!,
-    libraries: LIBRARIES,
-  });
+export default function MapaResultados({ pontos, totalResultados }: Props) {
+  const { isLoaded, loadError } = useGoogleMaps();
+  const t = useTranslations('Busca.mapa');
+  const f = useFormatos();
 
   // Ponto com o card aberto. Abre no hover do pin e só fecha no X ou num
   // clique no mapa — fechar ao tirar o mouse impediria clicar no link.
@@ -112,24 +107,24 @@ export default function MapaResultados({ pontos, totalResultados, itemLabelPlura
       <header className="flex items-center justify-between gap-3 px-5 py-3.5 border-b border-slate-100">
         <div className="flex items-center gap-2">
           <MapIcon className="h-4 w-4 text-marinho" />
-          <h2 className="text-sm font-semibold text-marinho">Mapa dos resultados</h2>
+          <h2 className="text-sm font-semibold text-marinho">{t('titulo')}</h2>
         </div>
         <p className="text-xs text-slate-400">
           {pontos.length === totalResultados
-            ? `${pontos.length} ${pontos.length === 1 ? 'resultado' : itemLabelPlural} nesta página`
-            : `${pontos.length} de ${totalResultados} com localização`}
+            ? t('nestaPagina', { count: pontos.length })
+            : t('comLocalizacao', { pontos: pontos.length, total: totalResultados })}
         </p>
       </header>
 
       <div className="h-[420px] w-full bg-slate-100">
         {loadError ? (
           <div className="h-full flex items-center justify-center text-sm text-slate-500">
-            Não foi possível carregar o mapa.
+            {t('erro')}
           </div>
         ) : !isLoaded ? (
           <div className="h-full flex items-center justify-center gap-2 text-sm text-slate-400">
             <Loader2 className="h-4 w-4 animate-spin" />
-            Carregando mapa…
+            {t('carregando')}
           </div>
         ) : (
           <GoogleMap
@@ -187,8 +182,11 @@ export default function MapaResultados({ pontos, totalResultados, itemLabelPlura
                     )}
                     <span className="mt-1 flex items-center gap-1 text-[11px] font-semibold text-marinho">
                       {ativo.preco != null
-                        ? `${ativo.preco.rotulo.charAt(0).toUpperCase()}${ativo.preco.rotulo.slice(1)} ${formatarPreco(ativo.preco.valor)}${ativo.preco.unidade}`
-                        : 'Ver detalhes'}
+                        ? (() => {
+                            const rotulo = f.rotuloPreco(ativo.preco);
+                            return `${rotulo.charAt(0).toUpperCase()}${rotulo.slice(1)} ${f.preco(ativo.preco.valor)}${f.unidadePreco(ativo.preco.modelo)}`;
+                          })()
+                        : t('verDetalhes')}
                       <ArrowRight className="h-3 w-3 transition-transform group-hover:translate-x-0.5" />
                     </span>
                   </div>

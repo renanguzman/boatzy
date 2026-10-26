@@ -1,0 +1,95 @@
+{
+  "MinhaConta": {
+    "titulo": "Minha conta",
+    "metaTitulo": "Minha conta | Boatzy",
+    "subtitulo": "Gerencie seus dados pessoais e preferências.",
+    "clientePadrao": "Cliente",
+    "secoes": {
+      "rotulo": "Seções da conta",
+      "dadosPessoais": "Dados pessoais",
+      "endereco": "Meu endereço",
+      "notificacoes": "Notificações",
+      "idioma": "Idioma",
+      "seguranca": "Segurança"
+    },
+    "clienteDesde": "Cliente desde {data}",
+    "loginVinculado": "Login vinculado:",
+    "provedorEmail": "E-mail e senha",
+    "dados": {
+      "subtitulo": "Atualize suas informações de contato.",
+      "emailFixo": "O e-mail não pode ser alterado.",
+      "nascimento": "Data de nascimento",
+      "opcional": "(opcional)",
+      "nascimentoInvalido": "Data de nascimento inválida.",
+      "salvar": "Salvar alterações",
+      "atualizados": "Dados atualizados com sucesso.",
+      "informeNome": "Informe seu nome completo.",
+      "celularInvalido": "Número de celular inválido.",
+      "sessao": "Sua sessão expirou. Entre novamente.",
+      "naoFoiPossivelSalvar": "Não foi possível salvar. Tente novamente."
+    },
+    "endereco": {
+      "subtitulo": "Opcional. Informe o CEP para preencher automaticamente.",
+      "cep": "CEP",
+      "cepNaoEncontrado": "CEP não encontrado. Verifique o número ou preencha manualmente.",
+      "cepErro": "Erro ao consultar o CEP. Preencha manualmente.",
+      "estado": "Estado",
+      "selecione": "Selecione",
+      "municipio": "Município",
+      "bairro": "Bairro",
+      "logradouro": "Logradouro",
+      "logradouroPlaceholder": "Rua, avenida…",
+      "numero": "Número",
+      "complemento": "Complemento",
+      "complementoPlaceholder": "Apto, bloco, referência…",
+      "salvar": "Salvar endereço",
+      "atualizado": "Endereço atualizado com sucesso."
+    },
+    "notificacoes": {
+      "subtitulo": "Escolha o que deseja receber por e-mail.",
+      "conversas": "Receber e-mail de notificação de novas conversas",
+      "conversasAjuda": "Avisamos por e-mail quando você tiver novas mensagens não lidas no chat.",
+      "sempre": "Avisos sobre suas reservas e pagamentos (confirmação, cancelamento, pagamento aprovado ou recusado, prazo para pagar e reembolso) são sempre enviados por e-mail e ficam no sino de <link>Notificações</link>."
+    },
+    "idioma": {
+      "subtitulo": "Idioma do site. A escolha fica salva na sua conta e vale em qualquer aparelho.",
+      "emailsPt": "Por enquanto, os e-mails da Boatzy são enviados em português."
+    },
+    "seguranca": {
+      "subtitulo": "Altere a senha da sua conta.",
+      "senhaAtual": "Senha atual",
+      "alterar": "Alterar senha",
+      "requisitos": "A nova senha não atende a todos os requisitos.",
+      "atualIncorreta": "Senha atual incorreta.",
+      "falha": "Não foi possível alterar a senha. Tente novamente.",
+      "sucesso": "Senha alterada com sucesso.",
+      "social": "Sua conta usa login social ({provedores}), então não há senha para alterar aqui. Gerencie o acesso diretamente no seu provedor."
+    }
+  },
+  "MinhasConversas": {
+    "metaTitulo": "Minhas conversas",
+    "titulo": "Minhas conversas",
+    "subtitulo": "Suas conversas com os gestores — reservas de roteiros, embarcações e anúncios de venda.",
+    "vazioTitulo": "Você ainda não tem conversas",
+    "vazioTexto": "Ao conversar com um gestor sobre uma reserva ou um anúncio de venda, a conversa aparece aqui.",
+    "explorar": "Explorar o Boatzy",
+    "iniciarConversa": "Iniciar conversa",
+    "diasAtras": "há {n, plural, one {# dia} other {# dias}}",
+    "voltar": "Voltar para Minhas conversas"
+  },
+  "Favoritos": {
+    "metaTitulo": "Favoritos",
+    "titulo": "Favoritos",
+    "subtitulo": "Os roteiros e embarcações que você salvou para decidir com calma.",
+    "vazioTitulo": "Você ainda não tem favoritos",
+    "vazioTexto": "Toque no coração de um roteiro ou de uma embarcação para salvá-los aqui.",
+    "explorar": "Explorar roteiros",
+    "secoes": {
+      "roteiros": "Roteiros",
+      "embarcacoes": "Embarcações",
+      "venda": "À venda"
+    },
+    "remover": "Remover dos favoritos",
+    "embarcacaoPadrao": "Embarcação"
+  }
+}

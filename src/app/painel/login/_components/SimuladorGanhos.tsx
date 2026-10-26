@@ -10,6 +10,9 @@ const PRESETS = [
   { rotulo: 'Temporada cheia', passeios: 16 },
 ];
 
+const PRECO_MIN = 500;
+const PRECO_MAX = 50000;
+
 /** Meses de verão em que a procura é maior (dezembro a março). */
 const MESES_TEMPORADA = 4;
 
@@ -34,8 +37,8 @@ export default function SimuladorGanhos() {
           <input
             id="sim-preco"
             type="range"
-            min={500}
-            max={6000}
+            min={PRECO_MIN}
+            max={PRECO_MAX}
             step={100}
             value={preco}
             onChange={(e) => setPreco(Number(e.target.value))}
@@ -43,8 +46,8 @@ export default function SimuladorGanhos() {
             className="h-2 w-full cursor-pointer accent-turquesa"
           />
           <div className="mt-1 flex justify-between text-xs text-slate-400">
-            <span>R$ 500</span>
-            <span>R$ 6.000</span>
+            <span>{formatarPreco(PRECO_MIN)}</span>
+            <span>{formatarPreco(PRECO_MAX)}</span>
           </div>
         </div>
 

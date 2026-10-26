@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect } from 'react';
 import Image from 'next/image';
+import { useTranslations } from 'next-intl';
 import { ChevronLeft, ChevronRight, Camera, X } from 'lucide-react';
 
 export type FotoLightbox = { id: string; url_imagem: string; titulo: string | null };
@@ -20,6 +21,7 @@ export default function FotosLightbox({
   onMudar: (i: number) => void;
   onFechar: () => void;
 }) {
+  const t = useTranslations('Galeria');
   const total = images.length;
   const anterior = useCallback(() => onMudar((indice - 1 + total) % total), [indice, total, onMudar]);
   const proxima = useCallback(() => onMudar((indice + 1) % total), [indice, total, onMudar]);
@@ -60,14 +62,14 @@ export default function FotosLightbox({
                   {nome}
                 </p>
                 <p className="text-white/50 text-xs">
-                  {indice + 1} de {total} foto{total !== 1 ? 's' : ''}
+                  {t('contador', { atual: indice + 1, total })}
                 </p>
               </div>
             </div>
             <button
               onClick={() => onFechar()}
               className="h-9 w-9 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center transition-colors"
-              aria-label="Fechar galeria"
+              aria-label={t('fechar')}
             >
               <X className="h-4.5 w-4.5 text-white" />
             </button>
@@ -79,7 +81,7 @@ export default function FotosLightbox({
               <Image
                 key={images[indice].id}
                 src={images[indice].url_imagem}
-                alt={images[indice].titulo ?? `Foto ${indice + 1}`}
+                alt={images[indice].titulo ?? t('foto', { n: indice + 1 })}
                 fill
                 className="object-contain"
                 sizes="(max-width: 1280px) 100vw, 1280px"
@@ -99,14 +101,14 @@ export default function FotosLightbox({
                 <button
                   onClick={anterior}
                   className="absolute left-2 md:left-4 top-1/2 -translate-y-1/2 h-11 w-11 rounded-full bg-white/10 hover:bg-white/20 text-white flex items-center justify-center transition-all hover:scale-105 active:scale-95 backdrop-blur-sm"
-                  aria-label="Foto anterior"
+                  aria-label={t('anterior')}
                 >
                   <ChevronLeft className="h-6 w-6" />
                 </button>
                 <button
                   onClick={proxima}
                   className="absolute right-2 md:right-4 top-1/2 -translate-y-1/2 h-11 w-11 rounded-full bg-white/10 hover:bg-white/20 text-white flex items-center justify-center transition-all hover:scale-105 active:scale-95 backdrop-blur-sm"
-                  aria-label="Próxima foto"
+                  aria-label={t('proxima')}
                 >
                   <ChevronRight className="h-6 w-6" />
                 </button>
@@ -123,7 +125,7 @@ export default function FotosLightbox({
                     key={img.id}
                     onClick={() => onMudar(i)}
                     title={img.titulo ?? undefined}
-                    aria-label={img.titulo ?? `Foto ${i + 1}`}
+                    aria-label={img.titulo ?? t('foto', { n: i + 1 })}
                     className={`relative h-14 w-20 rounded-lg overflow-hidden shrink-0 transition-all duration-150 ${
                       i === indice
                         ? 'ring-2 ring-turquesa ring-offset-1 ring-offset-black opacity-100 scale-105'
@@ -132,7 +134,7 @@ export default function FotosLightbox({
                   >
                     <Image
                       src={img.url_imagem}
-                      alt={img.titulo ?? `Miniatura ${i + 1}`}
+                      alt={img.titulo ?? t('miniatura', { n: i + 1 })}
                       fill
                       className="object-cover"
                       sizes="80px"

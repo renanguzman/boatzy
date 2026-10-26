@@ -5,3 +5,13 @@
 
 export const ASSUNTOS_CONTATO = ['Contato', 'Dúvidas', 'Elogio', 'Comercial', 'Financeiro', 'Outros'] as const;
 export type AssuntoContato = (typeof ASSUNTOS_CONTATO)[number];
+
+/** Chave de tradução (`Contato.assuntos.<chave>`). O valor enviado à equipe segue em pt-BR. */
+export const CHAVE_ASSUNTO: Record<AssuntoContato, 'contato' | 'duvidas' | 'elogio' | 'comercial' | 'financeiro' | 'outros'> = {
+  Contato: 'contato',
+  'Dúvidas': 'duvidas',
+  Elogio: 'elogio',
+  Comercial: 'comercial',
+  Financeiro: 'financeiro',
+  Outros: 'outros',
+};

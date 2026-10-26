@@ -1,5 +1,6 @@
 'use client';
 
+import { useTranslations } from 'next-intl';
 import { MapPin, Ship, Tag } from 'lucide-react';
 
 export type SearchType = 'roteiro' | 'embarcacao' | 'venda';
@@ -13,13 +14,15 @@ type Props = {
   showVendas?: boolean;
 };
 
-const OPTIONS: { id: SearchType; label: string; icon: typeof MapPin }[] = [
-  { id: 'roteiro', label: 'Roteiros', icon: MapPin },
-  { id: 'embarcacao', label: 'Embarcações', icon: Ship },
-  { id: 'venda', label: 'Vendas', icon: Tag },
+// `rotulo` = chave em `Navegacao` (mesmos nomes do menu principal).
+const OPTIONS: { id: SearchType; rotulo: 'roteiros' | 'embarcacoes' | 'vendas'; icon: typeof MapPin }[] = [
+  { id: 'roteiro', rotulo: 'roteiros', icon: MapPin },
+  { id: 'embarcacao', rotulo: 'embarcacoes', icon: Ship },
+  { id: 'venda', rotulo: 'vendas', icon: Tag },
 ];
 
 export default function SearchTypeToggle({ value, onChange, variant = 'dark', showVendas = true }: Props) {
+  const t = useTranslations('Navegacao');
   const containerClass =
     variant === 'dark'
       ? 'bg-white/15 backdrop-blur-sm'
@@ -29,7 +32,7 @@ export default function SearchTypeToggle({ value, onChange, variant = 'dark', sh
 
   return (
     <div className={`inline-flex items-center gap-1 rounded-full p-1 ${containerClass}`}>
-      {options.map(({ id, label, icon: Icon }) => {
+      {options.map(({ id, rotulo, icon: Icon }) => {
         const active = value === id;
         const activeClass = 'bg-white text-marinho shadow-sm';
         const inactiveClass =
@@ -48,7 +51,7 @@ export default function SearchTypeToggle({ value, onChange, variant = 'dark', sh
             }`}
           >
             <Icon className="h-4 w-4" />
-            {label}
+            {t(rotulo)}
           </button>
         );
       })}

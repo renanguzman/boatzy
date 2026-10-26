@@ -1,0 +1,47 @@
+{
+  "Navegacao": {
+    "menuPrincipal": "Menu principal",
+    "roteiros": "Roteiros",
+    "embarcacoes": "Embarcações",
+    "vendas": "Vendas",
+    "experiencias": "Experiências",
+    "anuncieSuaEmbarcacao": "Anuncie sua embarcação",
+    "minhasEmbarcacoes": "Minhas embarcações",
+    "minhaConta": "Minha conta",
+    "minhasConversas": "Minhas conversas",
+    "minhasReservas": "Minhas reservas",
+    "favoritos": "Favoritos",
+    "sair": "Sair"
+  },
+  "Header": {
+    "entrar": "Entrar",
+    "comoQuerEntrar": "Como você quer entrar?",
+    "entrarComoCliente": "Entrar como Cliente",
+    "entrarComoClienteDescricao": "Alugar embarcações e roteiros",
+    "entrarComoProprietario": "Entrar como Proprietário",
+    "entrarComoProprietarioDescricao": "Anunciar e gerenciar embarcações",
+    "conta": "Conta",
+    "menuDaContaDe": "Menu da conta de {nome}",
+    "mensagensNaoLidas": "{count, plural, one {# mensagem não lida} other {# mensagens não lidas}}",
+    "abrirMenu": "Abrir menu",
+    "fecharMenu": "Fechar menu"
+  },
+  "SeletorIdioma": {
+    "titulo": "Idioma",
+    "alterar": "Idioma: {idioma}. Alterar idioma",
+    "alterando": "Alterando o idioma…"
+  },
+  "Footer": {
+    "slogan": "Navegue com Elegância. A melhor plataforma de aluguel de embarcações do Brasil.",
+    "explorar": "Explorar",
+    "empresa": "Empresa",
+    "sobreNos": "Sobre Nós",
+    "contato": "Contato",
+    "suporte": "Suporte",
+    "centralDeAjuda": "Central de Ajuda",
+    "termosDeUso": "Termos de Uso",
+    "privacidade": "Privacidade",
+    "termos": "Termos",
+    "direitos": "© {ano} Boatzy. Navegue com Elegância. Todos os direitos reservados."
+  }
+}

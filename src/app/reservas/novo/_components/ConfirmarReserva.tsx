@@ -3,9 +3,10 @@
 import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import { useTranslations } from 'next-intl';
 import { CheckCircle2, Loader2, Tag, X, AlertCircle, Clock, ShieldCheck } from 'lucide-react';
 import { criarReserva, validarCupom, type ModalidadeReserva } from '../actions';
-import { formatCurrency } from '@/lib/utils';
+import { useFormatos, type Formatos } from '@/i18n/formatos';
 import { valoresParaCliente } from '@/lib/pagamentos/valores';
 import { rastrear } from '@/lib/analytics';
 import TermoAceite from '@/components/termos/TermoAceite';
@@ -26,8 +27,6 @@ type Props = {
   precoUnitario: number | null;
   /** Multiplicador do subtotal: diárias, pessoas, ou 1 (modelo Roteiro). */
   multiplicador: number;
-  /** Rótulo da linha de preço no resumo — "Diária" ou "Pessoa". */
-  rotuloLinha: string;
   /**
    * Taxa de serviço efetiva (%) do gestor dono do alvo — resolvida no servidor
    * (ver SPEC §14). Só entra na conta: o cliente vê os valores com ela embutida.
@@ -45,10 +44,10 @@ type CupomAplicado = {
   limitadoTaxa: boolean;
 };
 
-function formatDesconto(c: CupomAplicado): string {
+function formatDesconto(c: CupomAplicado, f: Formatos): string {
   return c.tipoDesconto === 'percentual'
-    ? `${c.valor.toLocaleString('pt-BR', { maximumFractionDigits: 2 })}%`
-    : formatCurrency(c.valor);
+    ? `${f.numero(c.valor, { maximumFractionDigits: 2 })}%`
+    : f.moeda(c.valor);
 }
 
 function formatContagem(ms: number): string {
@@ -60,9 +59,13 @@ function formatContagem(ms: number): string {
 
 export default function ConfirmarReserva({
   roteiroId, data, flex, pessoas, modalidade, diarias,
-  precoUnitario, multiplicador, rotuloLinha, taxaPercent, termo,
+  precoUnitario, multiplicador, taxaPercent, termo,
 }: Props) {
   const router = useRouter();
+  const t = useTranslations('ConfirmarReserva');
+  const tReservar = useTranslations('Reservar');
+  const f = useFormatos();
+  const tComum = useTranslations('Comum');
   // Opcionais: escolhidos no roteiro e ajustáveis aqui (OpcionaisCheckout) — mesmo estado.
   const { selecionados: adicionaisIds, totalAdicionais, setTravado } = useSelecaoOpcionais();
   const [loading, setLoading] = useState(false);
@@ -137,7 +140,7 @@ export default function ConfirmarReserva({
         setCupomAplicado(result.cupom);
       } else {
         setCupomAplicado(null);
-        setErroCupom(`O cupom ${codigo} foi removido: ${result.error}`);
+        setErroCupom(t('cupomRemovido', { codigo, motivo: result.error }));
       }
     })();
     return () => { cancelado = true; };
@@ -210,19 +213,18 @@ export default function ConfirmarReserva({
     return (
       <div className="mt-6 rounded-2xl border border-turquesa/40 bg-turquesa/10 p-6 text-center">
         <CheckCircle2 className="h-10 w-10 text-turquesa mx-auto mb-3" />
-        <h2 className="text-lg font-bold text-marinho">Solicitação enviada!</h2>
+        <h2 className="text-lg font-bold text-marinho">{t('enviada.titulo')}</h2>
         <p className="text-sm text-turquesa-escuro mt-1">
-          Sua reserva está <strong>pendente</strong>. O gestor vai analisar e responder em breve.
+          {t.rich('enviada.texto', { b: (texto) => <strong>{texto}</strong> })}
         </p>
         {comprovanteAceite && (
           <p className="mt-3 inline-flex items-center gap-1.5 rounded-full bg-white/70 border border-turquesa/40 px-3 py-1 text-[11px] text-marinho">
             <ShieldCheck className="h-3.5 w-3.5" />
-            Aceite dos termos registrado em{' '}
-            {new Date(comprovanteAceite.aceitoEm).toLocaleString('pt-BR', {
-              day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit',
-              timeZone: 'America/Sao_Paulo',
-            })}{' '}
-            · Protocolo <span className="font-mono">{comprovanteAceite.evidenciaHash.slice(0, 12).toUpperCase()}</span>
+            {t.rich('enviada.aceite', {
+              data: f.dataHora(comprovanteAceite.aceitoEm),
+              protocolo: comprovanteAceite.evidenciaHash.slice(0, 12).toUpperCase(),
+              mono: (texto) => <span className="font-mono">{texto}</span>,
+            })}
           </p>
         )}
         <div className="mt-5 flex items-center justify-center gap-3">
@@ -230,7 +232,7 @@ export default function ConfirmarReserva({
             href="/buscar"
             className="px-5 py-2.5 bg-marinho hover:bg-marinho-escuro text-white text-sm font-semibold rounded-xl transition-colors"
           >
-            Explorar outros roteiros
+            {t('enviada.explorar')}
           </Link>
         </div>
       </div>
@@ -256,25 +258,25 @@ export default function ConfirmarReserva({
               <div className="space-y-2">
                 <div className="flex items-center justify-between text-sm">
                   <span className="text-slate-600">
-                    {rotuloLinha}
+                    {tReservar(`linha.${modalidade}`)}
                     {multiplicador > 1 ? ` × ${multiplicador}` : ''}
                   </span>
-                  <span className="font-medium text-grafite">{formatCurrency(valores.passeio)}</span>
+                  <span className="font-medium text-grafite">{f.moeda(valores.passeio)}</span>
                 </div>
                 {totalAdicionais > 0 && (
                   <div className="flex items-center justify-between text-sm">
-                    <span className="text-slate-600">Adicionais</span>
-                    <span className="font-medium text-grafite">{formatCurrency(valores.adicionais)}</span>
+                    <span className="text-slate-600">{tReservar('adicionais')}</span>
+                    <span className="font-medium text-grafite">{f.moeda(valores.adicionais)}</span>
                   </div>
                 )}
                 {cupomAplicado && (
                   <div className="flex items-center justify-between text-sm">
-                    <span className="text-turquesa-escuro">Desconto ({cupomAplicado.codigo})</span>
-                    <span className="font-medium text-turquesa-escuro">-{formatCurrency(valores.desconto)}</span>
+                    <span className="text-turquesa-escuro">{t('desconto', { codigo: cupomAplicado.codigo })}</span>
+                    <span className="font-medium text-turquesa-escuro">-{f.moeda(valores.desconto)}</span>
                   </div>
                 )}
                 {cupomAplicado?.limitadoTaxa && (
-                  <p className="text-xs text-slate-400">Este cupom tem um desconto máximo por reserva — o valor acima já é o máximo.</p>
+                  <p className="text-xs text-slate-400">{t('descontoMaximo')}</p>
                 )}
               </div>
 
@@ -285,14 +287,17 @@ export default function ConfirmarReserva({
                     <div className="flex items-center gap-2 text-sm text-marinho min-w-0">
                       <Tag className="h-4 w-4 shrink-0" />
                       <span className="truncate">
-                        Cupom <strong className="font-mono">{cupomAplicado.codigo}</strong> aplicado
-                        <span className="text-turquesa-escuro"> ({formatDesconto(cupomAplicado)})</span>
+                        {t.rich('cupomAplicado', {
+                          codigo: cupomAplicado.codigo,
+                          mono: (texto) => <strong className="font-mono">{texto}</strong>,
+                        })}
+                        <span className="text-turquesa-escuro"> ({formatDesconto(cupomAplicado, f)})</span>
                       </span>
                     </div>
                     <button
                       type="button"
                       onClick={handleRemoverCupom}
-                      title="Remover cupom"
+                      title={t('removerCupom')}
                       className="text-turquesa-escuro hover:text-marinho transition shrink-0"
                     >
                       <X className="h-4 w-4" />
@@ -312,7 +317,7 @@ export default function ConfirmarReserva({
                           }
                         }}
                         disabled={bloqueado || validando}
-                        placeholder="Código do cupom"
+                        placeholder={t('codigoCupom')}
                         className="flex-1 min-w-0 rounded-xl border border-slate-200 px-3.5 py-2.5 text-sm font-mono uppercase tracking-wide text-grafite placeholder:text-slate-400 placeholder:font-sans placeholder:tracking-normal placeholder:normal-case focus:outline-none focus:ring-2 focus:ring-marinho/20 focus:border-marinho/40 transition disabled:bg-slate-50 disabled:text-slate-400"
                       />
                       <button
@@ -321,13 +326,13 @@ export default function ConfirmarReserva({
                         disabled={bloqueado || validando || !cupomInput.trim()}
                         className="px-4 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 disabled:opacity-50 disabled:cursor-not-allowed text-sm font-semibold text-marinho transition flex items-center gap-1.5 whitespace-nowrap"
                       >
-                        {validando ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Aplicar'}
+                        {validando ? <Loader2 className="h-4 w-4 animate-spin" /> : tComum('aplicar')}
                       </button>
                     </div>
                     {bloqueado && bloqueadoAte ? (
                       <p className="mt-2 flex items-center gap-1.5 text-xs font-medium text-red-600">
                         <Clock className="h-3.5 w-3.5 shrink-0" />
-                        Muitas tentativas — tente novamente em {formatContagem(bloqueadoAte.getTime() - agora)}.
+                        {t('muitasTentativas', { tempo: formatContagem(bloqueadoAte.getTime() - agora) })}
                       </p>
                     ) : erroCupom ? (
                       <p className="mt-2 flex items-center gap-1.5 text-xs font-medium text-red-600">
@@ -340,13 +345,13 @@ export default function ConfirmarReserva({
               </div>
 
               <div className="flex items-center justify-between pt-3 border-t border-slate-200">
-                <span className="text-base font-bold text-marinho">Total estimado</span>
-                <span className="text-xl font-bold text-marinho">{formatCurrency(valores.total)}</span>
+                <span className="text-base font-bold text-marinho">{t('totalEstimado')}</span>
+                <span className="text-xl font-bold text-marinho">{f.moeda(valores.total)}</span>
               </div>
             </div>
           ) : (
             <p className="text-sm text-slate-500">
-              Preço a combinar com o gestor — o valor será confirmado na resposta da solicitação.
+              {t('precoACombinar')}
             </p>
           )}
         </div>
@@ -359,7 +364,7 @@ export default function ConfirmarReserva({
             termo={termo}
             aceite={aceiteTermo}
             onAceitar={(a) => { setAceiteTermo(a); setError(null); }}
-            finalidade="para enviar sua solicitação de reserva"
+            finalidade={t('finalidadeTermo')}
             disabled={loading}
           />
         </div>
@@ -379,19 +384,19 @@ export default function ConfirmarReserva({
           {loading ? (
             <>
               <Loader2 className="h-4 w-4 animate-spin" />
-              Enviando…
+              {t('enviando')}
             </>
           ) : (
-            'Confirmar solicitação'
+            t('confirmar')
           )}
         </button>
         {aguardandoAceite && (
           <p className="mt-2 text-xs font-medium text-slate-500 text-center">
-            Leia e aceite os termos acima para enviar a solicitação.
+            {t('leiaTermos')}
           </p>
         )}
         <p className="mt-2 text-xs text-slate-400 text-center">
-          Você não será cobrado agora. A reserva só é efetivada após a confirmação do gestor.
+          {t('naoCobrado')}
         </p>
       </div>
     </>

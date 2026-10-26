@@ -1,0 +1,35 @@
+{
+  "Passeios": {
+    "ilha-do-campeche": {
+      "titulo": "Discover the \"Brazilian Caribbean\": An Exclusive Boat Trip to Ilha do Campeche",
+      "resumo": "Skip the lines and rigid schooner schedules: see why arriving by private speedboat is the easiest way to experience the \"Brazilian Caribbean.\""
+    },
+    "costa-da-lagoa": {
+      "titulo": "The Secret of Costa da Lagoa: Sailing the Waters of Florianópolis",
+      "resumo": "A village reachable only by water, popular restaurants to anchor at and the calm waters of Lagoa da Conceição — the perfect trip for anyone seeking peace and quiet."
+    },
+    "caixa-d-aco": {
+      "titulo": "The Coast's Hottest Spot: A Boat Trip to Caixa D'Aço",
+      "resumo": "Floating bars, the Michel Teló music video and the VIP experience of arriving by private speedboat at Santa Catarina's most sought-after spot."
+    },
+    "praia-do-tingua": {
+      "titulo": "A Boaters-Only Hideaway: The Magic of Praia do Tinguá",
+      "resumo": "Hard to reach by land, this cove is practically reserved for those who arrive by boat — calm sea, seaside dining and few crowds."
+    },
+    "praia-de-palmas": {
+      "titulo": "World-Class Waters: Sailing Praia and Ilha de Palmas",
+      "resumo": "A \"Blue Flag\" award, crystal-clear water and snorkeling: meet the island that holds the coast's most coveted international quality standard."
+    }
+  },
+  "Experiencias": {
+    "metaTitulo": "Experiences — Boatzy",
+    "metaDescricao": "Trips, destinations and stories to inspire your next boat tour: discover the best places to sail with Boatzy.",
+    "sobretitulo": "Get inspired",
+    "titulo": "Experiences <destaque>to sail</destaque>",
+    "subtitulo": "Trips, destinations and real stories to help you choose your next boat tour — straight from people who know the Santa Catarina coast.",
+    "lerExperiencia": "Read the story",
+    "ctaTitulo": "Ready to live yours?",
+    "ctaTexto": "Find the right boat and book the trip that matches the experience you want.",
+    "ctaBotao": "Search boats"
+  }
+}

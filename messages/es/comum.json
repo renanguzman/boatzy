@@ -1,0 +1,39 @@
+{
+  "Comum": {
+    "buscar": "Buscar",
+    "limpar": "Borrar",
+    "aplicar": "Aplicar",
+    "fechar": "Cerrar",
+    "voltar": "Volver",
+    "carregando": "Cargando…",
+    "verMais": "Ver más",
+    "verTodos": "Ver todos",
+    "anterior": "Anterior",
+    "proximo": "Siguiente",
+    "mesAnterior": "Mes anterior",
+    "proximoMes": "Mes siguiente",
+    "cancelar": "Cancelar",
+    "continuar": "Continuar",
+    "salvar": "Guardar",
+    "tentarNovamente": "Intentar de nuevo",
+    "opcional": "opcional",
+    "ou": "o",
+    "erroInesperado": "Algo salió mal. Inténtalo de nuevo en unos instantes."
+  },
+  "Formatos": {
+    "duracao": "{unidade, select, dias {{valor, plural, one {# día} other {# días}}} other {{valor, plural, one {# hora} other {# horas}}}}",
+    "retornoDiaSeguinte": "{horario} (día siguiente)",
+    "retornoDias": "{horario} (+{dias} días)",
+    "comprimentoPes": "{valor, plural, one {# pie} other {# pies}}",
+    "comprimentoMetros": "{valor, number} m",
+    "unidadePreco": {
+      "roteiro": "/paseo",
+      "diaria": "/día",
+      "pessoa": "/persona"
+    },
+    "aPartirDe": "desde",
+    "naData": "el {data}",
+    "pessoas": "{count, plural, one {# persona} other {# personas}}",
+    "capacidadeExcedida": "Este paseo admite como máximo {count, plural, one {# persona} other {# personas}}."
+  }
+}

@@ -1,11 +1,11 @@
 import { notFound, redirect } from 'next/navigation';
+import { getTranslations } from 'next-intl/server';
+import { getFormatos } from '@/i18n/formatos-servidor';
 import Header from '@/components/layout/Header';
 import EventoAnalytics from '@/components/analytics/EventoAnalytics';
 import { createClient } from '@/lib/supabase/server';
 import { supabaseAdmin } from '@/lib/supabase';
 import ChatBox, { type Mensagem } from '@/components/chat/ChatBox';
-
-const brl = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 });
 
 /**
  * Chat comprador ↔ vendedor a partir do anúncio de venda. Reutiliza a conversa
@@ -89,10 +89,11 @@ export default async function ChatVendaPage({ params }: { params: Promise<{ id: 
     .eq('conversa_id', conversaId)
     .order('created_at', { ascending: true });
 
-  // Mensagem contextual pré-preenchida apenas em conversa ainda vazia.
+  // Mensagem contextual pré-preenchida apenas em conversa ainda vazia (no idioma do cliente).
+  const [t, f] = await Promise.all([getTranslations('Venda.chat'), getFormatos()]);
   const rascunhoInicial =
     (mensagens ?? []).length === 0
-      ? `Olá! Tenho interesse na "${emb!.nome}" anunciada por ${brl.format(Number(data.preco))}. Podemos conversar?`
+      ? t('rascunho', { nome: emb!.nome, preco: f.moeda(Number(data.preco)) })
       : undefined;
 
   return (
@@ -104,9 +105,9 @@ export default async function ChatVendaPage({ params }: { params: Promise<{ id: 
         <ChatBox
           conversaId={conversaId}
           meId={user.id}
-          interlocutor={{ name: vendedor.name, descricao: 'Vendedor · conversa pelo Boatzy', avatar_url: vendedor.avatar_url }}
+          interlocutor={{ name: vendedor.name, descricao: t('descricao'), avatar_url: vendedor.avatar_url }}
           voltarHref={`/vendas/${id}`}
-          voltarLabel="Voltar para o anúncio"
+          voltarLabel={t('voltar')}
           mensagensIniciais={(mensagens ?? []) as Mensagem[]}
           rascunhoInicial={rascunhoInicial}
           contexto={{ tipo: 'venda', label: emb!.nome }}

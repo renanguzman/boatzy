@@ -1,0 +1,215 @@
+{
+  "Sobre": {
+    "metaTitulo": "About Boatzy — boat rentals made simple",
+    "metaDescricao": "Boatzy was born in Florianópolis to professionalize boat rentals in Brazil: online booking, clear pricing and security for both sides.",
+    "altHero": "Yacht sailing at sunset",
+    "heroTitulo": "Making the sea accessible.",
+    "heroTexto": "Boatzy is the platform that connects people who want to go out on the water with people who own boats. Online booking, clear pricing and security for both sides — from a one-hour jet ski to a weekend yacht.",
+    "origem": {
+      "titulo": "Born in Florianópolis, where the sea is part of everyday life.",
+      "p1": "Florianópolis lives around the water. There are marinas, ramps, jetties and a boating season that moves the whole city. Even so, renting a boat here always depended on knowing someone.",
+      "p2": "The market worked, but informally: prices agreed by text message, availability confirmed with a \"let me check\", payment with no guarantee for either side and no information about who was on the other end.",
+      "p3": "For those who wanted to go out on the water, it meant not knowing where to start. For boat owners, it meant managing rentals in the gaps of their day — and watching the boat sit idle most of the year.",
+      "p4": "While booking a place to stay, a car or a flight became a matter of minutes, renting a boat remained a negotiation.",
+      "p5": "Boatzy exists to close that gap: bringing to the boating market the standard customers already expect from any digital service — transparency, convenience and security."
+    },
+    "ladosTitulo": "Two sides, one platform.",
+    "navegar": {
+      "titulo": "For people who want to go out on the water",
+      "texto": "You compare boats, see the final price, get to know the owner and read reviews from people who've been — all before deciding. You book on the platform with protected payment and show up at the agreed time. The rest of the day is yours."
+    },
+    "proprietario": {
+      "titulo": "For boat owners",
+      "texto": "Your boat earning, hassle-free. You set the price and availability, and decide who comes aboard. Boatzy handles promotion, booking, payment and customer relations. No more negotiating by text in three different group chats."
+    },
+    "principiosTitulo": "What guides us.",
+    "principios": {
+      "simplicidade": {
+        "titulo": "Simplicity",
+        "texto": "Booking a boat should be as simple as booking a stay. If users need a phone call to understand it, the product has failed."
+      },
+      "acesso": {
+        "titulo": "Access",
+        "texto": "The sea isn't a privilege for boat owners only. The platform was built for everything from a one-hour trip to a weekend on board, with options for different audiences and budgets."
+      },
+      "confianca": {
+        "titulo": "Trust",
+        "texto": "Verified owners, protected payment and available support. In a marketplace, trust isn't a differentiator — it's the product."
+      }
+    },
+    "expansao": {
+      "titulo": "We started in Florianópolis. We don't plan to stop there.",
+      "p1": "Choosing our first market was deliberate. A boating marketplace stands on the quality of its offer, and quality is built up close — getting to know the marinas, boats and owners one by one.",
+      "p2": "The platform, however, was designed from day one to scale. The verification model, booking flow and payment structure work the same way in any coastal city, and expansion across Brazil is already in the plan.",
+      "p3": "The goal is simple to state and demanding to execute: make Boatzy the standard way to rent a boat in Brazil."
+    },
+    "ctaTitulo": "Come aboard.",
+    "ctaNavegar": "Your next great day already has a date. All it needs is a boat.",
+    "ctaVerEmbarcacoes": "See boats",
+    "ctaAnunciar": "Your boat can work on the days it would otherwise sit idle.",
+    "ctaQueroAnunciar": "List my boat",
+    "contato": "Questions, suggestions or partnerships:"
+  },
+  "Contato": {
+    "metaTitulo": "Contact — Boatzy",
+    "metaDescricao": "Get in touch with the Boatzy team: questions, compliments, business partnerships or billing.",
+    "titulo": "Get in touch",
+    "subtitulo": "Questions, compliments, business opportunities or billing matters — choose a subject and send your message. Our team will reply as soon as possible.",
+    "suporte": "Support",
+    "prazo": "We reply within 2 business days.",
+    "slogan": "Sail in Style.",
+    "aviso": "Our team works in Portuguese, but messages in English or Spanish are welcome too.",
+    "form": {
+      "titulo": "Send your message",
+      "nome": "Name",
+      "nomePlaceholder": "Your name",
+      "email": "Email",
+      "emailPlaceholder": "you@example.com",
+      "assunto": "Subject",
+      "selecioneAssunto": "Select a subject",
+      "mensagem": "Message",
+      "mensagemPlaceholder": "Tell us in detail what you need...",
+      "verificacao": "Verification: what is {a} + {b}?",
+      "resposta": "Answer",
+      "novaConta": "New question",
+      "enviar": "Send message",
+      "enviadaTitulo": "Message sent!",
+      "enviadaTexto": "Thanks for reaching out, {nome}. Our team will reply soon to the email you provided."
+    },
+    "assuntos": {
+      "contato": "General",
+      "duvidas": "Questions",
+      "elogio": "Compliment",
+      "comercial": "Business",
+      "financeiro": "Billing",
+      "outros": "Other"
+    },
+    "erros": {
+      "nome": "Please enter your name.",
+      "email": "Please enter a valid email.",
+      "assunto": "Please select a subject.",
+      "mensagemCurta": "Write a message with at least 10 characters.",
+      "mensagemLonga": "Message is too long.",
+      "captcha": "Incorrect security check. Please try again.",
+      "envio": "We couldn't send your message right now. Please try again in a moment."
+    }
+  },
+  "Ajuda": {
+    "metaTitulo": "Help Center — Boatzy",
+    "metaDescricao": "Get answers about bookings, payments, listing boats, reviews and more in the Boatzy Help Center.",
+    "titulo": "Help Center",
+    "subtitulo": "We've gathered the most frequently asked questions about bookings, payments, boats and more. Use the search below or browse by topic.",
+    "buscaPlaceholder": "Search by keyword: booking, payment, cancellation…",
+    "buscaRotulo": "Search the FAQ",
+    "nenhuma": "No questions found.",
+    "encontradas": "{count, plural, one {# question found.} other {# questions found.}}",
+    "semResultado": "We couldn't find anything for \"{busca}\". Try another keyword or contact us directly.",
+    "ctaTitulo": "Didn't find your answer?",
+    "ctaTexto": "Contact our team — we reply within 2 business days.",
+    "ctaBotao": "Contact us",
+    "categorias": {
+      "reservas": "Bookings",
+      "pagamentos": "Payments",
+      "conta": "Account",
+      "embarcacoes": "Boats and owners",
+      "busca": "Search and favorites",
+      "avaliacoes": "Reviews",
+      "seguranca": "Safety and trust",
+      "vendas": "Boats for sale"
+    },
+    "faq": {
+      "reservar": {
+        "pergunta": "How do I book a boat or a trip?",
+        "resposta": "Search by location, date and number of people on the home page or in <buscar>Trips</buscar>. When you find the right trip or boat, open the details, choose the date, number of people and any add-ons, and click \"Request Booking\". You need to be signed in — if you aren't, you'll be asked to sign in before finishing."
+      },
+      "confirmacao": {
+        "pergunta": "Is my booking confirmed right away?",
+        "resposta": "No. When you request it, the booking is <b>Awaiting confirmation</b> and is sent to the boat's owner (manager), who can <b>Accept</b> or <b>Decline</b> it. Once accepted, you'll get an email to pay through Boatzy (Pix or card) within the stated deadline — the date is held for you meanwhile, and the booking is <b>Confirmed</b> as soon as the payment is approved. You can follow the status and the reply in <reservas>My bookings</reservas>."
+      },
+      "cancelar": {
+        "pergunta": "Can I cancel a booking after requesting it?",
+        "resposta": "Yes. In <reservas>My bookings</reservas> you'll find the \"Cancel booking\" button, available while it's <b>Awaiting confirmation</b> or <b>Awaiting payment</b> (nothing is charged). To cancel a booking that's already paid, talk to the owner through the chat — the deadline and refund policy will be published in the Terms of Use."
+      },
+      "status": {
+        "pergunta": "What do the booking statuses mean?",
+        "resposta": "<b>Awaiting confirmation</b>: waiting for the owner's reply. <b>Awaiting payment</b>: the owner accepted and you have a deadline to pay through Boatzy. <b>Confirmed</b>: payment approved, the date is yours. <b>Payment expired</b>: the deadline passed without payment and the date was released. <b>Declined</b>: the owner couldn't take it. <b>Canceled</b>: you gave up the booking. <b>Completed</b>: the trip date has passed and the booking was confirmed — this is when you can review the experience."
+      },
+      "cupom": {
+        "pergunta": "Can I use a discount coupon on my booking?",
+        "resposta": "Yes. On the booking confirmation page there's a field for the coupon code; when you apply it, the discount is validated instantly and reflected in the estimated total before you send the request. Each coupon has a maximum discount per booking, already included in the total."
+      },
+      "pagamento": {
+        "pergunta": "How does payment for bookings work?",
+        "resposta": "Requesting is free. When the owner accepts, you pay through Boatzy with <b>Pix</b> (QR code or copy and paste) or a <b>credit card</b>, within the stated deadline. Payments are processed by Asaas, our payment partner: for cards, you enter your details in Asaas's secure environment and Boatzy never receives or stores your card number. Boatzy holds the amount and releases it to the owner after the trip. The prices shown on the site are the total you pay, with no extra charges at checkout."
+      },
+      "criarConta": {
+        "pergunta": "Do I need an account to book a trip?",
+        "resposta": "Yes, you need to be signed in to request a booking, save favorites or chat with the owner. You can create an account at <entrar>Sign in</entrar> with email and password or using Google, Facebook or Apple."
+      },
+      "dados": {
+        "pergunta": "How do I edit my personal details, CPF, phone or address?",
+        "resposta": "Go to <conta>My account</conta> from your avatar menu. There you can edit your name, CPF (Brazilian tax ID), phone, date of birth, address (auto-filled from the Brazilian postal code) and email notification preferences. You can also change your password there, for accounts created with email only — social login accounts have their password managed by the provider."
+      },
+      "senha": {
+        "pergunta": "I forgot my password. How do I get back into my account?",
+        "resposta": "On the sign-in screen, use the \"Forgot your password?\" option. You'll receive an email with a link to set a new password. This works for both customer and owner accounts (the dashboard recovery link is specific to manager accounts)."
+      },
+      "anunciar": {
+        "pergunta": "I own a boat. How do I list it on Boatzy?",
+        "resposta": "Click \"List your boat\" at the top of the site, or go straight to the <painel>Owner Dashboard</painel>. Create your manager account, register your boat with photos, amenities and prices, and then create the trips it offers. Booking requests show up under \"Agendamentos\" (Bookings), where you accept or decline each one. The dashboard is in Portuguese."
+      },
+      "diferenca": {
+        "pergunta": "What's the difference between booking a trip and booking a boat?",
+        "resposta": "A <b>trip</b> is a specific outing (date, duration, add-ons) offered by a boat. Booking the <b>boat</b> directly lets you arrange a custom use with the owner, without predefined add-ons. In both cases, the request, acceptance and payment flow is the same."
+      },
+      "conversar": {
+        "pergunta": "Can I talk to the owner before booking?",
+        "resposta": "Yes. On the trip page, use the \"Talk to the boat owner\" field — you can start typing right there — and, on the boat page, the \"Message the owner\" button. Both open a direct chat on the platform. You can follow all your conversations in <conversas>My conversations</conversas>."
+      },
+      "filtros": {
+        "pergunta": "How do the search filters work (price, duration, amenities)?",
+        "resposta": "In <buscar>Trips and Boats</buscar>, use the \"Filters\" button to set a price range and trip duration, and \"Amenities\" (on the Boats tab) to require specific items, like an onboard kitchen or sound system. You can also sort results by relevance, rating, price or duration. All filters are saved in the link, so you can share your search."
+      },
+      "favoritar": {
+        "pergunta": "How do I save a trip or a boat to favorites?",
+        "resposta": "Click the heart icon on the card or on the details page — you need to be signed in. All your saved items are gathered in <favoritos>Favorites</favoritos>, available from your avatar menu."
+      },
+      "avaliar": {
+        "pergunta": "How do I review an experience after the trip?",
+        "resposta": "Once the trip date has passed, the booking becomes <b>Completed</b> in <reservas>My bookings</reservas> and the \"Review your trip\" button appears on the card: give it 1 to 5 stars and, if you like, leave a comment. Each booking can be reviewed only once."
+      },
+      "moderacao": {
+        "pergunta": "Why doesn't my review show up on the trip page yet?",
+        "resposta": "Every review goes through a simple moderation before being published, with an \"Awaiting approval\" badge visible to you in My bookings in the meantime. Once approved, it counts toward the average and appears in the list of comments."
+      },
+      "responsabilidade": {
+        "pergunta": "Is Boatzy responsible for the boat or the trip booked?",
+        "resposta": "Boatzy acts as a <b>technology intermediary</b>, connecting owners and renters — we don't own, operate or insure the listed boats. The rental relationship (terms, use, return) is established directly between you and the owner. More details in the <termos>Terms of Use</termos>."
+      },
+      "privacidade": {
+        "pergunta": "How is my personal data protected?",
+        "resposta": "Your data is handled according to our <privacidade>Privacy Policy</privacidade>, which explains what information we collect, what we use it for and how you can request access to, correction or deletion of your data."
+      },
+      "vendas": {
+        "pergunta": "Does Boatzy also sell boats, not just rent them?",
+        "resposta": "Yes. In <vendas>For Sale</vendas> you'll find boats for sale, with photos, specs and direct contact with the seller through the platform's chat."
+      }
+    }
+  },
+  "Erros": {
+    "naoEncontrada": {
+      "metaTitulo": "Page not found — Boatzy",
+      "titulo": "Page not found",
+      "texto": "The address may have changed or the content is no longer available — like a trip that was deactivated or a boat that's already been sold.",
+      "inicio": "Back to home",
+      "buscar": "Search trips"
+    },
+    "inesperado": {
+      "titulo": "Something went wrong",
+      "texto": "We had a problem loading this page. Please try again — if it keeps happening, contact us.",
+      "tentar": "Try again",
+      "inicio": "Go to home",
+      "codigo": "Code: {codigo}"
+    }
+  }
+}

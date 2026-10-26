@@ -1,10 +1,11 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
+import { useTranslations } from 'next-intl';
 import { CalendarDays, Check, ChevronDown, Package, Plus, Wrench } from 'lucide-react';
 import { useCart, type CartAddon } from './CartContext';
 import { useDataReserva } from './DataReservaContext';
-import { formatCurrency } from '@/lib/utils';
+import { useFormatos } from '@/i18n/formatos';
 import { rastrear } from '@/lib/analytics';
 
 type Props = {
@@ -62,6 +63,8 @@ function useApareceuUmaVez<T extends HTMLElement>() {
  * antes ficavam num accordion fechado com cara de anúncio, que quase ninguém abria.
  */
 export default function OpcionaisRoteiro({ roteiroId, variante, onFaltaData }: Props) {
+  const t = useTranslations('Opcionais');
+  const f = useFormatos();
   const { addons, selectedIds, toggle, selectedAddons, precoCliente } = useCart();
   const { data } = useDataReserva();
   const [verTodos, setVerTodos] = useState(false);
@@ -90,14 +93,14 @@ export default function OpcionaisRoteiro({ roteiroId, variante, onFaltaData }: P
     toggle(item.id);
   }
 
-  const preco = (item: CartAddon) => (item.preco > 0 ? formatCurrency(precoCliente(item.preco)) : 'Incluso');
+  const preco = (item: CartAddon) => (item.preco > 0 ? f.moeda(precoCliente(item.preco)) : t('incluso'));
   const verMais = ocultos > 0 && (
     <button
       type="button"
       onClick={() => setVerTodos(true)}
       className="w-full flex items-center justify-center gap-1 py-2.5 text-xs font-semibold text-turquesa-escuro hover:underline underline-offset-4"
     >
-      Ver mais {ocultos} {ocultos === 1 ? 'opcional' : 'opcionais'}
+      {t('verMais', { count: ocultos })}
       <ChevronDown className="h-3.5 w-3.5" />
     </button>
   );
@@ -108,10 +111,10 @@ export default function OpcionaisRoteiro({ roteiroId, variante, onFaltaData }: P
       <div ref={ref} className="mb-4">
         <div className="flex items-baseline justify-between gap-2 mb-1.5">
           <p className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider">
-            Adicione ao seu passeio
+            {t('adicioneAoPasseio')}
           </p>
           {travadoSemData && (
-            <span className="text-[11px] text-slate-400">escolha a data primeiro</span>
+            <span className="text-[11px] text-slate-400">{t('escolhaDataPrimeiro')}</span>
           )}
         </div>
         {/* `key`: ao escolher a data, o bloco remonta e a animação de atenção roda de novo — é o
@@ -157,7 +160,7 @@ export default function OpcionaisRoteiro({ roteiroId, variante, onFaltaData }: P
         {avisoData && travadoSemData && (
           <p role="alert" className="mt-1.5 flex items-center gap-1.5 text-xs font-medium text-amber-700">
             <CalendarDays className="h-3.5 w-3.5 shrink-0" />
-            Escolha a data do passeio para incluir opcionais.
+            {t('escolhaDataParaOpcionais')}
           </p>
         )}
       </div>
@@ -167,9 +170,9 @@ export default function OpcionaisRoteiro({ roteiroId, variante, onFaltaData }: P
   // ── Conteúdo: seção própria com botão "Adicionar" por item ──
   return (
     <div ref={ref} className="mb-8">
-      <h2 className="text-xl font-bold text-marinho">Turbine seu passeio</h2>
+      <h2 className="text-xl font-bold text-marinho">{t('titulo')}</h2>
       <p className="mt-1 mb-4 text-sm text-slate-500">
-        Opcionais oferecidos pelo dono — adicione à sua reserva com um toque.
+        {t('subtitulo')}
       </p>
       <div
         className={`rounded-2xl border border-slate-200 bg-white overflow-hidden ${apareceu ? 'animate-opcionais' : ''}`}
@@ -186,7 +189,7 @@ export default function OpcionaisRoteiro({ roteiroId, variante, onFaltaData }: P
                 <div className="min-w-0 flex-1">
                   <p className="text-sm font-semibold text-grafite leading-snug">{item.descricao}</p>
                   <p className="mt-0.5 text-[10px] font-semibold uppercase tracking-wider text-slate-400">
-                    {item.tipo === 'servico' ? 'Serviço' : 'Produto'}
+                    {item.tipo === 'servico' ? t('servico') : t('produto')}
                     <span className="normal-case tracking-normal text-sm font-bold text-marinho sm:hidden"> · {preco(item)}</span>
                   </p>
                 </div>
@@ -195,7 +198,7 @@ export default function OpcionaisRoteiro({ roteiroId, variante, onFaltaData }: P
                   type="button"
                   onClick={() => alternar(item)}
                   aria-pressed={marcado}
-                  aria-label={`${marcado ? 'Remover' : 'Adicionar'} ${item.descricao}`}
+                  aria-label={marcado ? t('removerItem', { item: item.descricao }) : t('adicionarItem', { item: item.descricao })}
                   className={`shrink-0 inline-flex items-center gap-1.5 rounded-xl px-3.5 py-2 text-xs font-semibold transition-colors ${
                     marcado
                       ? 'bg-marinho text-white hover:bg-marinho-escuro'
@@ -203,7 +206,7 @@ export default function OpcionaisRoteiro({ roteiroId, variante, onFaltaData }: P
                   }`}
                 >
                   {marcado ? <Check className="h-3.5 w-3.5" /> : <Plus className={`h-3.5 w-3.5 ${apareceu && i === 0 ? 'animate-opcionais-pulso' : ''}`} />}
-                  {marcado ? 'Adicionado' : 'Adicionar'}
+                  {marcado ? t('adicionado') : t('adicionar')}
                 </button>
               </li>
             );
@@ -213,9 +216,9 @@ export default function OpcionaisRoteiro({ roteiroId, variante, onFaltaData }: P
         {selectedAddons.length > 0 && (
           <p className="border-t border-slate-100 bg-slate-50 px-4 py-2.5 text-xs text-slate-600" aria-live="polite">
             <span className="font-semibold text-marinho">
-              {selectedAddons.length} {selectedAddons.length === 1 ? 'opcional adicionado' : 'opcionais adicionados'}
+              {t('resumoSelecionados', { count: selectedAddons.length })}
             </span>
-            {totalSelecionado > 0 && <> · + {formatCurrency(totalSelecionado)} no total da reserva</>}
+            {totalSelecionado > 0 && t('noTotal', { valor: f.moeda(totalSelecionado) })}
           </p>
         )}
       </div>

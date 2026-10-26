@@ -4,9 +4,11 @@ import { useEffect, useState, useTransition } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import { useTranslations } from 'next-intl';
 import { MapPin, Ship, Users, ArrowDownRight, Ruler } from 'lucide-react';
 import { alternarFavoritoAnuncio } from '@/lib/favoritos-actions';
-import { formatarComprimento } from '@/lib/comprimento';
+import { useFormatos } from '@/i18n/formatos';
+import { useCatalogo } from '@/i18n/CatalogoProvider';
 
 export type AnuncioVendaCardData = {
   id: string;
@@ -25,8 +27,6 @@ export type AnuncioVendaCardData = {
   imagem: string | null;
 };
 
-const brl = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 });
-
 export default function AnuncioVendaCard({
   anuncio,
   initialFavorito = false,
@@ -35,6 +35,10 @@ export default function AnuncioVendaCard({
   /** Se o usuário logado já favoritou este anúncio (false quando deslogado). */
   initialFavorito?: boolean;
 }) {
+  const t = useTranslations('Vendas');
+  const tCards = useTranslations('Cards');
+  const f = useFormatos();
+  const { traduzir } = useCatalogo();
   const router = useRouter();
   const [, startTransition] = useTransition();
   const [favorito, setFavorito] = useState(initialFavorito);
@@ -111,7 +115,7 @@ export default function AnuncioVendaCard({
           <div className="absolute top-3 left-3">
             <span className="flex items-center gap-1 bg-destaque text-marinho text-[10px] font-bold px-2.5 py-1 rounded-full">
               <ArrowDownRight className="h-3 w-3" />
-              Preço reduzido
+              {t('precoReduzido')}
             </span>
           </div>
         )}
@@ -120,7 +124,7 @@ export default function AnuncioVendaCard({
         {anuncio.tipo && (
           <div className="absolute bottom-3 left-3">
             <span className="bg-marinho/90 backdrop-blur-sm text-white text-[10px] font-semibold px-2.5 py-1 rounded-full">
-              {anuncio.tipo}
+              {traduzir('tipo', anuncio.tipo)}
             </span>
           </div>
         )}
@@ -129,7 +133,7 @@ export default function AnuncioVendaCard({
         <button
           type="button"
           onClick={handleFavoritar}
-          aria-label={favorito ? 'Remover dos favoritos' : 'Adicionar aos favoritos'}
+          aria-label={favorito ? tCards('removerFavorito') : tCards('adicionarFavorito')}
           aria-pressed={favorito}
           className="absolute top-3 right-3 h-8 w-8 rounded-full bg-white/80 backdrop-blur-sm flex items-center justify-center hover:bg-white hover:scale-110 transition-all"
         >
@@ -175,17 +179,17 @@ export default function AnuncioVendaCard({
           {anuncio.comprimento != null && (
             <span className="flex items-center gap-1 shrink-0">
               <Ruler className="h-3 w-3" />
-              {formatarComprimento(anuncio.comprimento, anuncio.comprimentoUnidade)}
+              {f.comprimento(anuncio.comprimento, anuncio.comprimentoUnidade)}
             </span>
           )}
         </div>
 
         {/* Preço */}
         <div className="flex items-baseline gap-2 mt-3">
-          <span className="text-base font-bold text-marinho">{brl.format(Number(anuncio.preco))}</span>
+          <span className="text-base font-bold text-marinho">{f.moeda(Number(anuncio.preco))}</span>
           {reduzido && (
             <span className="text-xs text-slate-400 line-through">
-              {brl.format(Number(anuncio.precoAnterior))}
+              {f.moeda(Number(anuncio.precoAnterior))}
             </span>
           )}
         </div>

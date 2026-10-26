@@ -127,6 +127,7 @@ venda e no botão **"Conversar com o dono"** do detalhe do roteiro (única exce�
 - ✅ O `Footer`, bloco "Explorar", tem 4 links: **Roteiros** (`/buscar`), **Embarcações** (`/buscar?tipo=embarcacao`), **Vendas** (`/vendas`) e **Experiências** (`/experiencias`, ver 6.10).
 - ✅ No `Header`, o antigo seletor de idioma ("PT") foi substituído pelo CTA (ícone `Megaphone`, pill marinho `#0E2F4F` com ícone turquesa — paleta oficial, ver 4.1) que leva à landing do proprietário (`/painel/login`) para visitante/cliente e direto a `/painel` para quem já é gestor (desde 26/10/2026; antes ia sempre a `/painel`). Presente tanto no desktop (ao lado do botão "Entrar") quanto no menu mobile (abaixo dos links de navegação). O rótulo muda conforme quem está logado: **"Anuncie sua embarcação"** para visitante/cliente, **"Minhas embarcações"** quando o usuário logado também tem o perfil de gestor (dono de embarcação) — checado no cliente via `user_roles` (RLS permite o próprio usuário ler suas roles).
 - ✅ O link **Vendas** do `Header` (desktop e mobile) ganhou um selo circular pequeno com gradiente (azul → ciano) e o ícone `Tag`, ao lado do nome — o mesmo ícone já usado para "Vendas" em outros pontos do site (menu do painel, seletor de busca). O seletor de tipo de busca da Home (`SearchTypeToggle`, hero) deixou de mostrar a aba "Vendas" — quem quer anunciar/ver embarcações à venda usa o link do `Header`. O toggle da barra de busca compacta (`/buscar`) e o da própria página `/vendas` continuam mostrando as 3 abas normalmente.
+- ✅ **Seletor de idioma** no `Header` (desde 26/10/2026): bandeira + sigla (PT / EN / ES) ao lado do "Entrar" ou do menu da conta; no celular, só a bandeira, ao lado do menu. Não aparece no painel nem no admin (sempre em português). Ver a seção "Site multi-idioma".
 - ✅ O botão **"Entrar"** do `Header` (usuário deslogado) oferece duas portas de acesso, bem visíveis: **"Entrar como Cliente"** (`/entrar`) e **"Entrar como Proprietário"** (`/painel/login?aba=entrar` — abre a landing já na aba de login, desde 26/10/2026). No desktop é um dropdown (mesmo padrão visual do menu do usuário logado); no mobile são dois botões sempre visíveis (sem precisar abrir submenu) dentro do menu hambúrguer.
 
 ### 6.1 Autenticação
@@ -2679,7 +2680,7 @@ operadores de um concorrente (hero "seu barco gera renda", 3 passos, exemplo de 
    login social (Google, Facebook, Apple — três botões lado a lado) e e-mail/senha.
 2. **Fatos** (faixa sobre a base do topo): R$ 0 para anunciar · 100% do seu preço · Pix ou cartão, pago
    antes do passeio · 1 painel para tudo.
-3. **Simulador de ganhos:** o dono arrasta o preço por passeio (R$ 500 a R$ 6.000) e os passeios por
+3. **Simulador de ganhos:** o dono arrasta o preço por passeio (R$ 500 a R$ 50.000 — máximo ampliado de R$ 6.000 em 26/10/2026) e os passeios por
    mês (1 a 20, com atalhos "1 por semana", "Todo fim de semana", "Temporada cheia") e vê quanto recebe
    por mês, na temporada de verão (4 meses) e que a taxa do Boatzy para ele é R$ 0. Aviso de que é
    simulação.
@@ -2729,6 +2730,109 @@ taxa na página (ela é configurável por gestor — a página só diz que é pa
 descrito como "depois do passeio", regra decidida (6.6, D6) cuja automação ainda está na Fase 3 de
 pagamentos. Detalhes técnicos: `SPEC.md` §93.
 
+### 🚧 Site multi-idioma — português, inglês e espanhol (em andamento, desde 26/10/2026)
+
+O site, até então só em português, passa a ter **inglês (EUA)** e **espanhol**, para o turista
+estrangeiro (principalmente argentinos, uruguaios, chilenos e americanos) navegar, reservar e
+acompanhar a reserva na própria língua.
+
+**Como funciona para o visitante:**
+- Na primeira visita, o site abre no idioma configurado no navegador (inglês → en-US, espanhol → es,
+  português ou qualquer outro → pt-BR).
+- No topo, ao lado de "Entrar" (ou do nome, quando logado), uma bandeira discreta com a sigla (PT / EN /
+  ES) abre a lista dos idiomas, cada um escrito na própria língua ("Português (Brasil)", "English (US)",
+  "Español"). No celular aparece só a bandeira, ao lado do menu.
+- A escolha vale na hora (a página recarrega no novo idioma) e fica guardada no navegador por 1 ano.
+  Logado, também fica na conta: ao entrar em outro aparelho, o site já abre no idioma escolhido.
+- Valores continuam em **reais** (a cobrança é em reais) e horários no **horário de Brasília** (o
+  passeio é no Brasil); muda só o formato (ex.: R$1,500 e 10/30/2026 em inglês).
+
+**Escopo:** todo o site público e toda a área logada do cliente. Ficam em português: **painel do gestor
+e administrador** (sempre pt-BR, mesmo com outro idioma escolhido no site — a landing do proprietário
+`/painel/login` também), **e-mails**, e o **conteúdo escrito pelo proprietário** (descrição do roteiro,
+regras, paradas, avaliações e chat).
+
+**Decisões (26/10/2026):**
+- Idioma guardado no navegador, **sem mudar os endereços** (`/buscar` continua `/buscar`). Consequência
+  aceita: o Google indexa só a versão em português. Endereços `/en/...` e `/es/...` ficam para uma fase
+  futura, se SEO internacional virar prioridade.
+- Termos de Uso e Privacidade: tradução de conveniência com aviso de que **prevalece a versão em
+  português**; o termo de aceite do checkout continua em português, com a tela em volta traduzida.
+- Espanhol **latino-americano neutro** (tratamento "tú"); bandeira da Espanha com o rótulo "Español".
+- Conteúdo do proprietário fica em português nesta fase (tradução automática é fase futura).
+- Glossário dos termos traduzidos: `docs/i18n-glossario.md`.
+
+**Fases:**
+- ✅ **Fase 0 — Fundação (26/10/2026):** detecção do idioma, seletor no topo (desktop e celular), escolha
+  salva no navegador e na conta (sincronizada no login), painel/admin travados em português, topo,
+  menus e rodapé traduzidos, título/descrição do site (Google, compartilhamento) por idioma.
+- ✅ **Fase 1 — Jornada de reserva (26/10/2026):** home, busca (roteiros e embarcações, filtros, mapa),
+  página do roteiro (reserva, calendário, opcionais, compartilhar, conversa com o dono), página da
+  embarcação, confirmação da reserva (cupom, termo de aceite, previsão do tempo), pagamento (Pix e
+  cartão), login/cadastro, recuperar e redefinir senha, e a página Experiências. Detalhes:
+  - Datas, horas e valores no costume de cada idioma (inglês: 10/30/2026, 2:00 PM, R$1,500); sempre em
+    reais e no horário de Brasília.
+  - **Previsão do tempo em inglês com °F, mph e polegadas**; em português e espanhol continua °C, km/h e mm.
+  - Nomes de países do celular no idioma do site; mapas do Google com rótulos no idioma.
+  - Assuntos sugeridos do chat com o dono no idioma do cliente — a mensagem chega ao dono nesse idioma
+    (sem tradução no chat por enquanto).
+  - Termo de aceite: texto jurídico em português; em inglês/espanhol, aviso de que a versão em português
+    é a que vale. Botões, passos e mensagens do aceite traduzidos.
+  - Ajustes de passagem: a linha do preço na confirmação mostra "Passeio" (antes aparecia "Diária" também no
+    modelo Roteiro); a seção "Coleção de experiências" da home deixou de ter os 4 cartões fictícios que
+    nunca apareciam.
+  - Ainda em português nas telas desta fase: nomes de tipos de embarcação, comodidades, acessórios e
+    equipamentos (Fase 4), campos da aba Vendas (Fase 3) e conteúdo do dono.
+- ✅ **Fase 2 — Área logada (26/10/2026):** minha conta, minhas reservas (lista, detalhe com linha do tempo,
+  valores, situação do pagamento e comprovante, cancelamento, avaliação, chat), minhas conversas, favoritos,
+  notificações (página e sino do topo). Detalhes:
+  - **Minha conta → "Idioma"**: nova seção com os três idiomas (mesmo efeito do seletor do topo); fora do
+    português, avisa que os e-mails do Boatzy continuam em português.
+  - **Notificações no idioma do cliente**: os avisos passam a guardar os dados (passeio, data, prazo, nº do
+    pedido) e o texto é montado no idioma de quem lê, inclusive os que já existiam (migration
+    `20261026b_notificacoes_dados.sql`, que também preenche os antigos). Enquanto a migration não for
+    aplicada, as notificações aparecem no texto em português gravado, como antes.
+  - Continuam em português: e-mails, o recado escrito pelo dono, as mensagens do chat, os cartões de
+    "À venda" em Favoritos (Fase 3) e o comprovante da operadora (Asaas).
+- ✅ **Fase 3 — Restante do site (26/10/2026):** vendas (busca na home, resultados, filtros, anúncio,
+  conversa com o vendedor), os 5 artigos de passeios, Sobre, Central de Ajuda (perguntas e busca), Contato,
+  Termos de Uso, Política de Privacidade e as páginas "não encontrada" e "algo deu errado" (antes eram as
+  padrão do Next, em inglês). Detalhes:
+  - **Páginas legais:** tradução de conveniência em inglês e espanhol, com aviso no topo de que a versão em
+    português é a que vale. O texto em português não mudou, conferido palavra a palavra.
+  - **Política de Privacidade:** a tabela de cookies ganhou o `NEXT_LOCALE` (idioma escolhido, necessário,
+    1 ano), criado pela internacionalização. A data da política passou para 26/10/2026.
+  - **Contato:** fora do português aparece o aviso "atendemos em português; mensagens em inglês ou espanhol
+    são bem-vindas". O assunto continua chegando à equipe em português.
+  - **Central de Ajuda:** as respostas em inglês e espanhol citam os botões com o mesmo texto da tela; a do
+    painel do proprietário avisa que o painel é em português.
+  - **Artigos de passeios:** a lista "Por que escolher o Boatzy" passou a ser única. Na Costa da Lagoa, um
+    item ganhou a frase "Tudo na mão, sem precisar de mensagens extras.", igual aos outros artigos.
+  - **Vendas:** faixas de valor no formato de cada idioma (R$ 450 mil / R$450K); a mensagem inicial ao
+    vendedor sai no idioma do cliente.
+  - Continua em português: nomes dos tipos de embarcação e das comodidades (Fase 4), o texto escrito pelo
+    vendedor/dono e os e-mails.
+- ✅ **Fase 4 — Nomes dos catálogos (26/10/2026):** tipos de embarcação, comodidades, acessórios e equipamentos
+  de segurança aparecem em inglês e espanhol em todo o site (cards, detalhe do roteiro e da embarcação,
+  filtros e busca, vendas, mapa, títulos e chips). Detalhes:
+  - Os 75 itens que já existem entram traduzidos pela migration `20261027_catalogos_traducoes.sql`
+    (espanhol latino-americano neutro).
+  - **Admin → Cadastros Auxiliares:** cada item de acessórios, comodidades e equipamentos ganhou os campos
+    opcionais "Inglês" e "Espanhol", e a lista avisa quando falta tradução. Item novo sem tradução continua
+    aparecendo em português até o admin preencher — nada quebra.
+  - Os tipos de embarcação (Bote, Catamarã, Iate, Lancha, Veleiro) não têm tela no admin; as traduções ficam
+    na migration.
+  - A busca continua usando o nome em português por baixo (links compartilhados funcionam em qualquer
+    idioma); só o que aparece na tela muda. Listas e filtros são ordenados em ordem alfabética do idioma.
+  - Painel do gestor e admin seguem em português.
+
+**Pontos de atenção:**
+- **CPF obrigatório:** o cadastro por e-mail e o pagamento exigem CPF. O estrangeiro navega no seu idioma,
+  mas sem CPF não conclui o pagamento — a verificar com o Asaas se aceita cliente estrangeiro.
+- Recomendada revisão das traduções por falante nativo (ao menos reserva e pagamento) antes de divulgar.
+
+Detalhes técnicos: `SPEC.md` §94.
+
 ## 11. Não Incluído no MVP
 
 - Chat em tempo real
@@ -2741,7 +2845,7 @@ pagamentos. Detalhes técnicos: `SPEC.md` §93.
 
 ## 12. Roadmap Pós-MVP
 
-- Multi-idioma no site (pt-BR principal, en-US, es) — planejado em 03/07/2026, em backlog: next-intl com cookie (sem prefixo de URL), seletor no Header, UI traduzida + dicionário de catálogos fixos; conteúdo do gestor, páginas legais e painel fora do escopo. Detalhes no board do ClickUp (módulo "13 - Internacionalização").
+- Multi-idioma no site (pt-BR principal, en-US, es) — planejado em 03/07/2026; **em andamento desde 26/10/2026** (ver a seção "Site multi-idioma"). Futuro, depois das fases atuais: tradução automática do conteúdo do proprietário, e-mails no idioma do cliente, endereços `/en` e `/es` para SEO internacional e valor de referência em dólar.
 - Chat entre usuário e dono
 - Sistema de favoritos
 - Experiências personalizadas

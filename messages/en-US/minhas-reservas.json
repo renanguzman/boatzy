@@ -1,0 +1,188 @@
+{
+  "StatusReserva": {
+    "pendente": {
+      "label": "Awaiting confirmation",
+      "note": "Your request has been sent. The owner will review it and reply soon."
+    },
+    "aguardando_pagamento": {
+      "label": "Awaiting payment",
+      "note": "The owner accepted your request. Complete the payment to secure the date."
+    },
+    "expirada": {
+      "label": "Payment expired",
+      "note": "The payment deadline passed and the request expired. You weren't charged."
+    },
+    "confirmada": {
+      "label": "Confirmed",
+      "note": "Booking confirmed by the owner."
+    },
+    "recusada": {
+      "label": "Declined",
+      "note": "This request was declined by the owner."
+    },
+    "cancelada": {
+      "label": "Canceled",
+      "note": "You canceled this booking."
+    },
+    "concluida": {
+      "label": "Completed",
+      "note": "Trip completed. Tell us how it went — your review helps other customers!"
+    }
+  },
+  "MinhasReservas": {
+    "titulo": "My bookings",
+    "metaTitulo": "My bookings | Boatzy",
+    "subtitulo": "Track the status of your requests and the owner's reply.",
+    "vazioTitulo": "You don't have any bookings yet",
+    "vazioTexto": "Explore the available trips and make your first request.",
+    "explorar": "Explore trips",
+    "dataFlex": "{data} (± {count, plural, one {# day} other {# days}})",
+    "solicitadaEm": "Requested on {data}",
+    "adicionais": "Add-ons",
+    "totalEstimado": "Estimated total",
+    "pagamentoPendente": "Payment pending · Order #{numero}",
+    "pagueAte": "Pay by {data} to secure the date.",
+    "pagar": "Pay {valor}",
+    "pagamentoConfirmado": "Payment confirmed · Order #{numero}",
+    "respostaGestor": "Owner's reply",
+    "respondidaEm": "Replied on {data}",
+    "quemAtende": "Who will assist you",
+    "gestorEmbarcacao": "Boat manager",
+    "verDetalhes": "See details →",
+    "cancelar": {
+      "botao": "Cancel booking",
+      "confirmar": "Cancel this booking?",
+      "sim": "Yes, cancel"
+    },
+    "avaliacao": {
+      "sua": "Your review",
+      "aguardandoAprovacao": "Awaiting approval",
+      "enviadaEm": "Sent on {data}",
+      "avaliar": "Review your trip",
+      "comoFoi": "How was your experience?",
+      "estrelas": "{count, plural, one {# star} other {# stars}}",
+      "deCinco": "{nota} of 5",
+      "placeholder": "Tell us how the trip went (optional)",
+      "enviar": "Submit review",
+      "agoraNao": "Not now"
+    },
+    "erros": {
+      "sessao": "Session expired. Please sign in again.",
+      "naoEncontrada": "Booking not found.",
+      "pagaNaoCancela": "Paid bookings can't be canceled on the site yet. Message the owner in the chat to arrange the cancellation.",
+      "naoPodeCancelar": "This booking can no longer be canceled.",
+      "naoFoiPossivelAgora": "We couldn't cancel right now.",
+      "erroCancelar": "Error canceling the booking. Please try again.",
+      "nota": "Choose a rating from 1 to 5 stars.",
+      "comentarioLongo": "The comment can have at most 2000 characters.",
+      "soConcluidas": "Only completed bookings can be reviewed.",
+      "jaAvaliou": "You've already reviewed this booking.",
+      "erroAvaliar": "Error submitting the review. Please try again."
+    },
+    "chat": {
+      "voltarReserva": "Back to the booking"
+    }
+  },
+  "DetalheReserva": {
+    "reservaCodigo": "Booking {codigo}",
+    "etapas": {
+      "solicitacaoEnviada": "Request sent",
+      "respostaDono": "Owner's reply",
+      "aguardandoAnalise": "Awaiting review",
+      "naoAceita": "Not accepted by the owner",
+      "canceladaPorVoce": "Canceled by you",
+      "aceitaPeloDono": "Accepted by the owner",
+      "confirmadaPeloDono": "Confirmed by the owner",
+      "pagamento": "Payment",
+      "depoisAceite": "After acceptance",
+      "pagueAte": "Pay by {data}",
+      "aguardando": "Pending",
+      "prazoExpirou": "Payment deadline expired",
+      "pagamentoAprovado": "Payment approved",
+      "reembolsado": "Refunded",
+      "reembolsoParcial": "Partial refund",
+      "passeioRealizado": "Trip completed",
+      "diaPasseio": "Trip day"
+    },
+    "seuPasseio": "Your trip",
+    "periodo": "Period",
+    "data": "Date",
+    "ate": "to",
+    "flexivel": "Flexible by ± {count, plural, one {# day} other {# days}}",
+    "pessoas": "Guests",
+    "saida": "Departure",
+    "retornoAproximado": "Approximate return",
+    "duracao": "Duration",
+    "duracaoDe": "Duration: {duracao}",
+    "embarcacao": "Boat",
+    "donoEmbarcacao": "Boat owner",
+    "embarqueDesembarque": "Boarding and drop-off",
+    "solicitadaEm": "Requested on",
+    "pontoEncontro": "Meeting point",
+    "abrirMapa": "Open in maps",
+    "opcionaisIncluidos": "Included add-ons",
+    "respostaDono": "Owner's reply",
+    "situacao": "Booking status",
+    "recado": "Note",
+    "valores": "Pricing",
+    "precoACombinar": "Price to be agreed with the owner — it's set when they accept the request.",
+    "linhaPasseio": "Trip",
+    "linhaPasseioDiarias": "Trip ({count, plural, one {# day} other {# days}})",
+    "linhaPasseioPessoas": "Trip ({count, plural, one {# person} other {# people}})",
+    "opcionais": "Add-ons",
+    "total": "Total",
+    "totalEstimado": "Estimated total",
+    "taxasIncluidas": "Fees included",
+    "taxasIncluidasPedido": "Fees included · Order #{numero}",
+    "pagamento": "Payment",
+    "itemSeu": "This booking is for one of your own listings — there's no chat with yourself.",
+    "verRoteiro": "View trip page",
+    "termosAceitos": "Booking terms of use (version {versao}) accepted on {data} · Protocol <mono>{protocolo}</mono>",
+    "imprimir": "Print or save as PDF",
+    "comprovante": {
+      "titulo": "Payment receipt",
+      "pedidoReserva": "Order #{numero} · Booking {codigo}",
+      "valorPago": "Amount paid",
+      "dataPagamento": "Payment date",
+      "forma": "Payment method",
+      "aVista": "paid in full",
+      "pagador": "Payer",
+      "recebedor": "Payee",
+      "recebedorValor": "Boatzy — payment intermediary",
+      "idTransacao": "Transaction ID",
+      "idPix": "Pix ID (end-to-end)",
+      "numeroFatura": "Invoice no.",
+      "referenteA": "For",
+      "opcionaisLista": "Add-ons: {lista}",
+      "passeioOpcionais": "Trip and add-ons",
+      "totalPago": "Total paid",
+      "reembolsos": "Refunds",
+      "estornadoEm": "Refunded on {data}",
+      "emAndamento": "In progress since {data}",
+      "prazoExtrato": "How long it takes to show on your statement depends on your bank or card issuer.",
+      "processado": "Payment processed by Boatzy (Asaas). Receipt issued on {data}.",
+      "operadora": "Processor's receipt"
+    },
+    "selo": {
+      "pago": "Payment approved",
+      "reembolsado": "Refunded",
+      "reembolsado_parcial": "Partial refund",
+      "em_disputa": "Disputed"
+    },
+    "statusPagamento": {
+      "pendente": "Nothing is charged now. If the owner accepts, you pay through Boatzy (Pix or card) to secure the date.",
+      "semOnline": "Booking confirmed without online payment through Boatzy. Arrange payment with the owner in the chat.",
+      "nenhum": "You weren't charged for this booking.",
+      "aguardando": "Awaiting payment",
+      "reembolsado": "Payment refunded",
+      "reembolsoParcial": "Partial refund",
+      "emContestacao": "Payment disputed",
+      "aprovado": "Payment approved",
+      "protegido": "The owner only gets paid after the trip — your payment is protected by Boatzy.",
+      "expirado": "Payment deadline expired",
+      "expiradoTexto": "You weren't charged. If you still want the trip, send a new request.",
+      "cancelado": "Order canceled",
+      "nenhumCobrado": "You weren't charged."
+    }
+  }
+}

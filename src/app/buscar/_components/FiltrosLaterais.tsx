@@ -1,10 +1,12 @@
 'use client';
 
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { useTranslations } from 'next-intl';
 import { CalendarDays, Clock, MapPin, Receipt, Ship, ShieldCheck, Sparkles, Users, Wallet, Waves } from 'lucide-react';
-import LocationPicker, { ROTULO_PROXIMO_DE_MIM, type LocationValue } from '@/components/home/search/LocationPicker';
+import LocationPicker, { type LocationValue } from '@/components/home/search/LocationPicker';
 import DatePicker, { type DateValue } from '@/components/home/search/DatePicker';
 import PainelFiltros from '@/components/busca/PainelFiltros';
+import { useCatalogo } from '@/i18n/CatalogoProvider';
 import { useNavegacaoBusca } from '@/components/busca/NavegacaoBusca';
 import { CampoFiltro, ChipFiltro, ContadorFiltro, FaixaNumerica, FiltroMultiSelect, FiltroSecao } from '@/components/busca/CamposFiltro';
 import { DURACAO_PRESETS } from '@/lib/duracao';
@@ -44,6 +46,13 @@ export default function FiltrosLaterais({
   params, abaEmbarcacao, tiposEmbarcacao, comodidades, acessorios, equipamentosSeguranca, totalResultados,
 }: Props) {
   const { ir } = useNavegacaoBusca();
+  const { traduzir, ordenar } = useCatalogo();
+  const t = useTranslations('Busca');
+  const tf = useTranslations('Busca.filtros');
+  const tComum = useTranslations('Comum');
+  const tPessoas = useTranslations('CamposBusca.quantidade.pessoas');
+  const limpar = (onClick: () => void) => ({ label: tComum('limpar'), onClick });
+  const limparContagem = (count: number, onClick: () => void) => ({ label: tf('limparContagem', { count }), onClick });
 
   function aplicar(alteracoes: Partial<Record<keyof BuscaSearchParams, string | null>>) {
     ir(buildBuscarUrl(params, { ...alteracoes, pagina: null }));
@@ -66,7 +75,7 @@ export default function FiltrosLaterais({
       return { type: 'place', id: parseInt(params.municipio), nome, uf: uf ?? '' };
     }
     if (params.lat && params.lng) {
-      return { type: 'geo', lat: parseFloat(params.lat), lng: parseFloat(params.lng), label: ROTULO_PROXIMO_DE_MIM };
+      return { type: 'geo', lat: parseFloat(params.lat), lng: parseFloat(params.lng) };
     }
     return null;
   }, [params.municipio, params.local, params.lat, params.lng]);
@@ -142,8 +151,8 @@ export default function FiltrosLaterais({
   return (
     <PainelFiltros ativos={ativos} limparHref={limparHref} totalResultados={totalResultados}>
       <div ref={camposRef}>
-        <FiltroSecao titulo="Destino" icone={MapPin}
-          acao={localAtual ? { label: 'Limpar', onClick: () => mudarLocal(null) } : null}>
+        <FiltroSecao titulo={tf('destino')} icone={MapPin}
+          acao={localAtual ? limpar(() => mudarLocal(null)) : null}>
           <CampoFiltro>
             <LocationPicker
               value={localAtual}
@@ -157,8 +166,8 @@ export default function FiltrosLaterais({
         </FiltroSecao>
 
         {!abaEmbarcacao && (
-          <FiltroSecao titulo="Data" icone={CalendarDays}
-            acao={dataAtual ? { label: 'Limpar', onClick: () => mudarData(null) } : null}>
+          <FiltroSecao titulo={tf('data')} icone={CalendarDays}
+            acao={dataAtual ? limpar(() => mudarData(null)) : null}>
             <CampoFiltro>
               <DatePicker
                 value={dataAtual}
@@ -174,23 +183,29 @@ export default function FiltrosLaterais({
         )}
       </div>
 
-      <FiltroSecao titulo="Quantidade de pessoas" icone={Users}>
-        <ContadorFiltro valor={pessoas} onChange={mudarPessoas} singular="pessoa" plural="pessoas" />
+      <FiltroSecao titulo={tf('quantidadePessoas')} icone={Users}>
+        <ContadorFiltro
+          valor={pessoas}
+          onChange={mudarPessoas}
+          formatar={(n) => tPessoas('valor', { count: n })}
+          rotuloRemover={tPessoas('remover')}
+          rotuloAdicionar={tPessoas('adicionar')}
+        />
       </FiltroSecao>
 
       {abaEmbarcacao && tiposEmbarcacao.length > 0 && (
-        <FiltroSecao titulo="Tipo de embarcação" icone={Ship}>
+        <FiltroSecao titulo={tf('tipoEmbarcacao')} icone={Ship}>
           <div className="flex flex-wrap gap-1.5">
             <ChipFiltro ativo={!params.tipo_embarcacao}
               onClick={() => aplicar({ tipo: 'embarcacao', tipo_embarcacao: null, tipo_nome: null })}>
-              Todos
+              {tf('todos')}
             </ChipFiltro>
-            {tiposEmbarcacao.map((t) => (
-              <ChipFiltro key={t.id} ativo={params.tipo_embarcacao === t.id}
-                onClick={() => aplicar(params.tipo_embarcacao === t.id
+            {ordenar(tiposEmbarcacao, 'tipo').map((tipo) => (
+              <ChipFiltro key={tipo.id} ativo={params.tipo_embarcacao === tipo.id}
+                onClick={() => aplicar(params.tipo_embarcacao === tipo.id
                   ? { tipo: 'embarcacao', tipo_embarcacao: null, tipo_nome: null }
-                  : { tipo: 'embarcacao', tipo_embarcacao: t.id, tipo_nome: t.nome })}>
-                {t.nome}
+                  : { tipo: 'embarcacao', tipo_embarcacao: tipo.id, tipo_nome: tipo.nome })}>
+                {traduzir('tipo', tipo.nome)}
               </ChipFiltro>
             ))}
           </div>
@@ -198,11 +213,11 @@ export default function FiltrosLaterais({
       )}
 
       {!abaEmbarcacao && (
-        <FiltroSecao titulo="Faixa de preço" icone={Wallet}
-          acao={params.preco_min || params.preco_max ? { label: 'Limpar', onClick: () => aplicar({ preco_min: null, preco_max: null }) } : null}>
+        <FiltroSecao titulo={tf('faixaPreco')} icone={Wallet}
+          acao={params.preco_min || params.preco_max ? limpar(() => aplicar({ preco_min: null, preco_max: null })) : null}>
           <FaixaNumerica
             key={`preco-${params.preco_min ?? ''}-${params.preco_max ?? ''}`}
-            rotulo="Preço"
+            rotulo={tf('preco')}
             prefixo="R$"
             step={50}
             min={params.preco_min ?? ''}
@@ -212,81 +227,84 @@ export default function FiltrosLaterais({
         </FiltroSecao>
       )}
 
-      <FiltroSecao titulo="Duração do passeio" icone={Clock}
-        acao={durMin != null || durMax != null ? { label: 'Limpar', onClick: () => aplicar({ duracao_min: null, duracao_max: null }) } : null}>
+      <FiltroSecao titulo={tf('duracaoPasseio')} icone={Clock}
+        acao={durMin != null || durMax != null ? limpar(() => aplicar({ duracao_min: null, duracao_max: null })) : null}>
         <div className="flex flex-wrap gap-1.5 mb-3">
           {DURACAO_PRESETS.map((p) => {
             const ativo = durMin === p.min && durMax === p.max;
             return (
-              <ChipFiltro key={p.label} ativo={ativo}
+              <ChipFiltro key={p.id} ativo={ativo}
                 onClick={() => aplicar(ativo
                   ? { duracao_min: null, duracao_max: null }
                   : { duracao_min: p.min == null ? null : String(p.min), duracao_max: p.max == null ? null : String(p.max) })}>
-                {p.label}
+                {t(`duracaoPresets.${p.id}`)}
               </ChipFiltro>
             );
           })}
         </div>
         <FaixaNumerica
           key={`dur-${params.duracao_min ?? ''}-${params.duracao_max ?? ''}`}
-          rotulo="Duração em horas"
+          rotulo={tf('duracaoHoras')}
           sufixo="h"
           step={0.5}
           min={params.duracao_min ?? ''}
           max={params.duracao_max ?? ''}
           onAplicar={(a, b) => aplicar({ duracao_min: a || null, duracao_max: b || null })}
         />
-        <p className="text-[11px] text-slate-400 mt-2">Em horas — 1 dia equivale a 24 h.</p>
+        <p className="text-[11px] text-slate-400 mt-2">{tf('ajudaHoras')}</p>
       </FiltroSecao>
 
       {!abaEmbarcacao && (
-        <FiltroSecao titulo="Modelo de cobrança" icone={Receipt}>
+        <FiltroSecao titulo={tf('modeloCobranca')} icone={Receipt}>
           <div className="flex flex-wrap gap-1.5">
             {MODELOS_PRECO.map((m) => (
-              <ChipFiltro key={m.value} ativo={modelos.includes(m.value)} onClick={() => toggleModelo(m.value)}>
-                {m.label}
+              <ChipFiltro key={m} ativo={modelos.includes(m)} onClick={() => toggleModelo(m)}>
+                {t(`modelosPreco.${m}`)}
               </ChipFiltro>
             ))}
           </div>
-          <p className="text-[11px] text-slate-400 mt-2">Nenhum selecionado mostra todos os modelos.</p>
+          <p className="text-[11px] text-slate-400 mt-2">{tf('ajudaModelos')}</p>
         </FiltroSecao>
       )}
 
       {comodidades.length > 0 && (
-        <FiltroSecao titulo="Comodidades" icone={Sparkles}
-          acao={comodidadesSel.length > 0 ? { label: `Limpar (${comodidadesSel.length})`, onClick: () => aplicar({ comodidades: null }) } : null}>
+        <FiltroSecao titulo={tf('comodidades')} icone={Sparkles}
+          acao={comodidadesSel.length > 0 ? limparContagem(comodidadesSel.length, () => aplicar({ comodidades: null })) : null}>
           <FiltroMultiSelect
             itens={comodidades}
+            categoria="comodidade"
             selecionados={comodidadesSel}
             onToggle={(id) => toggleIdSelecionado('comodidades', comodidadesSel, id)}
-            placeholder="Ex.: churrasqueira, som…"
-            vazio="Nenhuma comodidade encontrada."
+            placeholder={tf('comodidadesPlaceholder')}
+            vazio={tf('comodidadesVazio')}
           />
         </FiltroSecao>
       )}
 
       {acessorios.length > 0 && (
-        <FiltroSecao titulo="Acessórios" icone={Waves}
-          acao={acessoriosSel.length > 0 ? { label: `Limpar (${acessoriosSel.length})`, onClick: () => aplicar({ acessorios: null }) } : null}>
+        <FiltroSecao titulo={tf('acessorios')} icone={Waves}
+          acao={acessoriosSel.length > 0 ? limparContagem(acessoriosSel.length, () => aplicar({ acessorios: null })) : null}>
           <FiltroMultiSelect
             itens={acessorios}
+            categoria="acessorio"
             selecionados={acessoriosSel}
             onToggle={(id) => toggleIdSelecionado('acessorios', acessoriosSel, id)}
-            placeholder="Ex.: caiaque, churrasqueira…"
-            vazio="Nenhum acessório encontrado."
+            placeholder={tf('acessoriosPlaceholder')}
+            vazio={tf('acessoriosVazio')}
           />
         </FiltroSecao>
       )}
 
       {equipamentosSeguranca.length > 0 && (
-        <FiltroSecao titulo="Equipamentos de Segurança" icone={ShieldCheck}
-          acao={equipamentosSel.length > 0 ? { label: `Limpar (${equipamentosSel.length})`, onClick: () => aplicar({ equipamentos_seguranca: null }) } : null}>
+        <FiltroSecao titulo={tf('equipamentos')} icone={ShieldCheck}
+          acao={equipamentosSel.length > 0 ? limparContagem(equipamentosSel.length, () => aplicar({ equipamentos_seguranca: null })) : null}>
           <FiltroMultiSelect
             itens={equipamentosSeguranca}
+            categoria="equipamento"
             selecionados={equipamentosSel}
             onToggle={(id) => toggleIdSelecionado('equipamentos_seguranca', equipamentosSel, id)}
-            placeholder="Ex.: colete, extintor…"
-            vazio="Nenhum equipamento encontrado."
+            placeholder={tf('equipamentosPlaceholder')}
+            vazio={tf('equipamentosVazio')}
           />
         </FiltroSecao>
       )}

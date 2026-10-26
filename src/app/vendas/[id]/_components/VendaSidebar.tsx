@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState, useTransition } from 'react';
 import Link from 'next/link';
 import { useRouter, usePathname } from 'next/navigation';
+import { useTranslations } from 'next-intl';
 import {
   Heart,
   Share2,
@@ -19,7 +20,7 @@ import {
 } from 'lucide-react';
 import { alternarFavoritoAnuncio } from '@/lib/favoritos-actions';
 import { revelarContatoVendedor, registrarCompartilhamentoAnuncio } from '@/lib/vendas-actions';
-import { FUSO_HORARIO } from '@/lib/datas';
+import { useFormatos } from '@/i18n/formatos';
 
 // Ícones de marca (a lucide-react removeu os brand icons).
 function FacebookIcon({ className }: { className?: string }) {
@@ -55,8 +56,6 @@ type Props = {
   ehDono: boolean;
 };
 
-const brl = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 });
-
 export default function VendaSidebar({
   anuncioId,
   anuncioNome,
@@ -67,6 +66,9 @@ export default function VendaSidebar({
   initialFavorito,
   ehDono,
 }: Props) {
+  const t = useTranslations('Venda');
+  const tAcoes = useTranslations('AcoesRoteiro');
+  const f = useFormatos();
   const router = useRouter();
   const pathname = usePathname();
   const [, startTransition] = useTransition();
@@ -127,7 +129,7 @@ export default function VendaSidebar({
   }
 
   function shareText(): string {
-    return `Confira a "${anuncioNome}" à venda no Boatzy por ${brl.format(preco)}!`;
+    return t('textoCompartilhar', { nome: anuncioNome, preco: f.moeda(preco) });
   }
 
   async function copiarLink(): Promise<void> {
@@ -168,25 +170,26 @@ export default function VendaSidebar({
     window.open('https://www.instagram.com/', '_blank', 'noopener');
   }
 
-  const dataReducao = reduzidoEm
-    ? new Date(reduzidoEm).toLocaleDateString('pt-BR', { timeZone: FUSO_HORARIO, day: '2-digit', month: '2-digit', year: 'numeric' })
-    : null;
+  const dataReducao = reduzidoEm ? f.data(reduzidoEm) : null;
 
   return (
     <div className="lg:sticky lg:top-24 rounded-2xl border border-slate-200 shadow-xl shadow-slate-900/5 p-6 bg-white">
       {/* Preço */}
       {precoAnterior != null && (
         <p className="text-sm text-slate-400">
-          De <span className="line-through">{brl.format(precoAnterior)}</span> por
+          {t.rich('deXPor', {
+            valor: f.moeda(precoAnterior),
+            riscado: (texto) => <span className="line-through">{texto}</span>,
+          })}
         </p>
       )}
       <div className="flex items-baseline gap-2">
-        <span className="text-3xl font-bold text-marinho">{brl.format(preco)}</span>
+        <span className="text-3xl font-bold text-marinho">{f.moeda(preco)}</span>
       </div>
       {precoAnterior != null && dataReducao && (
         <p className="mt-1 inline-flex items-center gap-1 rounded-full bg-destaque/30 px-2 py-0.5 text-xs font-semibold text-marinho">
           <ArrowDownRight className="h-3.5 w-3.5" />
-          Preço reduzido em {dataReducao}
+          {t('reduzidoEm', { data: dataReducao })}
         </p>
       )}
 
@@ -194,22 +197,22 @@ export default function VendaSidebar({
 
       {ehDono ? (
         <div className="rounded-xl bg-slate-50 border border-slate-100 p-4 text-center">
-          <p className="text-sm font-semibold text-slate-700">Este é o seu anúncio</p>
+          <p className="text-sm font-semibold text-slate-700">{t('seuAnuncio')}</p>
           <p className="text-xs text-slate-400 mt-1">
-            Interações suas não contam no funil de vendas.
+            {t('naoContaFunil')}
           </p>
           <Link
             href={`/painel/vendas/${anuncioId}/editar`}
             className="inline-flex items-center gap-1.5 mt-3 text-xs font-semibold text-marinho hover:text-turquesa-escuro transition-colors"
           >
             <Pencil className="h-3.5 w-3.5" />
-            Gerenciar anúncio no painel
+            {t('gerenciar')}
           </Link>
         </div>
       ) : (
         <>
           {/* Vendedor */}
-          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2">Vendedor</p>
+          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2">{t('vendedor')}</p>
           <div className="rounded-xl border border-slate-100 bg-slate-50/60 p-4">
             <div className="flex items-center gap-3">
               <div className="h-10 w-10 rounded-full bg-slate-200 flex items-center justify-center shrink-0">
@@ -239,7 +242,7 @@ export default function VendaSidebar({
                 className="mt-3 w-full flex items-center justify-center gap-2 py-2.5 rounded-xl bg-marinho hover:bg-marinho-escuro text-white text-xs font-semibold transition-colors disabled:opacity-60"
               >
                 {revelando ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Eye className="h-3.5 w-3.5" />}
-                Revelar contato do vendedor
+                {t('revelar')}
               </button>
             )}
           </div>
@@ -250,12 +253,12 @@ export default function VendaSidebar({
             className="mt-4 w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-marinho hover:bg-marinho-escuro text-white text-sm font-semibold transition-colors"
           >
             <MessageCircle className="h-4 w-4" />
-            Conversar com o vendedor
+            {t('conversar')}
           </Link>
 
           <p className="flex items-center justify-center gap-1.5 text-[11px] text-slate-400 mt-3">
             <ShieldCheck className="h-3.5 w-3.5 text-turquesa" />
-            Negocie por dentro da plataforma com mais segurança
+            {t('negocieSeguro')}
           </p>
         </>
       )}
@@ -276,7 +279,7 @@ export default function VendaSidebar({
             }`}
           >
             <Heart className={`h-4 w-4 ${favorito ? 'fill-red-500 text-red-500' : ''}`} />
-            {favorito ? 'Favoritado' : 'Favoritar'}
+            {favorito ? tAcoes('favoritado') : tAcoes('favoritar')}
           </button>
         )}
 
@@ -289,7 +292,7 @@ export default function VendaSidebar({
             className="w-full flex items-center justify-center gap-2 py-3 rounded-xl border border-slate-200 text-sm font-medium text-slate-700 hover:bg-slate-50 transition-colors"
           >
             <Share2 className="h-4 w-4" />
-            Compartilhar
+            {tAcoes('compartilhar')}
           </button>
 
           {shareOpen && (
@@ -324,7 +327,7 @@ export default function VendaSidebar({
                 <InstagramIcon className="h-4 w-4 text-pink-500" />
                 <span className="text-left leading-tight">
                   Instagram
-                  <span className="block text-[10px] text-slate-400">copia o link para o story/direct</span>
+                  <span className="block text-[10px] text-slate-400">{tAcoes('instagramDica')}</span>
                 </span>
               </button>
               <div className="my-1 border-t border-slate-100" />
@@ -337,12 +340,12 @@ export default function VendaSidebar({
                 {copiado ? (
                   <>
                     <Check className="h-4 w-4 text-turquesa" />
-                    <span className="text-turquesa-escuro font-medium">Link copiado!</span>
+                    <span className="text-turquesa-escuro font-medium">{tAcoes('linkCopiado')}</span>
                   </>
                 ) : (
                   <>
                     <Link2 className="h-4 w-4 text-slate-400" />
-                    Copiar link
+                    {tAcoes('copiarLink')}
                   </>
                 )}
               </button>

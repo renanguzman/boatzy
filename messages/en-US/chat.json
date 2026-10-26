@@ -1,0 +1,94 @@
+{
+  "Chat": {
+    "saudacao": "Hi! {acao, select, solicitando {I'm requesting the} other {I'm interested in the}} trip \"{nome}\"{temData, select, sim { on {data}{temPessoas, select, sim {, for {pessoas, plural, one {# person} other {# people}}} other {}}} other {}}.",
+    "sugestoes": {
+      "pontoEmbarque": {
+        "rotulo": "Boarding point",
+        "texto": "Where is the boarding point and how early should I arrive?"
+      },
+      "incluso": {
+        "rotulo": "What's included",
+        "texto": "What's included in the trip and what do I need to bring?"
+      },
+      "comidaBebida": {
+        "rotulo": "Food and drinks",
+        "texto": "Can I bring food and drinks on board? Is there a cooler or ice available?"
+      },
+      "criancas": {
+        "rotulo": "Kids on board",
+        "texto": "I'm bringing kids. Are there children's life jackets on board?"
+      },
+      "tempo": {
+        "rotulo": "If the weather turns",
+        "texto": "If the weather is bad on the day, how does it work? Can I reschedule?"
+      },
+      "ajustarRoteiro": {
+        "rotulo": "Adjust the itinerary",
+        "texto": "Is it possible to adjust the itinerary or add a stop?"
+      },
+      "pontoEncontro": {
+        "rotulo": "Meeting point",
+        "texto": "Could you confirm the meeting point and how early I should arrive?"
+      },
+      "oQueLevar": {
+        "rotulo": "What to bring",
+        "texto": "What do I need to bring for the trip?"
+      },
+      "alterarReserva": {
+        "rotulo": "Change the booking",
+        "texto": "I need to make a change to the booking (date or number of guests). Is that possible?"
+      }
+    },
+    "dialogo": {
+      "rotulo": "Conversation with the boat owner",
+      "titulo": "Chat with the owner",
+      "fechar": "Close chat",
+      "abrindo": "Opening the chat…",
+      "tentarDeNovo": "Try again",
+      "abrirNovaAba": "Open in new tab"
+    },
+    "botaoConfirmacao": {
+      "titulo": "Chat with the owner of this trip's boat",
+      "subtitulo": "Ask questions without leaving this page"
+    },
+    "caixa": {
+      "referenteA": "Regarding: {label} ({tipo})",
+      "origem": {
+        "venda": "Sale",
+        "roteiro": "Trip",
+        "embarcacao": "Boat"
+      },
+      "abrirNovaAba": "Open the chat in a new tab",
+      "fecharVoltar": "Close and go back to the booking",
+      "sobreOQue": "What would you like to talk about?",
+      "toqueAssunto": "Tap a topic: the message is pre-written — just review and send.",
+      "nenhumaMensagem": "No messages yet",
+      "envieAPrimeira": "Send the first message to start the conversation.",
+      "hoje": "Today",
+      "ontem": "Yesterday",
+      "placeholder": "Write a message...",
+      "enviar": "Send"
+    },
+    "aviso": {
+      "titulo": "Communicate only through the platform",
+      "p1": "As an intermediation platform, Boatzy recommends that all communication related to this service — questions, price arrangements, changes and any other dealings — take place exclusively through this conversation, on the site. This channel is what allows us to provide the support set out in the platform's Terms of Use and Privacy Policy, including in case of questions or any disagreements between the parties.",
+      "p2": "Under no circumstances is Boatzy responsible for dealings, agreements, payments, damages or losses resulting from communications through other channels (such as WhatsApp, phone, email or social media) that were not formalized within the platform. Outside this channel, Boatzy has no way to mediate the negotiation or guarantee that what was agreed between the parties is fulfilled.",
+      "p3": "By clicking \"I understand\", you agree to this guidance.",
+      "ciente": "I understand"
+    },
+    "descricaoDono": "Boat owner · chat on Boatzy",
+    "erros": {
+      "entreNaConta": "Sign in to your account to chat with the owner.",
+      "roteiroSeu": "This trip is yours — you can't chat with yourself.",
+      "reservaSua": "This booking is for one of your own listings — you can't chat with yourself.",
+      "falhaRoteiro": "We couldn't open the chat with this trip's owner.",
+      "falhaReserva": "We couldn't open the chat with this booking's owner."
+    },
+    "saudacaoReserva": "Hi! About my booking for \"{item}\" on {data} (code {codigo}).",
+    "conversarComDono": "Message the owner",
+    "rascunhoRoteiro": "Hi! I'm interested in the trip \"{nome}\". Can we talk?",
+    "voltarRoteiro": "Back to the trip",
+    "rascunhoEmbarcacao": "Hi! I'm interested in the boat \"{nome}\". Can we talk?",
+    "voltarEmbarcacao": "Back to the boat"
+  }
+}

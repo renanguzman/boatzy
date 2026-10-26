@@ -1,339 +1,129 @@
+import type { ReactNode } from 'react';
 import type { Metadata } from 'next';
 import Link from 'next/link';
+import { getTranslations } from 'next-intl/server';
 import Header from '@/components/layout/Header';
 import Footer from '@/components/layout/Footer';
+import CabecalhoLegal from '@/components/legal/CabecalhoLegal';
 
-export const metadata: Metadata = {
-  title: 'Termos de Uso — Boatzy',
-  description:
-    'Conheça os Termos de Uso que regem o acesso e o uso da plataforma Boatzy de intermediação de aluguel de embarcações.',
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getTranslations('TermosUso');
+  return { title: t('metaTitulo'), description: t('metaDescricao') };
+}
+
+const tituloClass = 'text-xl font-semibold text-grafite';
+const listaClass = 'mt-3 list-disc space-y-1 pl-5';
+
+const marcacao = {
+  b: (texto: ReactNode) => <strong>{texto}</strong>,
+  em: (texto: ReactNode) => <em>{texto}</em>,
+  privacidade: (texto: ReactNode) => (
+    <Link href="/privacy" className="text-marinho underline hover:no-underline">{texto}</Link>
+  ),
 };
 
-export default function TermsPage() {
+export default async function TermsPage() {
+  const t = await getTranslations('TermosUso');
+  const r = (chave: Parameters<typeof t.rich>[0]) => t.rich(chave, marcacao);
+
   return (
     <>
       <Header />
 
       <main className="flex-1 bg-areia">
-        {/* Hero */}
-        <section className="bg-marinho text-white">
-          <div className="mx-auto max-w-3xl px-4 sm:px-6 lg:px-8 py-16">
-            <h1 className="text-3xl sm:text-4xl font-bold tracking-tight">
-              Termos de Uso
-            </h1>
-            <p className="mt-3 text-sm text-slate-300">
-              Última atualização: 21/06/2026
-            </p>
-          </div>
-        </section>
+        <CabecalhoLegal titulo={t('titulo')} atualizadoEm="2026-06-21" />
 
         <div className="mx-auto max-w-3xl px-4 sm:px-6 lg:px-8 py-12">
           {/* Aviso de status */}
           <div className="rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
-            <p>
-              <strong>Status:</strong> Minuta provisória (v1) — versão
-              preliminar destinada a atender aos requisitos de login social
-              (Facebook/Meta) na fase de desenvolvimento da plataforma.{' '}
-              <strong>Não é a versão final.</strong> Recomenda-se revisão por
-              advogado antes do lançamento oficial e, especialmente, antes da
-              plataforma passar a processar pagamentos ou reservas reais.
-            </p>
+            <p>{r('status')}</p>
           </div>
 
           <article className="mt-10 space-y-10 text-slate-700 leading-relaxed">
-            {/* 1 */}
             <section>
-              <h2 className="text-xl font-semibold text-grafite">
-                1. Aceitação destes Termos
-              </h2>
-              <p className="mt-3">
-                Bem-vindo ao <strong>Boatzy</strong>. Estes Termos de Uso regem
-                o acesso e o uso da plataforma Boatzy (&quot;plataforma&quot;,
-                &quot;serviço&quot;, &quot;nós&quot;), disponível em boatzy.app.
-                Ao criar uma conta ou usar a plataforma, você declara que leu,
-                entendeu e concorda com estes Termos e com a nossa{' '}
-                <Link
-                  href="/privacy"
-                  className="text-marinho underline hover:no-underline"
-                >
-                  Política de Privacidade
-                </Link>
-                . Se não concordar, não use a plataforma.
-              </p>
-              <p className="mt-3">
-                O Boatzy é, atualmente, um{' '}
-                <strong>projeto em desenvolvimento</strong>{' '}
-                <em>
-                  (razão social e CNPJ a serem incluídos após a constituição da
-                  empresa)
-                </em>
-                . Algumas funcionalidades descritas aqui poderão ainda não
-                estar disponíveis.
-              </p>
+              <h2 className={tituloClass}>{t('s1.titulo')}</h2>
+              <p className="mt-3">{r('s1.p1')}</p>
+              <p className="mt-3">{r('s1.p2')}</p>
             </section>
 
-            {/* 2 */}
             <section>
-              <h2 className="text-xl font-semibold text-grafite">
-                2. O que é o Boatzy (e o que não é)
-              </h2>
-              <p className="mt-3">
-                O Boatzy é uma{' '}
-                <strong>plataforma de intermediação</strong> que conecta:
-              </p>
-              <ul className="mt-3 list-disc space-y-1 pl-5">
-                <li>
-                  <strong>Anunciantes</strong> — pessoas que disponibilizam
-                  embarcações para aluguel; e
-                </li>
-                <li>
-                  <strong>Locatários</strong> — pessoas interessadas em alugar
-                  essas embarcações.
-                </li>
+              <h2 className={tituloClass}>{t('s2.titulo')}</h2>
+              <p className="mt-3">{r('s2.p1')}</p>
+              <ul className={listaClass}>
+                <li>{r('s2.anunciantes')}</li>
+                <li>{r('s2.locatarios')}</li>
               </ul>
-              <p className="mt-3">
-                <strong>
-                  O Boatzy atua apenas como intermediário tecnológico.
-                </strong>{' '}
-                Nós <strong>não</strong> somos proprietários, operadores,
-                fretadores ou seguradores de qualquer embarcação anunciada, e{' '}
-                <strong>não</strong> somos parte do contrato de locação
-                celebrado entre Anunciante e Locatário. A relação de aluguel —
-                incluindo condições, preço, entrega, uso e devolução da
-                embarcação — é estabelecida diretamente entre os usuários.
-              </p>
+              <p className="mt-3">{r('s2.p2')}</p>
             </section>
 
-            {/* 3 */}
             <section>
-              <h2 className="text-xl font-semibold text-grafite">
-                3. Cadastro e conta
-              </h2>
-              <p className="mt-3">Para usar a plataforma, você deve:</p>
-              <ul className="mt-3 list-disc space-y-1 pl-5">
-                <li>
-                  Ter <strong>no mínimo 18 anos</strong> e capacidade civil
-                  para contratar;
-                </li>
-                <li>
-                  Fornecer informações{' '}
-                  <strong>verídicas, completas e atualizadas</strong>;
-                </li>
-                <li>
-                  Manter a confidencialidade das suas credenciais de acesso.
-                </li>
+              <h2 className={tituloClass}>{t('s3.titulo')}</h2>
+              <p className="mt-3">{t('s3.p1')}</p>
+              <ul className={listaClass}>
+                <li>{r('s3.i1')}</li>
+                <li>{r('s3.i2')}</li>
+                <li>{t('s3.i3')}</li>
               </ul>
-              <p className="mt-3">
-                O cadastro pode ser feito por meio do{' '}
-                <strong>login da sua conta do Facebook</strong>. Você é
-                responsável por toda atividade realizada na sua conta. Avise-nos
-                imediatamente em caso de uso não autorizado.
-              </p>
+              <p className="mt-3">{r('s3.p2')}</p>
             </section>
 
-            {/* 4 */}
             <section>
-              <h2 className="text-xl font-semibold text-grafite">
-                4. Responsabilidades dos usuários
-              </h2>
-              <p className="mt-3 font-medium text-grafite">
-                Anunciantes são responsáveis por:
-              </p>
+              <h2 className={tituloClass}>{t('s4.titulo')}</h2>
+              <p className="mt-3 font-medium text-grafite">{t('s4.anunciantes')}</p>
               <ul className="mt-2 list-disc space-y-1 pl-5">
-                <li>
-                  Garantir que possuem o direito de disponibilizar a embarcação
-                  para aluguel;
-                </li>
-                <li>
-                  Manter a embarcação em condições adequadas, seguras e
-                  regularizadas perante os órgãos competentes (ex.: Marinha do
-                  Brasil), incluindo documentação, habilitação e equipamentos de
-                  segurança exigidos;
-                </li>
-                <li>Prestar informações verdadeiras sobre a embarcação.</li>
+                <li>{t('s4.a1')}</li>
+                <li>{t('s4.a2')}</li>
+                <li>{t('s4.a3')}</li>
               </ul>
-              <p className="mt-3 font-medium text-grafite">
-                Locatários são responsáveis por:
-              </p>
+              <p className="mt-3 font-medium text-grafite">{t('s4.locatarios')}</p>
               <ul className="mt-2 list-disc space-y-1 pl-5">
-                <li>Usar a embarcação de forma adequada, legal e segura;</li>
-                <li>
-                  Possuir a habilitação náutica exigida, quando aplicável;
-                </li>
-                <li>Cumprir as condições combinadas com o Anunciante.</li>
+                <li>{t('s4.l1')}</li>
+                <li>{t('s4.l2')}</li>
+                <li>{t('s4.l3')}</li>
               </ul>
             </section>
 
-            {/* 5 */}
             <section>
-              <h2 className="text-xl font-semibold text-grafite">
-                5. Condutas proibidas
-              </h2>
-              <p className="mt-3">
-                Ao usar a plataforma, você concorda em <strong>não</strong>:
-              </p>
-              <ul className="mt-3 list-disc space-y-1 pl-5">
-                <li>
-                  Fornecer informações falsas ou se passar por outra pessoa;
-                </li>
-                <li>Usar a plataforma para fins ilícitos ou fraudulentos;</li>
-                <li>
-                  Violar direitos de terceiros ou da própria plataforma;
-                </li>
-                <li>
-                  Tentar burlar, sobrecarregar ou comprometer a segurança do
-                  sistema;
-                </li>
-                <li>
-                  Copiar, modificar ou explorar comercialmente o conteúdo do
-                  Boatzy sem autorização.
-                </li>
+              <h2 className={tituloClass}>{t('s5.titulo')}</h2>
+              <p className="mt-3">{r('s5.p1')}</p>
+              <ul className={listaClass}>
+                {(['i1', 'i2', 'i3', 'i4', 'i5'] as const).map((i) => <li key={i}>{t(`s5.${i}`)}</li>)}
               </ul>
-              <p className="mt-3">
-                Podemos suspender ou encerrar contas que violem estes Termos.
-              </p>
+              <p className="mt-3">{t('s5.p2')}</p>
             </section>
 
-            {/* 6 */}
             <section>
-              <h2 className="text-xl font-semibold text-grafite">
-                6. Pagamentos
-              </h2>
+              <h2 className={tituloClass}>{t('s6.titulo')}</h2>
               <blockquote className="mt-3 border-l-4 border-slate-300 pl-4 italic text-slate-600">
-                <strong>Funcionalidade futura.</strong> Na fase atual, a
-                plataforma ainda não processa pagamentos. Quando o serviço de
-                pagamentos for disponibilizado, condições específicas (taxas,
-                repasses, reembolsos e cancelamentos) serão detalhadas e
-                comunicadas aos usuários, podendo ser objeto de termos
-                complementares.
+                {r('s6.nota')}
               </blockquote>
             </section>
 
-            {/* 7 */}
             <section>
-              <h2 className="text-xl font-semibold text-grafite">
-                7. Isenção de responsabilidade
-              </h2>
-              <p className="mt-3">Como o Boatzy é apenas intermediário:</p>
-              <ul className="mt-3 list-disc space-y-1 pl-5">
-                <li>
-                  Não garantimos a qualidade, segurança, legalidade ou
-                  disponibilidade das embarcações anunciadas, nem a idoneidade
-                  dos usuários;
-                </li>
-                <li>
-                  Não nos responsabilizamos por danos, acidentes, perdas ou
-                  prejuízos decorrentes da relação de locação ou do uso das
-                  embarcações, que são de responsabilidade exclusiva de
-                  Anunciantes e Locatários;
-                </li>
-                <li>
-                  A plataforma é fornecida &quot;no estado em que se
-                  encontra&quot;, especialmente nesta fase de desenvolvimento,
-                  podendo apresentar instabilidades ou indisponibilidades.
-                </li>
+              <h2 className={tituloClass}>{t('s7.titulo')}</h2>
+              <p className="mt-3">{t('s7.p1')}</p>
+              <ul className={listaClass}>
+                {(['i1', 'i2', 'i3'] as const).map((i) => <li key={i}>{t(`s7.${i}`)}</li>)}
               </ul>
             </section>
 
-            {/* 8 */}
-            <section>
-              <h2 className="text-xl font-semibold text-grafite">
-                8. Limitação de responsabilidade
-              </h2>
-              <p className="mt-3">
-                Na máxima extensão permitida pela lei brasileira, o Boatzy não
-                será responsável por danos indiretos, lucros cessantes ou
-                prejuízos decorrentes do uso ou da impossibilidade de uso da
-                plataforma, ressalvadas as hipóteses em que a lei não admita tal
-                limitação.
-              </p>
-            </section>
+            {(['s8', 's9', 's10', 's11', 's12', 's13'] as const).map((s) => (
+              <section key={s}>
+                <h2 className={tituloClass}>{t(`${s}.titulo`)}</h2>
+                <p className="mt-3">{r(`${s}.p`)}</p>
+              </section>
+            ))}
 
-            {/* 9 */}
             <section>
-              <h2 className="text-xl font-semibold text-grafite">
-                9. Propriedade intelectual
-              </h2>
+              <h2 className={tituloClass}>{t('s14.titulo')}</h2>
+              <p className="mt-3">{t('s14.p')}</p>
               <p className="mt-3">
-                O nome, a marca, o logotipo, o layout, os textos e os demais
-                elementos da plataforma pertencem ao Boatzy (ou a seus
-                titulares) e são protegidos por lei. O uso da plataforma não
-                transfere a você qualquer direito sobre esses elementos.
-              </p>
-            </section>
-
-            {/* 10 */}
-            <section>
-              <h2 className="text-xl font-semibold text-grafite">
-                10. Privacidade
-              </h2>
-              <p className="mt-3">
-                O tratamento dos seus dados pessoais é regido pela nossa{' '}
-                <Link
-                  href="/privacy"
-                  className="text-marinho underline hover:no-underline"
-                >
-                  Política de Privacidade
-                </Link>
-                , que integra estes Termos.
-              </p>
-            </section>
-
-            {/* 11 */}
-            <section>
-              <h2 className="text-xl font-semibold text-grafite">
-                11. Suspensão e encerramento
-              </h2>
-              <p className="mt-3">
-                Você pode encerrar sua conta a qualquer momento. Podemos
-                suspender ou encerrar o acesso de usuários que violem estes
-                Termos ou a lei, ou descontinuar a plataforma (no todo ou em
-                parte), especialmente por se tratar de projeto em
-                desenvolvimento.
-              </p>
-            </section>
-
-            {/* 12 */}
-            <section>
-              <h2 className="text-xl font-semibold text-grafite">
-                12. Alterações destes Termos
-              </h2>
-              <p className="mt-3">
-                Podemos atualizar estes Termos periodicamente. A data da última
-                atualização será sempre indicada no topo. Mudanças relevantes
-                serão comunicadas pelos canais disponíveis. O uso continuado da
-                plataforma após as alterações representa concordância com a nova
-                versão.
-              </p>
-            </section>
-
-            {/* 13 */}
-            <section>
-              <h2 className="text-xl font-semibold text-grafite">
-                13. Lei aplicável e foro
-              </h2>
-              <p className="mt-3">
-                Estes Termos são regidos pelas{' '}
-                <strong>leis da República Federativa do Brasil</strong>. Fica
-                eleito o foro do domicílio do consumidor para dirimir eventuais
-                controvérsias, conforme o Código de Defesa do Consumidor, quando
-                aplicável.
-              </p>
-            </section>
-
-            {/* 14 */}
-            <section>
-              <h2 className="text-xl font-semibold text-grafite">
-                14. Contato
-              </h2>
-              <p className="mt-3">Dúvidas sobre estes Termos de Uso:</p>
-              <p className="mt-3">
-                📧{' '}
+                {'📧 '}
                 <a
                   href="mailto:adm@boatzy.app"
                   className="font-semibold text-marinho underline hover:no-underline"
                 >
-                  adm@boatzy.app
+                  {'adm@boatzy.app'}
                 </a>
               </p>
             </section>

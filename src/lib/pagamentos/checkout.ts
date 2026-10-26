@@ -1,5 +1,6 @@
 import 'server-only';
 
+import { getTranslations } from 'next-intl/server';
 import { supabaseAdmin } from '@/lib/supabase';
 import { isValidCPF, onlyDigits } from '@/lib/validators';
 import { lerAsaasConfig } from '@/lib/asaas/config';
@@ -62,10 +63,11 @@ export async function iniciarPagamento(input: {
   parcelas: number;
   cpf?: string;
 }): Promise<IniciarPagamentoResultado> {
+  const t = await getTranslations('Pagamento.erros');
   const cfg = lerAsaasConfig();
   if (!cfg.ok) {
     console.error('[pagamentos/checkout] Asaas não configurado:', cfg.erro);
-    return { ok: false, error: 'Pagamento indisponível no momento. Tente novamente mais tarde.' };
+    return { ok: false, error: t('indisponivel') };
   }
   const ambiente = cfg.config.ambiente;
 
@@ -76,28 +78,28 @@ export async function iniciarPagamento(input: {
     .eq('cliente_id', input.userId)
     .maybeSingle();
   const reserva = (pedido as unknown as { reserva: { id: string; item_nome: string; data_reserva: string } | null } | null)?.reserva;
-  if (!pedido || !reserva) return { ok: false, error: 'Pedido não encontrado.' };
-  if (pedido.status !== 'aguardando_pagamento') return { ok: false, error: 'Este pedido não está mais aguardando pagamento.' };
+  if (!pedido || !reserva) return { ok: false, error: t('pedidoNaoEncontrado') };
+  if (pedido.status !== 'aguardando_pagamento') return { ok: false, error: t('naoAguardando') };
   if (!pedido.expira_em || new Date(pedido.expira_em) <= new Date()) {
-    return { ok: false, error: 'O prazo para pagar este pedido terminou.' };
+    return { ok: false, error: t('prazoTerminou') };
   }
 
   const valorTotal = Number(pedido.valor_total);
   if (valorTotal < VALOR_MINIMO_COBRANCA) {
-    return { ok: false, error: 'O valor deste pedido está abaixo do mínimo para pagamento online. Fale com o gestor.' };
+    return { ok: false, error: t('abaixoMinimo') };
   }
 
   // Forma e parcelas permitidas pela configuração global (Admin → Financeiro → Configurações).
   const formas = await getFormasPagamento();
   const forma = formas.find((f) => f.codigo === input.forma && f.ativo);
-  if (!forma) return { ok: false, error: 'Forma de pagamento indisponível.' };
+  if (!forma) return { ok: false, error: t('formaIndisponivel') };
   const parcelas = input.forma === 'cartao_credito' ? Math.trunc(input.parcelas) || 1 : 1;
   const permitidas = opcoesParcelas(
     valorTotal,
     forma.parcelas_max,
     forma.valor_minimo_parcela != null ? Number(forma.valor_minimo_parcela) : null,
   );
-  if (!permitidas.includes(parcelas)) return { ok: false, error: 'Número de parcelas indisponível.' };
+  if (!permitidas.includes(parcelas)) return { ok: false, error: t('parcelasIndisponivel') };
 
   // Já existe pagamento confirmado aguardando o webhook? Não cobra de novo.
   const { count: pagos } = await supabaseAdmin
@@ -105,7 +107,7 @@ export async function iniciarPagamento(input: {
     .select('id', { count: 'exact', head: true })
     .eq('pedido_id', pedido.id)
     .in('status', PAGAMENTO_PAGO);
-  if (pagos) return { ok: false, error: 'Recebemos seu pagamento e estamos confirmando. Atualize a página em instantes.' };
+  if (pagos) return { ok: false, error: t('confirmandoPago') };
 
   // Reaproveita a cobrança pendente equivalente.
   const { data: pendente } = await supabaseAdmin
@@ -133,7 +135,7 @@ export async function iniciarPagamento(input: {
     // Troca de forma (ou 1ª tentativa): remove qualquer cobrança pendente anterior.
     const cancelamento = await cancelarCobrancasPendentes(pedido.id);
     if (!cancelamento.ok) {
-      return { ok: false, error: 'Não foi possível trocar a forma de pagamento agora. Tente novamente em instantes.' };
+      return { ok: false, error: t('trocarForma') };
     }
 
     // Dados do cliente (CPF obrigatório para o Asaas).
@@ -142,11 +144,11 @@ export async function iniciarPagamento(input: {
       .select('name, email, phone, cpf_cnpj')
       .eq('id', input.userId)
       .single();
-    if (!usuario) return { ok: false, error: 'Cadastro não encontrado.' };
+    if (!usuario) return { ok: false, error: t('cadastro') };
     let cpf = usuario.cpf_cnpj && isValidCPF(usuario.cpf_cnpj) ? onlyDigits(usuario.cpf_cnpj) : null;
     if (!cpf) {
       if (!input.cpf || !isValidCPF(input.cpf)) {
-        return { ok: false, error: 'Informe um CPF válido para pagar.', campo: 'cpf' };
+        return { ok: false, error: t('cpfInvalido'), campo: 'cpf' };
       }
       cpf = onlyDigits(input.cpf);
       await supabaseAdmin.from('users').update({ cpf_cnpj: cpf }).eq('id', input.userId);
@@ -173,7 +175,7 @@ export async function iniciarPagamento(input: {
       })
       .select('id')
       .single();
-    if (errPagamento || !pagamento) return { ok: false, error: 'Não foi possível iniciar o pagamento.' };
+    if (errPagamento || !pagamento) return { ok: false, error: t('iniciar') };
 
     const dataPasseio = new Date(`${reserva.data_reserva}T12:00:00`).toLocaleDateString('pt-BR', { timeZone: FUSO_HORARIO });
     let cobranca: AsaasCobranca | null = null;
@@ -208,7 +210,7 @@ export async function iniciarPagamento(input: {
         });
         if (err instanceof AsaasError && input.forma === 'pix' && /chave pix/i.test(err.message)) {
           console.error('[pagamentos/checkout] conta Asaas sem chave Pix ativa:', err.message);
-          return { ok: false, error: 'O pagamento por Pix está indisponível no momento. Use o cartão de crédito ou tente mais tarde.' };
+          return { ok: false, error: t('pixIndisponivel') };
         }
         throw err;
       }
@@ -233,11 +235,11 @@ export async function iniciarPagamento(input: {
     if (input.forma === 'pix') {
       return { ok: true, forma: 'pix', pix: await carregarQrCode(pagamento.id, cobranca.id) };
     }
-    if (!cobranca.invoiceUrl) return { ok: false, error: 'Não foi possível abrir a página de pagamento.' };
+    if (!cobranca.invoiceUrl) return { ok: false, error: t('abrirPagina') };
     return { ok: true, forma: 'cartao_credito', faturaUrl: cobranca.invoiceUrl };
   } catch (err) {
     console.error('[pagamentos/checkout] falha ao iniciar pagamento', input.reservaId, mensagemErroAsaas(err));
-    return { ok: false, error: 'Não foi possível gerar a cobrança agora. Tente novamente em instantes.' };
+    return { ok: false, error: t('gerarCobranca') };
   }
 }
 

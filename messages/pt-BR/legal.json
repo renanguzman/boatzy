@@ -1,0 +1,257 @@
+{
+  "Legal": {
+    "atualizacao": "Última atualização: {data}",
+    "avisoTraducao": "<b>Tradução de conveniência.</b> Esta página é uma tradução oferecida para sua comodidade. A versão original em português é a que tem validade jurídica e prevalece em caso de divergência."
+  },
+  "TermosUso": {
+    "metaTitulo": "Termos de Uso — Boatzy",
+    "metaDescricao": "Conheça os Termos de Uso que regem o acesso e o uso da plataforma Boatzy de intermediação de aluguel de embarcações.",
+    "titulo": "Termos de Uso",
+    "status": "<b>Status:</b> Minuta provisória (v1) — versão preliminar destinada a atender aos requisitos de login social (Facebook/Meta) na fase de desenvolvimento da plataforma. <b>Não é a versão final.</b> Recomenda-se revisão por advogado antes do lançamento oficial e, especialmente, antes da plataforma passar a processar pagamentos ou reservas reais.",
+    "s1": {
+      "titulo": "1. Aceitação destes Termos",
+      "p1": "Bem-vindo ao <b>Boatzy</b>. Estes Termos de Uso regem o acesso e o uso da plataforma Boatzy (\"plataforma\", \"serviço\", \"nós\"), disponível em boatzy.app. Ao criar uma conta ou usar a plataforma, você declara que leu, entendeu e concorda com estes Termos e com a nossa <privacidade>Política de Privacidade</privacidade>. Se não concordar, não use a plataforma.",
+      "p2": "O Boatzy é, atualmente, um <b>projeto em desenvolvimento</b> <em>(razão social e CNPJ a serem incluídos após a constituição da empresa)</em>. Algumas funcionalidades descritas aqui poderão ainda não estar disponíveis."
+    },
+    "s2": {
+      "titulo": "2. O que é o Boatzy (e o que não é)",
+      "p1": "O Boatzy é uma <b>plataforma de intermediação</b> que conecta:",
+      "anunciantes": "<b>Anunciantes</b> — pessoas que disponibilizam embarcações para aluguel; e",
+      "locatarios": "<b>Locatários</b> — pessoas interessadas em alugar essas embarcações.",
+      "p2": "<b>O Boatzy atua apenas como intermediário tecnológico.</b> Nós <b>não</b> somos proprietários, operadores, fretadores ou seguradores de qualquer embarcação anunciada, e <b>não</b> somos parte do contrato de locação celebrado entre Anunciante e Locatário. A relação de aluguel — incluindo condições, preço, entrega, uso e devolução da embarcação — é estabelecida diretamente entre os usuários."
+    },
+    "s3": {
+      "titulo": "3. Cadastro e conta",
+      "p1": "Para usar a plataforma, você deve:",
+      "i1": "Ter <b>no mínimo 18 anos</b> e capacidade civil para contratar;",
+      "i2": "Fornecer informações <b>verídicas, completas e atualizadas</b>;",
+      "i3": "Manter a confidencialidade das suas credenciais de acesso.",
+      "p2": "O cadastro pode ser feito por meio do <b>login da sua conta do Facebook</b>. Você é responsável por toda atividade realizada na sua conta. Avise-nos imediatamente em caso de uso não autorizado."
+    },
+    "s4": {
+      "titulo": "4. Responsabilidades dos usuários",
+      "anunciantes": "Anunciantes são responsáveis por:",
+      "a1": "Garantir que possuem o direito de disponibilizar a embarcação para aluguel;",
+      "a2": "Manter a embarcação em condições adequadas, seguras e regularizadas perante os órgãos competentes (ex.: Marinha do Brasil), incluindo documentação, habilitação e equipamentos de segurança exigidos;",
+      "a3": "Prestar informações verdadeiras sobre a embarcação.",
+      "locatarios": "Locatários são responsáveis por:",
+      "l1": "Usar a embarcação de forma adequada, legal e segura;",
+      "l2": "Possuir a habilitação náutica exigida, quando aplicável;",
+      "l3": "Cumprir as condições combinadas com o Anunciante."
+    },
+    "s5": {
+      "titulo": "5. Condutas proibidas",
+      "p1": "Ao usar a plataforma, você concorda em <b>não</b>:",
+      "i1": "Fornecer informações falsas ou se passar por outra pessoa;",
+      "i2": "Usar a plataforma para fins ilícitos ou fraudulentos;",
+      "i3": "Violar direitos de terceiros ou da própria plataforma;",
+      "i4": "Tentar burlar, sobrecarregar ou comprometer a segurança do sistema;",
+      "i5": "Copiar, modificar ou explorar comercialmente o conteúdo do Boatzy sem autorização.",
+      "p2": "Podemos suspender ou encerrar contas que violem estes Termos."
+    },
+    "s6": {
+      "titulo": "6. Pagamentos",
+      "nota": "<b>Funcionalidade futura.</b> Na fase atual, a plataforma ainda não processa pagamentos. Quando o serviço de pagamentos for disponibilizado, condições específicas (taxas, repasses, reembolsos e cancelamentos) serão detalhadas e comunicadas aos usuários, podendo ser objeto de termos complementares."
+    },
+    "s7": {
+      "titulo": "7. Isenção de responsabilidade",
+      "p1": "Como o Boatzy é apenas intermediário:",
+      "i1": "Não garantimos a qualidade, segurança, legalidade ou disponibilidade das embarcações anunciadas, nem a idoneidade dos usuários;",
+      "i2": "Não nos responsabilizamos por danos, acidentes, perdas ou prejuízos decorrentes da relação de locação ou do uso das embarcações, que são de responsabilidade exclusiva de Anunciantes e Locatários;",
+      "i3": "A plataforma é fornecida \"no estado em que se encontra\", especialmente nesta fase de desenvolvimento, podendo apresentar instabilidades ou indisponibilidades."
+    },
+    "s8": {
+      "titulo": "8. Limitação de responsabilidade",
+      "p": "Na máxima extensão permitida pela lei brasileira, o Boatzy não será responsável por danos indiretos, lucros cessantes ou prejuízos decorrentes do uso ou da impossibilidade de uso da plataforma, ressalvadas as hipóteses em que a lei não admita tal limitação."
+    },
+    "s9": {
+      "titulo": "9. Propriedade intelectual",
+      "p": "O nome, a marca, o logotipo, o layout, os textos e os demais elementos da plataforma pertencem ao Boatzy (ou a seus titulares) e são protegidos por lei. O uso da plataforma não transfere a você qualquer direito sobre esses elementos."
+    },
+    "s10": {
+      "titulo": "10. Privacidade",
+      "p": "O tratamento dos seus dados pessoais é regido pela nossa <privacidade>Política de Privacidade</privacidade>, que integra estes Termos."
+    },
+    "s11": {
+      "titulo": "11. Suspensão e encerramento",
+      "p": "Você pode encerrar sua conta a qualquer momento. Podemos suspender ou encerrar o acesso de usuários que violem estes Termos ou a lei, ou descontinuar a plataforma (no todo ou em parte), especialmente por se tratar de projeto em desenvolvimento."
+    },
+    "s12": {
+      "titulo": "12. Alterações destes Termos",
+      "p": "Podemos atualizar estes Termos periodicamente. A data da última atualização será sempre indicada no topo. Mudanças relevantes serão comunicadas pelos canais disponíveis. O uso continuado da plataforma após as alterações representa concordância com a nova versão."
+    },
+    "s13": {
+      "titulo": "13. Lei aplicável e foro",
+      "p": "Estes Termos são regidos pelas <b>leis da República Federativa do Brasil</b>. Fica eleito o foro do domicílio do consumidor para dirimir eventuais controvérsias, conforme o Código de Defesa do Consumidor, quando aplicável."
+    },
+    "s14": {
+      "titulo": "14. Contato",
+      "p": "Dúvidas sobre estes Termos de Uso:"
+    }
+  },
+  "PoliticaPrivacidade": {
+    "metaTitulo": "Política de Privacidade — Boatzy",
+    "metaDescricao": "Saiba como o Boatzy trata seus dados pessoais em conformidade com a LGPD e o Marco Civil da Internet.",
+    "titulo": "Política de Privacidade",
+    "status": "<b>Status:</b> Minuta provisória (v1) — versão preliminar destinada a atender aos requisitos de login social (Facebook/Meta) na fase de desenvolvimento da plataforma. <b>Não é a versão final.</b> Recomenda-se revisão por advogado de direito digital antes do lançamento oficial e após a constituição da empresa (CNPJ).",
+    "s1": {
+      "titulo": "1. Quem somos",
+      "p1": "O <b>Boatzy</b> (\"Boatzy\", \"nós\" ou \"plataforma\") é um projeto em desenvolvimento que está construindo uma plataforma digital de intermediação de aluguel de embarcações — conectando pessoas que desejam alugar barcos (Locatários) a proprietários que os disponibilizam (Anunciantes).",
+      "p2": "Esta Política de Privacidade explica como tratamos os dados pessoais de quem acessa ou se cadastra na plataforma, em conformidade com a <b>Lei nº 13.709/2018 (Lei Geral de Proteção de Dados — LGPD)</b> e o <b>Marco Civil da Internet (Lei nº 12.965/2014)</b>.",
+      "controlador": "<b>Responsável pelo tratamento dos dados (Controlador):</b> Boatzy — projeto em desenvolvimento <em>(razão social e CNPJ a serem incluídos após a constituição da empresa)</em>",
+      "canal": "<b>Canal de contato para assuntos de privacidade:</b> <email>adm@boatzy.app</email>",
+      "site": "<b>Site:</b> boatzy.app"
+    },
+    "s2": {
+      "titulo": "2. Quais dados coletamos",
+      "p1": "Nesta fase, coletamos os dados estritamente necessários para criar e identificar sua conta:",
+      "a": "a) Dados que você nos fornece ao se cadastrar via login do Facebook:",
+      "a1": "Nome completo",
+      "a2": "Endereço de e-mail",
+      "a3": "Gênero",
+      "a4": "Cidade",
+      "a5": "Foto de perfil",
+      "b": "b) Dados coletados automaticamente quando você usa a plataforma:",
+      "b1": "Endereço de IP, tipo de dispositivo e navegador",
+      "b2": "Dados de navegação e de uso (páginas acessadas, data e hora)",
+      "b3": "Cookies e tecnologias semelhantes (ver seção 6)",
+      "minimizacao": "Aplicamos o princípio da <b>minimização</b>: coletamos apenas o necessário para o funcionamento da plataforma na fase atual. Não coletamos dados sensíveis (origem racial, opinião política, saúde, vida sexual etc.)."
+    },
+    "s3": {
+      "titulo": "3. Como e por que usamos seus dados",
+      "p1": "Usamos seus dados pelas seguintes finalidades e bases legais previstas na LGPD:",
+      "finalidade": "Finalidade",
+      "base": "Base legal (LGPD)",
+      "linhas": {
+        "conta": {
+          "f": "Criar, identificar e autenticar sua conta",
+          "b": "Execução de contrato (art. 7º, V)"
+        },
+        "login": {
+          "f": "Permitir o login pela conta do Facebook",
+          "b": "Execução de contrato / consentimento"
+        },
+        "operar": {
+          "f": "Operar, manter e melhorar a plataforma",
+          "b": "Legítimo interesse (art. 7º, IX)"
+        },
+        "personalizar": {
+          "f": "Personalizar sua experiência e comunicações (ex.: tratamento adequado)",
+          "b": "Legítimo interesse / consentimento"
+        },
+        "avisos": {
+          "f": "Comunicar avisos importantes sobre sua conta",
+          "b": "Execução de contrato"
+        },
+        "legal": {
+          "f": "Cumprir obrigações legais e regulatórias",
+          "b": "Obrigação legal (art. 7º, II)"
+        },
+        "fraude": {
+          "f": "Prevenir fraudes e garantir a segurança",
+          "b": "Legítimo interesse"
+        }
+      },
+      "naoVendemos": "Não vendemos seus dados pessoais."
+    },
+    "s4": {
+      "titulo": "4. Com quem compartilhamos",
+      "p1": "Podemos compartilhar dados apenas quando necessário e nas seguintes situações:",
+      "i1": "<b>Provedores de tecnologia</b> que nos apoiam (hospedagem, autenticação, análise) — apenas o necessário e sob obrigação de confidencialidade.",
+      "i2": "<b>Meta/Facebook</b>, quando você opta por usar o login social — o tratamento dos dados pela Meta é regido pela política de privacidade dela.",
+      "i3": "<b>Autoridades públicas</b>, quando exigido por lei, ordem judicial ou para defesa de direitos.",
+      "p2": "Não compartilhamos seus dados com terceiros para fins de marketing sem o seu consentimento."
+    },
+    "s5": {
+      "titulo": "5. Por quanto tempo guardamos",
+      "p": "Mantemos seus dados pelo tempo necessário para as finalidades descritas ou para cumprir obrigações legais. Você pode solicitar a exclusão da sua conta e dos seus dados a qualquer momento pelo e-mail <email>adm@boatzy.app</email>, ressalvadas as informações que a lei exige que sejam mantidas."
+    },
+    "s6": {
+      "titulo": "6. Cookies e tecnologias semelhantes",
+      "p1": "Cookies são pequenos arquivos guardados no seu navegador. Também usamos o armazenamento local do navegador, que funciona de forma parecida. Separamos o que usamos em duas categorias:",
+      "necessarios": "<b>Necessários</b> — indispensáveis para a plataforma funcionar (manter você conectado e guardar preferências do site). Ficam sempre ativos, com base na execução do contrato e no legítimo interesse (art. 7º, V e IX, da LGPD).",
+      "medicao": "<b>Medição</b> — o Google Analytics, que nos mostra de forma estatística como o site é usado (páginas visitadas, de onde vêm os acessos, tipo de aparelho e região aproximada) para melhorarmos o Boatzy, com base no legítimo interesse (art. 7º, IX, da LGPD). Não usamos cookies de publicidade.",
+      "controlarTitulo": "Como controlar os cookies",
+      "controlar": "Quando você está conectado, as estatísticas de Medição são associadas a um código interno da sua conta — nunca ao seu nome ou e-mail. Você pode bloquear ou apagar cookies a qualquer momento nas configurações do seu navegador; bloquear os cookies de Medição não limita o uso da plataforma, mas bloquear os Necessários pode impedir o login.",
+      "tabelaTitulo": "Cookies e itens que usamos",
+      "colunas": {
+        "nome": "Nome",
+        "deQuem": "De quem",
+        "categoria": "Categoria",
+        "paraQue": "Para quê",
+        "duracao": "Duração"
+      },
+      "categorias": {
+        "necessario": "Necessário",
+        "medicao": "Medição"
+      },
+      "origem": {
+        "supabase": "Boatzy (Supabase)",
+        "navegador": "Boatzy (armazenamento do navegador)",
+        "ga": "Google Analytics",
+        "boatzy": "Boatzy"
+      },
+      "itens": {
+        "auth": {
+          "para": "Mantém você conectado com segurança.",
+          "duracao": "Sessão de login (renovada enquanto você usa)"
+        },
+        "locais": {
+          "para": "Lembra os últimos destinos buscados neste aparelho."
+        },
+        "tutorial": {
+          "para": "Lembra que o tutorial do painel do anunciante já foi visto."
+        },
+        "idioma": {
+          "para": "Guarda o idioma escolhido para o site.",
+          "duracao": "1 ano"
+        },
+        "gaLocal": {
+          "para": "Evita contar duas vezes o mesmo evento estatístico."
+        },
+        "ga": {
+          "para": "Distingue visitantes de forma estatística."
+        },
+        "gaSessao": {
+          "para": "Mantém o estado da visita para as estatísticas."
+        }
+      },
+      "ateLimpar": "Até você limpar os dados do navegador",
+      "doisAnos": "2 anos",
+      "google": "O Google Analytics é um serviço da Google LLC, que pode tratar dados fora do Brasil conforme as garantias da sua própria política de privacidade (policies.google.com/privacy)."
+    },
+    "s7": {
+      "titulo": "7. Segurança",
+      "p": "Adotamos medidas técnicas e organizacionais razoáveis para proteger seus dados contra acesso não autorizado, perda ou alteração. Nenhum sistema é 100% seguro, mas trabalhamos para reduzir riscos e responder a eventuais incidentes."
+    },
+    "s8": {
+      "titulo": "8. Transferência internacional",
+      "p": "Alguns de nossos provedores de tecnologia podem estar localizados fora do Brasil. Nesses casos, adotamos salvaguardas para que seus dados continuem protegidos conforme a LGPD."
+    },
+    "s9": {
+      "titulo": "9. Seus direitos como titular",
+      "p1": "Nos termos do art. 18 da LGPD, você pode, a qualquer momento:",
+      "i1": "Confirmar a existência de tratamento dos seus dados",
+      "i2": "Acessar seus dados",
+      "i3": "Corrigir dados incompletos, inexatos ou desatualizados",
+      "i4": "Solicitar anonimização, bloqueio ou eliminação de dados desnecessários",
+      "i5": "Solicitar a portabilidade dos dados",
+      "i6": "Revogar o consentimento e solicitar a exclusão da conta",
+      "i7": "Obter informação sobre com quem compartilhamos seus dados",
+      "p2": "Para exercer qualquer um desses direitos, escreva para <email>adm@boatzy.app</email>."
+    },
+    "s10": {
+      "titulo": "10. Menores de idade",
+      "p": "A plataforma é destinada a maiores de 18 anos. Não coletamos intencionalmente dados de menores de idade. Se identificarmos esse tipo de coleta, os dados serão excluídos."
+    },
+    "s11": {
+      "titulo": "11. Alterações desta Política",
+      "p": "Podemos atualizar esta Política periodicamente, especialmente conforme a plataforma evolui. A data da última atualização será sempre indicada no topo. Mudanças relevantes serão comunicadas pelos canais disponíveis."
+    },
+    "s12": {
+      "titulo": "12. Contato",
+      "p": "Dúvidas, solicitações ou reclamações sobre privacidade e proteção de dados:",
+      "dpo": "Encarregado pelo Tratamento de Dados (DPO) a ser designado após a constituição da empresa."
+    }
+  }
+}

@@ -1,5 +1,6 @@
 import 'server-only';
 
+import { getTranslations } from 'next-intl/server';
 import { supabaseAdmin } from '@/lib/supabase';
 import type { Mensagem } from '@/components/chat/ChatBox';
 import type { OrigemTipo } from '@/lib/conversa-origem';
@@ -28,8 +29,6 @@ export type ChatDonoDados = {
 export type ResultadoChatDono =
   | { ok: true; dados: ChatDonoDados }
   | { ok: false; motivo: 'nao_encontrado' | 'dono' };
-
-const DESCRICAO_DONO = 'Dono da embarcação · conversa pelo Boatzy';
 
 async function abrirConversa(params: {
   gestorId: string;
@@ -84,7 +83,7 @@ async function abrirConversa(params: {
     dados: {
       conversaId: conversa.id,
       meId: clienteId,
-      interlocutor: { name: dono.name, descricao: DESCRICAO_DONO, avatar_url: dono.avatar_url },
+      interlocutor: { name: dono.name, descricao: (await getTranslations('Chat'))('descricaoDono'), avatar_url: dono.avatar_url },
       mensagens: (mensagens ?? []) as Mensagem[],
       avisoCiente: usuarioDb?.chat_aviso_ciente_em != null,
       origemTipo: params.origemTipo,

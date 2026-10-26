@@ -1,0 +1,95 @@
+{
+  "MinhaConta": {
+    "titulo": "My account",
+    "metaTitulo": "My account | Boatzy",
+    "subtitulo": "Manage your personal details and preferences.",
+    "clientePadrao": "Customer",
+    "secoes": {
+      "rotulo": "Account sections",
+      "dadosPessoais": "Personal details",
+      "endereco": "My address",
+      "notificacoes": "Notifications",
+      "idioma": "Language",
+      "seguranca": "Security"
+    },
+    "clienteDesde": "Customer since {data}",
+    "loginVinculado": "Linked sign-in:",
+    "provedorEmail": "Email and password",
+    "dados": {
+      "subtitulo": "Update your contact information.",
+      "emailFixo": "Your email can't be changed.",
+      "nascimento": "Date of birth",
+      "opcional": "(optional)",
+      "nascimentoInvalido": "Invalid date of birth.",
+      "salvar": "Save changes",
+      "atualizados": "Details updated.",
+      "informeNome": "Enter your full name.",
+      "celularInvalido": "Invalid mobile number.",
+      "sessao": "Your session has expired. Please sign in again.",
+      "naoFoiPossivelSalvar": "We couldn't save. Please try again."
+    },
+    "endereco": {
+      "subtitulo": "Optional. For Brazilian addresses, enter the CEP (postal code) to fill in automatically.",
+      "cep": "CEP (postal code)",
+      "cepNaoEncontrado": "CEP not found. Check the number or fill in manually.",
+      "cepErro": "Couldn't look up the CEP. Please fill in manually.",
+      "estado": "State",
+      "selecione": "Select",
+      "municipio": "City",
+      "bairro": "Neighborhood",
+      "logradouro": "Street",
+      "logradouroPlaceholder": "Street, avenue…",
+      "numero": "Number",
+      "complemento": "Address line 2",
+      "complementoPlaceholder": "Apt, building, landmark…",
+      "salvar": "Save address",
+      "atualizado": "Address updated."
+    },
+    "notificacoes": {
+      "subtitulo": "Choose what you want to receive by email.",
+      "conversas": "Get email notifications for new messages",
+      "conversasAjuda": "We'll email you when you have new unread chat messages.",
+      "sempre": "Updates about your bookings and payments (confirmation, cancellation, payment approved or declined, payment deadline and refund) are always sent by email and appear in <link>Notifications</link>."
+    },
+    "idioma": {
+      "subtitulo": "Site language. Your choice is saved to your account and applies on any device.",
+      "emailsPt": "For now, Boatzy emails are sent in Portuguese."
+    },
+    "seguranca": {
+      "subtitulo": "Change your account password.",
+      "senhaAtual": "Current password",
+      "alterar": "Change password",
+      "requisitos": "The new password doesn't meet all the requirements.",
+      "atualIncorreta": "Incorrect current password.",
+      "falha": "We couldn't change the password. Please try again.",
+      "sucesso": "Password changed.",
+      "social": "Your account uses social sign-in ({provedores}), so there's no password to change here. Manage access directly with your provider."
+    }
+  },
+  "MinhasConversas": {
+    "metaTitulo": "My conversations",
+    "titulo": "My conversations",
+    "subtitulo": "Your conversations with boat managers — trip and boat bookings and boats for sale.",
+    "vazioTitulo": "You don't have any conversations yet",
+    "vazioTexto": "When you chat with a manager about a booking or a boat for sale, the conversation shows up here.",
+    "explorar": "Explore Boatzy",
+    "iniciarConversa": "Start conversation",
+    "diasAtras": "{n, plural, one {# day} other {# days}} ago",
+    "voltar": "Back to My conversations"
+  },
+  "Favoritos": {
+    "metaTitulo": "Favorites",
+    "titulo": "Favorites",
+    "subtitulo": "The trips and boats you saved to decide later.",
+    "vazioTitulo": "You don't have any favorites yet",
+    "vazioTexto": "Tap the heart on a trip or a boat to save it here.",
+    "explorar": "Explore trips",
+    "secoes": {
+      "roteiros": "Trips",
+      "embarcacoes": "Boats",
+      "venda": "For sale"
+    },
+    "remover": "Remove from favorites",
+    "embarcacaoPadrao": "Boat"
+  }
+}

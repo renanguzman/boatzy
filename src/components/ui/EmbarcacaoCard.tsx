@@ -4,8 +4,11 @@ import { useEffect, useState, useTransition } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import { useTranslations } from 'next-intl';
 import { MapPin, Star, Ship, Users, Sparkles } from 'lucide-react';
 import { alternarFavoritoEmbarcacao } from '@/lib/favoritos-actions';
+import { useFormatos } from '@/i18n/formatos';
+import { useCatalogo } from '@/i18n/CatalogoProvider';
 
 export type EmbarcacaoCardData = {
   id: string;
@@ -33,6 +36,9 @@ export default function EmbarcacaoCard({
   href?: string;
 }) {
   const router = useRouter();
+  const t = useTranslations('Cards');
+  const f = useFormatos();
+  const { traduzir } = useCatalogo();
   const [, startTransition] = useTransition();
   const [favorito, setFavorito] = useState(initialFavorito);
 
@@ -105,7 +111,7 @@ export default function EmbarcacaoCard({
         {embarcacao.tipo && (
           <div className="absolute bottom-3 left-3">
             <span className="bg-marinho/90 backdrop-blur-sm text-white text-[10px] font-semibold px-2.5 py-1 rounded-full">
-              {embarcacao.tipo}
+              {traduzir('tipo', embarcacao.tipo)}
             </span>
           </div>
         )}
@@ -114,7 +120,7 @@ export default function EmbarcacaoCard({
         {!avaliacaoResumo && (
           <span className="absolute top-3 left-3 inline-flex items-center gap-1 rounded-full bg-white/95 backdrop-blur-sm px-2.5 py-1 text-[10px] font-bold text-marinho shadow-sm">
             <Sparkles className="h-3 w-3 text-turquesa-escuro" />
-            Novo
+            {t('novo')}
           </span>
         )}
 
@@ -122,7 +128,7 @@ export default function EmbarcacaoCard({
         <button
           type="button"
           onClick={handleFavoritar}
-          aria-label={favorito ? 'Remover dos favoritos' : 'Adicionar aos favoritos'}
+          aria-label={favorito ? t('removerFavorito') : t('adicionarFavorito')}
           aria-pressed={favorito}
           className="absolute top-3 right-3 h-8 w-8 rounded-full bg-white/80 backdrop-blur-sm flex items-center justify-center hover:bg-white hover:scale-110 transition-all"
         >
@@ -158,18 +164,18 @@ export default function EmbarcacaoCard({
             {embarcacao.capacidade && (
               <div className="flex items-center gap-1 mt-1 text-xs text-slate-400">
                 <Users className="h-3 w-3 shrink-0" />
-                <span className="truncate">até {embarcacao.capacidade} pessoas</span>
+                <span className="truncate">{t('ateNPessoas', { count: embarcacao.capacidade })}</span>
               </div>
             )}
           </div>
           {avaliacaoResumo && (
             <span
               className="flex items-center gap-1 shrink-0"
-              title={`${avaliacaoResumo.total} ${avaliacaoResumo.total === 1 ? 'avaliação' : 'avaliações'}`}
+              title={t('avaliacoes', { count: avaliacaoResumo.total })}
             >
               <Star className="h-3.5 w-3.5 fill-destaque text-destaque" />
               <span className="text-sm font-semibold text-grafite">
-                {avaliacaoResumo.media.toLocaleString('pt-BR', {
+                {f.numero(avaliacaoResumo.media, {
                   minimumFractionDigits: 1,
                   maximumFractionDigits: 1,
                 })}

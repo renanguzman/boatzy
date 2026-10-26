@@ -1,4 +1,5 @@
 import { notFound, redirect } from 'next/navigation';
+import { getTranslations } from 'next-intl/server';
 import Header from '@/components/layout/Header';
 import EventoAnalytics from '@/components/analytics/EventoAnalytics';
 import { createClient } from '@/lib/supabase/server';
@@ -38,13 +39,14 @@ export default async function ChatRoteiroPage({
     notFound();
   }
   const { conversaId, interlocutor, mensagens, avisoCiente, origemLabel: roteiroNome } = resultado.dados;
+  const t = await getTranslations('Chat');
 
   // Rascunho: o texto que o cliente começou no detalhe do roteiro; sem ele, a mensagem
   // contextual padrão, apenas em conversa ainda vazia.
   const rascunhoInicial =
     mensagemDigitada ??
     (mensagens.length === 0
-      ? `Olá! Tenho interesse no roteiro "${roteiroNome}". Podemos conversar?`
+      ? t('rascunhoRoteiro', { nome: roteiroNome })
       : undefined);
 
   return (
@@ -58,7 +60,7 @@ export default async function ChatRoteiroPage({
           meId={user.id}
           interlocutor={interlocutor}
           voltarHref={`/roteiros/${id}`}
-          voltarLabel="Voltar para o roteiro"
+          voltarLabel={t('voltarRoteiro')}
           mensagensIniciais={mensagens}
           rascunhoInicial={rascunhoInicial}
           contexto={{ tipo: 'roteiro', label: roteiroNome }}

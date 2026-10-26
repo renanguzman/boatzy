@@ -1,21 +1,20 @@
 import { notFound, redirect } from 'next/navigation';
 import Link from 'next/link';
+import { getTranslations } from 'next-intl/server';
 import { CalendarDays, Users, MapPin, Ship, BadgeCheck, TimerOff, Receipt } from 'lucide-react';
 import Header from '@/components/layout/Header';
 import Footer from '@/components/layout/Footer';
 import { createClient } from '@/lib/supabase/server';
 import { supabaseAdmin } from '@/lib/supabase';
-import { formatCurrencyPrecise } from '@/lib/utils';
 import { isValidCPF } from '@/lib/validators';
 import { lerAsaasConfig } from '@/lib/asaas/config';
 import { getFormasPagamento } from '@/lib/financeiro/config';
 import { expirarPedidosVencidosSemFalhar, PAGAMENTO_PAGO } from '@/lib/pagamentos/pedidos';
 import { opcoesParcelas } from '@/lib/pagamentos/valores';
 import { retomarPixPendente } from '@/lib/pagamentos/checkout';
-import { formatarDataHoraBR } from '@/lib/termos/formato';
 import type { FormaPagamentoCodigo, PedidoStatus } from '@/types/supabase';
 import CheckoutPagamento, { type FormaCheckout, type Pix } from './_components/CheckoutPagamento';
-import { FUSO_HORARIO } from '@/lib/datas';
+import { getFormatos } from '@/i18n/formatos-servidor';
 import EventoAnalytics from '@/components/analytics/EventoAnalytics';
 
 type PedidoPagar = {
@@ -42,10 +41,6 @@ type ReservaPagar = {
   pedido: PedidoPagar | PedidoPagar[] | null;
 };
 
-function dataLonga(iso: string): string {
-  return new Date(`${iso}T12:00:00`).toLocaleDateString('pt-BR', { timeZone: FUSO_HORARIO, weekday: 'long', day: '2-digit', month: 'long', year: 'numeric' });
-}
-
 export default async function PagarReservaPage({
   params,
   searchParams,
@@ -55,6 +50,13 @@ export default async function PagarReservaPage({
 }) {
   const { id } = await params;
   const sp = await searchParams;
+  const [t, tNav, tPessoas, f] = await Promise.all([
+    getTranslations('Pagamento'),
+    getTranslations('Navegacao'),
+    getTranslations('CamposBusca.quantidade.pessoas'),
+    getFormatos(),
+  ]);
+  const dataLonga = (iso: string) => f.data(iso, { weekday: 'long', day: '2-digit', month: 'long', year: 'numeric' });
 
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
@@ -99,7 +101,7 @@ export default async function PagarReservaPage({
       pago = {
         comprovante: pg.comprovante_url ?? pg.fatura_url,
         forma: pg.forma_pagamento,
-        cartao: c ? `${c.bandeira} final ${c.ultimos_digitos}` : null,
+        cartao: c ? t('cartaoFinal', { bandeira: c.bandeira, digitos: c.ultimos_digitos }) : null,
       };
     }
   }
@@ -123,17 +125,17 @@ export default async function PagarReservaPage({
         .maybeSingle(),
     ]);
     formas = todas
-      .filter((f) => f.ativo)
-      .map((f) => ({
-        codigo: f.codigo,
-        nome: f.nome,
+      .filter((forma) => forma.ativo)
+      .map((forma) => ({
+        codigo: forma.codigo,
+        nome: forma.codigo === 'pix' || forma.codigo === 'cartao_credito' ? t(`formas.${forma.codigo}`) : forma.nome,
         opcoesParcelas:
-          f.codigo === 'cartao_credito'
-            ? opcoesParcelas(Number(pedido.valor_total), f.parcelas_max, f.valor_minimo_parcela != null ? Number(f.valor_minimo_parcela) : null)
+          forma.codigo === 'cartao_credito'
+            ? opcoesParcelas(Number(pedido.valor_total), forma.parcelas_max, forma.valor_minimo_parcela != null ? Number(forma.valor_minimo_parcela) : null)
             : [1],
       }));
     precisaCpf = !(usuario?.cpf_cnpj && isValidCPF(usuario.cpf_cnpj));
-    formaInicial = pendente && formas.some((f) => f.codigo === pendente.forma_pagamento) ? pendente.forma_pagamento : null;
+    formaInicial = pendente && formas.some((forma) => forma.codigo === pendente.forma_pagamento) ? pendente.forma_pagamento : null;
     if (formaInicial === 'pix' && sp.retorno !== '1') pixInicial = await retomarPixPendente(pedido.id);
   }
 
@@ -146,19 +148,19 @@ export default async function PagarReservaPage({
 
       <main className="flex-1 max-w-3xl w-full mx-auto px-4 py-10">
         <Link href="/minhas-reservas" className="text-sm text-slate-500 hover:text-slate-700">
-          ← Minhas reservas
+          {t('voltar')}
         </Link>
 
-        <h1 className="mt-3 text-2xl font-bold text-marinho">Pagamento da reserva</h1>
+        <h1 className="mt-3 text-2xl font-bold text-marinho">{t('titulo')}</h1>
         <p className="text-sm text-slate-500 mt-1">
-          O pagamento é feito pelo Boatzy e garante a sua data. O gestor recebe depois do passeio.
+          {t('subtitulo')}
         </p>
 
         <div className="mt-6 grid grid-cols-1 md:grid-cols-5 gap-5">
           {/* Resumo */}
           <section className="md:col-span-2 rounded-2xl border border-slate-200 bg-white shadow-sm p-5 h-fit">
             <div className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-slate-400">
-              <TipoIcon className="h-3 w-3" /> {reserva.tipo === 'embarcacao' ? 'Embarcação' : 'Roteiro'}
+              <TipoIcon className="h-3 w-3" /> {t(`tipo.${reserva.tipo}`)}
             </div>
             <h2 className="mt-0.5 text-base font-bold text-marinho">{reserva.roteiro?.nome ?? reserva.item_nome}</h2>
             {localidade && <p className="text-xs text-slate-500 mt-0.5">{localidade}</p>}
@@ -171,7 +173,7 @@ export default async function PagarReservaPage({
               </p>
               <p className="flex items-center gap-2">
                 <Users className="h-4 w-4 text-slate-400 shrink-0" />
-                {reserva.quantidade_pessoas} {reserva.quantidade_pessoas === 1 ? 'pessoa' : 'pessoas'}
+                {tPessoas('valor', { count: reserva.quantidade_pessoas })}
               </p>
             </div>
 
@@ -179,19 +181,19 @@ export default async function PagarReservaPage({
               <div className="mt-5 pt-4 border-t border-slate-100 space-y-2 text-sm">
                 {/* Taxa de serviço embutida: o cliente não a vê separada. */}
                 <div className="flex justify-between">
-                  <span className="text-slate-500">Passeio e adicionais</span>
-                  <span className="text-slate-700">{formatCurrencyPrecise(Number(pedido.valor_itens) + Number(pedido.valor_comissao))}</span>
+                  <span className="text-slate-500">{t('passeioEAdicionais')}</span>
+                  <span className="text-slate-700">{f.moedaCentavos(Number(pedido.valor_itens) + Number(pedido.valor_comissao))}</span>
                 </div>
                 {Number(pedido.valor_desconto) > 0 && (
                   <div className="flex justify-between text-turquesa-escuro">
-                    <span>Desconto{cupom ? ` (${cupom})` : ''}</span>
-                    <span>-{formatCurrencyPrecise(Number(pedido.valor_desconto))}</span>
+                    <span>{cupom ? t('descontoCupom', { cupom }) : t('desconto')}</span>
+                    <span>-{f.moedaCentavos(Number(pedido.valor_desconto))}</span>
                   </div>
                 )}
                 <div className="flex justify-between border-t border-slate-100 pt-2 font-bold text-marinho">
-                  <span>Total</span><span>{formatCurrencyPrecise(Number(pedido.valor_total))}</span>
+                  <span>{t('total')}</span><span>{f.moedaCentavos(Number(pedido.valor_total))}</span>
                 </div>
-                <p className="text-[11px] text-slate-400">Pedido #{pedido.numero}</p>
+                <p className="text-[11px] text-slate-400">{t('pedido', { numero: pedido.numero })}</p>
               </div>
             )}
           </section>
@@ -200,13 +202,14 @@ export default async function PagarReservaPage({
           <div className="md:col-span-3">
             {!pedido ? (
               <div className="rounded-2xl border border-slate-200 bg-white shadow-sm p-6 text-sm text-slate-600">
-                Esta reserva não tem pagamento pendente. Acompanhe o status em{' '}
-                <Link href="/minhas-reservas" className="font-medium text-marinho hover:underline">Minhas reservas</Link>.
+                {t.rich('semPendente', {
+                  link: (texto) => <Link href="/minhas-reservas" className="font-medium text-marinho hover:underline">{texto}</Link>,
+                })}
               </div>
             ) : pedido.status === 'aguardando_pagamento' && pedido.expira_em ? (
               formas.length === 0 ? (
                 <div className="rounded-2xl border border-slate-200 bg-white shadow-sm p-6 text-sm text-slate-600">
-                  Nenhuma forma de pagamento está disponível no momento. Tente novamente mais tarde.
+                  {t('semFormas')}
                 </div>
               ) : (
                 <CheckoutPagamento
@@ -247,26 +250,24 @@ export default async function PagarReservaPage({
                 )}
                 <BadgeCheck className="h-9 w-9 text-turquesa-escuro" />
                 <h2 className="mt-3 text-lg font-bold text-marinho">
-                  {pedido.status === 'pago' ? 'Pagamento confirmado!' : 'Pagamento recebido'}
+                  {pedido.status === 'pago' ? t('confirmado') : t('recebido')}
                 </h2>
                 <p className="mt-1 text-sm text-slate-600">
-                  {pedido.status === 'pago'
-                    ? 'Sua reserva está confirmada. Enviamos os detalhes para o seu e-mail.'
-                    : 'Este pedido teve alteração após o pagamento (reembolso ou contestação). Fale com o suporte em caso de dúvida.'}
+                  {pedido.status === 'pago' ? t('confirmadoTexto') : t('alteradoTexto')}
                 </p>
                 <div className="mt-4 space-y-1 text-sm text-slate-600">
-                  {pedido.pago_em && <p>Pago em {formatarDataHoraBR(pedido.pago_em)}</p>}
-                  {pago && <p>{pago.forma === 'pix' ? 'Pix' : `Cartão de crédito${pago.cartao ? ` · ${pago.cartao}` : ''}`}</p>}
+                  {pedido.pago_em && <p>{t('pagoEm', { data: f.dataHora(pedido.pago_em) })}</p>}
+                  {pago && <p>{pago.forma === 'pix' ? t('formas.pix') : `${t('formas.cartao_credito')}${pago.cartao ? ` · ${pago.cartao}` : ''}`}</p>}
                 </div>
                 <div className="mt-5 flex flex-wrap gap-3">
                   {pago?.comprovante && (
                     <a href={pago.comprovante} target="_blank" rel="noopener noreferrer"
                       className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-semibold text-marinho hover:bg-slate-50">
-                      <Receipt className="h-4 w-4" /> Ver comprovante
+                      <Receipt className="h-4 w-4" /> {t('verComprovante')}
                     </a>
                   )}
                   <Link href="/minhas-reservas" className="inline-flex items-center rounded-xl bg-marinho hover:bg-marinho-escuro px-4 py-2.5 text-sm font-semibold text-white">
-                    Minhas reservas
+                    {tNav('minhasReservas')}
                   </Link>
                 </div>
               </div>
@@ -274,13 +275,13 @@ export default async function PagarReservaPage({
               <div className="rounded-2xl border border-slate-200 bg-white shadow-sm p-6">
                 <TimerOff className="h-9 w-9 text-slate-400" />
                 <h2 className="mt-3 text-lg font-bold text-marinho">
-                  {pedido.status === 'expirado' ? 'O prazo de pagamento terminou' : 'Pagamento cancelado'}
+                  {pedido.status === 'expirado' ? t('prazoTerminou') : t('cancelado')}
                 </h2>
                 <p className="mt-1 text-sm text-slate-600">
-                  Nenhum valor foi cobrado. Se ainda quiser o passeio, faça uma nova solicitação — a data pode continuar disponível.
+                  {t('nenhumValor')}
                 </p>
                 <Link href="/buscar" className="mt-5 inline-flex items-center rounded-xl bg-marinho hover:bg-marinho-escuro px-4 py-2.5 text-sm font-semibold text-white">
-                  Buscar passeios
+                  {t('buscarPasseios')}
                 </Link>
               </div>
             )}

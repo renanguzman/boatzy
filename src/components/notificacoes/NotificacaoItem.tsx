@@ -1,12 +1,15 @@
 'use client';
 
 import Link from 'next/link';
-import { quandoNotificacao, tituloNotificacao, visualNotificacao, type Notificacao } from '@/lib/notificacoes/apresentacao';
+import { useTranslations } from 'next-intl';
+import { visualNotificacao, type Notificacao } from '@/lib/notificacoes/apresentacao';
+import { useTextoNotificacao } from './useTextoNotificacao';
 
 /**
  * Linha de notificação (sino e /notificacoes): ícone colorido por tipo,
  * título, texto (2 linhas no compacto), tempo relativo e ponto de não lida.
- * Clicar marca como lida e segue o link.
+ * Clicar marca como lida e segue o link. Texto no idioma (useTextoNotificacao) —
+ * no painel, sempre pt-BR.
  */
 export default function NotificacaoItem({
   n,
@@ -18,6 +21,9 @@ export default function NotificacaoItem({
   compacto?: boolean;
 }) {
   const { icone: Icone, cor } = visualNotificacao(n.tipo);
+  const t = useTranslations('Notificacoes');
+  const { texto, quando } = useTextoNotificacao();
+  const { titulo, mensagem } = texto(n);
   const naoLida = !n.lida_em;
 
   const conteudo = (
@@ -27,14 +33,14 @@ export default function NotificacaoItem({
       </span>
       <span className="min-w-0 flex-1">
         <span className={`block text-sm leading-snug ${naoLida ? 'font-semibold text-marinho' : 'font-medium text-slate-600'}`}>
-          {tituloNotificacao(n)}
+          {titulo}
         </span>
         <span className={`mt-0.5 block text-xs leading-relaxed text-slate-500 ${compacto ? 'line-clamp-2' : ''}`}>
-          {n.mensagem}
+          {mensagem}
         </span>
-        <span className="mt-1 block text-[11px] text-slate-400">{quandoNotificacao(n.criada_em)}</span>
+        <span className="mt-1 block text-[11px] text-slate-400">{quando(n.criada_em)}</span>
       </span>
-      {naoLida && <span className="mt-1.5 h-2 w-2 shrink-0 rounded-full bg-marinho" aria-label="Não lida" />}
+      {naoLida && <span className="mt-1.5 h-2 w-2 shrink-0 rounded-full bg-marinho" aria-label={t('naoLida')} />}
     </>
   );
 

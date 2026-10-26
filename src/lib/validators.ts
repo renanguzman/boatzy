@@ -127,7 +127,8 @@ export function isValidBirthday(value: string): boolean {
 // ─── Senha ────────────────────────────────────────────────────────────────
 
 export type PasswordRule = {
-  id: string;
+  /** Também a chave do rótulo no site (`Auth.regrasSenha.<id>`). */
+  id: 'length' | 'upper' | 'lower' | 'number' | 'special';
   label: string;
   test: (pw: string) => boolean;
 };

@@ -1,11 +1,11 @@
 'use client';
 
 import { useCallback, useRef, useState } from 'react';
-import { GoogleMap, Marker, useJsApiLoader } from '@react-google-maps/api';
+import { GoogleMap, Marker } from '@react-google-maps/api';
+import { useGoogleMaps } from '@/lib/google-maps';
 import { Loader2, MapPin } from 'lucide-react';
 
 const MAP_CONTAINER_STYLE = { width: '100%', height: '320px' };
-const LIBRARIES: ('places')[] = ['places'];
 
 // Brasil centralizado como fallback
 const DEFAULT_CENTER = { lat: -15.7942, lng: -47.8822 };
@@ -19,10 +19,7 @@ type Props = {
 };
 
 export default function MapaPicker({ lat, lng, onChange }: Props) {
-  const { isLoaded, loadError } = useJsApiLoader({
-    googleMapsApiKey: process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY!,
-    libraries: LIBRARIES,
-  });
+  const { isLoaded, loadError } = useGoogleMaps();
 
   const mapRef = useRef<google.maps.Map | null>(null);
   const [isDragging, setIsDragging] = useState(false);

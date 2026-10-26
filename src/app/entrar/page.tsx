@@ -2,6 +2,7 @@
 
 import { useState, useEffect, Suspense } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
+import { useTranslations } from 'next-intl';
 import { Mail, Lock, Eye, EyeOff, ArrowRight, Loader2, User, IdCard } from 'lucide-react';
 import Link from 'next/link';
 import Image from 'next/image';
@@ -15,6 +16,8 @@ function EntrarForm() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const supabase = createClient();
+  const t = useTranslations('Auth');
+  const tRaiz = useTranslations();
 
   // `redirect_to` preserva a página de origem (ex: /charters/xyz)
   const redirectTo = searchParams.get('redirect_to') ?? '/';
@@ -58,7 +61,7 @@ function EntrarForm() {
     const { error: authError } = await supabase.auth.signInWithPassword({ email, password });
 
     if (authError) {
-      setError(translateError(authError.message));
+      setError(tRaiz(translateError(authError.message)));
       setLoading(false);
       return;
     }
@@ -75,15 +78,15 @@ function EntrarForm() {
 
     // Validações client-side antes de chamar o Supabase.
     if (!isValidCPF(cpf)) {
-      setError('CPF inválido. Confira os números digitados.');
+      setError(t('cpfInvalidoConfira'));
       return;
     }
     if (!phone.valid) {
-      setError('Informe um número de celular válido.');
+      setError(t('celularInvalido'));
       return;
     }
     if (!isStrongPassword(password)) {
-      setError('A senha não atende a todos os requisitos.');
+      setError(t('senhaFraca'));
       return;
     }
 
@@ -105,7 +108,7 @@ function EntrarForm() {
     });
 
     if (authError) {
-      setError(translateError(authError.message));
+      setError(tRaiz(translateError(authError.message)));
       setLoading(false);
       return;
     }
@@ -127,7 +130,7 @@ function EntrarForm() {
     });
 
     if (authError) {
-      setError(translateError(authError.message));
+      setError(tRaiz(translateError(authError.message)));
       throw authError; // sinaliza falha ao SocialLoginButtons para limpar o loading
     }
   }
@@ -138,15 +141,15 @@ function EntrarForm() {
         <div className="w-16 h-16 bg-turquesa/10 rounded-full flex items-center justify-center mx-auto mb-4">
           <Mail className="w-8 h-8 text-turquesa" />
         </div>
-        <h2 className="text-xl font-bold text-marinho mb-2">Verifique seu e-mail</h2>
+        <h2 className="text-xl font-bold text-marinho mb-2">{t('verifiqueEmail')}</h2>
         <p className="text-slate-500 text-sm mb-6">
-          Enviamos um link de confirmação para <strong>{email}</strong>. Clique no link para ativar sua conta.
+          {t.rich('enviamosLink', { email, b: (texto) => <strong>{texto}</strong> })}
         </p>
         <button
           onClick={() => { setMode('login'); resetForm(); }}
           className="text-marinho text-sm font-medium hover:underline"
         >
-          Já confirmei — fazer login
+          {t('jaConfirmei')}
         </button>
       </div>
     );
@@ -164,7 +167,7 @@ function EntrarForm() {
               : 'text-slate-500 hover:text-slate-700'
           }`}
         >
-          Entrar
+          {t('abaEntrar')}
         </button>
         <button
           onClick={() => { setMode('cadastro'); resetForm(); }}
@@ -174,7 +177,7 @@ function EntrarForm() {
               : 'text-slate-500 hover:text-slate-700'
           }`}
         >
-          Criar conta
+          {t('abaCriar')}
         </button>
       </div>
 
@@ -186,7 +189,7 @@ function EntrarForm() {
       <div className="flex items-center gap-3 mb-6">
         <div className="flex-1 h-px bg-slate-200" />
         <span className="text-xs text-slate-400 font-medium">
-          {mode === 'login' ? 'ou entre com e-mail' : 'ou crie com e-mail'}
+          {mode === 'login' ? t('ouEmailEntrar') : t('ouEmailCriar')}
         </span>
         <div className="flex-1 h-px bg-slate-200" />
       </div>
@@ -195,7 +198,7 @@ function EntrarForm() {
         {mode === 'cadastro' && (
           <div>
             <label htmlFor="name" className="block text-xs font-bold text-marinho tracking-wider uppercase mb-2">
-              Nome completo
+              {t('nome')}
             </label>
             <div className="relative">
               <User className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
@@ -204,7 +207,7 @@ function EntrarForm() {
                 type="text"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
-                placeholder="João Silva"
+                placeholder={t('nomePlaceholder')}
                 required
                 className="w-full pl-11 pr-4 py-3.5 rounded-xl border border-slate-200 bg-slate-50/50 text-sm text-grafite placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-marinho/20 focus:border-marinho transition-all"
               />
@@ -214,7 +217,7 @@ function EntrarForm() {
 
         <div>
           <label htmlFor="email" className="block text-xs font-bold text-marinho tracking-wider uppercase mb-2">
-            E-mail
+            {t('email')}
           </label>
           <div className="relative">
             <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
@@ -223,7 +226,7 @@ function EntrarForm() {
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              placeholder="joao@exemplo.com"
+              placeholder={t('emailPlaceholder')}
               required
               className="w-full pl-11 pr-4 py-3.5 rounded-xl border border-slate-200 bg-slate-50/50 text-sm text-grafite placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-marinho/20 focus:border-marinho transition-all"
             />
@@ -234,7 +237,7 @@ function EntrarForm() {
           <>
             <div>
               <label htmlFor="cpf" className="block text-xs font-bold text-marinho tracking-wider uppercase mb-2">
-                CPF
+                {t('cpf')}
               </label>
               <div className="relative">
                 <IdCard className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
@@ -252,13 +255,13 @@ function EntrarForm() {
                 />
               </div>
               {attemptedSubmit && cpf && !isValidCPF(cpf) && (
-                <p className="mt-1.5 text-xs text-red-500">CPF inválido.</p>
+                <p className="mt-1.5 text-xs text-red-500">{t('cpfInvalido')}</p>
               )}
             </div>
 
             <div>
               <label className="block text-xs font-bold text-marinho tracking-wider uppercase mb-2">
-                Celular
+                {t('celular')}
               </label>
               <PhoneInput
                 onChange={setPhone}
@@ -266,7 +269,7 @@ function EntrarForm() {
                 invalid={attemptedSubmit && !phone.valid}
               />
               {attemptedSubmit && !phone.valid && (
-                <p className="mt-1.5 text-xs text-red-500">Informe um número de celular válido.</p>
+                <p className="mt-1.5 text-xs text-red-500">{t('celularInvalido')}</p>
               )}
             </div>
           </>
@@ -275,11 +278,11 @@ function EntrarForm() {
         <div>
           <div className="flex items-center justify-between mb-2">
             <label htmlFor="password" className="block text-xs font-bold text-marinho tracking-wider uppercase">
-              Senha
+              {t('senha')}
             </label>
             {mode === 'login' && (
               <Link href="/recuperar-senha" className="text-xs font-medium text-marinho hover:underline">
-                Esqueceu a senha?
+                {t('esqueceu')}
               </Link>
             )}
           </div>
@@ -290,7 +293,7 @@ function EntrarForm() {
               type={showPassword ? 'text' : 'password'}
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              placeholder={mode === 'cadastro' ? 'Crie uma senha segura' : '••••••••'}
+              placeholder={mode === 'cadastro' ? t('senhaPlaceholderCriar') : '••••••••'}
               minLength={mode === 'cadastro' ? 8 : undefined}
               required
               className="w-full pl-11 pr-12 py-3.5 rounded-xl border border-slate-200 bg-slate-50/50 text-sm text-grafite placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-marinho/20 focus:border-marinho transition-all"
@@ -298,6 +301,7 @@ function EntrarForm() {
             <button
               type="button"
               onClick={() => setShowPassword(!showPassword)}
+              aria-label={showPassword ? t('ocultarSenha') : t('mostrarSenha')}
               className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition-colors"
             >
               {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
@@ -321,7 +325,7 @@ function EntrarForm() {
             <Loader2 className="w-5 h-5 animate-spin" />
           ) : (
             <>
-              {mode === 'login' ? 'Entrar' : 'Criar conta'}
+              {mode === 'login' ? t('abaEntrar') : t('abaCriar')}
               <ArrowRight className="w-4 h-4" />
             </>
           )}
@@ -332,6 +336,7 @@ function EntrarForm() {
 }
 
 export default function EntrarPage() {
+  const t = useTranslations('Auth');
   return (
     <div className="min-h-screen flex flex-col items-center justify-center bg-areia px-4 py-12">
       <div className="w-full max-w-md">
@@ -347,7 +352,7 @@ export default function EntrarPage() {
             />
           </Link>
           <p className="text-slate-500 text-sm mt-3">
-            Acesse sua conta para reservar embarcações
+            {t('subtitulo')}
           </p>
         </div>
 
@@ -358,10 +363,13 @@ export default function EntrarPage() {
         </div>
 
         <p className="text-center text-xs text-slate-400 mt-6">
-          É gestor de embarcações?{' '}
-          <Link href="/painel/login?aba=entrar" className="text-marinho font-medium hover:underline">
-            Acesse o Painel
-          </Link>
+          {t.rich('gestor', {
+            link: (texto) => (
+              <Link href="/painel/login?aba=entrar" className="text-marinho font-medium hover:underline">
+                {texto}
+              </Link>
+            ),
+          })}
         </p>
       </div>
     </div>
@@ -374,12 +382,13 @@ function baseUrl(): string {
   return process.env.NEXT_PUBLIC_APP_URL ?? window.location.origin;
 }
 
-function translateError(message: string): string {
-  if (message.includes('Invalid login credentials')) return 'E-mail ou senha incorretos.';
-  if (message.includes('Email not confirmed')) return 'Confirme seu e-mail antes de entrar.';
-  if (message.includes('User already registered') || message.includes('already been registered')) return 'Este e-mail já possui uma conta.';
-  if (message.includes('Password should be at least')) return 'A senha deve ter pelo menos 6 caracteres.';
-  if (message.includes('Too many requests')) return 'Muitas tentativas. Aguarde alguns minutos.';
-  if (message.includes('Unable to validate email')) return 'E-mail inválido.';
-  return 'Erro ao autenticar. Tente novamente.';
+/** Erro do Supabase Auth → chave da mensagem (`Auth.erros`). */
+function translateError(message: string) {
+  if (message.includes('Invalid login credentials')) return 'Auth.erros.credenciais' as const;
+  if (message.includes('Email not confirmed')) return 'Auth.erros.naoConfirmado' as const;
+  if (message.includes('User already registered') || message.includes('already been registered')) return 'Auth.erros.jaCadastrado' as const;
+  if (message.includes('Password should be at least')) return 'Auth.erros.senhaCurta' as const;
+  if (message.includes('Too many requests')) return 'Auth.erros.muitasTentativas' as const;
+  if (message.includes('Unable to validate email')) return 'Auth.erros.emailInvalido' as const;
+  return 'Auth.erros.generico' as const;
 }

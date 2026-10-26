@@ -1,6 +1,8 @@
 'use client';
 
 import { useId, useState } from 'react';
+import { useTranslations } from 'next-intl';
+import { useCatalogo } from '@/i18n/CatalogoProvider';
 import {
   AirVent, Anchor, ArrowUpFromLine, Bath, Beer, BedDouble, BriefcaseMedical, Check, ChevronDown,
   CloudFog, Compass, CookingPot, Droplets, FireExtinguisher, Fish, Flashlight, Glasses, GlassWater,
@@ -65,12 +67,11 @@ function iconeDoItem(nome: string): LucideIcon {
   return ICONE_POR_NOME.find(([re]) => re.test(n))?.[1] ?? Check;
 }
 
+/** Categoria do catálogo de nomes (`src/i18n/catalogo.ts`) de cada bloco. */
+const CATEGORIA_CATALOGO = { seguranca: 'equipamento', acessorios: 'acessorio', comodidades: 'comodidade' } as const;
+
 export type CategoriaEquipamentos = {
-  titulo: string;
-  /** Rótulo da contagem no resumo fechado, no singular e no plural (ex.: "acessório"/"acessórios"). */
-  singular: string;
-  plural: string;
-  /** Categoria — define a cor de acento (ponto e ícones). */
+  /** Categoria — define a cor de acento (ponto e ícones) e os textos (`Embarcacao.categorias.<icone>`). */
   icone: keyof typeof ESTILO;
   itens: string[];
 };
@@ -85,6 +86,8 @@ type Props = {
  * separados por categoria. As categorias vêm de `categoriasDaEmbarcacao` (src/lib/embarcacao-itens.ts).
  */
 export default function EquipamentosEmbarcacao({ categorias }: Props) {
+  const t = useTranslations('Embarcacao');
+  const { traduzir, ordenar } = useCatalogo();
   const [aberto, setAberto] = useState(false);
   const idConteudo = useId();
 
@@ -92,7 +95,7 @@ export default function EquipamentosEmbarcacao({ categorias }: Props) {
   if (visiveis.length === 0) return null;
 
   const resumo = visiveis
-    .map((c) => `${c.itens.length} ${c.itens.length === 1 ? c.singular : c.plural}`)
+    .map((c) => t(`categorias.${c.icone}.contagem`, { count: c.itens.length }))
     .join(' · ');
 
   return (
@@ -109,8 +112,8 @@ export default function EquipamentosEmbarcacao({ categorias }: Props) {
         </span>
         <span className="min-w-0 flex-1">
           <span className="block text-sm font-semibold text-marinho leading-snug">
-            O que esta embarcação possui{' '}
-            <span className="font-normal text-slate-500">({aberto ? 'clique para recolher' : 'clique para expandir'}):</span>
+            {t('equipamentos.titulo')}{' '}
+            <span className="font-normal text-slate-500">{aberto ? t('equipamentos.recolher') : t('equipamentos.expandir')}</span>
           </span>
           <span className="block text-xs text-slate-500 mt-0.5">{resumo}</span>
         </span>
@@ -133,7 +136,8 @@ export default function EquipamentosEmbarcacao({ categorias }: Props) {
           {/* Uma placa suave por categoria (ponto de cor + título + contagem) e itens em grade
               compacta — 2 colunas no celular, 3 a partir do sm —, cada um com ícone próprio. */}
           <div className="border-t border-slate-100 p-2 sm:p-4 space-y-2 sm:space-y-3">
-            {visiveis.map(({ titulo, icone, itens }) => {
+            {visiveis.map(({ icone, itens }) => {
+              const titulo = t(`categorias.${icone}.titulo`);
               const estilo = ESTILO[icone];
               return (
                 <section key={titulo} className="rounded-xl bg-slate-50/80 px-2.5 py-3 sm:px-4">
@@ -141,16 +145,16 @@ export default function EquipamentosEmbarcacao({ categorias }: Props) {
                     <span className={`h-2 w-2 rounded-full shrink-0 ${estilo.ponto}`} />
                     <span className="text-[13px] font-semibold text-marinho">{titulo}</span>
                     <span className="ml-auto text-[11px] font-medium text-slate-400 tabular-nums">
-                      {itens.length} {itens.length === 1 ? 'item' : 'itens'}
+                      {t('equipamentos.itens', { count: itens.length })}
                     </span>
                   </h3>
                   <ul className="grid grid-cols-2 sm:grid-cols-3 gap-x-3 sm:gap-x-4 gap-y-2.5">
-                    {itens.map((nome) => {
+                    {ordenar(itens.map((nome) => ({ nome })), CATEGORIA_CATALOGO[icone]).map(({ nome }) => {
                       const IconeItem = iconeDoItem(nome);
                       return (
                         <li key={nome} className="flex items-start gap-2 text-[13px] leading-snug text-slate-700">
                           <IconeItem className={`mt-px h-4 w-4 shrink-0 ${estilo.icone}`} strokeWidth={1.75} />
-                          <span>{nome}</span>
+                          <span>{traduzir(CATEGORIA_CATALOGO[icone], nome)}</span>
                         </li>
                       );
                     })}

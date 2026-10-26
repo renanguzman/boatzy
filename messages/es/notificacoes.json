@@ -1,0 +1,79 @@
+{
+  "Notificacoes": {
+    "titulo": "Notificaciones",
+    "metaTitulo": "Notificaciones | Boatzy",
+    "subtitulo": "Todo lo que pasa con tus reservas, pagos y conversaciones con los dueños, en tiempo real. Los avisos importantes también llegan por correo.",
+    "sinoNaoLidas": "Notificaciones: {count} sin leer",
+    "marcarTodas": "Marcar todas como leídas",
+    "vazioTitulo": "No hay notificaciones",
+    "vazioTexto": "Los avisos de tus reservas, pagos y mensajes aparecen aquí.",
+    "verTodas": "Ver todas las notificaciones",
+    "fecharAviso": "Cerrar aviso",
+    "naoLida": "Sin leer",
+    "abas": {
+      "todas": "Todas",
+      "naoLidas": "Sin leer",
+      "naoLidasN": "Sin leer ({count})"
+    },
+    "lista": {
+      "tudoEmDia": "Todo al día por aquí",
+      "nenhumaAinda": "Todavía no hay notificaciones",
+      "viuTodas": "Ya viste todas tus notificaciones.",
+      "quando": "Cuando el dueño responda tu solicitud, se procese un pago o llegue un mensaje, el aviso aparecerá aquí.",
+      "explorar": "Explorar paseos",
+      "carregarMais": "Cargar más"
+    },
+    "tempo": {
+      "agora": "ahora",
+      "minutos": "hace {n} min",
+      "horas": "hace {n} h",
+      "dias": "hace {n} d"
+    },
+    "seuPasseio": "tu paseo",
+    "donoEmbarcacao": "el dueño de la embarcación",
+    "dataHora": "{data} a las {hora}",
+    "oPrazo": "el fin del plazo",
+    "textos": {
+      "reserva_confirmada": {
+        "titulo": "Reserva confirmada",
+        "mensagem": "El dueño confirmó tu reserva de {item} para el {data}. ¡Buen paseo!"
+      },
+      "reserva_recusada": {
+        "titulo": "Reserva no aceptada",
+        "mensagem": "El dueño no pudo aceptar tu solicitud de {item} para el {data}.",
+        "recado": " Mensaje del dueño: \"{recado}\""
+      },
+      "reserva_cancelada": {
+        "titulo": "Reserva cancelada",
+        "mensagem": "Tu reserva de {item} para el {data} fue cancelada."
+      },
+      "reserva_expirada": {
+        "titulo": "Plazo de pago vencido",
+        "mensagem": "El plazo para pagar {item} ({data}) terminó y la solicitud venció. No se cobró ningún valor."
+      },
+      "reserva_concluida": {
+        "titulo": "¿Cómo estuvo tu paseo?",
+        "mensagem": "Cuéntanos cómo fue {item}: tu opinión ayuda a otros navegantes."
+      },
+      "aguardando_pagamento": {
+        "titulo": "Reserva aceptada: esperando el pago",
+        "mensagem": "El dueño aceptó {item} para el {data}. Paga antes del {prazo} para asegurar la fecha."
+      },
+      "pagamento_aprovado": {
+        "titulo": "Pago aprobado",
+        "mensagem": "Recibimos el pago del pedido #{numero}. Tu reserva de {item} para el {data} está confirmada."
+      },
+      "pagamento_recusado": {
+        "titulo": "Pago rechazado",
+        "mensagem": "El pago de {item} no fue aprobado. Aún puedes pagar con otra tarjeta o Pix hasta el {prazo}."
+      },
+      "reembolso": {
+        "titulo": "{parcial, select, sim {Reembolso parcial realizado} other {Reembolso realizado}}",
+        "mensagem": "El valor del pedido #{numero} ({item}) fue reembolsado. El plazo para que aparezca en tu resumen depende de tu banco o tarjeta."
+      },
+      "mensagem": {
+        "titulo": "{count, plural, one {Nuevo mensaje de {remetente}} other {# mensajes nuevos de {remetente}}}"
+      }
+    }
+  }
+}

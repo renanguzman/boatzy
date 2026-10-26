@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState, type RefObject } from 'react';
+import { useTranslations } from 'next-intl';
 
 type Props = {
   /** Linha de cima: "A partir de" ou a data escolhida. */
@@ -21,6 +22,8 @@ type Props = {
  * reserva fica no fim da página no celular. Some quando o card ou o rodapé estão visíveis.
  */
 export default function BarraReservaMobile({ rotulo, valor, unidade, acao, onAcao, card }: Props) {
+  const t = useTranslations('Reservar.barra');
+  const tCards = useTranslations('Cards');
   const [cardVisivel, setCardVisivel] = useState(false);
   const [rodapeVisivel, setRodapeVisivel] = useState(false);
 
@@ -59,9 +62,9 @@ export default function BarraReservaMobile({ rotulo, valor, unidade, acao, onAca
               <span className="ml-1 text-xs text-slate-500">{unidade}</span>
             </p>
           ) : (
-            <p className="text-sm font-semibold text-slate-600">Consulte o preço</p>
+            <p className="text-sm font-semibold text-slate-600">{tCards('consultePreco')}</p>
           )}
-          <p className="text-[11px] text-turquesa-escuro font-medium">Sem cobrança agora</p>
+          <p className="text-[11px] text-turquesa-escuro font-medium">{t('semCobranca')}</p>
         </div>
         <button
           type="button"

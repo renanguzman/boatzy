@@ -2898,8 +2898,11 @@ quando há não lidas daquele gestor.
 **Roteiros** → `/buscar`, **Embarcações** → `/buscar?tipo=embarcacao`, **Vendas** → `/vendas`,
 **Experiências** → `#` (placeholder, página ainda não existe).
 
+**Seletor de idioma** (`Header`, desde 26/10/2026): `SeletorIdioma` à esquerda do "Entrar"/menu da
+conta — ver §94.4.
+
 **CTA "Anuncie sua embarcação" / "Minhas embarcações"** (`Header`): substituiu o antigo seletor de
-idioma (globo + "PT"). Link para `/painel` (login/cadastro de gestor), estilizado como pill —
+idioma (globo + "PT"; o atual é o da §94.4). Link para `/painel` (login/cadastro de gestor), estilizado como pill —
 `bg-marinho text-white` com hover `bg-marinho-escuro` e ícone `Megaphone`/`Anchor` em `text-turquesa`
 (lucide-react) — paleta oficial, §2.3. Renderizado no
 bloco de ações à direita (desktop, ao lado do botão "Entrar") e também no menu mobile, logo abaixo
@@ -7951,7 +7954,7 @@ aoAbrirAcesso(cb): () => void                            // inscrição; devolve
 ### 93.5 Simulador e conteúdo
 
 - `porMes = preco × passeios`; temporada = `porMes × 4` (`MESES_TEMPORADA`, dez–mar). Faixas: preço
-  500–6.000 (passo 100, padrão 1.500), passeios 1–20 (padrão 4); atalhos 4/8/16. Formata com
+  500–50.000 (`PRECO_MIN`/`PRECO_MAX`; máximo era 6.000 até 26/10/2026; passo 100, padrão 1.500), passeios 1–20 (padrão 4); atalhos 4/8/16. Formata com
   `formatarPreco` (`src/lib/precos-roteiro.ts`). Base: o gestor recebe 100% do preço (PRD 6.6, D7).
 - Textos derivados do produto: taxa paga pelo cliente (§14), aceite/recusa com e-mail ao cliente (§20,
   §48), pagamento antes do passeio (§34), aprovação do gestor (§62) e das publicações (§45), capitão
@@ -7985,3 +7988,317 @@ simulador ("Todo fim de semana" → R$ 12.000); FAQ abre; `?aba=entrar`; login i
 senha incorretos."; `/painel/cadastro` → `/painel/login?aba=cadastro`; `/painel/agendamentos`
 deslogado → `?redirect_to=…` em "Já tenho conta". Não exercitado: cadastro real por e-mail, login social
 e estado "já conectado" (exigem conta).
+
+## 94. Internacionalização do site — pt-BR, en-US, es (26/10/2026)
+
+Site público e área logada do cliente em três idiomas, com **next-intl 4.14** (compatível com Next 16),
+sem prefixo na URL. Painel, administrador, e-mails e conteúdo do gestor ficam em pt-BR. Produto e fases:
+PRD, seção "Site multi-idioma". Glossário: `docs/i18n-glossario.md`.
+
+### 94.1 Arquivos
+
+| Arquivo | Papel |
+|---|---|
+| `src/i18n/config.ts` | `IDIOMAS` (`pt-BR`, `en-US`, `es`), `IDIOMA_PADRAO`, `COOKIE_IDIOMA` (`NEXT_LOCALE`), `OPCOES_COOKIE_IDIOMA` (1 ano, `lax`), `HEADER_AREA`, `isRotaInterna`, `isIdioma`, `NOMES_IDIOMA`, `LOCALE_INTL`, `LOCALE_OPEN_GRAPH`, `idiomaDoAcceptLanguage`. Sem dependência de servidor (usado no proxy e no cliente) |
+| `src/i18n/request.ts` | `getRequestConfig` do next-intl: resolve o idioma (§94.2), carrega `messages/<idioma>`, `timeZone: FUSO_HORARIO` |
+| `src/i18n/actions.ts` | Server action `alterarIdioma(idioma)` (§94.4) |
+| `src/i18n/formatos.ts` | `criarFormatos(t, idioma)`, `useFormatos()`, `nomesMeses`, `nomesDiasSemana`, `formatarDataLocal` (§94.5) |
+| `src/i18n/formatos-servidor.ts` | `getFormatos()` (`server-only`) — o mesmo para funções `async` do servidor |
+| `src/i18n/rotulos.ts` | `useRotulos()` — enums do banco no idioma (hoje `capitao(modalidade_capitao)`) |
+| `src/lib/google-maps.ts` | `useGoogleMaps()` — loader único dos mapas, com `language` do documento (§94.9) |
+| `messages/<idioma>/*.json` + `index.ts` | Mensagens por área (§94.3) |
+| `src/types/next-intl.d.ts` | `AppConfig` (`Locale: Idioma`, `Messages: Mensagens`) — chaves tipadas |
+| `scripts/i18n-verificar.mjs` | `npm run i18n:verificar` — paridade das traduções |
+| `src/components/layout/SeletorIdioma.tsx` | Seletor do Header (client) |
+| `src/components/layout/BandeiraIdioma.tsx` | Bandeiras redondas em SVG (BR, US, ES) |
+| `supabase/migrations/20261026_users_idioma.sql` | `users.idioma` |
+| `next.config.ts` | `createNextIntlPlugin('./src/i18n/request.ts')` |
+
+### 94.2 Resolução do idioma (por requisição)
+
+1. **Rota interna** → `pt-BR`. O `proxy.ts` apaga o `x-boatzy-area` recebido e, quando
+   `isRotaInterna(pathname)` (`/painel`, `/administrator`, `/api/painel`), define `x-boatzy-area:
+   interno` na request repassada (`NextResponse.next({ request })` leva os headers alterados, como já
+   faz com os cookies do Supabase).
+2. **Cookie `NEXT_LOCALE`** válido → ele. Só é gravado por escolha explícita (seletor) ou pelo login.
+3. **`Accept-Language`** → `idiomaDoAcceptLanguage`: ordena pelos pesos `q` e casa o idioma-base
+   (`pt-*` → pt-BR, `en-*` → en-US, `es-*` → es). A detecção não grava cookie.
+4. `pt-BR`. Crawlers sem `Accept-Language` (Googlebot) recebem pt-BR.
+
+`getTranslations({ locale })` com idioma explícito ignora as regras acima (parâmetro `locale` do
+`getRequestConfig`). O layout raiz usa `getLocale()` em `<html lang>` e `generateMetadata` traduzido
+(`Metadados.raiz`: título, descrição, `keywords` separadas por vírgula, `og:locale` via
+`LOCALE_OPEN_GRAPH`). `<NextIntlClientProvider>` sem props no layout raiz herda locale, mensagens e fuso
+do servidor (hoje vão todas as mensagens ao cliente; quando os textos longos das fases 1–3 entrarem,
+passar só os namespaces usados por componentes cliente).
+
+Como o idioma vem de `cookies()`/`headers()`, **todas as páginas passam a ser dinâmicas** (`ƒ` no
+build) — `/sobre`, `/terms`, `/privacy` e `/passeios/*` eram estáticas.
+
+### 94.3 Mensagens
+
+- `messages/pt-BR` é a fonte. Cada JSON é uma área com um ou mais namespaces no 1º nível. O `index.ts`
+  da pasta espalha os JSONs num objeto e exporta `type Mensagens`; os de `en-US`/`es` declaram
+  `const mensagens: Mensagens`, então **chave faltando em uma tradução é erro de `tsc`**, assim como
+  `t('chave')` inexistente (`AppConfig`). Arquivos (Fase 1):
+
+  | JSON | Namespaces |
+  |---|---|
+  | `comum.json` | `Comum` (buscar, limpar, aplicar, fechar…), `Formatos` (§94.5) |
+  | `layout.json` | `Navegacao`, `Header`, `SeletorIdioma`, `Footer` |
+  | `metadados.json` | `Metadados` |
+  | `home.json` | `Hero`, `Home` |
+  | `busca.json` | `CamposBusca` (destino, data, pessoas/diárias, tipo), `Busca` (/buscar, chips, ordenação, filtros, mapa), `Filtros` |
+  | `cards.json` | `Cards`, `Galeria` |
+  | `roteiro.json` | `Roteiro`, `Reservar` (card de reserva), `Disponibilidade`, `Calendario`, `Opcionais`, `AcoesRoteiro`, `ContatoDono`, `Embarcacao`, `Avaliacoes` |
+  | `chat.json` | `Chat` (saudação, sugestões, diálogo, caixa, aviso, erros) |
+  | `reserva.json` | `NovaReserva`, `ConfirmarReserva`, `OpcionaisCheckout`, `GaleriaReserva`, `Clima`, `Termos`, `ErrosReserva`, `Pagamento` |
+  | `auth.json` | `Auth`, `RecuperarSenha`, `RedefinirSenha` |
+  | `passeios.json` | `Passeios.<slug>` (título e resumo), `Experiencias` |
+- Chaves em camelCase português (`anuncieSuaEmbarcacao`), namespaces em PascalCase. Variáveis e plural
+  em ICU: `"{count, plural, one {# mensagem não lida} other {# mensagens não lidas}}"`.
+- `npm run i18n:verificar`: mesmos arquivos nas 3 pastas, cada um importado no `index.ts`, nenhuma chave
+  faltando ou sobrando, mesmas variáveis ICU em cada texto e nenhum texto vazio. Sai com código 1 se falhar.
+- ESLint `react/jsx-no-literals` (erro) nas pastas já traduzidas (lista em `eslint.config.mjs`, cresce a
+  cada fase; `components/home/search/venda/**` fica de fora até a Fase 3). Liberados: pontuação/símbolos
+  (`· — – - / | + × % → ‹ › … , : ( ) °`) e nomes de marca (Boatzy, Pix, WhatsApp, Facebook, Instagram,
+  YouTube, Google Maps, Waze).
+- Textos com marcação usam `t.rich` com tags próprias (`<destaque>`, `<b>`, `<mono>`, `<link>`).
+- Erros de server actions do site saem no idioma do cliente via `getTranslations` (o painel recebe pt-BR
+  pela trava do proxy, então libs compartilhadas — termos, chat — podem traduzir sem afetar o painel).
+- Hoje todas as mensagens (~46 KB de JSON por idioma) vão ao navegador pelo `NextIntlClientProvider`;
+  com os textos longos da Fase 3 (artigos, FAQ, páginas legais), passar só os namespaces de cliente.
+- Uso: `useTranslations('Ns')` em componentes cliente e Server Components síncronos;
+  `getTranslations('Ns')` em funções `async` do servidor (páginas, `generateMetadata`, server actions).
+
+### 94.4 Seletor de idioma (`SeletorIdioma`)
+
+- No `Header`, logo antes do bloco de autenticação: desktop à esquerda do "Entrar"/`UserMenu`, celular
+  à esquerda do botão do menu. Oculto em rotas internas (`isRotaInterna(pathname)` — landing do
+  gestor e pré-visualizações usam o `Header` do site).
+- Botão `#seletor-idioma`: `BandeiraIdioma` 20 px + sigla e chevron só em `lg+`; `aria-label`
+  `SeletorIdioma.alterar` ("Idioma: {idioma}. Alterar idioma"). Menu no padrão do `EntrarMenu`
+  (`role="menu"`, itens `menuitemradio` com `aria-checked` e `lang`, nome nativo de `NOMES_IDIOMA`,
+  check no atual, spinner no escolhido); fecha com clique fora/Esc.
+- Escolha: `alterarIdioma(idioma)` valida, grava o cookie e, com usuário logado, `users.idioma`
+  (`supabaseAdmin`, erro só registrado) → `rastrear('troca_idioma', { de, para })` →
+  `window.location.reload()`. Recarga completa de propósito: `useJsApiLoader` do Google Maps lança erro
+  se for chamado de novo com outro `language` na mesma página.
+
+### 94.5 Formatação
+
+Fuso sempre `America/Sao_Paulo` e moeda sempre BRL. Muda o formato, via `LOCALE_INTL` (`es` → `es-AR`,
+porque `es` puro formata moeda como "1500 BRL") e `currencyDisplay: 'narrowSymbol'`:
+
+| Função | Assinatura | pt-BR | en-US | es |
+|---|---|---|---|---|
+| `formatarData` (`lib/datas`) | `(valor, opts?, idioma = 'pt-BR')` | 30/10/2026 | 10/30/2026 | 30/10/2026 |
+| `formatarDataHora` | `(valor, { segundos }?, idioma)` | 30/10/2026, 20:39 | 10/30/2026, 8:39 PM | 30/10/2026, 20:39 |
+| `formatarHora` | `(valor, idioma)` | 20:39 | 8:39 PM | 20:39 |
+| `formatCurrency` (`lib/utils`) | `(valor, idioma)` | R$ 1.500 | R$1,500 | R$ 1.500 |
+| `formatCurrencyPrecise` | `(valor, idioma)` | R$ 1.500,50 | R$1,500.50 | R$ 1.500,50 |
+| `formatarPreco` (`lib/precos-roteiro`) | `(valor, idioma)` | R$ 1.500 | R$1,500 | R$ 1.500 |
+
+Hora 24h (`hourCycle: 'h23'`, `opcoesHora` exportada de `lib/datas`) em pt-BR e es; 12h em en-US. O
+padrão `pt-BR` mantém painel e admin como estavam.
+
+**`useFormatos()` / `getFormatos()`** (o site usa estes, não as funções acima diretamente):
+`data`, `dataHora`, `hora`, `horario('HH:MM')` (saída, retorno, sol), `dataLocal(Date)` (datas montadas no
+fuso do navegador pelos calendários, sem `timeZone`), `numero`, `preco`, `moeda`, `moedaCentavos`,
+`meses()`, `diasSemana('short' | 'narrow' | 'long')`, `pessoas(n)`, `duracao(horas)` (de
+`roteiro.duracao_horas`), `retorno({ horario, diasDepois })`, `comprimento(valor, unidade)` ("45 ft" /
+"45 pés" / "45 pies"), `unidadePreco(modelo)`, `rotuloPreco(precoExibicao)`, `capacidadeExcedida(max)`.
+Mensagens em `Formatos`. As libs (`duracaoTexto`, `formatarComprimento`, `precoExibicaoRoteiro().rotulo`,
+`mensagemIndisponivel`…) continuam em pt-BR para o painel.
+
+### 94.6 Idioma na conta (`users.idioma`)
+
+- Coluna `idioma text NULL`, `CHECK (idioma IS NULL OR idioma IN ('pt-BR','en-US','es'))`. NULL =
+  nunca escolheu. Sem GRANT novo (coluna em tabela existente). Tipos em `src/types/supabase.ts`.
+- Login do cliente (`/api/auth/setup-cliente`, por onde passam e-mail, cadastro e OAuth):
+  `sincronizarIdioma(userId)` — **vale a escolha mais recente**: cookie válido diferente do perfil →
+  grava no perfil; sem cookie e perfil com idioma → grava o cookie. Erros só são registrados (o login
+  nunca depende disso; até a migration ser aplicada, a leitura falha e nada muda).
+
+### 94.7 Status das fases
+
+| Fase | Escopo | Status |
+|---|---|---|
+| 0 | Fundação (§94.1–94.6), `Header`, `EntrarMenu`, `UserMenu`, `NavPrincipal`, `Footer`, metadados raiz | ✅ 26/10/2026 |
+| 1 | Home, `/buscar`, `/roteiros/[id]` (+ `/chat`), `/embarcacoes/[id]/roteiros` (+ `/chat`), `/reservas/novo`, `/reservas/[id]/pagar`, `/entrar`, recuperar/redefinir senha, `/experiencias`; componentes de card, galeria, chat com o dono, termos, auth — §94.9 | ✅ 26/10/2026 |
+| 2 | `/minha-conta` (+ seção "Idioma"), `/minhas-reservas` (+ `[id]`, `[id]/chat`), `/minhas-conversas` (+ `[id]/chat`), `/favoritos`, `/notificacoes`, `SinoNotificacoes`/`NotificacaoItem` — §94.10 | ✅ 26/10/2026 |
+| 3 | `/vendas` (+ `[id]`, `[id]/chat`, campos `components/home/search/venda/*`), `/passeios/*`, `/sobre`, `/help`, `/contact`, `/terms`, `/privacy`, `not-found`, `error` — §94.11 | ✅ 26/10/2026 |
+| 4 | `nome_en`/`nome_es` em `embarcacao_tipo`, `comodidade`, `acessorios`, `equipamentos_seguranca` (fallback para `nome`), dicionário `src/i18n/catalogo*` e formulário de cadastros auxiliares — §94.12 | ✅ 26/10/2026 |
+
+O wrapper de navegação (`src/i18n/navigation.ts`) previsto no plano não foi criado: sem prefixo de URL
+ele só repassaria `next/link`. Se um dia houver `/en` e `/es`, a troca é mecânica (imports de
+`next/link`/`next/navigation` → `createNavigation` do next-intl) junto com a ida das rotas para
+`app/[locale]`.
+
+### 94.8 Validação (Fase 0)
+
+`tsc`, `eslint` e `next build` limpos; `i18n:verificar` ok. Testes negativos: chave inexistente em
+`t()` e chave faltando em `en-US` quebram o `tsc`; variável trocada (`{name}` × `{nome}`) e chave
+sobrando são apontadas pelo script. `curl`: `Accept-Language: en-US` → `<html lang="en-US">` e título em
+inglês; `es-AR` → es; cookie `en-US` vence navegador `es`; `/painel/login` com cookie `es` → pt-BR, sem
+seletor. Navegador headless: navegador em inglês abre em inglês; troca PT → EN → ES pelo seletor
+recarrega no idioma, cookie `NEXT_LOCALE` gravado (1 ano, Lax); sem erros de console; sem rolagem
+horizontal em 1024, 768 e 375 px; menu do celular em espanhol. Não exercitado: gravação em
+`users.idioma` e sincronização no login (exigem conta e a migration aplicada).
+
+### 94.9 Fase 1 — mudanças de contrato
+
+- **Preço do card:** `PrecoExibicao` ganhou `modelo` e `data` (`null` = "a partir de"); o site monta
+  unidade e rótulo com `f.unidadePreco`/`f.rotuloPreco`. `unidade`/`rotulo` (pt-BR) seguem para o painel.
+- **Duração:** `RoteiroCardData.duracao_horas` (opcional) — selecionado em `roteiros-top`, `/buscar`,
+  `/favoritos` e `/embarcacoes/[id]/roteiros`; o card mostra `f.duracao(duracao_horas)`, com
+  `roteiro.duracao` (rótulo gravado em pt-BR) como reserva. `DURACAO_PRESETS` passou a ter `id`
+  (`Busca.duracaoPresets.<id>`); `faixaDuracaoLabel`/`faixaPrecoLabel` saíram (os chips montam a faixa
+  com `Busca.faixa`).
+- **Busca:** `MODELOS_PRECO` e `ORDENACOES` viraram listas de valores (rótulos em `Busca.modelosPreco` /
+  `Busca.ordenar`). `LocationValue` `geo` sem `label` (o texto "Próximo de mim" vem de
+  `CamposBusca.local.proximoDeMim`; `ROTULO_PROXIMO_DE_MIM` saiu). `GuestPicker`: `unidade`
+  (`'pessoas' | 'diarias'`) no lugar de `label/singular/plural`. `ContadorFiltro`: `formatar`,
+  `rotuloRemover`, `rotuloAdicionar` no lugar de `singular/plural`. `MapaResultados` sem `itemLabelPlural`.
+- **Disponibilidade:** `motivoIndisponivel(situação)` → chave de `Disponibilidade.*`
+  (`fora_janela`, `nao_opera`, `passado`, `inexistente`, `invalido`, `indisponivel`; recebem `{data}`).
+- **Embarcação:** `categoriasDaEmbarcacao` sem `titulo/singular/plural` (texto em
+  `Embarcacao.categorias.<icone>`). `useRotulos().capitao()` para `modalidade_capitao`.
+- **Chat com o dono:** `saudacaoPasseio(t, nome, { acao: 'interesse' | 'solicitando', dataLabel, pessoas })`;
+  `useSugestoesChat('roteiro' | 'reserva')` substitui `SUGESTOES_RESERVA`. Descrição do dono e erros de
+  `abrirChatRoteiro`/`abrirChatReserva` no idioma. As sugestões são inseridas no idioma do cliente e
+  chegam assim ao dono (sem tradução no chat).
+- **Termos:** `TermoAceite` recebe `finalidade` já traduzida; o rótulo da confirmação sai de
+  `Termos.rotuloConfirmacao.<tipo>` (`ConfirmacaoExigida.rotulo` em pt-BR fica para o painel). Em
+  en-US/es mostra `Termos.avisoIdioma` sobre o documento, que é renderizado com `lang="pt-BR"`. Erros de
+  `validarAceite`, `gravarAceite` e `conferirConfirmacaoDigitada` no idioma.
+- **Confirmação/pagamento:** `ConfirmarReserva` sem `rotuloLinha` (usa `Reservar.linha.<modalidade>` — antes
+  mostrava "Diária" também no modelo Roteiro). Erros de `criarReserva`, `validarCupom`, `iniciarPagamento`
+  e `pagarReserva` no idioma; nome da forma de pagamento por código (`Pagamento.formas`). A descrição da
+  cobrança no Asaas continua em pt-BR.
+- **Previsão do tempo:** condição por código WMO (`Clima.codigos.<código>`); en-US em °F, mph e polegadas.
+- **Auth:** `PasswordRule.id` tipado (rótulo em `Auth.regrasSenha.<id>`); países do celular pelo
+  `Intl.DisplayNames` (busca aceita o nome no idioma e em pt-BR); `translateError` das páginas devolve
+  chaves.
+- **Google Maps (`useGoogleMaps`):** os três mapas (busca, roteiro e `MapaPicker` do painel) usam o mesmo
+  loader e as mesmas opções; `language` = `<html lang>` da primeira carga (`pt-BR`, `en`, `es-419`), fixo
+  até recarregar — evita o erro do loader com opções diferentes numa navegação client-side.
+- **Passeios:** `Passeio` sem `titulo`/`resumo` (em `Passeios.<slug>`); `slug` tipado (`SlugPasseio`). A
+  home deixou de completar a seção com os `moments` fictícios (nunca apareciam: há 5 passeios e 4 moments).
+- Fora desta fase: `/boats/[id]` (página antiga com dados fictícios, sem links para ela).
+
+**Validação (Fase 1):** `tsc`, `eslint` e `next build` limpos; `i18n:verificar` ok. Navegador headless em
+en-US e es: home, `/buscar` (roteiros e embarcações), `/roteiros/[id]`, `/embarcacoes/[id]/roteiros`,
+`/entrar`, `/recuperar-senha`, `/experiencias` sem erros de console e sem palavras de interface em pt-BR
+no inglês (lista de 34 termos); calendário de reserva (es: D L M M J V S, título do dia "Lunes, 26/10/2026 —
+R$ 9.200,00") e DatePicker da home (en: "October 2026", Sun–Sat, "±2 days"); card de reserva completo em
+espanhol após escolher a data; 375 px sem rolagem horizontal. Não exercitados (exigem conta logada):
+`/reservas/novo`, `/reservas/[id]/pagar`, termo de aceite e chat.
+
+### 94.10 Fase 2 — área logada
+
+- **Mensagens:** `messages/<idioma>/conta.json` (`MinhaConta`, `MinhasConversas`, `Favoritos`),
+  `minhas-reservas.json` (`StatusReserva.<status>.{label,note}`, `MinhasReservas` — lista, cancelar,
+  avaliação, erros, chat —, `DetalheReserva` — etapas, comprovante, selo, statusPagamento) e
+  `notificacoes.json` (`Notificacoes` — página, sino, `tempo`, `textos.<tipo>.{titulo,mensagem}`).
+- **Status da reserva:** `STATUS_RESERVA` (`minhas-reservas/_lib/status.ts`) ficou só com a parte visual
+  (`{ badge, Icon, noteClass }`); rótulo e nota vêm de `StatusReserva.<status>`.
+- **Detalhe da reserva:** `montarEtapas(r, pedido, t, f)`; datas/valores por `getFormatos()`/`useFormatos()`
+  (`formatarDataHoraBR`, `formatCurrencyPrecise`, `duracaoTexto` e `retornoTexto` saíram do arquivo).
+  Bandeiras do cartão seguem como nomes próprios. Aceite dos termos via `t.rich('termosAceitos')`.
+- **Minha conta:** `SecaoIdioma` (`minha-conta/_components/SecaoIdioma.tsx`, âncora `#idioma`) — rádio com
+  os três idiomas; chama `alterarIdioma()` e recarrega; em en-US/es mostra `MinhaConta.idioma.emailsPt`.
+  As actions de `conta-actions`/`favoritos-actions` já devolviam códigos (`nome_invalido`, `erro`…),
+  traduzidos na tela. Os erros de `chat-actions` não são exibidos ao cliente (seguem em pt-BR).
+- **Notificações (`notificacao.dados jsonb`)** — migration `20261026b_notificacoes_dados.sql`:
+  - Coluna `dados jsonb NULL` (sem GRANT novo). `notificar(...)` ganhou o 8º parâmetro `p_dados jsonb`
+    (DROP + CREATE); os triggers `trg_notificacao_reserva`, `_pedido`, `_pagamento` e `_mensagem` passam,
+    nas notificações do cliente: `item`, `data` ('AAAA-MM-DD'), `prazo` (timestamptz), `numero`,
+    `parcial`, `recado`, `remetente`. Helper `notificacao_item_nome_ou_nulo`. `SET timezone` reaplicado.
+  - Backfill de `dados` nas notificações de cliente existentes.
+  - Front: `useTextoNotificacao()` (`components/notificacoes/useTextoNotificacao.ts`) →
+    `{ texto(n) → { titulo, mensagem }, quando(iso) }`. Com `dados`, monta por `tipo` com
+    `Notificacoes.textos.*`; sem `dados` (antes da migration e avisos do gestor) usa `tituloNotificacao(n)`
+    e `n.mensagem`. `quandoNotificacao` saiu de `lib/notificacoes/apresentacao.ts`. A leitura usa
+    `select('*')`, então funciona antes e depois da migration. Mensagens do chat e o recado do dono não
+    são traduzidos. E-mails continuam em pt-BR.
+- **Minhas conversas:** tempo relativo com `Notificacoes.tempo` + `MinhasConversas.diasAtras`; datas
+  antigas por `f.data`. Chat por conversa usa `Chat.descricaoDono`.
+- **ESLint:** `react/jsx-no-literals` passa a valer também em `app/minha-conta`, `app/minhas-reservas`,
+  `app/minhas-conversas`, `app/favoritos`, `app/notificacoes` e `components/notificacoes`.
+
+**Validação (Fase 2):** `tsc`, `eslint` (projeto inteiro) e `next build` limpos; `i18n:verificar` ok;
+varredura de texto fixo nas pastas da fase sem sobras (só símbolos). Não exercitado no navegador: todas as
+telas da fase exigem conta logada; a migration `20261026b` ainda não estava aplicada.
+
+### 94.11 Fase 3 — restante do site
+
+- **Mensagens novas:** `vendas.json` (`CamposVenda`, `Vendas`, `Venda`), `passeios-artigos.json`
+  (`ArtigoPasseio` — comum + um bloco por slug), `institucional.json` (`Sobre`, `Ajuda`, `Contato`, `Erros`)
+  e `legal.json` (`Legal`, `TermosUso`, `PoliticaPrivacidade`; `Termos` continua sendo o termo de aceite).
+- **Vendas:** `anoVendaLabel(v, t)` e `valorVendaLabel(v, t, f)` (`venda/labels.ts`) recebem o tradutor
+  `CamposVenda` e os formatos; `valorCompacto(v, f)` usa o novo `f.moedaCompacta` (Intl `notation:
+  'compact'`, BRL — pt-BR mantém "R$ 450 mil"/"R$ 1,2 mi"). `AnuncioVendaCard`, detalhe e `VendaSidebar` usam
+  `f.moeda`/`f.comprimento`/`f.data` (saíram os `Intl.NumberFormat('pt-BR')` locais). Ordenação de estados e
+  cidades com `localeCompare` no idioma. O rascunho do chat de venda (`Venda.chat.rascunho`) sai no idioma do
+  cliente. A exceção `components/home/search/venda/**` saiu do ESLint.
+- **Passeios:** `app/passeios/_components/Artigo.tsx` — `LayoutArtigo` (hero com `Passeios.<slug>.titulo`),
+  `Figura`, `PorQueBoatzy` (`ArtigoPasseio.porQue.*`, 6 itens; Campeche mantém lista própria de 5), `CtaPasseio`,
+  `metadadosPasseio(slug)` e `marcacao` (`<b>`, `<em>` em `t.rich`).
+- **Ajuda:** `FaqContent` — perguntas em `Ajuda.faq.<id>.{pergunta,resposta}` e categorias em
+  `Ajuda.categorias.<id>`; links nas respostas por tag (`<reservas>`, `<buscar>`, `<entrar>`, `<conta>`,
+  `<painel>`, `<conversas>`, `<favoritos>`, `<termos>`, `<privacidade>`, `<vendas>`) e `<b>`. A busca usa o texto
+  puro (`t.markup`); `extrairTexto` saiu.
+- **Contato:** `ASSUNTOS_CONTATO` continua em pt-BR (valor enviado à equipe); rótulo por `CHAVE_ASSUNTO` →
+  `Contato.assuntos.<chave>`. Erros de `enviarContato` no idioma (`Contato.erros.*`). `Contato.aviso` (atendimento
+  em português) só fora do pt-BR.
+- **Legais:** `components/legal/CabecalhoLegal` (título, `Legal.atualizacao` com `f.data`, e `Legal.avisoTraducao`
+  fora do pt-BR). Texto em `TermosUso.sN.*`/`PoliticaPrivacidade.sN.*` com tags `<b>`, `<em>`, `<privacidade>`,
+  `<email>`. Tabela de cookies da privacidade gerada de `COOKIES` (nome técnico não se traduz) e com o
+  `NEXT_LOCALE`; atualização da política: 26/10/2026.
+- **404/erro:** `app/not-found.tsx` (servidor, com `Header`/`Footer`, `Erros.naoEncontrada`) e `app/error.tsx`
+  (cliente, `unstable_retry` do Next 16, `Erros.inesperado`, mostra o `digest`). Valem para o site todo; no
+  painel/admin saem em pt-BR pela trava do proxy.
+- **ESLint:** `react/jsx-no-literals` também em `app/vendas`, `app/passeios`, `app/sobre`, `app/help`,
+  `app/contact`, `app/terms`, `app/privacy`, `app/not-found.tsx`, `app/error.tsx`, `components/legal` e
+  `components/home/search/venda`.
+
+**Validação (Fase 3):** `tsc`, `eslint` (projeto inteiro) e `next build` limpos; `i18n:verificar` ok (18
+arquivos). Fidelidade do pt-BR: palavras do JSX antigo (HEAD) comparadas com a página renderizada — Termos,
+5 artigos e Sobre idênticos; Privacidade só com a data e a linha do `NEXT_LOCALE`; Costa da Lagoa com a frase
+unificada da lista.
+
+### 94.12 Fase 4 — nomes dos catálogos
+
+- **Migration `20261027_catalogos_traducoes.sql`:** `nome_en text` e `nome_es text` (NULL) em `embarcacao_tipo`,
+  `comodidade`, `acessorios` e `equipamentos_seguranca` (coluna nova em tabela existente: sem GRANT), mais
+  `UPDATE` com as traduções dos 75 itens atuais (5 tipos, 30 comodidades, 20 acessórios, 20 equipamentos),
+  casando por `nome` e sem sobrescrever tradução já preenchida. `nome` continua sendo o pt-BR e a chave de
+  exibição no painel/admin, a unicidade e as URLs. Tipos em `src/types/supabase.ts`.
+- **Por que dicionário e não `select nome_en`:** os nomes aparecem em ~25 consultas (cards, detalhes, busca,
+  favoritos, vendas, home). Em vez de mexer em todas, o site traduz na hora de exibir, pelo `nome` em pt-BR:
+  - `src/i18n/catalogo.ts` (puro): `CategoriaCatalogo` (`tipo | comodidade | acessorio | equipamento`),
+    `DadosCatalogo` (`nome pt-BR → nome no idioma`), `criarTradutorCatalogo`, `ordenarPorCatalogo`.
+  - `src/i18n/catalogo-servidor.ts`: `carregarDadosCatalogo(idioma)` (4 consultas leves; **pt-BR não consulta**;
+    cache em memória de 60 s por instância; se a consulta falha, por exemplo antes da migration, devolve vazio
+    e o site mostra pt-BR) e `getCatalogo()` → `{ traduzir, dados, localeIntl }` para páginas e actions.
+  - `src/i18n/CatalogoProvider.tsx` (cliente): contexto alimentado pelo layout raiz e `useCatalogo()` →
+    `{ traduzir(categoria, nome), ordenar(itens, categoria) }`. `src/i18n/NomeCatalogo.tsx`: `<NomeCatalogo
+    categoria nome />`, para componentes de servidor síncronos (que não usam contexto).
+  - Sem tradução (NULL ou item novo) → `traduzir` devolve o `nome` em pt-BR.
+- **Onde traduz:** `EmbarcacaoCard`, `RoteiroCard`, `AnuncioVendaCard` (selo do tipo); `EquipamentosEmbarcacao`
+  (itens, ordenados no idioma; o ícone continua escolhido pelo nome em pt-BR); `EmbarcacaoFotosModal`;
+  `EmbarcacaoInfoSection`, `RoteiroDetalheView` e `vendas/[id]` (via `NomeCatalogo`); seletores
+  `TipoEmbarcacaoPicker` e `TipoVendaPicker`; filtros laterais de busca e de vendas (`FiltroMultiSelect` ganhou
+  `categoria`, que traduz, busca e ordena pelo nome do idioma); título, chips e mensagens de "nenhum resultado"
+  de `/buscar` e `/vendas`; subtítulo dos pontos do mapa.
+- **URLs:** `tipo_nome` continua gravando o nome em pt-BR; `/buscar` o traduz ao montar o título e os chips.
+  Assim, um link compartilhado abre no idioma de quem o recebe.
+- **Admin (`/administrator/cadastros-auxiliares`):** `criar*`/`atualizar*` de acessório, comodidade e equipamento
+  recebem `nomeEn` e `nomeEs` (opcionais, até 80 caracteres; vazio vira NULL); `EntidadeAuxiliarManager` mostra
+  os campos na criação e na edição e avisa "Sem tradução …" nos itens incompletos. Tipos de embarcação não têm
+  tela de admin.
+- **Fora do escopo:** nome de município/estado (vêm do IBGE), conteúdo escrito pelo dono, e-mails.
+
+**Validação (Fase 4):** `tsc`, `eslint` e `next build` limpos; `i18n:verificar` ok. Migration aplicada: 75/75 itens com en e es. Sem a migration o site abriu normalmente em pt-BR (fallback). Navegador (build de produção) em en-US e es: selo do tipo (Speedboat/Yate), seletores e filtros de tipo, filtros de comodidade (Air conditioning/Aire acondicionado, Barbecue grill/Parrilla), itens de segurança do roteiro traduzidos e ordenados no idioma, título da busca com o tipo traduzido e sem erros de console. Não exercitado: telas do admin (exigem login de admin).
+

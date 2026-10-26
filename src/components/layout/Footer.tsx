@@ -1,7 +1,10 @@
 import Link from 'next/link';
 import Image from 'next/image';
+import { useTranslations } from 'next-intl';
 
 export default function Footer() {
+  const t = useTranslations('Footer');
+  const tNav = useTranslations('Navegacao');
   return (
     <footer className="bg-marinho text-white" id="footer">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
@@ -17,7 +20,7 @@ export default function Footer() {
               className="h-10 w-auto mb-4"
             />
             <p className="text-sm text-slate-300 leading-relaxed">
-              Navegue com Elegância. A melhor plataforma de aluguel de embarcações do Brasil.
+              {t('slogan')}
             </p>
             <div className="flex gap-3 mt-4">
               <a
@@ -47,27 +50,27 @@ export default function Footer() {
           {/* Explorar */}
           <div>
             <h4 className="text-sm font-semibold uppercase tracking-wider text-white mb-4">
-              Explorar
+              {t('explorar')}
             </h4>
             <ul className="space-y-2.5">
               <li>
                 <Link href="/buscar" className="text-sm text-slate-300 hover:text-white transition-colors">
-                  Roteiros
+                  {tNav('roteiros')}
                 </Link>
               </li>
               <li>
                 <Link href="/buscar?tipo=embarcacao" className="text-sm text-slate-300 hover:text-white transition-colors">
-                  Embarcações
+                  {tNav('embarcacoes')}
                 </Link>
               </li>
               <li>
                 <Link href="/vendas" className="text-sm text-slate-300 hover:text-white transition-colors">
-                  Vendas
+                  {tNav('vendas')}
                 </Link>
               </li>
               <li>
                 <Link href="/experiencias" className="text-sm text-slate-300 hover:text-white transition-colors">
-                  Experiências
+                  {tNav('experiencias')}
                 </Link>
               </li>
             </ul>
@@ -76,17 +79,17 @@ export default function Footer() {
           {/* Empresa */}
           <div>
             <h4 className="text-sm font-semibold uppercase tracking-wider text-white mb-4">
-              Empresa
+              {t('empresa')}
             </h4>
             <ul className="space-y-2.5">
               <li>
                 <Link href="/sobre" className="text-sm text-slate-300 hover:text-white transition-colors">
-                  Sobre Nós
+                  {t('sobreNos')}
                 </Link>
               </li>
               <li>
                 <Link href="/contact" className="text-sm text-slate-300 hover:text-white transition-colors">
-                  Contato
+                  {t('contato')}
                 </Link>
               </li>
             </ul>
@@ -95,22 +98,22 @@ export default function Footer() {
           {/* Suporte */}
           <div>
             <h4 className="text-sm font-semibold uppercase tracking-wider text-white mb-4">
-              Suporte
+              {t('suporte')}
             </h4>
             <ul className="space-y-2.5">
               <li>
                 <Link href="/help" className="text-sm text-slate-300 hover:text-white transition-colors">
-                  Central de Ajuda
+                  {t('centralDeAjuda')}
                 </Link>
               </li>
               <li>
                 <Link href="/terms" className="text-sm text-slate-300 hover:text-white transition-colors">
-                  Termos de Uso
+                  {t('termosDeUso')}
                 </Link>
               </li>
               <li>
                 <Link href="/privacy" className="text-sm text-slate-300 hover:text-white transition-colors">
-                  Privacidade
+                  {t('privacidade')}
                 </Link>
               </li>
             </ul>
@@ -120,17 +123,17 @@ export default function Footer() {
         {/* Bottom */}
         <div className="flex flex-col md:flex-row items-center justify-between py-6 gap-4">
           <p className="text-xs text-slate-400">
-            © {new Date().getFullYear()} Boatzy. Navegue com Elegância. Todos os direitos reservados.
+            {t('direitos', { ano: new Date().getFullYear() })}
           </p>
           <div className="flex items-center gap-6">
             <Link href="/privacy" className="text-xs text-slate-400 hover:text-white transition-colors">
-              Privacidade
+              {t('privacidade')}
             </Link>
             <Link href="/terms" className="text-xs text-slate-400 hover:text-white transition-colors">
-              Termos
+              {t('termos')}
             </Link>
             <Link href="/contact" className="text-xs text-slate-400 hover:text-white transition-colors">
-              Contato
+              {t('contato')}
             </Link>
           </div>
         </div>

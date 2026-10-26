@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useSyncExternalStore, type ReactNode } from 'react';
+import { useTranslations } from 'next-intl';
 import { Map as MapaIcone, Navigation } from 'lucide-react';
 import LocalizacaoMap from './LocalizacaoMap';
 
@@ -25,6 +26,7 @@ function assinarDesktop(aoMudar: () => void) {
  * pessoa pede — a rolagem até a reserva fica mais curta e leve.
  */
 export default function LocalizacaoRoteiro({ lat, lng, endereco }: Props) {
+  const t = useTranslations('Roteiro.localizacao');
   const [pediuMapa, setPediuMapa] = useState(false);
   // Desktop (lg+): mapa aberto direto. No servidor (e na hidratação) conta como celular.
   const ehDesktop = useSyncExternalStore(assinarDesktop, () => window.matchMedia(DESKTOP).matches, () => false);
@@ -61,7 +63,7 @@ export default function LocalizacaoRoteiro({ lat, lng, endereco }: Props) {
           onClick={() => setPediuMapa(true)}
           className="mt-2 w-full text-center text-sm font-semibold text-turquesa-escuro hover:underline underline-offset-4 py-2"
         >
-          Ver no mapa aqui
+          {t('verNoMapa')}
         </button>
       )}
     </div>

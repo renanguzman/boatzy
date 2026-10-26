@@ -1,6 +1,8 @@
 'use client';
 
 import { useState } from 'react';
+import { useTranslations } from 'next-intl';
+import { useFormatos } from '@/i18n/formatos';
 import { valorVendaLabel, valorCompacto } from './labels';
 
 export type ValorVendaValue = { min: string; max: string };
@@ -24,7 +26,11 @@ const inputCls = `w-full rounded-xl border border-slate-200 pl-8 pr-3 py-2 text-
 export default function ValorVendaPicker({ value, onChange, isOpen, onOpen, onClose, compact }: Props) {
   const [draft, setDraft] = useState<ValorVendaValue>(value);
 
-  const label = valorVendaLabel(value);
+  const t = useTranslations('CamposVenda');
+  const tComum = useTranslations('Comum');
+  const tFiltros = useTranslations('Filtros');
+  const f = useFormatos();
+  const label = valorVendaLabel(value, t, f);
 
   function abrir() {
     setDraft(value);
@@ -49,44 +55,44 @@ export default function ValorVendaPicker({ value, onChange, isOpen, onOpen, onCl
         } ${isOpen ? 'ring-2 ring-marinho bg-white shadow-md' : 'hover:bg-slate-50'}`}
       >
         <span className={`block font-bold text-slate-500 uppercase tracking-wider mb-0.5 ${compact ? 'text-[9px]' : 'text-[10px]'}`}>
-          Valor
+          {t('valor.rotulo')}
         </span>
         {label ? (
           <span className={`font-medium text-grafite whitespace-nowrap ${compact ? 'text-xs' : 'text-sm'}`}>
             {label}
           </span>
         ) : (
-          <span className={`text-slate-400 whitespace-nowrap ${compact ? 'text-xs' : 'text-sm'}`}>Qualquer valor</span>
+          <span className={`text-slate-400 whitespace-nowrap ${compact ? 'text-xs' : 'text-sm'}`}>{t('valor.placeholder')}</span>
         )}
       </button>
 
       {isOpen && (
         <div className="absolute top-full right-0 mt-2 bg-white rounded-2xl shadow-2xl border border-slate-100 z-50 w-80 p-4">
           <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-3">
-            Faixa de valor
+            {t('valor.titulo')}
           </p>
           <div className="flex items-center gap-2">
             <div className="relative flex-1">
-              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs text-slate-400 font-medium">R$</span>
+              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs text-slate-400 font-medium">{'R$'}</span>
               <input
                 className={inputCls}
                 type="number"
                 min="0"
                 step="1000"
-                placeholder="Mínimo"
+                placeholder={tFiltros('minimo')}
                 value={draft.min}
                 onChange={(e) => setDraft((d) => ({ ...d, min: e.target.value }))}
               />
             </div>
-            <span className="text-slate-400 text-sm shrink-0">até</span>
+            <span className="text-slate-400 text-sm shrink-0">{tFiltros('ate')}</span>
             <div className="relative flex-1">
-              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs text-slate-400 font-medium">R$</span>
+              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs text-slate-400 font-medium">{'R$'}</span>
               <input
                 className={inputCls}
                 type="number"
                 min="0"
                 step="1000"
-                placeholder="Máximo"
+                placeholder={tFiltros('maximo')}
                 value={draft.max}
                 onChange={(e) => setDraft((d) => ({ ...d, max: e.target.value }))}
               />
@@ -98,14 +104,14 @@ export default function ValorVendaPicker({ value, onChange, isOpen, onOpen, onCl
               onClick={() => setDraft({ min: '', max: '' })}
               className="text-xs font-semibold text-slate-500 hover:text-slate-700 transition-colors"
             >
-              Limpar
+              {tComum('limpar')}
             </button>
             <button
               type="button"
               onClick={aplicar}
               className="px-4 py-2 rounded-xl bg-marinho hover:bg-marinho-escuro text-white text-xs font-semibold transition-colors"
             >
-              Aplicar
+              {tComum('aplicar')}
             </button>
           </div>
         </div>

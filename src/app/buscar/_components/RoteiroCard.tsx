@@ -4,10 +4,12 @@ import { useState, useTransition } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import { useTranslations } from 'next-intl';
 import { MapPin, Users, Clock, Ship, Star, Sparkles } from 'lucide-react';
 import { alternarFavorito } from '@/lib/favoritos-actions';
+import { useFormatos } from '@/i18n/formatos';
+import { useCatalogo } from '@/i18n/CatalogoProvider';
 import {
-  formatarPreco,
   hrefRoteiro,
   precoExibicaoRoteiro,
   type PrecoMinimoRoteiro,
@@ -21,7 +23,9 @@ export type RoteiroCardData = PrecoMinimoRoteiro & {
   nome: string;
   descricao: string;
   quantidade_pessoas: number | null;
+  /** Rótulo gravado em pt-BR ("4 horas") — fallback quando a fonte não traz `duracao_horas`. */
   duracao: string | null;
+  duracao_horas?: number | null;
   municipios: { nome: string; estados: { uf: string } | null } | null;
   roteiro_imagens: { url_imagem: string; principal: boolean }[];
   embarcacao: { embarcacao_tipo: { nome: string } | null } | null;
@@ -52,6 +56,9 @@ export default function RoteiroCard({
   avaliacaoResumo?: AvaliacaoResumoCard | null;
 }) {
   const router = useRouter();
+  const t = useTranslations('Cards');
+  const f = useFormatos();
+  const { traduzir } = useCatalogo();
   const [, startTransition] = useTransition();
   const [favorito, setFavorito] = useState(initialFavorito);
 
@@ -85,6 +92,7 @@ export default function RoteiroCard({
 
   const href = hrefRoteiro(roteiro.id, query, precoNaData);
   const precoInfo = precoExibicaoRoteiro(roteiro, precoNaData);
+  const duracao = f.duracao(roteiro.duracao_horas) ?? roteiro.duracao;
 
   return (
     <Link
@@ -123,7 +131,7 @@ export default function RoteiroCard({
         {!avaliacaoResumo && (
           <span className="absolute top-3 left-3 inline-flex items-center gap-1 rounded-full bg-white/95 backdrop-blur-sm px-2.5 py-1 text-[10px] font-bold text-marinho shadow-sm">
             <Sparkles className="h-3 w-3 text-turquesa-escuro" />
-            Novo
+            {t('novo')}
           </span>
         )}
 
@@ -131,7 +139,7 @@ export default function RoteiroCard({
         <button
           type="button"
           onClick={handleFavoritar}
-          aria-label={favorito ? 'Remover dos favoritos' : 'Favoritar'}
+          aria-label={favorito ? t('removerFavorito') : t('adicionarFavorito')}
           aria-pressed={favorito}
           className="absolute top-3 right-3 h-8 w-8 rounded-full bg-white/80 backdrop-blur-sm flex items-center justify-center hover:bg-white hover:scale-110 transition-all"
         >
@@ -154,19 +162,19 @@ export default function RoteiroCard({
           {roteiro.embarcacao?.embarcacao_tipo && (
             <span className="flex items-center gap-1">
               <Ship className="h-3 w-3" />
-              {roteiro.embarcacao.embarcacao_tipo.nome}
+              {traduzir('tipo', roteiro.embarcacao.embarcacao_tipo.nome)}
             </span>
           )}
           {roteiro.quantidade_pessoas && (
             <span className="flex items-center gap-1">
               <Users className="h-3 w-3" />
-              {roteiro.quantidade_pessoas} pessoas
+              {f.pessoas(roteiro.quantidade_pessoas)}
             </span>
           )}
-          {roteiro.duracao && (
+          {duracao && (
             <span className="flex items-center gap-1">
               <Clock className="h-3 w-3" />
-              {roteiro.duracao}
+              {duracao}
             </span>
           )}
         </div>
@@ -179,22 +187,22 @@ export default function RoteiroCard({
         <div className="flex items-end justify-between pt-3 border-t border-slate-50">
           {precoInfo ? (
             <div>
-              <span className="block text-[9px] text-slate-400 uppercase tracking-wide">{precoInfo.rotulo}</span>
+              <span className="block text-[9px] text-slate-400 uppercase tracking-wide">{f.rotuloPreco(precoInfo)}</span>
               <span className="text-base font-bold text-marinho">
-                {formatarPreco(precoInfo.valor)}
+                {f.preco(precoInfo.valor)}
               </span>
-              <span className="text-xs text-slate-400 ml-1">{precoInfo.unidade}</span>
+              <span className="text-xs text-slate-400 ml-1">{f.unidadePreco(precoInfo.modelo)}</span>
             </div>
           ) : (
-            <span className="text-xs text-slate-400 italic">Consulte o preço</span>
+            <span className="text-xs text-slate-400 italic">{t('consultePreco')}</span>
           )}
           {avaliacaoResumo && (
             <span
               className="inline-flex items-center gap-1 text-xs font-semibold text-marinho"
-              title={`${avaliacaoResumo.total} ${avaliacaoResumo.total === 1 ? 'avaliação' : 'avaliações'}`}
+              title={t('avaliacoes', { count: avaliacaoResumo.total })}
             >
               <Star className="h-3.5 w-3.5 fill-destaque text-destaque" />
-              {avaliacaoResumo.media.toLocaleString('pt-BR', {
+              {f.numero(avaliacaoResumo.media, {
                 minimumFractionDigits: 1,
                 maximumFractionDigits: 1,
               })}

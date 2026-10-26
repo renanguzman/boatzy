@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { useLocale, useTranslations } from 'next-intl';
 import {
   FileText, ShieldCheck, X, ChevronDown, Loader2, AlertCircle, CheckCircle2, Lock, Check, Fingerprint,
 } from 'lucide-react';
@@ -8,22 +9,17 @@ import TermoMarkdown from './TermoMarkdown';
 import { conferirConfirmacaoDigitada } from '@/lib/termos/actions';
 import { coletarAmbienteNavegador, solicitarGeolocalizacao } from '@/lib/termos/evidencias-cliente';
 import type { AceiteTermoCliente, GeoGps, TermoParaAceite } from '@/lib/termos/tipos';
+import { useFormatos } from '@/i18n/formatos';
 
 type Props = {
   termo: TermoParaAceite;
   /** Aceite atual (null = ainda não aceito). Controlado pelo componente pai. */
   aceite: AceiteTermoCliente | null;
   onAceitar: (aceite: AceiteTermoCliente) => void;
-  /** Frase curta de contexto no bloco, ex.: "para enviar sua solicitação de reserva". */
+  /** Frase curta de contexto no bloco, já no idioma, ex.: "para enviar sua solicitação de reserva". */
   finalidade: string;
   disabled?: boolean;
 };
-
-function fmtData(iso: string): string {
-  return new Date(iso).toLocaleDateString('pt-BR', {
-    day: '2-digit', month: '2-digit', year: 'numeric', timeZone: 'America/Sao_Paulo',
-  });
-}
 
 /** Máscara de exibição para CPF/CNPJ enquanto o usuário digita. */
 function mascararDocumento(v: string, tipo: 'cpf' | 'cnpj'): string {
@@ -56,6 +52,12 @@ function confirmacaoCompleta(valor: string, tipo: 'cpf' | 'cnpj' | 'nome'): bool
  * Use com `key={termo.id}`: uma nova versão do termo remonta o componente e zera a leitura.
  */
 export default function TermoAceite({ termo, aceite, onAceitar, finalidade, disabled }: Props) {
+  const t = useTranslations('Termos');
+  const tComum = useTranslations('Comum');
+  const f = useFormatos();
+  // O documento é sempre o texto em pt-BR (o que vale juridicamente); nos outros idiomas, um aviso.
+  const avisarIdioma = useLocale() !== 'pt-BR';
+  const rotuloConfirmacao = termo.confirmacao ? t(`rotuloConfirmacao.${termo.confirmacao.tipo}`) : '';
   const [aberto, setAberto] = useState(false);
 
   // Evidências de leitura — preservadas entre aberturas do modal.
@@ -117,7 +119,7 @@ export default function TermoAceite({ termo, aceite, onAceitar, finalidade, disa
     if (exigeConfirmacao) {
       const conferido = await conferirConfirmacaoDigitada(confirmacaoValor);
       if (!conferido.ok) {
-        setErro(conferido.error ?? 'A confirmação não confere.');
+        setErro(conferido.error ?? t('erros.naoConfere'));
         setEnviando(false);
         return;
       }
@@ -147,9 +149,9 @@ export default function TermoAceite({ termo, aceite, onAceitar, finalidade, disa
         <div className="rounded-2xl border border-turquesa/40 bg-turquesa/10 p-4 flex items-start gap-3">
           <CheckCircle2 className="h-5 w-5 text-turquesa-escuro shrink-0 mt-0.5" />
           <div className="flex-1 min-w-0">
-            <p className="text-sm font-semibold text-marinho">Você leu e aceitou os termos</p>
+            <p className="text-sm font-semibold text-marinho">{t('aceito')}</p>
             <p className="text-xs text-marinho/80 mt-0.5">
-              {termo.titulo} · Versão {termo.versao} · Código {codigoVerificacao}
+              {t('meta', { titulo: termo.titulo, versao: termo.versao, codigo: codigoVerificacao })}
             </p>
           </div>
           <button
@@ -158,7 +160,7 @@ export default function TermoAceite({ termo, aceite, onAceitar, finalidade, disa
             disabled={disabled}
             className="text-xs font-semibold text-turquesa-escuro hover:text-marinho underline underline-offset-2 shrink-0 disabled:opacity-50"
           >
-            Ver termos
+            {t('verTermos')}
           </button>
         </div>
       ) : (
@@ -170,7 +172,7 @@ export default function TermoAceite({ termo, aceite, onAceitar, finalidade, disa
             <div className="flex-1 min-w-0">
               <p className="text-sm font-bold text-marinho">{termo.titulo}</p>
               <p className="text-xs text-slate-500 mt-0.5">
-                Leitura e aceite obrigatórios {finalidade}. Versão {termo.versao}, vigente desde {fmtData(termo.publicadoEm)}.
+                {t('obrigatorio', { finalidade, versao: termo.versao, data: f.data(termo.publicadoEm) })}
               </p>
             </div>
           </div>
@@ -181,7 +183,7 @@ export default function TermoAceite({ termo, aceite, onAceitar, finalidade, disa
             className="mt-4 w-full flex items-center justify-center gap-2 rounded-xl border-2 border-marinho text-marinho hover:bg-marinho hover:text-white font-semibold text-sm py-2.5 transition-colors disabled:opacity-50"
           >
             <FileText className="h-4 w-4" />
-            Ler e aceitar os termos
+            {t('lerEAceitar')}
           </button>
         </div>
       )}
@@ -197,20 +199,22 @@ export default function TermoAceite({ termo, aceite, onAceitar, finalidade, disa
               <div className="flex items-start justify-between gap-4">
                 <div className="min-w-0">
                   <p className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-turquesa-escuro">
-                    <ShieldCheck className="h-3.5 w-3.5" /> Documento para aceite
+                    <ShieldCheck className="h-3.5 w-3.5" /> {t('documentoParaAceite')}
                   </p>
                   <h2 id="termo-titulo" className="mt-1 text-lg sm:text-xl font-bold leading-snug text-marinho">{termo.titulo}</h2>
                   <div className="mt-2 flex flex-wrap gap-1.5 text-[11px] text-slate-500">
-                    <span className="rounded-full bg-slate-100 px-2.5 py-0.5">Versão {termo.versao}</span>
-                    <span className="rounded-full bg-slate-100 px-2.5 py-0.5">Vigente desde {fmtData(termo.publicadoEm)}</span>
-                    <span className="rounded-full bg-slate-100 px-2.5 py-0.5">Código <span className="font-mono">{codigoVerificacao}</span></span>
+                    <span className="rounded-full bg-slate-100 px-2.5 py-0.5">{t('versao', { versao: termo.versao })}</span>
+                    <span className="rounded-full bg-slate-100 px-2.5 py-0.5">{t('vigenteDesde', { data: f.data(termo.publicadoEm) })}</span>
+                    <span className="rounded-full bg-slate-100 px-2.5 py-0.5">
+                      {t.rich('codigo', { codigo: codigoVerificacao, mono: (texto) => <span className="font-mono">{texto}</span> })}
+                    </span>
                   </div>
                 </div>
                 <button
                   type="button"
                   onClick={() => setAberto(false)}
                   disabled={enviando}
-                  aria-label="Fechar"
+                  aria-label={tComum('fechar')}
                   className="p-2 -mr-2 rounded-full text-slate-400 hover:text-marinho hover:bg-slate-100 transition shrink-0"
                 >
                   <X className="h-5 w-5" />
@@ -232,28 +236,35 @@ export default function TermoAceite({ termo, aceite, onAceitar, finalidade, disa
               onScroll={medirLeitura}
               className="flex-1 min-h-0 overflow-y-auto px-5 sm:px-10 py-6 sm:py-8 bg-white"
             >
-              <TermoMarkdown conteudo={termo.conteudo} />
+              {avisarIdioma && (
+                <p className="mb-6 rounded-xl bg-destaque/20 px-4 py-3 text-sm font-medium text-marinho">
+                  {t('avisoIdioma')}
+                </p>
+              )}
+              <div lang="pt-BR">
+                <TermoMarkdown conteudo={termo.conteudo} />
+              </div>
               <p className="mt-8 pt-4 border-t border-slate-200 text-center text-[11px] text-slate-400">
-                — Fim do documento · Versão {termo.versao} · {codigoVerificacao} —
+                {t('fimDocumento', { versao: termo.versao, codigo: codigoVerificacao })}
               </p>
             </div>
 
             {/* Rodapé de aceite: passos numerados, cada um com o próprio estado */}
             <footer className="shrink-0 border-t border-slate-100 bg-white px-5 sm:px-8 pt-4 pb-5 shadow-[0_-12px_24px_-20px_rgb(14_47_79/0.35)]">
-              <p className="text-xs font-semibold uppercase tracking-wider text-marinho">Para concluir o aceite</p>
+              <p className="text-xs font-semibold uppercase tracking-wider text-marinho">{t('paraConcluir')}</p>
 
               {/* ① Leitura */}
               <div className="mt-2.5 flex items-center gap-2.5">
                 <Passo numero={1} feito={rolouAteFim} />
                 {rolouAteFim ? (
-                  <p className="text-sm text-slate-600">Documento lido até o final.</p>
+                  <p className="text-sm text-slate-600">{t('lidoAteFinal')}</p>
                 ) : (
                   <button
                     type="button"
                     onClick={() => scrollRef.current?.scrollBy({ top: scrollRef.current.clientHeight * 0.85, behavior: 'smooth' })}
                     className="flex items-center gap-1.5 text-sm font-semibold text-marinho hover:text-turquesa-escuro transition"
                   >
-                    Leia o documento até o final ({Math.round(progresso * 100)}%)
+                    {t('leiaAteFinal', { pct: Math.round(progresso * 100) })}
                     <ChevronDown className="h-4 w-4 animate-bounce" />
                   </button>
                 )}
@@ -262,7 +273,7 @@ export default function TermoAceite({ termo, aceite, onAceitar, finalidade, disa
               {/* Celular: enquanto lê, só o passo 1 (sobra espaço para o texto) e um aviso do que vem depois */}
               {!rolouAteFim && (
                 <p className="mt-1.5 pl-[34px] text-xs text-slate-500 sm:hidden">
-                  Depois: declarar que concorda{termo.confirmacao ? ` e confirmar ${termo.confirmacao.rotulo}` : ''}.
+                  {termo.confirmacao ? t('depoisComConfirmacao', { rotulo: rotuloConfirmacao }) : t('depoisSemConfirmacao')}
                 </p>
               )}
 
@@ -274,7 +285,7 @@ export default function TermoAceite({ termo, aceite, onAceitar, finalidade, disa
                 }`}>
                   <Passo numero={2} feito={concordo} />
                   <span className="min-w-0 flex-1">
-                    <span className="block text-sm font-semibold text-marinho">Declare que leu e concorda</span>
+                    <span className="block text-sm font-semibold text-marinho">{t('declare')}</span>
                     <span className="mt-1 flex items-start gap-2 text-sm text-slate-600">
                       <input
                         type="checkbox"
@@ -283,7 +294,7 @@ export default function TermoAceite({ termo, aceite, onAceitar, finalidade, disa
                         onChange={(e) => setConcordo(e.target.checked)}
                         className="mt-0.5 h-4 w-4 shrink-0 rounded border-slate-300 accent-marinho focus:ring-marinho/30 cursor-pointer"
                       />
-                      <span>Li <strong>integralmente</strong> e <strong>concordo</strong> com os termos acima.</span>
+                      <span>{t.rich('liEConcordo', { b: (texto) => <strong>{texto}</strong> })}</span>
                     </span>
                   </span>
                 </label>
@@ -300,10 +311,10 @@ export default function TermoAceite({ termo, aceite, onAceitar, finalidade, disa
                         <Passo numero={3} feito={completo} />
                         <div className="min-w-0 flex-1">
                           <label htmlFor="termo-confirmacao" className="block text-sm font-semibold text-marinho">
-                            {tipo === 'cpf' ? 'Digite seu CPF completo' : tipo === 'cnpj' ? 'Digite o CNPJ completo' : 'Digite seu nome completo'}
+                            {t(`digite.${tipo}`)}
                           </label>
                           <p className="mt-0.5 text-xs text-slate-500">
-                            Para confirmar que é você, digite{tipo === 'nome' ? ' como está no cadastro' : ''}:{' '}
+                            {tipo === 'nome' ? t('paraConfirmarNome') : t('paraConfirmarDoc')}{' '}
                             <span className={`inline-block rounded-md bg-destaque/30 px-1.5 py-px font-semibold text-marinho ${tipo === 'nome' ? '' : 'font-mono'}`}>
                               {termo.confirmacao.dica}
                             </span>
@@ -324,7 +335,7 @@ export default function TermoAceite({ termo, aceite, onAceitar, finalidade, disa
                             setErro(null);
                           }}
                           onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); aceitar(); } }}
-                          placeholder={tipo === 'cpf' ? '000.000.000-00' : tipo === 'cnpj' ? '00.000.000/0000-00' : 'Nome completo'}
+                          placeholder={tipo === 'cpf' ? '000.000.000-00' : tipo === 'cnpj' ? '00.000.000/0000-00' : t('placeholderNome')}
                           className={`w-full rounded-xl border bg-white pl-10 pr-10 py-3 text-base font-medium tracking-wide text-grafite placeholder:font-normal placeholder:tracking-normal placeholder:text-slate-300 focus:outline-none focus:ring-2 transition ${
                             erro ? 'border-red-300 focus:ring-red-200' : 'border-slate-300 focus:ring-marinho/20 focus:border-marinho/50'
                           }`}
@@ -347,8 +358,7 @@ export default function TermoAceite({ termo, aceite, onAceitar, finalidade, disa
               <div className="mt-4 flex flex-col-reverse sm:flex-row sm:items-center gap-3 sm:justify-between">
                 <p className="flex items-start gap-1.5 text-[11px] leading-snug text-slate-400 sm:max-w-sm">
                   <Lock className="h-3 w-3 shrink-0 mt-0.5" />
-                  Como comprovante deste aceite eletrônico, registramos data, hora, IP, dispositivo e
-                  localização, conforme nossa Política de Privacidade.
+                  {t('registro')}
                 </p>
                 {/* O botão diz o que falta enquanto não dá para aceitar */}
                 <button
@@ -358,11 +368,11 @@ export default function TermoAceite({ termo, aceite, onAceitar, finalidade, disa
                   className="shrink-0 flex items-center justify-center gap-2 rounded-xl bg-marinho hover:bg-marinho-escuro text-white text-sm font-semibold px-6 py-3 transition shadow-md shadow-marinho/15 disabled:bg-slate-200 disabled:text-slate-500 disabled:shadow-none disabled:cursor-not-allowed"
                 >
                   {enviando ? <Loader2 className="h-4 w-4 animate-spin" /> : <ShieldCheck className="h-4 w-4" />}
-                  {enviando ? 'Confirmando…'
-                    : !rolouAteFim ? 'Leia até o fim'
-                    : !concordo ? 'Marque a declaração'
-                    : termo.confirmacao && !confirmacaoValor.trim() ? `Digite ${termo.confirmacao.rotulo}`
-                    : 'Li e aceito'}
+                  {enviando ? t('botao.confirmando')
+                    : !rolouAteFim ? t('botao.leiaAteFim')
+                    : !concordo ? t('botao.marqueDeclaracao')
+                    : termo.confirmacao && !confirmacaoValor.trim() ? t('botao.digite', { rotulo: rotuloConfirmacao })
+                    : t('botao.aceito')}
                 </button>
               </div>
             </footer>

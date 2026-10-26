@@ -1,0 +1,35 @@
+{
+  "Passeios": {
+    "ilha-do-campeche": {
+      "titulo": "Descubre el \"Caribe brasileño\": un paseo exclusivo en barco a la Ilha do Campeche",
+      "resumo": "Olvídate de las filas y los horarios rígidos de las goletas: descubre por qué llegar en lancha privada es la forma más relajada de conocer el \"Caribe brasileño\"."
+    },
+    "costa-da-lagoa": {
+      "titulo": "El secreto de la Costa da Lagoa: navegando por las aguas de Florianópolis",
+      "resumo": "Un pueblo al que solo se llega por agua, restaurantes de moda para anclar y las aguas tranquilas de la Lagoa da Conceição: el paseo perfecto para quien busca calma."
+    },
+    "caixa-d-aco": {
+      "titulo": "El destino más de moda del litoral: paseo náutico a Caixa D'Aço",
+      "resumo": "Bares flotantes, el videoclip de Michel Teló y la experiencia VIP de llegar en lancha privada al lugar más concurrido del litoral de Santa Catarina."
+    },
+    "praia-do-tingua": {
+      "titulo": "El refugio exclusivo de los barcos: la magia de la Praia do Tinguá",
+      "resumo": "El difícil acceso por tierra hace que esta ensenada sea prácticamente exclusiva para quien llega en barco: mar calmo, gastronomía frente al mar y poca gente."
+    },
+    "praia-de-palmas": {
+      "titulo": "Aguas de nivel internacional: navegando por la Praia y la Ilha de Palmas",
+      "resumo": "Sello \"Bandera Azul\", aguas cristalinas y snorkel: conoce la isla que ostenta el estándar internacional de calidad más codiciado del litoral."
+    }
+  },
+  "Experiencias": {
+    "metaTitulo": "Experiencias — Boatzy",
+    "metaDescricao": "Paseos, destinos e historias para inspirar tu próximo paseo en barco: conoce los mejores lugares para navegar con Boatzy.",
+    "sobretitulo": "Inspírate",
+    "titulo": "Experiencias <destaque>para navegar</destaque>",
+    "subtitulo": "Paseos, destinos e historias reales para ayudarte a elegir tu próximo paseo en barco, de la mano de quienes conocen el litoral de Santa Catarina.",
+    "lerExperiencia": "Leer la experiencia",
+    "ctaTitulo": "¿Listo para vivir la tuya?",
+    "ctaTexto": "Encuentra la embarcación ideal y reserva el paseo que se ajusta a la experiencia que quieres vivir.",
+    "ctaBotao": "Buscar embarcaciones"
+  }
+}

@@ -1,0 +1,257 @@
+{
+  "Legal": {
+    "atualizacao": "Last updated: {data}",
+    "avisoTraducao": "<b>Convenience translation.</b> This page is a translation provided for your convenience. The original Portuguese version is the legally binding one and prevails in case of any discrepancy."
+  },
+  "TermosUso": {
+    "metaTitulo": "Terms of Use — Boatzy",
+    "metaDescricao": "Read the Terms of Use governing access to and use of the Boatzy boat rental intermediation platform.",
+    "titulo": "Terms of Use",
+    "status": "<b>Status:</b> Provisional draft (v1) — a preliminary version intended to meet social login (Facebook/Meta) requirements during the platform's development phase. <b>This is not the final version.</b> Review by a lawyer is recommended before the official launch and, especially, before the platform starts processing real payments or bookings.",
+    "s1": {
+      "titulo": "1. Acceptance of these Terms",
+      "p1": "Welcome to <b>Boatzy</b>. These Terms of Use govern access to and use of the Boatzy platform (\"platform\", \"service\", \"we\"), available at boatzy.app. By creating an account or using the platform, you state that you have read, understood and agree to these Terms and our <privacidade>Privacy Policy</privacidade>. If you do not agree, do not use the platform.",
+      "p2": "Boatzy is currently a <b>project under development</b> <em>(legal name and CNPJ to be added once the company is incorporated)</em>. Some features described here may not be available yet."
+    },
+    "s2": {
+      "titulo": "2. What Boatzy is (and what it isn't)",
+      "p1": "Boatzy is an <b>intermediation platform</b> that connects:",
+      "anunciantes": "<b>Listers</b> — people who make boats available for rent; and",
+      "locatarios": "<b>Renters</b> — people interested in renting those boats.",
+      "p2": "<b>Boatzy acts solely as a technology intermediary.</b> We are <b>not</b> the owners, operators, charterers or insurers of any listed boat, and we are <b>not</b> a party to the rental agreement entered into between Lister and Renter. The rental relationship — including terms, price, delivery, use and return of the boat — is established directly between users."
+    },
+    "s3": {
+      "titulo": "3. Registration and account",
+      "p1": "To use the platform, you must:",
+      "i1": "Be <b>at least 18 years old</b> and have the legal capacity to enter into contracts;",
+      "i2": "Provide <b>true, complete and up-to-date</b> information;",
+      "i3": "Keep your login credentials confidential.",
+      "p2": "You may register using <b>your Facebook account login</b>. You are responsible for all activity on your account. Notify us immediately of any unauthorized use."
+    },
+    "s4": {
+      "titulo": "4. User responsibilities",
+      "anunciantes": "Listers are responsible for:",
+      "a1": "Ensuring they have the right to make the boat available for rent;",
+      "a2": "Keeping the boat in proper, safe condition and compliant with the competent authorities (e.g., the Brazilian Navy), including required documentation, licenses and safety equipment;",
+      "a3": "Providing truthful information about the boat.",
+      "locatarios": "Renters are responsible for:",
+      "l1": "Using the boat properly, lawfully and safely;",
+      "l2": "Holding the required boating license, where applicable;",
+      "l3": "Complying with the terms agreed with the Lister."
+    },
+    "s5": {
+      "titulo": "5. Prohibited conduct",
+      "p1": "By using the platform, you agree <b>not</b> to:",
+      "i1": "Provide false information or impersonate another person;",
+      "i2": "Use the platform for unlawful or fraudulent purposes;",
+      "i3": "Violate the rights of third parties or of the platform itself;",
+      "i4": "Attempt to circumvent, overload or compromise the system's security;",
+      "i5": "Copy, modify or commercially exploit Boatzy content without authorization.",
+      "p2": "We may suspend or terminate accounts that violate these Terms."
+    },
+    "s6": {
+      "titulo": "6. Payments",
+      "nota": "<b>Future feature.</b> At this stage, the platform does not yet process payments. When the payment service becomes available, specific conditions (fees, payouts, refunds and cancellations) will be detailed and communicated to users and may be subject to supplementary terms."
+    },
+    "s7": {
+      "titulo": "7. Disclaimer",
+      "p1": "Since Boatzy is only an intermediary:",
+      "i1": "We do not guarantee the quality, safety, legality or availability of the listed boats, nor the trustworthiness of users;",
+      "i2": "We are not liable for damage, accidents, losses or harm arising from the rental relationship or the use of the boats, which are the sole responsibility of Listers and Renters;",
+      "i3": "The platform is provided \"as is\", especially in this development phase, and may experience instability or downtime."
+    },
+    "s8": {
+      "titulo": "8. Limitation of liability",
+      "p": "To the fullest extent permitted by Brazilian law, Boatzy shall not be liable for indirect damages, lost profits or losses arising from the use of or inability to use the platform, except where the law does not allow such limitation."
+    },
+    "s9": {
+      "titulo": "9. Intellectual property",
+      "p": "The name, brand, logo, layout, text and other elements of the platform belong to Boatzy (or their respective owners) and are protected by law. Using the platform does not transfer to you any rights over these elements."
+    },
+    "s10": {
+      "titulo": "10. Privacy",
+      "p": "The processing of your personal data is governed by our <privacidade>Privacy Policy</privacidade>, which forms part of these Terms."
+    },
+    "s11": {
+      "titulo": "11. Suspension and termination",
+      "p": "You may close your account at any time. We may suspend or terminate access for users who violate these Terms or the law, or discontinue the platform (in whole or in part), especially since it is a project under development."
+    },
+    "s12": {
+      "titulo": "12. Changes to these Terms",
+      "p": "We may update these Terms from time to time. The date of the last update will always be shown at the top. Material changes will be communicated through the available channels. Continued use of the platform after the changes constitutes acceptance of the new version."
+    },
+    "s13": {
+      "titulo": "13. Governing law and jurisdiction",
+      "p": "These Terms are governed by the <b>laws of the Federative Republic of Brazil</b>. The courts of the consumer's domicile shall have jurisdiction to settle any disputes, in accordance with the Brazilian Consumer Protection Code, where applicable."
+    },
+    "s14": {
+      "titulo": "14. Contact",
+      "p": "Questions about these Terms of Use:"
+    }
+  },
+  "PoliticaPrivacidade": {
+    "metaTitulo": "Privacy Policy — Boatzy",
+    "metaDescricao": "Learn how Boatzy handles your personal data in compliance with Brazil's LGPD (General Data Protection Law) and Marco Civil da Internet.",
+    "titulo": "Privacy Policy",
+    "status": "<b>Status:</b> Provisional draft (v1) — a preliminary version intended to meet social login (Facebook/Meta) requirements during the platform's development phase. <b>This is not the final version.</b> Review by a digital law attorney is recommended before the official launch and after the company is incorporated (CNPJ).",
+    "s1": {
+      "titulo": "1. Who we are",
+      "p1": "<b>Boatzy</b> (\"Boatzy\", \"we\" or \"platform\") is a project under development that is building a digital boat rental intermediation platform — connecting people who want to rent boats (Renters) with owners who make them available (Listers).",
+      "p2": "This Privacy Policy explains how we process the personal data of those who access or register on the platform, in compliance with <b>Law No. 13,709/2018 (Brazil's General Data Protection Law — LGPD)</b> and the <b>Marco Civil da Internet (Law No. 12,965/2014)</b>.",
+      "controlador": "<b>Data controller:</b> Boatzy — project under development <em>(legal name and CNPJ to be added once the company is incorporated)</em>",
+      "canal": "<b>Contact for privacy matters:</b> <email>adm@boatzy.app</email>",
+      "site": "<b>Website:</b> boatzy.app"
+    },
+    "s2": {
+      "titulo": "2. What data we collect",
+      "p1": "At this stage, we collect only the data strictly necessary to create and identify your account:",
+      "a": "a) Data you provide when registering via Facebook login:",
+      "a1": "Full name",
+      "a2": "Email address",
+      "a3": "Gender",
+      "a4": "City",
+      "a5": "Profile photo",
+      "b": "b) Data collected automatically when you use the platform:",
+      "b1": "IP address, device type and browser",
+      "b2": "Browsing and usage data (pages visited, date and time)",
+      "b3": "Cookies and similar technologies (see section 6)",
+      "minimizacao": "We apply the principle of <b>data minimization</b>: we collect only what is necessary for the platform to work at this stage. We do not collect sensitive data (racial origin, political opinion, health, sex life, etc.)."
+    },
+    "s3": {
+      "titulo": "3. How and why we use your data",
+      "p1": "We use your data for the following purposes and legal bases provided for in the LGPD:",
+      "finalidade": "Purpose",
+      "base": "Legal basis (LGPD)",
+      "linhas": {
+        "conta": {
+          "f": "Create, identify and authenticate your account",
+          "b": "Performance of a contract (art. 7, V)"
+        },
+        "login": {
+          "f": "Enable login with your Facebook account",
+          "b": "Performance of a contract / consent"
+        },
+        "operar": {
+          "f": "Operate, maintain and improve the platform",
+          "b": "Legitimate interest (art. 7, IX)"
+        },
+        "personalizar": {
+          "f": "Personalize your experience and communications (e.g., appropriate form of address)",
+          "b": "Legitimate interest / consent"
+        },
+        "avisos": {
+          "f": "Send important notices about your account",
+          "b": "Performance of a contract"
+        },
+        "legal": {
+          "f": "Comply with legal and regulatory obligations",
+          "b": "Legal obligation (art. 7, II)"
+        },
+        "fraude": {
+          "f": "Prevent fraud and ensure security",
+          "b": "Legitimate interest"
+        }
+      },
+      "naoVendemos": "We do not sell your personal data."
+    },
+    "s4": {
+      "titulo": "4. Who we share data with",
+      "p1": "We may share data only when necessary and in the following situations:",
+      "i1": "<b>Technology providers</b> that support us (hosting, authentication, analytics) — only what is necessary and under a confidentiality obligation.",
+      "i2": "<b>Meta/Facebook</b>, when you choose to use social login — Meta's processing of the data is governed by its own privacy policy.",
+      "i3": "<b>Public authorities</b>, when required by law, court order or to defend rights.",
+      "p2": "We do not share your data with third parties for marketing purposes without your consent."
+    },
+    "s5": {
+      "titulo": "5. How long we keep data",
+      "p": "We keep your data for as long as necessary for the purposes described or to comply with legal obligations. You may request deletion of your account and data at any time by emailing <email>adm@boatzy.app</email>, except for information the law requires us to keep."
+    },
+    "s6": {
+      "titulo": "6. Cookies and similar technologies",
+      "p1": "Cookies are small files stored in your browser. We also use the browser's local storage, which works in a similar way. We group what we use into two categories:",
+      "necessarios": "<b>Necessary</b> — essential for the platform to work (keeping you signed in and storing site preferences). They are always active, based on performance of a contract and legitimate interest (art. 7, V and IX, LGPD).",
+      "medicao": "<b>Analytics</b> — Google Analytics, which shows us statistically how the site is used (pages visited, where visits come from, device type and approximate region) so we can improve Boatzy, based on legitimate interest (art. 7, IX, LGPD). We do not use advertising cookies.",
+      "controlarTitulo": "How to control cookies",
+      "controlar": "When you're signed in, Analytics statistics are linked to an internal code for your account — never to your name or email. You can block or delete cookies at any time in your browser settings; blocking Analytics cookies doesn't limit your use of the platform, but blocking Necessary ones may prevent you from signing in.",
+      "tabelaTitulo": "Cookies and items we use",
+      "colunas": {
+        "nome": "Name",
+        "deQuem": "Owner",
+        "categoria": "Category",
+        "paraQue": "Purpose",
+        "duracao": "Duration"
+      },
+      "categorias": {
+        "necessario": "Necessary",
+        "medicao": "Analytics"
+      },
+      "origem": {
+        "supabase": "Boatzy (Supabase)",
+        "navegador": "Boatzy (browser storage)",
+        "ga": "Google Analytics",
+        "boatzy": "Boatzy"
+      },
+      "itens": {
+        "auth": {
+          "para": "Keeps you securely signed in.",
+          "duracao": "Login session (renewed while you use the site)"
+        },
+        "locais": {
+          "para": "Remembers the latest destinations searched on this device."
+        },
+        "tutorial": {
+          "para": "Remembers that the lister dashboard tutorial has been seen."
+        },
+        "idioma": {
+          "para": "Stores the language chosen for the site.",
+          "duracao": "1 year"
+        },
+        "gaLocal": {
+          "para": "Prevents the same statistical event from being counted twice."
+        },
+        "ga": {
+          "para": "Distinguishes visitors statistically."
+        },
+        "gaSessao": {
+          "para": "Keeps the visit state for statistics."
+        }
+      },
+      "ateLimpar": "Until you clear your browser data",
+      "doisAnos": "2 years",
+      "google": "Google Analytics is a service of Google LLC, which may process data outside Brazil under the safeguards of its own privacy policy (policies.google.com/privacy)."
+    },
+    "s7": {
+      "titulo": "7. Security",
+      "p": "We take reasonable technical and organizational measures to protect your data against unauthorized access, loss or alteration. No system is 100% secure, but we work to reduce risks and respond to any incidents."
+    },
+    "s8": {
+      "titulo": "8. International transfer",
+      "p": "Some of our technology providers may be located outside Brazil. In those cases, we adopt safeguards so that your data remains protected in accordance with the LGPD."
+    },
+    "s9": {
+      "titulo": "9. Your rights as a data subject",
+      "p1": "Under art. 18 of the LGPD, you may, at any time:",
+      "i1": "Confirm whether your data is being processed",
+      "i2": "Access your data",
+      "i3": "Correct incomplete, inaccurate or outdated data",
+      "i4": "Request anonymization, blocking or deletion of unnecessary data",
+      "i5": "Request data portability",
+      "i6": "Withdraw consent and request deletion of your account",
+      "i7": "Obtain information about who we share your data with",
+      "p2": "To exercise any of these rights, write to <email>adm@boatzy.app</email>."
+    },
+    "s10": {
+      "titulo": "10. Minors",
+      "p": "The platform is intended for people over 18. We do not knowingly collect data from minors. If we identify such collection, the data will be deleted."
+    },
+    "s11": {
+      "titulo": "11. Changes to this Policy",
+      "p": "We may update this Policy from time to time, especially as the platform evolves. The date of the last update will always be shown at the top. Material changes will be communicated through the available channels."
+    },
+    "s12": {
+      "titulo": "12. Contact",
+      "p": "Questions, requests or complaints about privacy and data protection:",
+      "dpo": "Data Protection Officer (DPO) to be appointed after the company is incorporated."
+    }
+  }
+}

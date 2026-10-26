@@ -3,13 +3,15 @@
 import { useState, useEffect, useRef, useTransition, useCallback } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
+import { useTranslations } from 'next-intl';
 import { ArrowLeft, ExternalLink, Send, User, Loader2, Tag, ShieldAlert, Sparkles, X, type LucideIcon } from 'lucide-react';
 import type { RealtimeChannel } from '@supabase/supabase-js';
 import { createClient } from '@/lib/supabase/client';
 import { authorizeRealtime } from '@/lib/supabase/realtime';
 import { enviarMensagem, marcarConversaComoLida, confirmarAvisoChat } from '@/lib/chat-actions';
-import { origemTipoLabel, type ConversaOrigem } from '@/lib/conversa-origem';
-import { FUSO_HORARIO, dataISONoFuso } from '@/lib/datas';
+import type { ConversaOrigem } from '@/lib/conversa-origem';
+import { dataISONoFuso } from '@/lib/datas';
+import { useFormatos } from '@/i18n/formatos';
 
 export type Mensagem = {
   id: string;
@@ -34,24 +36,13 @@ type Interlocutor = {
 /** Assunto sugerido: um clique preenche o campo com `texto` (a pessoa revisa e envia). */
 export type SugestaoChat = { rotulo: string; texto: string; icone?: LucideIcon };
 
-function formatHora(iso: string): string {
-  return new Date(iso).toLocaleTimeString('pt-BR', { timeZone: FUSO_HORARIO, hour: '2-digit', minute: '2-digit' });
-}
-
-function formatDiaSeparador(iso: string): string {
-  const d = new Date(iso);
-  const dia = dataISONoFuso(d);
-  if (dia === dataISONoFuso(new Date())) return 'Hoje';
-  if (dia === dataISONoFuso(new Date(Date.now() - 86_400_000))) return 'Ontem';
-  return d.toLocaleDateString('pt-BR', { timeZone: FUSO_HORARIO, day: '2-digit', month: 'long', year: 'numeric' });
-}
 
 export default function ChatBox({
   conversaId,
   meId,
   interlocutor,
   voltarHref,
-  voltarLabel = 'Voltar',
+  voltarLabel,
   mensagensIniciais,
   rascunhoInicial,
   contexto,
@@ -96,6 +87,18 @@ export default function ChatBox({
    */
   rascunhoExterno?: { texto: string; versao: number };
 }) {
+  const t = useTranslations('Chat.caixa');
+  const tChat = useTranslations('Chat');
+  const tComum = useTranslations('Comum');
+  const f = useFormatos();
+  const origemTipoLabel = (tipo: string) =>
+    tipo === 'venda' || tipo === 'roteiro' || tipo === 'embarcacao' ? t(`origem.${tipo}`) : tipo;
+  const formatDiaSeparador = (iso: string) => {
+    const dia = dataISONoFuso(new Date(iso));
+    if (dia === dataISONoFuso(new Date())) return t('hoje');
+    if (dia === dataISONoFuso(new Date(Date.now() - 86_400_000))) return t('ontem');
+    return f.data(iso, { day: '2-digit', month: 'long', year: 'numeric' });
+  };
   const emModal = !!onFechar;
   const [mensagens, setMensagens] = useState<Mensagem[]>(mensagensIniciais);
   const [texto, setTexto] = useState(rascunhoInicial ?? '');
@@ -210,7 +213,7 @@ export default function ChatBox({
           <Link
             href={voltarHref}
             className="w-9 h-9 flex items-center justify-center rounded-lg text-slate-400 hover:text-marinho hover:bg-slate-100 transition-colors"
-            title={voltarLabel}
+            title={voltarLabel ?? tComum('voltar')}
           >
             <ArrowLeft className="w-5 h-5" />
           </Link>
@@ -237,7 +240,7 @@ export default function ChatBox({
         {contexto && !emModal && (
           <span
             className="ml-auto hidden sm:inline-flex items-center gap-1.5 rounded-full bg-marinho/10 px-3 py-1.5 text-xs font-medium text-marinho max-w-[45%]"
-            title={`Referente a: ${contexto.label} (${origemTipoLabel(contexto.tipo)})`}
+            title={t('referenteA', { label: contexto.label, tipo: origemTipoLabel(contexto.tipo) })}
           >
             <Tag className="w-3.5 h-3.5 flex-shrink-0" />
             <span className="truncate">
@@ -252,21 +255,21 @@ export default function ChatBox({
                 href={abrirEmNovaAbaHref}
                 target="_blank"
                 rel="noopener noreferrer"
-                title="Abrir a conversa em uma nova aba"
+                title={t('abrirNovaAba')}
                 className="w-9 h-9 flex items-center justify-center rounded-lg text-slate-400 hover:text-marinho hover:bg-slate-100 transition-colors"
               >
                 <ExternalLink className="w-4.5 h-4.5" />
-                <span className="sr-only">Abrir a conversa em uma nova aba</span>
+                <span className="sr-only">{t('abrirNovaAba')}</span>
               </a>
             )}
             <button
               type="button"
               onClick={onFechar}
-              title="Fechar e voltar para a reserva"
+              title={t('fecharVoltar')}
               className="w-9 h-9 flex items-center justify-center rounded-lg text-slate-400 hover:text-marinho hover:bg-slate-100 transition-colors"
             >
               <X className="w-5 h-5" />
-              <span className="sr-only">Fechar conversa</span>
+              <span className="sr-only">{tComum('fechar')}</span>
             </button>
           </div>
         )}
@@ -288,10 +291,10 @@ export default function ChatBox({
           <div className="min-h-full flex flex-col justify-center">
             <p className="flex items-center gap-1.5 text-sm font-semibold text-marinho">
               <Sparkles className="h-4 w-4 text-turquesa-escuro" />
-              Sobre o que você quer falar?
+              {t('sobreOQue')}
             </p>
             <p className="mt-0.5 text-xs text-slate-500">
-              Toque num assunto: a mensagem já vem escrita — é só revisar e enviar.
+              {t('toqueAssunto')}
             </p>
             <div className="mt-4 grid grid-cols-2 gap-2">
               {sugestoes.map((sug) => {
@@ -327,8 +330,8 @@ export default function ChatBox({
           </div>
         ) : mensagens.length === 0 ? (
           <div className="h-full flex flex-col items-center justify-center text-center">
-            <p className="text-sm font-medium text-slate-500">Nenhuma mensagem ainda</p>
-            <p className="text-xs text-slate-400 mt-1">Envie a primeira mensagem para iniciar a conversa.</p>
+            <p className="text-sm font-medium text-slate-500">{t('nenhumaMensagem')}</p>
+            <p className="text-xs text-slate-400 mt-1">{t('envieAPrimeira')}</p>
           </div>
         ) : (
           mensagens.map((m, i) => {
@@ -355,7 +358,7 @@ export default function ChatBox({
                   >
                     <p className="text-sm whitespace-pre-wrap break-words">{m.conteudo}</p>
                     <p className={`text-[10px] mt-1 text-right ${mine ? 'text-white/60' : 'text-slate-400'}`}>
-                      {formatHora(m.created_at)}
+                      {f.hora(m.created_at)}
                     </p>
                   </div>
                 </div>
@@ -395,14 +398,14 @@ export default function ChatBox({
             onKeyDown={handleKeyDown}
             rows={1}
             disabled={avisoPendente}
-            placeholder="Escreva uma mensagem..."
+            placeholder={t('placeholder')}
             className="flex-1 resize-none max-h-32 px-4 py-2.5 rounded-2xl border border-slate-200 bg-white text-sm text-slate-700 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-marinho/20 focus:border-marinho/40 transition disabled:bg-slate-50 disabled:cursor-not-allowed"
           />
           <button
             type="button"
             onClick={handleEnviar}
             disabled={enviando || !texto.trim() || avisoPendente}
-            title="Enviar"
+            title={t('enviar')}
             className="w-11 h-11 flex-shrink-0 flex items-center justify-center rounded-full bg-marinho hover:bg-marinho-escuro text-white transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
           >
             {enviando ? <Loader2 className="w-5 h-5 animate-spin" /> : <Send className="w-5 h-5" />}
@@ -420,31 +423,14 @@ export default function ChatBox({
                 <ShieldAlert className="w-5 h-5 text-marinho" />
               </div>
               <h3 className="text-base font-bold text-marinho mt-1.5">
-                Comunicação exclusiva pela plataforma
+                {tChat('aviso.titulo')}
               </h3>
             </div>
 
             <div className="space-y-3 text-sm text-slate-600 leading-relaxed">
-              <p>
-                Como plataforma de intermediação, a Boatzy recomenda que toda a comunicação
-                relacionada a este atendimento — dúvidas, combinações de valores, alterações e
-                demais tratativas — seja realizada exclusivamente por meio desta conversa, dentro
-                do site. É esse canal que nos permite oferecer o suporte previsto nos Termos de
-                Uso e na Política de Privacidade da plataforma, inclusive em caso de dúvidas ou
-                eventuais divergências entre as partes.
-              </p>
-              <p>
-                A Boatzy não se responsabiliza, em nenhuma hipótese, por tratativas, acordos,
-                pagamentos, danos ou prejuízos decorrentes de comunicações realizadas por outros
-                meios (como WhatsApp, telefone, e-mail ou redes sociais) que não tenham sido
-                formalizadas dentro da plataforma. Fora deste canal, a Boatzy não tem meios de
-                mediar a negociação nem de garantir o cumprimento do que for combinado entre as
-                partes.
-              </p>
-              <p className="text-xs text-slate-400">
-                Ao clicar em &quot;Estou ciente&quot;, você declara estar de acordo com esta
-                orientação.
-              </p>
+              <p>{tChat('aviso.p1')}</p>
+              <p>{tChat('aviso.p2')}</p>
+              <p className="text-xs text-slate-400">{tChat('aviso.p3')}</p>
             </div>
 
             <button
@@ -454,7 +440,7 @@ export default function ChatBox({
               className="mt-5 w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-marinho hover:bg-marinho-escuro text-white text-sm font-semibold transition-colors disabled:opacity-60"
             >
               {confirmandoAviso && <Loader2 className="w-4 h-4 animate-spin" />}
-              Estou ciente
+              {tChat('aviso.ciente')}
             </button>
           </div>
         </div>

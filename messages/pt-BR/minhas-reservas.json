@@ -1,0 +1,188 @@
+{
+  "StatusReserva": {
+    "pendente": {
+      "label": "Aguardando confirmação",
+      "note": "Sua solicitação foi enviada. O gestor irá analisar e responder em breve."
+    },
+    "aguardando_pagamento": {
+      "label": "Aguardando pagamento",
+      "note": "O gestor aceitou sua solicitação. Conclua o pagamento para garantir a data."
+    },
+    "expirada": {
+      "label": "Pagamento expirado",
+      "note": "O prazo para pagamento terminou e a solicitação expirou. Nenhum valor foi cobrado."
+    },
+    "confirmada": {
+      "label": "Confirmada",
+      "note": "Reserva confirmada pelo gestor."
+    },
+    "recusada": {
+      "label": "Recusada",
+      "note": "Esta solicitação foi recusada pelo gestor."
+    },
+    "cancelada": {
+      "label": "Cancelada",
+      "note": "Você cancelou esta reserva."
+    },
+    "concluida": {
+      "label": "Concluída",
+      "note": "Experiência realizada. Conte como foi — sua avaliação ajuda outros clientes!"
+    }
+  },
+  "MinhasReservas": {
+    "titulo": "Minhas reservas",
+    "metaTitulo": "Minhas reservas | Boatzy",
+    "subtitulo": "Acompanhe o status das suas solicitações e a resposta do gestor.",
+    "vazioTitulo": "Você ainda não tem reservas",
+    "vazioTexto": "Explore os roteiros disponíveis e faça sua primeira solicitação.",
+    "explorar": "Explorar roteiros",
+    "dataFlex": "{data} (± {count, plural, one {# dia} other {# dias}})",
+    "solicitadaEm": "Solicitada em {data}",
+    "adicionais": "Adicionais",
+    "totalEstimado": "Total estimado",
+    "pagamentoPendente": "Pagamento pendente · Pedido #{numero}",
+    "pagueAte": "Pague até {data} para garantir a data.",
+    "pagar": "Pagar {valor}",
+    "pagamentoConfirmado": "Pagamento confirmado · Pedido #{numero}",
+    "respostaGestor": "Resposta do gestor",
+    "respondidaEm": "Respondida em {data}",
+    "quemAtende": "Quem vai te atender",
+    "gestorEmbarcacao": "Gestor da embarcação",
+    "verDetalhes": "Ver detalhes →",
+    "cancelar": {
+      "botao": "Cancelar reserva",
+      "confirmar": "Cancelar esta reserva?",
+      "sim": "Sim, cancelar"
+    },
+    "avaliacao": {
+      "sua": "Sua avaliação",
+      "aguardandoAprovacao": "Aguardando aprovação",
+      "enviadaEm": "Enviada em {data}",
+      "avaliar": "Avaliar experiência",
+      "comoFoi": "Como foi sua experiência?",
+      "estrelas": "{count, plural, one {# estrela} other {# estrelas}}",
+      "deCinco": "{nota} de 5",
+      "placeholder": "Conte como foi o passeio (opcional)",
+      "enviar": "Enviar avaliação",
+      "agoraNao": "Agora não"
+    },
+    "erros": {
+      "sessao": "Sessão expirada. Faça login novamente.",
+      "naoEncontrada": "Reserva não encontrada.",
+      "pagaNaoCancela": "Reservas pagas ainda não podem ser canceladas pelo site. Fale com o gestor pelo chat para combinar o cancelamento.",
+      "naoPodeCancelar": "Esta reserva não pode mais ser cancelada.",
+      "naoFoiPossivelAgora": "Não foi possível cancelar agora.",
+      "erroCancelar": "Erro ao cancelar a reserva. Tente novamente.",
+      "nota": "Escolha uma nota de 1 a 5 estrelas.",
+      "comentarioLongo": "O comentário pode ter no máximo 2000 caracteres.",
+      "soConcluidas": "Apenas reservas concluídas podem ser avaliadas.",
+      "jaAvaliou": "Você já avaliou esta reserva.",
+      "erroAvaliar": "Erro ao enviar a avaliação. Tente novamente."
+    },
+    "chat": {
+      "voltarReserva": "Voltar para a reserva"
+    }
+  },
+  "DetalheReserva": {
+    "reservaCodigo": "Reserva {codigo}",
+    "etapas": {
+      "solicitacaoEnviada": "Solicitação enviada",
+      "respostaDono": "Resposta do dono",
+      "aguardandoAnalise": "Aguardando a análise",
+      "naoAceita": "Não aceita pelo dono",
+      "canceladaPorVoce": "Cancelada por você",
+      "aceitaPeloDono": "Aceita pelo dono",
+      "confirmadaPeloDono": "Confirmada pelo dono",
+      "pagamento": "Pagamento",
+      "depoisAceite": "Depois do aceite",
+      "pagueAte": "Pague até {data}",
+      "aguardando": "Aguardando",
+      "prazoExpirou": "Prazo de pagamento expirou",
+      "pagamentoAprovado": "Pagamento aprovado",
+      "reembolsado": "Reembolsado",
+      "reembolsoParcial": "Reembolso parcial",
+      "passeioRealizado": "Passeio realizado",
+      "diaPasseio": "Dia do passeio"
+    },
+    "seuPasseio": "Seu passeio",
+    "periodo": "Período",
+    "data": "Data",
+    "ate": "até",
+    "flexivel": "Flexível em ± {count, plural, one {# dia} other {# dias}}",
+    "pessoas": "Pessoas",
+    "saida": "Saída",
+    "retornoAproximado": "Retorno aproximado",
+    "duracao": "Duração",
+    "duracaoDe": "Duração de {duracao}",
+    "embarcacao": "Embarcação",
+    "donoEmbarcacao": "Dono da embarcação",
+    "embarqueDesembarque": "Embarque e desembarque",
+    "solicitadaEm": "Solicitada em",
+    "pontoEncontro": "Ponto de encontro",
+    "abrirMapa": "Abrir no mapa",
+    "opcionaisIncluidos": "Opcionais incluídos",
+    "respostaDono": "Resposta do dono",
+    "situacao": "Situação da reserva",
+    "recado": "Recado",
+    "valores": "Valores",
+    "precoACombinar": "Preço a combinar com o dono — o valor é definido quando ele aceitar a solicitação.",
+    "linhaPasseio": "Passeio",
+    "linhaPasseioDiarias": "Passeio ({count, plural, one {# diária} other {# diárias}})",
+    "linhaPasseioPessoas": "Passeio ({count, plural, one {# pessoa} other {# pessoas}})",
+    "opcionais": "Opcionais",
+    "total": "Total",
+    "totalEstimado": "Total estimado",
+    "taxasIncluidas": "Taxas incluídas",
+    "taxasIncluidasPedido": "Taxas incluídas · Pedido #{numero}",
+    "pagamento": "Pagamento",
+    "itemSeu": "Esta reserva é de um item seu — não há conversa com você mesmo.",
+    "verRoteiro": "Ver página do roteiro",
+    "termosAceitos": "Termos de uso da reserva (versão {versao}) aceitos em {data} · Protocolo <mono>{protocolo}</mono>",
+    "imprimir": "Imprimir ou salvar PDF",
+    "comprovante": {
+      "titulo": "Comprovante de pagamento",
+      "pedidoReserva": "Pedido #{numero} · Reserva {codigo}",
+      "valorPago": "Valor pago",
+      "dataPagamento": "Data do pagamento",
+      "forma": "Forma de pagamento",
+      "aVista": "à vista",
+      "pagador": "Pagador",
+      "recebedor": "Recebedor",
+      "recebedorValor": "Boatzy — intermediação do pagamento",
+      "idTransacao": "ID da transação",
+      "idPix": "ID Pix (end-to-end)",
+      "numeroFatura": "Nº da fatura",
+      "referenteA": "Referente a",
+      "opcionaisLista": "Opcionais: {lista}",
+      "passeioOpcionais": "Passeio e opcionais",
+      "totalPago": "Total pago",
+      "reembolsos": "Reembolsos",
+      "estornadoEm": "Estornado em {data}",
+      "emAndamento": "Em andamento desde {data}",
+      "prazoExtrato": "O prazo para o valor aparecer no extrato depende do seu banco ou da operadora do cartão.",
+      "processado": "Pagamento processado pelo Boatzy (Asaas). Comprovante emitido em {data}.",
+      "operadora": "Comprovante da operadora"
+    },
+    "selo": {
+      "pago": "Pagamento aprovado",
+      "reembolsado": "Reembolsado",
+      "reembolsado_parcial": "Reembolso parcial",
+      "em_disputa": "Em contestação"
+    },
+    "statusPagamento": {
+      "pendente": "Nada é cobrado agora. Se o dono aceitar, você paga pelo Boatzy (Pix ou cartão) para garantir a data.",
+      "semOnline": "Reserva confirmada sem pagamento online pelo Boatzy. Combine o pagamento com o dono pelo chat.",
+      "nenhum": "Nenhum valor foi cobrado por esta reserva.",
+      "aguardando": "Aguardando pagamento",
+      "reembolsado": "Pagamento reembolsado",
+      "reembolsoParcial": "Reembolso parcial",
+      "emContestacao": "Pagamento em contestação",
+      "aprovado": "Pagamento aprovado",
+      "protegido": "O dono só recebe depois do passeio — seu pagamento fica protegido pelo Boatzy.",
+      "expirado": "Prazo de pagamento expirado",
+      "expiradoTexto": "Nenhum valor foi cobrado. Se ainda quiser o passeio, faça uma nova solicitação.",
+      "cancelado": "Pedido cancelado",
+      "nenhumCobrado": "Nenhum valor foi cobrado."
+    }
+  }
+}

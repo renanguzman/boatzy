@@ -1,4 +1,5 @@
 import { notFound, redirect } from 'next/navigation';
+import { getTranslations } from 'next-intl/server';
 import Header from '@/components/layout/Header';
 import EventoAnalytics from '@/components/analytics/EventoAnalytics';
 import { createClient } from '@/lib/supabase/server';
@@ -11,6 +12,7 @@ import ChatBox, { type Mensagem } from '@/components/chat/ChatBox';
  * a embarcação.
  */
 export default async function ChatEmbarcacaoPage({ params }: { params: Promise<{ id: string }> }) {
+  const t = await getTranslations('Chat');
   const { id } = await params;
 
   const supabase = await createClient();
@@ -80,7 +82,7 @@ export default async function ChatEmbarcacaoPage({ params }: { params: Promise<{
   // Mensagem contextual pré-preenchida apenas em conversa ainda vazia.
   const rascunhoInicial =
     (mensagens ?? []).length === 0
-      ? `Olá! Tenho interesse na embarcação "${embarcacao.nome}". Podemos conversar?`
+      ? t('rascunhoEmbarcacao', { nome: embarcacao.nome })
       : undefined;
 
   return (
@@ -92,9 +94,9 @@ export default async function ChatEmbarcacaoPage({ params }: { params: Promise<{
         <ChatBox
           conversaId={conversaId}
           meId={user.id}
-          interlocutor={{ name: dono.name, descricao: 'Dono da embarcação · conversa pelo Boatzy', avatar_url: dono.avatar_url }}
+          interlocutor={{ name: dono.name, descricao: t('descricaoDono'), avatar_url: dono.avatar_url }}
           voltarHref={`/embarcacoes/${id}/roteiros`}
-          voltarLabel="Voltar para a embarcação"
+          voltarLabel={t('voltarEmbarcacao')}
           mensagensIniciais={(mensagens ?? []) as Mensagem[]}
           rascunhoInicial={rascunhoInicial}
           contexto={{ tipo: 'embarcacao', label: embarcacao.nome }}

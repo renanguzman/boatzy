@@ -1,0 +1,203 @@
+{
+  "CamposBusca": {
+    "data": {
+      "rotulo": "Data",
+      "placeholder": "Quando?",
+      "dataExata": "Data exata",
+      "flex": "±{count, plural, one {# dia} other {# dias}}",
+      "reservasAbertasAte": "Reservas abertas até <destaque>{data}</destaque>",
+      "reservasAbertasAteSimples": "Reservas abertas até {data}",
+      "indisponivel": "Indisponível para este roteiro",
+      "limparDatas": "Limpar datas"
+    },
+    "local": {
+      "rotulo": "Destino",
+      "placeholder": "Para onde?",
+      "inputRoteiros": "Cidade ou nome do roteiro",
+      "inputCidade": "Cidade de saída do passeio",
+      "proximoDeMim": "Próximo de mim",
+      "geoNegada": "Não temos acesso à sua localização. Para buscar perto de você, permita o acesso à localização para o Boatzy no navegador (ícone ao lado do endereço do site) e tente de novo.",
+      "geoFalhou": "Não foi possível obter sua localização agora. Tente de novo ou digite o destino.",
+      "comPasseios": "Com passeios no Boatzy",
+      "populares": "Destinos populares",
+      "totalRoteiros": "{count, plural, one {# roteiro} other {# roteiros}}",
+      "recentes": "Buscas recentes",
+      "minimoLetras": "Digite ao menos 2 letras",
+      "nenhumDestino": "Nenhum destino encontrado",
+      "roteiros": "Roteiros",
+      "outrasCidades": "Outras cidades"
+    },
+    "quantidade": {
+      "pessoas": {
+        "rotulo": "Pessoas",
+        "placeholder": "Quantas?",
+        "titulo": "Tamanho do grupo",
+        "valor": "{count, plural, one {# pessoa} other {# pessoas}}",
+        "remover": "Remover pessoa",
+        "adicionar": "Adicionar pessoa",
+        "maximo": "Máximo de {count, plural, one {# pessoa} other {# pessoas}}"
+      },
+      "diarias": {
+        "rotulo": "Diárias",
+        "placeholder": "Quantas?",
+        "titulo": "Quantidade de diárias",
+        "valor": "{count, plural, one {# diária} other {# diárias}}",
+        "remover": "Remover diária",
+        "adicionar": "Adicionar diária",
+        "maximo": "Máximo de {count, plural, one {# diária} other {# diárias}}"
+      }
+    },
+    "tipoEmbarcacao": {
+      "rotulo": "Embarcação",
+      "placeholder": "Qual tipo?",
+      "titulo": "Tipo de embarcação",
+      "nenhum": "Nenhum tipo disponível."
+    }
+  },
+  "Busca": {
+    "semRoteiroNaLocalidade": "O Boatzy ainda não possui um Roteiro nesta localidade",
+    "semEmbarcacaoNaLocalidade": "O Boatzy ainda não possui uma Embarcação nesta localidade",
+    "titulo": {
+      "roteiro": {
+        "disponiveis": "Roteiros disponíveis",
+        "em": "Roteiros em {local}",
+        "perto": "Roteiros próximos a você"
+      },
+      "embarcacao": {
+        "disponiveis": "Embarcações disponíveis",
+        "em": "Embarcações em {local}",
+        "perto": "Embarcações próximas a você"
+      }
+    },
+    "tituloComTipo": {
+      "roteiro": {
+        "disponiveis": "Roteiros com {tipo} disponíveis",
+        "em": "Roteiros com {tipo} em {local}",
+        "perto": "Roteiros com {tipo} próximos a você"
+      },
+      "embarcacao": {
+        "disponiveis": "Embarcações com {tipo} disponíveis",
+        "em": "Embarcações com {tipo} em {local}",
+        "perto": "Embarcações com {tipo} próximas a você"
+      }
+    },
+    "encontrados": {
+      "roteiro": "{count, plural, one {# roteiro encontrado} other {# roteiros encontrados}}",
+      "embarcacao": "{count, plural, one {# embarcação encontrada} other {# embarcações encontradas}}"
+    },
+    "nenhumResultadoFiltros": "Nenhum resultado com os filtros atuais",
+    "resultados": "Resultados",
+    "exibindo": "Exibindo <b>{inicio}–{fim}</b> de <b>{total}</b>",
+    "nenhumResultado": "Nenhum resultado",
+    "removerFiltro": "Remover filtro {filtro}",
+    "chips": {
+      "tipo": "Tipo: {tipo}",
+      "dataFlex": "{data} ± {count, plural, one {# dia} other {# dias}}",
+      "grupo": "Grupo: {count, plural, one {# pessoa} other {# pessoas}}",
+      "preco": "Preço: {faixa}",
+      "duracao": "Duração: {faixa}",
+      "comodidades": "Comodidades: {count}",
+      "acessorios": "Acessórios: {count}",
+      "equipamentos": "Equipamentos de segurança: {count}",
+      "cobranca": "Cobrança: {modelos}"
+    },
+    "faixa": {
+      "entre": "{min} a {max}",
+      "aPartirDe": "A partir de {min}",
+      "ate": "Até {max}"
+    },
+    "vazio": {
+      "embarcacaoComTipo": "Nenhuma embarcação com {tipo} encontrada",
+      "embarcacao": "Nenhuma embarcação encontrada",
+      "roteiroComTipo": "Nenhum roteiro com {tipo} encontrado",
+      "roteiro": "Nenhum roteiro encontrado",
+      "dicaOutroDestinoEmbarcacoes": "Experimente outro destino ou veja todas as embarcações disponíveis.",
+      "dicaOutroDestinoRoteiros": "Experimente outro destino ou veja todos os roteiros disponíveis.",
+      "dicaTipo": "Tente outro tipo de embarcação, ajustar os filtros ou explorar outros destinos.",
+      "dicaFiltros": "Tente ajustar os filtros ou explorar outros destinos.",
+      "limparFiltros": "Limpar filtros",
+      "limparDuracao": "Limpar duração",
+      "limparTipo": "Limpar filtro de tipo",
+      "verTodasEmbarcacoes": "Ver todas as embarcações",
+      "verTodosRoteiros": "Ver todos os roteiros"
+    },
+    "paginacao": {
+      "anterior": "Página anterior",
+      "proxima": "Próxima página",
+      "pagina": "Página {n}"
+    },
+    "ordenar": {
+      "rotulo": "Ordenar por",
+      "relevancia": "Relevância",
+      "recentes": "Mais recentes",
+      "avaliacao": "Melhor avaliação",
+      "preco_asc": "Menor preço",
+      "preco_desc": "Maior preço",
+      "duracao_asc": "Menor duração",
+      "duracao_desc": "Maior duração"
+    },
+    "modelosPreco": {
+      "roteiro": "Passeios (Roteiro)",
+      "diaria": "Por Diária"
+    },
+    "duracaoPresets": {
+      "ate3": "Até 3 horas",
+      "de3a6": "3 a 6 horas",
+      "de6a12": "6 a 12 horas",
+      "diaInteiro": "Dia inteiro (12h a 1 dia)",
+      "maisDe1Dia": "Mais de 1 dia"
+    },
+    "filtros": {
+      "destino": "Destino",
+      "data": "Data",
+      "quantidadePessoas": "Quantidade de pessoas",
+      "tipoEmbarcacao": "Tipo de embarcação",
+      "todos": "Todos",
+      "faixaPreco": "Faixa de preço",
+      "preco": "Preço",
+      "duracaoPasseio": "Duração do passeio",
+      "duracaoHoras": "Duração em horas",
+      "ajudaHoras": "Em horas — 1 dia equivale a 24 h.",
+      "modeloCobranca": "Modelo de cobrança",
+      "ajudaModelos": "Nenhum selecionado mostra todos os modelos.",
+      "comodidades": "Comodidades",
+      "comodidadesPlaceholder": "Ex.: churrasqueira, som…",
+      "comodidadesVazio": "Nenhuma comodidade encontrada.",
+      "acessorios": "Acessórios",
+      "acessoriosPlaceholder": "Ex.: caiaque, churrasqueira…",
+      "acessoriosVazio": "Nenhum acessório encontrado.",
+      "equipamentos": "Equipamentos de Segurança",
+      "equipamentosPlaceholder": "Ex.: colete, extintor…",
+      "equipamentosVazio": "Nenhum equipamento encontrado.",
+      "limparContagem": "Limpar ({count})"
+    },
+    "mapa": {
+      "titulo": "Mapa dos resultados",
+      "nestaPagina": "{count, plural, one {# resultado nesta página} other {# resultados nesta página}}",
+      "comLocalizacao": "{pontos} de {total} com localização",
+      "erro": "Não foi possível carregar o mapa.",
+      "carregando": "Carregando mapa…",
+      "verDetalhes": "Ver detalhes"
+    }
+  },
+  "Filtros": {
+    "qualquer": "Qualquer",
+    "buscarPlaceholder": "Buscar…",
+    "nenhumItem": "Nenhum item encontrado.",
+    "limparBusca": "Limpar busca",
+    "verMenos": "Ver menos",
+    "verTodas": "Ver todas ({count})",
+    "minimo": "Mínimo",
+    "maximo": "Máximo",
+    "rotuloMinimo": "{rotulo} mínimo",
+    "rotuloMaximo": "{rotulo} máximo",
+    "ate": "até",
+    "titulo": "Filtros",
+    "atualizando": "Atualizando resultados",
+    "limparTudo": "Limpar tudo",
+    "fechar": "Fechar filtros",
+    "rotuloPainel": "Filtros da busca",
+    "verResultados": "Ver {count, plural, one {# resultado} other {# resultados}}",
+    "semResultados": "Nenhum resultado — ajuste os filtros"
+  }
+}

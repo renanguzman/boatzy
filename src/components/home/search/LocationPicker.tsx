@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
+import { useTranslations } from 'next-intl';
 import { MapPin, Navigation, Clock, AlertCircle, TrendingUp, Ship } from 'lucide-react';
 import type { LocalResult } from '@/app/api/buscar/locais/route';
 import type { RoteiroSugestao } from '@/app/api/buscar/roteiros/route';
@@ -13,15 +14,8 @@ import type { RoteiroSugestao } from '@/app/api/buscar/roteiros/route';
  * de mim" (coordenada do usuário + raio).
  */
 export type LocationValue =
-  | { type: 'geo'; lat: number; lng: number; label: string }
+  | { type: 'geo'; lat: number; lng: number }
   | { type: 'place'; id: number; nome: string; uf: string };
-
-export const ROTULO_PROXIMO_DE_MIM = 'Próximo de mim';
-
-const MSG_GEO_NEGADA =
-  'Não temos acesso à sua localização. Para buscar perto de você, permita o acesso à localização '
-  + 'para o Boatzy no navegador (ícone ao lado do endereço do site) e tente de novo.';
-const MSG_GEO_FALHOU = 'Não foi possível obter sua localização agora. Tente de novo ou digite o destino.';
 
 type Props = {
   value: LocationValue | null;
@@ -90,15 +84,9 @@ function abrirRoteiro(r: RoteiroSugestao) {
   window.location.href = `/roteiros/${r.id}`;
 }
 
-function rotuloRoteiros(n: number) {
-  return n === 1 ? '1 roteiro' : `${n} roteiros`;
-}
-
-function locationLabel(v: LocationValue) {
-  return v.type === 'geo' ? v.label : `${v.nome}, ${v.uf}`;
-}
-
 export default function LocationPicker({ value, onChange, isOpen, onOpen, onClose, compact, semRotulo, buscarRoteiros }: Props) {
+  const t = useTranslations('CamposBusca.local');
+  const locationLabel = (v: LocationValue) => (v.type === 'geo' ? t('proximoDeMim') : `${v.nome}, ${v.uf}`);
   const [query, setQuery] = useState('');
   const [suggestions, setSuggestions] = useState<LocalResult[]>([]);
   const [roteiros, setRoteiros] = useState<RoteiroSugestao[]>([]);
@@ -107,7 +95,7 @@ export default function LocationPicker({ value, onChange, isOpen, onOpen, onClos
   const [imagensComErro, setImagensComErro] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(false);
   const [geoLoading, setGeoLoading] = useState(false);
-  const [geoErro, setGeoErro] = useState<string | null>(null);
+  const [geoErro, setGeoErro] = useState<'geoNegada' | 'geoFalhou' | null>(null);
   const [recent, setRecent] = useState<LocationValue[]>([]);
   const inputRef = useRef<HTMLInputElement>(null);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -183,7 +171,7 @@ export default function LocationPicker({ value, onChange, isOpen, onOpen, onClos
   function handleGeo() {
     setGeoErro(null);
     if (!navigator.geolocation || !window.isSecureContext) {
-      setGeoErro(MSG_GEO_FALHOU);
+      setGeoErro('geoFalhou');
       return;
     }
     setGeoLoading(true);
@@ -194,14 +182,13 @@ export default function LocationPicker({ value, onChange, isOpen, onOpen, onClos
           type: 'geo',
           lat: Number(pos.coords.latitude.toFixed(5)),
           lng: Number(pos.coords.longitude.toFixed(5)),
-          label: ROTULO_PROXIMO_DE_MIM,
         };
         onChange(v);
         onClose();
       },
       (erro) => {
         setGeoLoading(false);
-        setGeoErro(erro.code === erro.PERMISSION_DENIED ? MSG_GEO_NEGADA : MSG_GEO_FALHOU);
+        setGeoErro(erro.code === erro.PERMISSION_DENIED ? 'geoNegada' : 'geoFalhou');
       },
       { enableHighAccuracy: false, timeout: 15000, maximumAge: 5 * 60 * 1000 },
     );
@@ -240,7 +227,7 @@ export default function LocationPicker({ value, onChange, isOpen, onOpen, onClos
         <p className="text-sm font-medium text-grafite">{r.nome}</p>
         <p className="text-xs text-slate-500">
           {r.estado}
-          {r.temOfertas && <span className="text-turquesa-escuro font-medium"> · Com passeios no Boatzy</span>}
+          {r.temOfertas && <span className="text-turquesa-escuro font-medium"> · {t('comPasseios')}</span>}
         </p>
       </div>
     </button>
@@ -258,7 +245,7 @@ export default function LocationPicker({ value, onChange, isOpen, onOpen, onClos
       >
         {!semRotulo && (
           <span className={`block font-bold text-slate-500 uppercase tracking-wider mb-0.5 ${compact ? 'text-[9px]' : 'text-[10px]'}`}>
-            Destino
+            {t('rotulo')}
           </span>
         )}
         {value ? (
@@ -266,7 +253,7 @@ export default function LocationPicker({ value, onChange, isOpen, onOpen, onClos
             {locationLabel(value)}
           </span>
         ) : (
-          <span className={`text-slate-400 ${compact ? 'text-xs' : 'text-sm'}`}>Para onde?</span>
+          <span className={`text-slate-400 ${compact ? 'text-xs' : 'text-sm'}`}>{t('placeholder')}</span>
         )}
       </button>
 
@@ -282,7 +269,7 @@ export default function LocationPicker({ value, onChange, isOpen, onOpen, onClos
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               onKeyDown={handleKeyDown}
-              placeholder={buscarRoteiros ? 'Cidade ou nome do roteiro' : 'Cidade de saída do passeio'}
+              placeholder={buscarRoteiros ? t('inputRoteiros') : t('inputCidade')}
               className="flex-1 text-sm text-grafite outline-none placeholder:text-slate-400 bg-transparent"
             />
             {loading && (
@@ -305,12 +292,12 @@ export default function LocationPicker({ value, onChange, isOpen, onOpen, onClos
                   <Navigation className="h-4 w-4 text-slate-600" />
                 )}
               </div>
-              <span className="text-sm font-medium text-grafite">{ROTULO_PROXIMO_DE_MIM}</span>
+              <span className="text-sm font-medium text-grafite">{t('proximoDeMim')}</span>
             </button>
             {geoErro && (
               <p role="alert" className="mx-4 mb-2 flex items-start gap-2 rounded-xl bg-amber-50 px-3 py-2.5 text-xs leading-relaxed text-amber-800">
                 <AlertCircle className="h-3.5 w-3.5 shrink-0 mt-0.5" />
-                {geoErro}
+                {t(geoErro)}
               </p>
             )}
 
@@ -319,7 +306,7 @@ export default function LocationPicker({ value, onChange, isOpen, onOpen, onClos
               <>
                 <div className="px-4 py-1.5">
                   <span className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider">
-                    Destinos populares
+                    {t('populares')}
                   </span>
                 </div>
                 {populares.map((r) => (
@@ -334,7 +321,7 @@ export default function LocationPicker({ value, onChange, isOpen, onOpen, onClos
                     </div>
                     <div>
                       <p className="text-sm font-medium text-grafite">{r.nome}, {r.uf}</p>
-                      <p className="text-xs text-slate-500">{rotuloRoteiros(r.totalRoteiros)}</p>
+                      <p className="text-xs text-slate-500">{t('totalRoteiros', { count: r.totalRoteiros })}</p>
                     </div>
                   </button>
                 ))}
@@ -346,7 +333,7 @@ export default function LocationPicker({ value, onChange, isOpen, onOpen, onClos
               <>
                 <div className="px-4 py-1.5">
                   <span className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider">
-                    Buscas recentes
+                    {t('recentes')}
                   </span>
                 </div>
                 {recent.map((r, i) => (
@@ -367,11 +354,11 @@ export default function LocationPicker({ value, onChange, isOpen, onOpen, onClos
 
             {/* Suggestions from API */}
             {showSuggestions && query.trim().length < 2 && (
-              <p className="px-4 py-4 text-sm text-slate-400 text-center">Digite ao menos 2 letras</p>
+              <p className="px-4 py-4 text-sm text-slate-400 text-center">{t('minimoLetras')}</p>
             )}
             {showSuggestions && query.trim().length >= 2 && suggestions.length === 0 && roteiros.length === 0 && !loading && (
               <p className="px-4 py-4 text-sm text-slate-400 text-center">
-                Nenhum destino encontrado
+                {t('nenhumDestino')}
               </p>
             )}
             {showSuggestions && cidadesComOferta.map(renderCidade)}
@@ -381,7 +368,7 @@ export default function LocationPicker({ value, onChange, isOpen, onOpen, onClos
               <>
                 <div className="px-4 pt-3 pb-1.5 border-t border-slate-100">
                   <span className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider">
-                    Roteiros
+                    {t('roteiros')}
                   </span>
                 </div>
                 {roteiros.map((r) => (
@@ -418,7 +405,7 @@ export default function LocationPicker({ value, onChange, isOpen, onOpen, onClos
             {showSuggestions && cidadesSemOferta.length > 0 && roteiros.length > 0 && (
               <div className="px-4 pt-3 pb-1.5 border-t border-slate-100">
                 <span className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider">
-                  Outras cidades
+                  {t('outrasCidades')}
                 </span>
               </div>
             )}

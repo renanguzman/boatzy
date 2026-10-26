@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import { useTranslations } from 'next-intl';
 import { MessageCircle } from 'lucide-react';
 import GaleriaRoteiro from '../../../roteiros/[id]/_components/GaleriaRoteiro';
 import EmbarcacaoInfoSection, { EmbarcacaoItensSection, type EmbarcacaoInfo } from './EmbarcacaoInfoSection';
@@ -35,6 +36,7 @@ export default function EmbarcacaoDetalheView({
   /** Dono vendo a própria embarcação: sem CTA de chat (não conversa consigo mesmo). */
   ehDono: boolean;
 }) {
+  const t = useTranslations('Embarcacao');
   return (
     <>
       <GaleriaRoteiro images={ordenarImagens(embarcacao.embarcacao_imagens)} nome={embarcacao.nome} voltarHref={voltarHref} />
@@ -47,7 +49,7 @@ export default function EmbarcacaoDetalheView({
 
           {/* Roteiros logo abaixo das specs, na largura total da página. */}
           <div className="mb-12">
-            <RoteirosCarousel title="Roteiros desta embarcação" items={roteiros} query={query} />
+            <RoteirosCarousel title={t('roteirosDesta')} items={roteiros} query={query} />
           </div>
 
           <div className="max-w-4xl">
@@ -59,7 +61,7 @@ export default function EmbarcacaoDetalheView({
                 className="inline-flex items-center justify-center gap-2 px-5 py-3 rounded-xl bg-marinho hover:bg-marinho-escuro text-white text-sm font-semibold transition-colors"
               >
                 <MessageCircle className="h-4 w-4" />
-                Converse com o dono
+                {t('converseComDono')}
               </Link>
             )}
           </div>

@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import Image from 'next/image';
+import { useTranslations } from 'next-intl';
 import { Camera, ChevronLeft, ChevronRight, Expand, MapPin } from 'lucide-react';
 import FotosLightbox, { type FotoLightbox } from '@/components/ui/FotosLightbox';
 
@@ -18,6 +19,8 @@ export default function GaleriaReserva({
   nome: string;
   localidade: string | null;
 }) {
+  const t = useTranslations('GaleriaReserva');
+  const tEmb = useTranslations('Embarcacao');
   const [aberta, setAberta] = useState<number | null>(null);
   const trilhoRef = useRef<HTMLDivElement>(null);
   const [podeVoltar, setPodeVoltar] = useState(false);
@@ -58,7 +61,7 @@ export default function GaleriaReserva({
           <button
             type="button"
             onClick={() => setAberta(0)}
-            aria-label={`Ver a foto de capa de ${nome} em tela cheia`}
+            aria-label={t('verCapa', { nome })}
             className="group absolute inset-0 block cursor-zoom-in"
           >
             <Image
@@ -77,12 +80,12 @@ export default function GaleriaReserva({
         {capa && (
           <span className="pointer-events-none absolute top-4 right-4 inline-flex items-center gap-1.5 rounded-full bg-black/40 backdrop-blur-sm px-3 py-1.5 text-xs font-semibold text-white">
             <Camera className="h-3.5 w-3.5" />
-            {fotos.length} {fotos.length === 1 ? 'foto' : 'fotos'}
+            {tEmb('fotos.contagem', { count: fotos.length })}
           </span>
         )}
         <div className="pointer-events-none absolute inset-x-0 bottom-0 p-5">
           <span className="inline-flex items-center gap-1 rounded-full bg-white/15 backdrop-blur-sm px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wider text-white">
-            <MapPin className="h-3 w-3" /> Roteiro
+            <MapPin className="h-3 w-3" /> {t('roteiro')}
           </span>
           <h2 className="mt-2 text-xl sm:text-2xl font-bold text-white leading-tight">{nome}</h2>
           {localidade && (
@@ -106,12 +109,12 @@ export default function GaleriaReserva({
                 key={f.id}
                 type="button"
                 onClick={() => setAberta(i + 1)}
-                aria-label={`Ver foto ${i + 2} de ${fotos.length} em tela cheia`}
+                aria-label={t('verFoto', { n: i + 2, total: fotos.length })}
                 className="group relative shrink-0 snap-start w-[30%] sm:w-[23%] aspect-[4/3] overflow-hidden rounded-xl bg-slate-100 cursor-zoom-in focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-marinho"
               >
                 <Image
                   src={f.url_imagem}
-                  alt={f.titulo ?? `${nome} — foto ${i + 2}`}
+                  alt={f.titulo ?? t('altFoto', { nome, n: i + 2 })}
                   fill
                   sizes="200px"
                   className="object-cover transition-transform duration-300 group-hover:scale-105"
@@ -127,7 +130,7 @@ export default function GaleriaReserva({
           <button
             type="button"
             onClick={() => rolar(-1)}
-            aria-label="Fotos anteriores"
+            aria-label={t('anteriores')}
             className={`hidden sm:flex absolute left-2 top-1/2 mt-2 -translate-y-1/2 h-9 w-9 items-center justify-center rounded-full bg-white/95 text-marinho shadow-md ring-1 ring-slate-200 transition-opacity hover:bg-white ${podeVoltar ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}
           >
             <ChevronLeft className="h-4 w-4" />
@@ -135,7 +138,7 @@ export default function GaleriaReserva({
           <button
             type="button"
             onClick={() => rolar(1)}
-            aria-label="Próximas fotos"
+            aria-label={t('proximas')}
             className={`hidden sm:flex absolute right-2 top-1/2 mt-2 -translate-y-1/2 h-9 w-9 items-center justify-center rounded-full bg-white/95 text-marinho shadow-md ring-1 ring-slate-200 transition-opacity hover:bg-white ${podeAvancar ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}
           >
             <ChevronRight className="h-4 w-4" />

@@ -1,0 +1,47 @@
+{
+  "Navegacao": {
+    "menuPrincipal": "Main menu",
+    "roteiros": "Trips",
+    "embarcacoes": "Boats",
+    "vendas": "For Sale",
+    "experiencias": "Experiences",
+    "anuncieSuaEmbarcacao": "List your boat",
+    "minhasEmbarcacoes": "My boats",
+    "minhaConta": "My account",
+    "minhasConversas": "My messages",
+    "minhasReservas": "My bookings",
+    "favoritos": "Favorites",
+    "sair": "Sign out"
+  },
+  "Header": {
+    "entrar": "Sign in",
+    "comoQuerEntrar": "How would you like to sign in?",
+    "entrarComoCliente": "Sign in as a Renter",
+    "entrarComoClienteDescricao": "Rent boats and trips",
+    "entrarComoProprietario": "Sign in as an Owner",
+    "entrarComoProprietarioDescricao": "List and manage your boats",
+    "conta": "Account",
+    "menuDaContaDe": "{nome}'s account menu",
+    "mensagensNaoLidas": "{count, plural, one {# unread message} other {# unread messages}}",
+    "abrirMenu": "Open menu",
+    "fecharMenu": "Close menu"
+  },
+  "SeletorIdioma": {
+    "titulo": "Language",
+    "alterar": "Language: {idioma}. Change language",
+    "alterando": "Changing language…"
+  },
+  "Footer": {
+    "slogan": "Sail in Style. Brazil's best boat rental platform.",
+    "explorar": "Explore",
+    "empresa": "Company",
+    "sobreNos": "About Us",
+    "contato": "Contact",
+    "suporte": "Support",
+    "centralDeAjuda": "Help Center",
+    "termosDeUso": "Terms of Use",
+    "privacidade": "Privacy",
+    "termos": "Terms",
+    "direitos": "© {ano} Boatzy. Sail in Style. All rights reserved."
+  }
+}

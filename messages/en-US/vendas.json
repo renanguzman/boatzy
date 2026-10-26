@@ -1,0 +1,91 @@
+{
+  "CamposVenda": {
+    "tipo": {
+      "rotulo": "Type",
+      "placeholder": "Which type?",
+      "titulo": "Boat type",
+      "nenhum": "No types available."
+    },
+    "local": {
+      "rotulo": "Location",
+      "placeholder": "Where? (optional)",
+      "estado": "State",
+      "estados": "States",
+      "nenhuma": "No locations available.",
+      "todoEstado": "Entire state",
+      "estadoInteiro": "{estado} (entire state)"
+    },
+    "ano": {
+      "rotulo": "Year",
+      "placeholder": "Any year",
+      "titulo": "Model year",
+      "de": "From",
+      "ate": "To",
+      "emDiante": "{ano} and newer",
+      "ateAno": "up to {ano}",
+      "ateAnoPlaceholder": "To {ano}"
+    },
+    "valor": {
+      "rotulo": "Price",
+      "placeholder": "Any price",
+      "titulo": "Price range",
+      "aPartirDe": "from {valor}",
+      "ate": "up to {valor}"
+    }
+  },
+  "Vendas": {
+    "metaTitulo": "Boats for sale",
+    "titulo": {
+      "geral": "Boats for sale",
+      "tipo": "{tipo} for sale",
+      "geralEm": "Boats for sale in {local}",
+      "tipoEm": "{tipo} for sale in {local}"
+    },
+    "encontrados": "{count, plural, one {# listing found} other {# listings found}}",
+    "chips": {
+      "ano": "Year: {faixa}",
+      "valor": "Price: {faixa}"
+    },
+    "vazioTitulo": "No boats for sale found",
+    "vazioTexto": "Try another type, widen the price/year range or explore other locations.",
+    "filtros": {
+      "localizacao": "Location",
+      "cidade": "City",
+      "todosEstados": "All states",
+      "escolhaEstado": "Choose a state first"
+    },
+    "precoReduzido": "Price reduced",
+    "embarcacaoPadrao": "Boat"
+  },
+  "Venda": {
+    "gate": {
+      "titulo": "Sign in to see this listing's details",
+      "texto": "Full specs, photos, price history, seller details and direct chat on the platform — available to registered users.",
+      "botao": "Sign in or create account"
+    },
+    "specs": {
+      "fabricante": "Manufacturer",
+      "anoModeloFab": "Model/build year",
+      "capacidade": "Capacity",
+      "comprimento": "Length"
+    },
+    "sobreVenda": "About this sale",
+    "sobreEmbarcacao": "About the boat",
+    "semAvaliacoes": "There are no reviews for this boat yet.",
+    "deXPor": "Was <riscado>{valor}</riscado>, now",
+    "reduzidoEm": "Price reduced on {data}",
+    "seuAnuncio": "This is your listing",
+    "naoContaFunil": "Your own interactions don't count in the sales funnel.",
+    "gerenciar": "Manage listing in the dashboard",
+    "vendedor": "Seller",
+    "revelar": "Show seller's contact",
+    "conversar": "Chat with the seller",
+    "negocieSeguro": "Negotiate within the platform for more security",
+    "textoCompartilhar": "Check out \"{nome}\" for sale on Boatzy for {preco}!",
+    "chat": {
+      "descricao": "Seller · chat on Boatzy",
+      "voltar": "Back to the listing",
+      "rascunho": "Hi! I'm interested in \"{nome}\", listed for {preco}. Can we talk?"
+    }
+  }
+}

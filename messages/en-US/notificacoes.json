@@ -1,0 +1,79 @@
+{
+  "Notificacoes": {
+    "titulo": "Notifications",
+    "metaTitulo": "Notifications | Boatzy",
+    "subtitulo": "Everything that happens with your bookings, payments and conversations with owners, in real time. Important notices also arrive by email.",
+    "sinoNaoLidas": "Notifications: {count} unread",
+    "marcarTodas": "Mark all as read",
+    "vazioTitulo": "No notifications yet",
+    "vazioTexto": "Updates about your bookings, payments and messages show up here.",
+    "verTodas": "See all notifications",
+    "fecharAviso": "Close notice",
+    "naoLida": "Unread",
+    "abas": {
+      "todas": "All",
+      "naoLidas": "Unread",
+      "naoLidasN": "Unread ({count})"
+    },
+    "lista": {
+      "tudoEmDia": "You're all caught up",
+      "nenhumaAinda": "No notifications yet",
+      "viuTodas": "You've seen all your notifications.",
+      "quando": "When the owner replies to your request, a payment is processed or a message arrives, you'll see it here.",
+      "explorar": "Explore trips",
+      "carregarMais": "Load more"
+    },
+    "tempo": {
+      "agora": "now",
+      "minutos": "{n} min ago",
+      "horas": "{n} h ago",
+      "dias": "{n}d ago"
+    },
+    "seuPasseio": "your trip",
+    "donoEmbarcacao": "the boat owner",
+    "dataHora": "{data} at {hora}",
+    "oPrazo": "the deadline",
+    "textos": {
+      "reserva_confirmada": {
+        "titulo": "Booking confirmed",
+        "mensagem": "The owner confirmed your booking for {item} on {data}. Enjoy your trip!"
+      },
+      "reserva_recusada": {
+        "titulo": "Booking not accepted",
+        "mensagem": "The owner couldn't accept your request for {item} on {data}.",
+        "recado": " Note from the owner: \"{recado}\""
+      },
+      "reserva_cancelada": {
+        "titulo": "Booking canceled",
+        "mensagem": "Your booking for {item} on {data} was canceled."
+      },
+      "reserva_expirada": {
+        "titulo": "Payment deadline expired",
+        "mensagem": "The deadline to pay for {item} ({data}) has passed and the request expired. You weren't charged."
+      },
+      "reserva_concluida": {
+        "titulo": "How was your trip?",
+        "mensagem": "Tell us how {item} went — your review helps other travelers."
+      },
+      "aguardando_pagamento": {
+        "titulo": "Booking accepted — awaiting payment",
+        "mensagem": "The owner accepted {item} for {data}. Pay by {prazo} to secure the date."
+      },
+      "pagamento_aprovado": {
+        "titulo": "Payment approved",
+        "mensagem": "We received payment for order #{numero}. Your booking for {item} on {data} is confirmed."
+      },
+      "pagamento_recusado": {
+        "titulo": "Payment declined",
+        "mensagem": "The payment for {item} wasn't approved. You can still pay with another card or Pix by {prazo}."
+      },
+      "reembolso": {
+        "titulo": "{parcial, select, sim {Partial refund issued} other {Refund issued}}",
+        "mensagem": "The amount for order #{numero} ({item}) was refunded. How long it takes to show on your statement depends on your bank or card."
+      },
+      "mensagem": {
+        "titulo": "{count, plural, one {New message from {remetente}} other {# new messages from {remetente}}}"
+      }
+    }
+  }
+}

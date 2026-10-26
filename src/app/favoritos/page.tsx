@@ -1,5 +1,7 @@
 import { redirect } from 'next/navigation';
 import Link from 'next/link';
+import type { Metadata } from 'next';
+import { getTranslations } from 'next-intl/server';
 import { Heart } from 'lucide-react';
 import Header from '@/components/layout/Header';
 import Footer from '@/components/layout/Footer';
@@ -48,12 +50,12 @@ type FavoritoRow = {
   anuncio_venda: AnuncioFavoritoRow | null;
 };
 
-function toAnuncioCardData(a: AnuncioFavoritoRow, precoAnterior: number | null): AnuncioVendaCardData {
+function toAnuncioCardData(a: AnuncioFavoritoRow, precoAnterior: number | null, nomePadrao: string): AnuncioVendaCardData {
   const imgs = a.embarcacao?.embarcacao_imagens ?? [];
   const m = a.embarcacao?.municipios;
   return {
     id: a.id,
-    nome: a.embarcacao?.nome ?? 'Embarcação',
+    nome: a.embarcacao?.nome ?? nomePadrao,
     fabricante: a.fabricante,
     ano_modelo: a.ano_modelo,
     ano_fabricacao: a.ano_fabricacao,
@@ -85,12 +87,17 @@ function toEmbarcacaoCardData(e: EmbarcacaoFavoritaRow): EmbarcacaoCardData {
   };
 }
 
+export async function generateMetadata(): Promise<Metadata> {
+  return { title: (await getTranslations('Favoritos'))('metaTitulo') };
+}
+
 export default async function FavoritosPage() {
   const supabase = await createClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();
   if (!user) redirect('/entrar?redirect_to=/favoritos');
+  const t = await getTranslations('Favoritos');
 
   const { data } = await supabaseAdmin
     .from('favorito')
@@ -98,7 +105,7 @@ export default async function FavoritosPage() {
       `id, created_at,
        roteiro (
          id, nome, descricao, quantidade_pessoas, preco_minimo_cliente, preco_minimo_modelo,
-         duracao, ativo,
+         duracao, duracao_horas, ativo,
          municipios ( nome, estados ( uf ) ),
          roteiro_imagens ( url_imagem, principal ),
          embarcacao ( embarcacao_tipo ( nome ) )
@@ -180,25 +187,21 @@ export default async function FavoritosPage() {
       <Header />
 
       <main className="flex-1 max-w-6xl w-full mx-auto px-4 py-10">
-        <h1 className="text-2xl font-bold text-marinho">Favoritos</h1>
-        <p className="text-sm text-slate-500 mt-1">
-          Os roteiros e embarcações que você salvou para decidir com calma.
-        </p>
+        <h1 className="text-2xl font-bold text-marinho">{t('titulo')}</h1>
+        <p className="text-sm text-slate-500 mt-1">{t('subtitulo')}</p>
 
         {vazio ? (
           <div className="mt-8 rounded-2xl border border-dashed border-slate-200 bg-white p-12 flex flex-col items-center text-center">
             <div className="h-14 w-14 rounded-2xl bg-slate-100 flex items-center justify-center mb-4">
               <Heart className="h-7 w-7 text-slate-300" />
             </div>
-            <h2 className="text-lg font-semibold text-slate-700">Você ainda não tem favoritos</h2>
-            <p className="text-sm text-slate-400 mt-1 max-w-sm">
-              Toque no coração de um roteiro ou de uma embarcação para salvá-los aqui.
-            </p>
+            <h2 className="text-lg font-semibold text-slate-700">{t('vazioTitulo')}</h2>
+            <p className="text-sm text-slate-400 mt-1 max-w-sm">{t('vazioTexto')}</p>
             <Link
               href="/buscar"
               className="mt-6 px-5 py-2.5 bg-marinho hover:bg-marinho-escuro text-white text-sm font-semibold rounded-xl transition-colors"
             >
-              Explorar roteiros
+              {t('explorar')}
             </Link>
           </div>
         ) : (
@@ -206,7 +209,7 @@ export default async function FavoritosPage() {
             {favoritosRoteiro.length > 0 && (
               <section className="mt-6">
                 {tiposPresentes > 1 && (
-                  <h2 className="text-lg font-semibold text-marinho mb-4">Roteiros</h2>
+                  <h2 className="text-lg font-semibold text-marinho mb-4">{t('secoes.roteiros')}</h2>
                 )}
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
                   {favoritosRoteiro.map((f) => (
@@ -226,7 +229,7 @@ export default async function FavoritosPage() {
             {favoritosEmbarcacao.length > 0 && (
               <section className="mt-8">
                 {tiposPresentes > 1 && (
-                  <h2 className="text-lg font-semibold text-marinho mb-4">Embarcações</h2>
+                  <h2 className="text-lg font-semibold text-marinho mb-4">{t('secoes.embarcacoes')}</h2>
                 )}
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
                   {favoritosEmbarcacao.map((f) => (
@@ -246,7 +249,7 @@ export default async function FavoritosPage() {
             {favoritosAnuncio.length > 0 && (
               <section className="mt-8">
                 {tiposPresentes > 1 && (
-                  <h2 className="text-lg font-semibold text-marinho mb-4">À venda</h2>
+                  <h2 className="text-lg font-semibold text-marinho mb-4">{t('secoes.venda')}</h2>
                 )}
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
                   {favoritosAnuncio.map((f) => (
@@ -255,6 +258,7 @@ export default async function FavoritosPage() {
                         anuncio={toAnuncioCardData(
                           f.anuncio_venda,
                           precoAnterior.get(f.anuncio_venda.id) ?? null,
+                          t('embarcacaoPadrao'),
                         )}
                         initialFavorito
                       />

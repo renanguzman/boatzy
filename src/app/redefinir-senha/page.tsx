@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { useTranslations } from 'next-intl';
 import { Lock, Eye, EyeOff, ArrowRight, Loader2, CheckCircle2, TriangleAlert } from 'lucide-react';
 import Link from 'next/link';
 import Image from 'next/image';
@@ -10,6 +11,9 @@ type Status = 'checking' | 'no-session' | 'form' | 'success';
 
 function RedefinirSenhaForm() {
   const supabase = createClient();
+  const t = useTranslations('RedefinirSenha');
+  const tAuth = useTranslations('Auth');
+  const tRaiz = useTranslations();
 
   const [status, setStatus] = useState<Status>('checking');
   const [password, setPassword] = useState('');
@@ -31,7 +35,7 @@ function RedefinirSenhaForm() {
     e.preventDefault();
 
     if (password !== confirm) {
-      setError('As senhas não coincidem.');
+      setError(t('naoCoincidem'));
       return;
     }
 
@@ -44,7 +48,7 @@ function RedefinirSenhaForm() {
       if (isSessionError(authError)) {
         setStatus('no-session');
       } else {
-        setError(translateError(authError));
+        setError(tRaiz(translateError(authError)));
       }
       setLoading(false);
       return;
@@ -68,15 +72,15 @@ function RedefinirSenhaForm() {
         <div className="w-16 h-16 bg-red-50 rounded-full flex items-center justify-center mx-auto mb-4">
           <TriangleAlert className="w-8 h-8 text-red-500" />
         </div>
-        <h2 className="text-xl font-bold text-marinho mb-2">Link inválido ou expirado</h2>
+        <h2 className="text-xl font-bold text-marinho mb-2">{t('linkInvalidoTitulo')}</h2>
         <p className="text-slate-500 text-sm mb-6">
-          O link de redefinição não é mais válido. Solicite um novo para continuar.
+          {t('linkInvalidoTexto')}
         </p>
         <Link
           href="/recuperar-senha"
           className="w-full flex items-center justify-center gap-2 bg-marinho hover:bg-marinho-escuro text-white font-semibold py-3.5 rounded-xl transition-all duration-200 shadow-lg shadow-marinho/20"
         >
-          Solicitar novo link
+          {t('solicitarNovo')}
           <ArrowRight className="w-4 h-4" />
         </Link>
       </div>
@@ -89,15 +93,15 @@ function RedefinirSenhaForm() {
         <div className="w-16 h-16 bg-turquesa/10 rounded-full flex items-center justify-center mx-auto mb-4">
           <CheckCircle2 className="w-8 h-8 text-turquesa" />
         </div>
-        <h2 className="text-xl font-bold text-marinho mb-2">Senha redefinida!</h2>
+        <h2 className="text-xl font-bold text-marinho mb-2">{t('sucessoTitulo')}</h2>
         <p className="text-slate-500 text-sm mb-6">
-          Sua senha foi alterada com sucesso. Você já está conectado.
+          {t('sucessoTexto')}
         </p>
         <Link
           href="/"
           className="w-full flex items-center justify-center gap-2 bg-marinho hover:bg-marinho-escuro text-white font-semibold py-3.5 rounded-xl transition-all duration-200 shadow-lg shadow-marinho/20"
         >
-          Ir para o início
+          {t('irInicio')}
           <ArrowRight className="w-4 h-4" />
         </Link>
       </div>
@@ -106,15 +110,15 @@ function RedefinirSenhaForm() {
 
   return (
     <>
-      <h1 className="text-xl font-bold text-marinho mb-2">Redefinir senha</h1>
+      <h1 className="text-xl font-bold text-marinho mb-2">{t('titulo')}</h1>
       <p className="text-slate-500 text-sm mb-6">
-        Escolha uma nova senha para a sua conta.
+        {t('texto')}
       </p>
 
       <form onSubmit={handleSubmit} className="space-y-4">
         <div>
           <label htmlFor="password" className="block text-xs font-bold text-marinho tracking-wider uppercase mb-2">
-            Nova senha
+            {t('novaSenha')}
           </label>
           <div className="relative">
             <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
@@ -123,7 +127,7 @@ function RedefinirSenhaForm() {
               type={showPassword ? 'text' : 'password'}
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              placeholder="Mínimo 6 caracteres"
+              placeholder={t('minimo6')}
               minLength={6}
               required
               className="w-full pl-11 pr-12 py-3.5 rounded-xl border border-slate-200 bg-slate-50/50 text-sm text-grafite placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-marinho/20 focus:border-marinho transition-all"
@@ -131,6 +135,7 @@ function RedefinirSenhaForm() {
             <button
               type="button"
               onClick={() => setShowPassword(!showPassword)}
+              aria-label={showPassword ? tAuth('ocultarSenha') : tAuth('mostrarSenha')}
               className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition-colors"
             >
               {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
@@ -140,7 +145,7 @@ function RedefinirSenhaForm() {
 
         <div>
           <label htmlFor="confirm" className="block text-xs font-bold text-marinho tracking-wider uppercase mb-2">
-            Confirmar nova senha
+            {t('confirmar')}
           </label>
           <div className="relative">
             <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
@@ -149,7 +154,7 @@ function RedefinirSenhaForm() {
               type={showPassword ? 'text' : 'password'}
               value={confirm}
               onChange={(e) => setConfirm(e.target.value)}
-              placeholder="Repita a nova senha"
+              placeholder={t('repita')}
               minLength={6}
               required
               className="w-full pl-11 pr-4 py-3.5 rounded-xl border border-slate-200 bg-slate-50/50 text-sm text-grafite placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-marinho/20 focus:border-marinho transition-all"
@@ -172,7 +177,7 @@ function RedefinirSenhaForm() {
             <Loader2 className="w-5 h-5 animate-spin" />
           ) : (
             <>
-              Redefinir senha
+              {t('botao')}
               <ArrowRight className="w-4 h-4" />
             </>
           )}
@@ -183,6 +188,7 @@ function RedefinirSenhaForm() {
 }
 
 export default function RedefinirSenhaPage() {
+  const t = useTranslations('RedefinirSenha');
   return (
     <div className="min-h-screen flex flex-col items-center justify-center bg-areia px-4 py-12">
       <div className="w-full max-w-md">
@@ -198,7 +204,7 @@ export default function RedefinirSenhaPage() {
             />
           </Link>
           <p className="text-slate-500 text-sm mt-3">
-            Defina uma nova senha para sua conta
+            {t('subtitulo')}
           </p>
         </div>
 
@@ -218,19 +224,20 @@ function isSessionError(error: { code?: string; message: string }): boolean {
   );
 }
 
-function translateError(error: { code?: string; message: string }): string {
+/** Erro do Supabase Auth → chave da mensagem. */
+function translateError(error: { code?: string; message: string }) {
   if (
     error.code === 'same_password' ||
     error.message.includes('different from the old password') ||
     error.message.includes('New password should be different')
   ) {
-    return 'A nova senha deve ser diferente da senha atual.';
+    return 'RedefinirSenha.erros.diferente' as const;
   }
   if (error.code === 'weak_password' || error.message.includes('Password should be at least')) {
-    return 'A senha deve ter pelo menos 6 caracteres.';
+    return 'Auth.erros.senhaCurta' as const;
   }
   if (error.code === 'over_request_rate_limit' || error.message.includes('Too many requests')) {
-    return 'Muitas tentativas. Aguarde alguns minutos.';
+    return 'Auth.erros.muitasTentativas' as const;
   }
-  return 'Não foi possível redefinir a senha. Tente novamente.';
+  return 'RedefinirSenha.erros.falha' as const;
 }

@@ -1,0 +1,198 @@
+{
+  "Roteiro": {
+    "badges": {
+      "novo": "New on Boatzy",
+      "verificado": "Verified Trip"
+    },
+    "capitao": {
+      "com_capitao": "Captain included",
+      "sem_capitao": "No captain",
+      "opcional": "Captain optional"
+    },
+    "aPartirDe": "From",
+    "porDiaria": "per day",
+    "porPasseio": "per trip",
+    "specs": {
+      "duracao": "Duration",
+      "saida": "Departure",
+      "retornoCurto": "Approx. return",
+      "retorno": "Approximate Return",
+      "diaSeguinte": "(next day)",
+      "maisDias": "(+{count} days)",
+      "embarqueDesembarque": "Boarding and drop-off",
+      "localPartida": "Departure point"
+    },
+    "embarcacao": {
+      "titulo": "About the Boat",
+      "outrosRoteiros": "See other trips on this boat",
+      "convidados": "Guests",
+      "tripulacao": "Crew",
+      "quartos": "Cabins",
+      "banheiros": "Bathrooms",
+      "comprimento": "Length"
+    },
+    "itinerario": {
+      "titulo": "Itinerary",
+      "embarque": "Boarding",
+      "parada": "Stop {n}",
+      "desembarque": "Drop-off"
+    },
+    "localizacao": {
+      "titulo": "Location",
+      "cep": "Postal code (CEP) {cep}",
+      "verNoMapa": "Show the map here"
+    },
+    "semAvaliacoes": "There are no reviews for this trip yet."
+  },
+  "Reservar": {
+    "modalidade": {
+      "roteiro": "Per trip",
+      "diaria": "Per day"
+    },
+    "linha": {
+      "roteiro": "Trip",
+      "diaria": "Days"
+    },
+    "aPartirDe": "from",
+    "valorDataSelecionada": "Price for the selected date.",
+    "precoVaria": "Price varies by date.",
+    "checkin": "Check-in",
+    "data": "Date",
+    "escolhaData": "Choose a date",
+    "checkoutEm": "Check-out on <b>{data}</b>",
+    "pessoas": "Guests",
+    "ajustado": "This trip fits up to {count, plural, one {# person} other {# people}} — we've adjusted your group size.",
+    "limite": "Up to {count, plural, one {# person} other {# people}} on board, not counting the crew.",
+    "adicionais": "Add-ons",
+    "total": "Total",
+    "porPessoa": "≈ {valor} per person ({count, plural, one {# person} other {# people}})",
+    "cupom": "A discount coupon can be applied when you confirm.",
+    "solicitar": "Request Booking →",
+    "semCobranca": "No charge now — you only pay after the owner confirms.",
+    "pagamentoProtegido": "Protected payment: the owner only gets paid after the trip",
+    "anuncioAprovado": "Listing approved by the Boatzy team",
+    "erros": {
+      "selecioneData": "Select the booking date.",
+      "periodoIndisponivel": "This period includes an unavailable date. Choose another date or reduce the number of days.",
+      "informePessoas": "Enter the number of guests."
+    },
+    "barra": {
+      "comOpcionais": "with add-ons",
+      "totalDiarias": "total ({count, plural, one {# day} other {# days}})",
+      "porDiaria": "Per day",
+      "valor": "Price",
+      "reservar": "Book",
+      "verDatas": "See dates",
+      "semCobranca": "No charge now"
+    }
+  },
+  "Disponibilidade": {
+    "fora_janela": "Bookings for this trip are open until {data}. Choose a date before then.",
+    "nao_opera": "This trip doesn't run on that day. Choose another date on the calendar.",
+    "passado": "That date has already passed. Choose another date.",
+    "inexistente": "Trip not found or unavailable.",
+    "invalido": "Invalid period.",
+    "indisponivel": "That date is no longer available. Choose another date."
+  },
+  "Calendario": {
+    "periodoConflito": "The {count, plural, one {#-day} other {#-day}} period starting {data} includes an unavailable day. Choose another departure date or reduce the number of days.",
+    "legendaValores": "Trip prices in R$, by date",
+    "menorPreco": "Lowest price of the month",
+    "legendaDiaria": "Choose the departure day — the rental period is highlighted.",
+    "indisponivel": "Unavailable",
+    "tituloDia": "{diaSemana}, {data} — {situacao}",
+    "situacao": {
+      "disponivel": "available",
+      "foraJanela": "bookings open until {data}",
+      "passado": "past date",
+      "indisponivel": "unavailable"
+    }
+  },
+  "Opcionais": {
+    "incluso": "Included",
+    "verMais": "See {count, plural, one {# more add-on} other {# more add-ons}}",
+    "adicioneAoPasseio": "Add to your trip",
+    "escolhaDataPrimeiro": "choose a date first",
+    "escolhaDataParaOpcionais": "Choose the trip date to add extras.",
+    "titulo": "Upgrade your trip",
+    "subtitulo": "Add-ons offered by the owner — add them to your booking with one tap.",
+    "servico": "Service",
+    "produto": "Product",
+    "adicionarItem": "Add {item}",
+    "removerItem": "Remove {item}",
+    "adicionado": "Added",
+    "adicionar": "Add",
+    "resumoSelecionados": "{count, plural, one {# add-on added} other {# add-ons added}}",
+    "noTotal": " · + {valor} to your booking total"
+  },
+  "AcoesRoteiro": {
+    "favoritar": "Save",
+    "favoritado": "Saved",
+    "compartilhar": "Share",
+    "textoCompartilhar": "Check out the trip \"{nome}\" on Boatzy!",
+    "instagramDica": "copies the link for your story or DM",
+    "linkCopiado": "Link copied!",
+    "copiarLink": "Copy link"
+  },
+  "ContatoDono": {
+    "titulo": "Have a question? Talk to the boat owner",
+    "subtitulo": "The conversation happens right here on Boatzy, before you book.",
+    "placeholder": "Hi! I'd like to know if…",
+    "botao": "Message the owner"
+  },
+  "Embarcacao": {
+    "equipamentos": {
+      "titulo": "What this boat has",
+      "recolher": "(click to collapse):",
+      "expandir": "(click to expand):",
+      "itens": "{count, plural, one {# item} other {# items}}"
+    },
+    "categorias": {
+      "seguranca": {
+        "titulo": "Safety Equipment",
+        "contagem": "{count, plural, one {# safety item} other {# safety items}}"
+      },
+      "acessorios": {
+        "titulo": "Boat Accessories",
+        "contagem": "{count, plural, one {# accessory} other {# accessories}}"
+      },
+      "comodidades": {
+        "titulo": "Onboard Amenities",
+        "contagem": "{count, plural, one {# amenity} other {# amenities}}"
+      }
+    },
+    "regras": {
+      "titulo": "Rules on board",
+      "contagem": "{count, plural, one {# rule} other {# rules}}"
+    },
+    "fotos": {
+      "verFotos": "See {count, plural, one {# photo} other {# photos}} of the boat {nome}",
+      "contagem": "{count, plural, one {# photo} other {# photos}}",
+      "embarcacao": "Boat",
+      "nenhumaFoto": "No photos available"
+    },
+    "specs": {
+      "quartos": "{count, plural, one {# cabin} other {# cabins}}",
+      "tripulacao": "{count} crew"
+    },
+    "badges": {
+      "novo": "New",
+      "verificada": "Verified Boat"
+    },
+    "info": {
+      "pessoas": "Guests",
+      "tripulacao": "Crew",
+      "quartos": "Cabins",
+      "banheiros": "Bathrooms",
+      "comprimento": "Length"
+    },
+    "roteirosDesta": "Trips on this boat",
+    "converseComDono": "Message the owner"
+  },
+  "Avaliacoes": {
+    "titulo": "Reviews",
+    "explicacao": "Reviews are written by customers after their experience.",
+    "clienteBoatzy": "Boatzy customer",
+    "nota": "Rated {nota} out of 5"
+  }
+}

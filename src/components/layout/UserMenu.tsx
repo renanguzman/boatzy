@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
+import { useTranslations } from 'next-intl';
 import { CalendarCheck, UserCog, LogOut, ChevronDown, Heart, MessageCircle } from 'lucide-react';
 
 type Props = {
@@ -13,10 +14,10 @@ type Props = {
   onSignOut: () => void;
 };
 
-/** Iniciais (nome + sobrenome) e primeiro nome; sem nome, a parte local do e-mail. Usado também no menu mobile. */
+/** Iniciais (nome + sobrenome) e primeiro nome; sem nome, a parte local do e-mail (vazio se nem isso). Usado também no menu mobile. */
 export function identificacaoUsuario(displayName: string, email: string) {
   const partes = displayName.trim().split(/\s+/).filter(Boolean);
-  const primeiroNome = partes[0] ?? (email.split('@')[0] || 'Conta');
+  const primeiroNome = partes[0] ?? email.split('@')[0] ?? '';
   const iniciais = (
     partes.length > 1 ? partes[0][0] + partes[partes.length - 1][0] : (partes[0] ?? email ?? '?').slice(0, 1)
   ).toUpperCase();
@@ -26,6 +27,8 @@ export function identificacaoUsuario(displayName: string, email: string) {
 export default function UserMenu({ displayName, email, avatarUrl, naoLidas = 0, onSignOut }: Props) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
+  const t = useTranslations('Header');
+  const tNav = useTranslations('Navegacao');
 
   useEffect(() => {
     function onClick(e: MouseEvent) {
@@ -42,7 +45,8 @@ export default function UserMenu({ displayName, email, avatarUrl, naoLidas = 0, 
     };
   }, []);
 
-  const { primeiroNome, iniciais } = identificacaoUsuario(displayName, email);
+  const { primeiroNome: nome, iniciais } = identificacaoUsuario(displayName, email);
+  const primeiroNome = nome || t('conta');
 
   return (
     <div className="relative" ref={ref}>
@@ -50,7 +54,7 @@ export default function UserMenu({ displayName, email, avatarUrl, naoLidas = 0, 
         onClick={() => setOpen((o) => !o)}
         aria-haspopup="menu"
         aria-expanded={open}
-        aria-label={`Menu da conta de ${primeiroNome}`}
+        aria-label={t('menuDaContaDe', { nome: primeiroNome })}
         className="relative flex items-center gap-2 rounded-full border border-slate-200 p-1 pr-3 hover:border-marinho/40 hover:shadow-sm transition-all"
       >
         {avatarUrl ? (
@@ -71,7 +75,7 @@ export default function UserMenu({ displayName, email, avatarUrl, naoLidas = 0, 
         {naoLidas > 0 && (
           <span
             className="absolute -top-0.5 -left-0.5 min-w-[16px] h-[16px] px-1 flex items-center justify-center rounded-full bg-red-500 text-white text-[9px] font-bold leading-none ring-2 ring-white"
-            title={`${naoLidas} mensagem(ns) não lida(s)`}
+            title={t('mensagensNaoLidas', { count: naoLidas })}
           >
             {naoLidas > 99 ? '99+' : naoLidas}
           </span>
@@ -85,7 +89,7 @@ export default function UserMenu({ displayName, email, avatarUrl, naoLidas = 0, 
         >
           {/* Cabeçalho do usuário */}
           <div className="px-4 py-3 border-b border-slate-100">
-            <p className="text-sm font-semibold text-marinho truncate">{displayName || 'Minha conta'}</p>
+            <p className="text-sm font-semibold text-marinho truncate">{displayName || tNav('minhaConta')}</p>
             {email && <p className="text-xs text-slate-400 truncate">{email}</p>}
           </div>
 
@@ -97,7 +101,7 @@ export default function UserMenu({ displayName, email, avatarUrl, naoLidas = 0, 
               className="flex items-center gap-3 px-4 py-2.5 text-sm text-slate-700 hover:bg-slate-50 hover:text-marinho transition-colors"
             >
               <UserCog className="h-4 w-4 text-slate-400" />
-              Minha conta
+              {tNav('minhaConta')}
             </Link>
             <Link
               href="/minhas-conversas"
@@ -106,7 +110,7 @@ export default function UserMenu({ displayName, email, avatarUrl, naoLidas = 0, 
               className="flex items-center gap-3 px-4 py-2.5 text-sm text-slate-700 hover:bg-slate-50 hover:text-marinho transition-colors"
             >
               <MessageCircle className="h-4 w-4 text-slate-400" />
-              Minhas conversas
+              {tNav('minhasConversas')}
               {naoLidas > 0 && (
                 <span className="ml-auto min-w-[18px] h-[18px] px-1 flex items-center justify-center rounded-full bg-red-500 text-white text-[10px] font-bold leading-none">
                   {naoLidas > 99 ? '99+' : naoLidas}
@@ -120,7 +124,7 @@ export default function UserMenu({ displayName, email, avatarUrl, naoLidas = 0, 
               className="flex items-center gap-3 px-4 py-2.5 text-sm text-slate-700 hover:bg-slate-50 hover:text-marinho transition-colors"
             >
               <CalendarCheck className="h-4 w-4 text-slate-400" />
-              Minhas reservas
+              {tNav('minhasReservas')}
             </Link>
             <Link
               href="/favoritos"
@@ -129,7 +133,7 @@ export default function UserMenu({ displayName, email, avatarUrl, naoLidas = 0, 
               className="flex items-center gap-3 px-4 py-2.5 text-sm text-slate-700 hover:bg-slate-50 hover:text-marinho transition-colors"
             >
               <Heart className="h-4 w-4 text-slate-400" />
-              Favoritos
+              {tNav('favoritos')}
             </Link>
           </nav>
 
@@ -140,7 +144,7 @@ export default function UserMenu({ displayName, email, avatarUrl, naoLidas = 0, 
               className="flex w-full items-center gap-3 px-4 py-2.5 text-sm text-red-500 hover:bg-red-50 transition-colors"
             >
               <LogOut className="h-4 w-4" />
-              Sair
+              {tNav('sair')}
             </button>
           </div>
         </div>

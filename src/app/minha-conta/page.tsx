@@ -1,9 +1,15 @@
 import { redirect } from 'next/navigation';
+import type { Metadata } from 'next';
+import { getTranslations } from 'next-intl/server';
 import Header from '@/components/layout/Header';
 import Footer from '@/components/layout/Footer';
 import { createClient } from '@/lib/supabase/server';
 import { supabaseAdmin } from '@/lib/supabase';
 import MinhaContaForm from './_components/MinhaContaForm';
+
+export async function generateMetadata(): Promise<Metadata> {
+  return { title: (await getTranslations('MinhaConta'))('metaTitulo') };
+}
 
 export default async function MinhaContaPage() {
   const supabase = await createClient();
@@ -11,6 +17,7 @@ export default async function MinhaContaPage() {
     data: { user },
   } = await supabase.auth.getUser();
   if (!user) redirect('/entrar?redirect_to=/minha-conta');
+  const t = await getTranslations('MinhaConta');
 
   // Dados persistidos do cliente + lista de estados (mesma fonte do cadastro de roteiro).
   const [{ data: perfil }, { data: estados }] = await Promise.all([
@@ -49,15 +56,15 @@ export default async function MinhaContaPage() {
   const name =
     perfil?.name ??
     (user.user_metadata?.full_name as string | undefined) ??
-    (user.email?.split('@')[0] ?? 'Cliente');
+    (user.email?.split('@')[0] ?? t('clientePadrao'));
 
   return (
     <div className="flex min-h-screen flex-col bg-areia">
       <Header />
 
       <main className="mx-auto w-full max-w-2xl flex-1 px-4 py-10">
-        <h1 className="text-2xl font-bold text-marinho">Minha conta</h1>
-        <p className="mt-1 text-sm text-slate-500">Gerencie seus dados pessoais e preferências.</p>
+        <h1 className="text-2xl font-bold text-marinho">{t('titulo')}</h1>
+        <p className="mt-1 text-sm text-slate-500">{t('subtitulo')}</p>
 
         <MinhaContaForm
           email={perfil?.email ?? user.email ?? ''}

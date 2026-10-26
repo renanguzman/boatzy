@@ -3,15 +3,17 @@
 import { Fragment, Suspense } from 'react';
 import Link from 'next/link';
 import { usePathname, useSearchParams } from 'next/navigation';
+import { useTranslations } from 'next-intl';
 import { MapPin, Ship, Tag } from 'lucide-react';
 
 type Item = 'roteiros' | 'embarcacoes' | 'vendas';
 
 // Mesmos ícones do seletor de busca do hero (SearchTypeToggle).
-const ITENS: { id: Item; href: string; label: string; icon: typeof MapPin }[] = [
-  { id: 'roteiros', href: '/buscar', label: 'Roteiros', icon: MapPin },
-  { id: 'embarcacoes', href: '/buscar?tipo=embarcacao', label: 'Embarcações', icon: Ship },
-  { id: 'vendas', href: '/vendas', label: 'Vendas', icon: Tag },
+// O id é também a chave do rótulo em `Navegacao` (messages/*/layout.json).
+const ITENS: { id: Item; href: string; icon: typeof MapPin }[] = [
+  { id: 'roteiros', href: '/buscar', icon: MapPin },
+  { id: 'embarcacoes', href: '/buscar?tipo=embarcacao', icon: Ship },
+  { id: 'vendas', href: '/vendas', icon: Tag },
 ];
 
 /**
@@ -42,14 +44,16 @@ function MenuComAtivo() {
 }
 
 function Menu({ ativo }: { ativo: Item | null }) {
+  const t = useTranslations('Navegacao');
   return (
     <nav
-      aria-label="Menu principal"
+      aria-label={t('menuPrincipal')}
       className="hidden md:flex items-center rounded-full border border-slate-200/80 bg-slate-50/80 p-1 shadow-[inset_0_1px_0_rgba(255,255,255,0.8)]"
       id="main-nav"
     >
-      {ITENS.map(({ id, href, label, icon: Icone }, i) => {
+      {ITENS.map(({ id, href, icon: Icone }, i) => {
         const atual = ativo === id;
+        const label = t(id);
         // Divisória some ao lado do item destacado (atual), para a pílula branca respirar.
         const divisoriaVisivel = i > 0 && ativo !== id && ativo !== ITENS[i - 1].id;
         return (

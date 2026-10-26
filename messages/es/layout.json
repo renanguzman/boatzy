@@ -1,0 +1,47 @@
+{
+  "Navegacao": {
+    "menuPrincipal": "Menú principal",
+    "roteiros": "Paseos",
+    "embarcacoes": "Embarcaciones",
+    "vendas": "En venta",
+    "experiencias": "Experiencias",
+    "anuncieSuaEmbarcacao": "Publica tu embarcación",
+    "minhasEmbarcacoes": "Mis embarcaciones",
+    "minhaConta": "Mi cuenta",
+    "minhasConversas": "Mis mensajes",
+    "minhasReservas": "Mis reservas",
+    "favoritos": "Favoritos",
+    "sair": "Cerrar sesión"
+  },
+  "Header": {
+    "entrar": "Ingresar",
+    "comoQuerEntrar": "¿Cómo quieres ingresar?",
+    "entrarComoCliente": "Ingresar como Cliente",
+    "entrarComoClienteDescricao": "Alquilar embarcaciones y paseos",
+    "entrarComoProprietario": "Ingresar como Propietario",
+    "entrarComoProprietarioDescricao": "Publicar y gestionar embarcaciones",
+    "conta": "Cuenta",
+    "menuDaContaDe": "Menú de la cuenta de {nome}",
+    "mensagensNaoLidas": "{count, plural, one {# mensaje sin leer} other {# mensajes sin leer}}",
+    "abrirMenu": "Abrir menú",
+    "fecharMenu": "Cerrar menú"
+  },
+  "SeletorIdioma": {
+    "titulo": "Idioma",
+    "alterar": "Idioma: {idioma}. Cambiar idioma",
+    "alterando": "Cambiando el idioma…"
+  },
+  "Footer": {
+    "slogan": "Navega con Elegancia. La mejor plataforma de alquiler de embarcaciones de Brasil.",
+    "explorar": "Explorar",
+    "empresa": "Empresa",
+    "sobreNos": "Sobre Nosotros",
+    "contato": "Contacto",
+    "suporte": "Soporte",
+    "centralDeAjuda": "Centro de Ayuda",
+    "termosDeUso": "Términos de Uso",
+    "privacidade": "Privacidad",
+    "termos": "Términos",
+    "direitos": "© {ano} Boatzy. Navega con Elegancia. Todos los derechos reservados."
+  }
+}

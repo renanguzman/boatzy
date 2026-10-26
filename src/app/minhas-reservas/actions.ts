@@ -2,6 +2,7 @@
 
 import { revalidatePath } from 'next/cache';
 import { after } from 'next/server';
+import { getTranslations } from 'next-intl/server';
 import { createClient } from '@/lib/supabase/server';
 import { supabaseAdmin } from '@/lib/supabase';
 import { cancelarPedidoAguardando } from '@/lib/pagamentos/pedidos';
@@ -22,7 +23,8 @@ export async function cancelarReserva(reservaId: string): Promise<ActionResult> 
   const {
     data: { user },
   } = await supabase.auth.getUser();
-  if (!user) return { ok: false, error: 'Sessão expirada. Faça login novamente.' };
+  const t = await getTranslations('MinhasReservas.erros');
+  if (!user) return { ok: false, error: t('sessao') };
 
   const { data: reserva } = await supabaseAdmin
     .from('reserva')
@@ -31,21 +33,21 @@ export async function cancelarReserva(reservaId: string): Promise<ActionResult> 
     .single();
 
   if (!reserva || reserva.cliente_id !== user.id) {
-    return { ok: false, error: 'Reserva não encontrada.' };
+    return { ok: false, error: t('naoEncontrada') };
   }
   if (reserva.status === 'confirmada' && reserva.pagamento_exigido) {
     return {
       ok: false,
-      error: 'Reservas pagas ainda não podem ser canceladas pelo site. Fale com o gestor pelo chat para combinar o cancelamento.',
+      error: t('pagaNaoCancela'),
     };
   }
   if (reserva.status !== 'pendente' && reserva.status !== 'confirmada' && reserva.status !== 'aguardando_pagamento') {
-    return { ok: false, error: 'Esta reserva não pode mais ser cancelada.' };
+    return { ok: false, error: t('naoPodeCancelar') };
   }
 
   if (reserva.status === 'aguardando_pagamento') {
     const cancelamento = await cancelarPedidoAguardando(reservaId, 'Cancelado pelo cliente');
-    if (!cancelamento.ok) return { ok: false, error: cancelamento.erro ?? 'Não foi possível cancelar agora.' };
+    if (!cancelamento.ok) return { ok: false, error: cancelamento.erro ?? t('naoFoiPossivelAgora') };
   }
 
   const { error } = await supabaseAdmin
@@ -56,7 +58,7 @@ export async function cancelarReserva(reservaId: string): Promise<ActionResult> 
 
   if (error) {
     console.error('[cancelarReserva] falha:', error);
-    return { ok: false, error: 'Erro ao cancelar a reserva. Tente novamente.' };
+    return { ok: false, error: t('erroCancelar') };
   }
 
   // Comprovante ao cliente e aviso ao gestor por e-mail (o in-app de ambos vem do trigger
@@ -83,14 +85,15 @@ export async function criarAvaliacao(
   const {
     data: { user },
   } = await supabase.auth.getUser();
-  if (!user) return { ok: false, error: 'Sessão expirada. Faça login novamente.' };
+  const t = await getTranslations('MinhasReservas.erros');
+  if (!user) return { ok: false, error: t('sessao') };
 
   if (!Number.isInteger(nota) || nota < 1 || nota > 5) {
-    return { ok: false, error: 'Escolha uma nota de 1 a 5 estrelas.' };
+    return { ok: false, error: t('nota') };
   }
   const texto = comentario.trim();
   if (texto.length > 2000) {
-    return { ok: false, error: 'O comentário pode ter no máximo 2000 caracteres.' };
+    return { ok: false, error: t('comentarioLongo') };
   }
 
   const { data: reserva } = await supabaseAdmin
@@ -100,10 +103,10 @@ export async function criarAvaliacao(
     .single();
 
   if (!reserva || reserva.cliente_id !== user.id) {
-    return { ok: false, error: 'Reserva não encontrada.' };
+    return { ok: false, error: t('naoEncontrada') };
   }
   if (reserva.status !== 'concluida') {
-    return { ok: false, error: 'Apenas reservas concluídas podem ser avaliadas.' };
+    return { ok: false, error: t('soConcluidas') };
   }
 
   const { error } = await supabaseAdmin.from('avaliacao').insert({
@@ -118,10 +121,10 @@ export async function criarAvaliacao(
   if (error) {
     // 23505 = unique_violation (avaliação já existe para a reserva)
     if (error.code === '23505') {
-      return { ok: false, error: 'Você já avaliou esta reserva.' };
+      return { ok: false, error: t('jaAvaliou') };
     }
     console.error('[criarAvaliacao] falha:', error);
-    return { ok: false, error: 'Erro ao enviar a avaliação. Tente novamente.' };
+    return { ok: false, error: t('erroAvaliar') };
   }
 
   revalidatePath('/minhas-reservas');

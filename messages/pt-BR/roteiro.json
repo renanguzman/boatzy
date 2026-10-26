@@ -1,0 +1,198 @@
+{
+  "Roteiro": {
+    "badges": {
+      "novo": "Novo no Boatzy",
+      "verificado": "Roteiro Verificado"
+    },
+    "capitao": {
+      "com_capitao": "Com Capitão",
+      "sem_capitao": "Sem Capitão",
+      "opcional": "Capitão Opcional"
+    },
+    "aPartirDe": "A partir de",
+    "porDiaria": "por diária",
+    "porPasseio": "por passeio",
+    "specs": {
+      "duracao": "Duração",
+      "saida": "Saída",
+      "retornoCurto": "Retorno aprox.",
+      "retorno": "Retorno Aproximado",
+      "diaSeguinte": "(dia seguinte)",
+      "maisDias": "(+{count} dias)",
+      "embarqueDesembarque": "Embarque e desembarque",
+      "localPartida": "Local de partida"
+    },
+    "embarcacao": {
+      "titulo": "Sobre a Embarcação",
+      "outrosRoteiros": "Veja outros roteiros desta embarcação",
+      "convidados": "Convidados",
+      "tripulacao": "Tripulação",
+      "quartos": "Quartos",
+      "banheiros": "Banheiros",
+      "comprimento": "Comprimento"
+    },
+    "itinerario": {
+      "titulo": "Itinerário",
+      "embarque": "Embarque",
+      "parada": "Parada {n}",
+      "desembarque": "Desembarque"
+    },
+    "localizacao": {
+      "titulo": "Localização",
+      "cep": "CEP {cep}",
+      "verNoMapa": "Ver no mapa aqui"
+    },
+    "semAvaliacoes": "Ainda não há avaliações para este roteiro."
+  },
+  "Reservar": {
+    "modalidade": {
+      "roteiro": "Roteiro",
+      "diaria": "Por Diária"
+    },
+    "linha": {
+      "roteiro": "Passeio",
+      "diaria": "Diárias"
+    },
+    "aPartirDe": "a partir de",
+    "valorDataSelecionada": "Valor para a data selecionada.",
+    "precoVaria": "O preço varia conforme a data.",
+    "checkin": "Check-in",
+    "data": "Data",
+    "escolhaData": "Escolha a data",
+    "checkoutEm": "Check-out em <b>{data}</b>",
+    "pessoas": "Pessoas",
+    "ajustado": "Este passeio comporta até {count, plural, one {# pessoa} other {# pessoas}} — ajustamos o tamanho do grupo.",
+    "limite": "Até {count, plural, one {# pessoa} other {# pessoas}} a bordo, sem contar a tripulação.",
+    "adicionais": "Adicionais",
+    "total": "Total",
+    "porPessoa": "≈ {valor} por pessoa ({count, plural, one {# pessoa} other {# pessoas}})",
+    "cupom": "Cupom de desconto pode ser aplicado na confirmação.",
+    "solicitar": "Solicitar Reserva →",
+    "semCobranca": "Sem cobrança agora — você só paga depois que o dono confirmar.",
+    "pagamentoProtegido": "Pagamento protegido: o dono só recebe depois do passeio",
+    "anuncioAprovado": "Anúncio aprovado pela equipe Boatzy",
+    "erros": {
+      "selecioneData": "Selecione a data da reserva.",
+      "periodoIndisponivel": "Este período inclui uma data indisponível. Escolha outra data ou reduza as diárias.",
+      "informePessoas": "Informe o número de pessoas."
+    },
+    "barra": {
+      "comOpcionais": "com opcionais",
+      "totalDiarias": "total ({count, plural, one {# diária} other {# diárias}})",
+      "porDiaria": "Por diária",
+      "valor": "Valor",
+      "reservar": "Reservar",
+      "verDatas": "Ver datas",
+      "semCobranca": "Sem cobrança agora"
+    }
+  },
+  "Disponibilidade": {
+    "fora_janela": "As reservas deste passeio estão abertas até {data}. Escolha uma data até lá.",
+    "nao_opera": "O passeio não opera nesse dia. Escolha outra data no calendário.",
+    "passado": "Essa data já passou. Escolha outra data.",
+    "inexistente": "Roteiro não encontrado ou indisponível.",
+    "invalido": "Período inválido.",
+    "indisponivel": "Essa data não está mais disponível. Escolha outra data."
+  },
+  "Calendario": {
+    "periodoConflito": "O período de {count, plural, one {# diária} other {# diárias}} a partir de {data} inclui um dia indisponível. Escolha outra data de saída ou reduza as diárias.",
+    "legendaValores": "Valores do passeio em R$, por data",
+    "menorPreco": "Menor preço do mês",
+    "legendaDiaria": "Escolha o dia de saída — o período das diárias aparece destacado.",
+    "indisponivel": "Indisponível",
+    "tituloDia": "{diaSemana}, {data} — {situacao}",
+    "situacao": {
+      "disponivel": "disponível",
+      "foraJanela": "reservas abertas até {data}",
+      "passado": "data passada",
+      "indisponivel": "indisponível"
+    }
+  },
+  "Opcionais": {
+    "incluso": "Incluso",
+    "verMais": "Ver mais {count, plural, one {# opcional} other {# opcionais}}",
+    "adicioneAoPasseio": "Adicione ao seu passeio",
+    "escolhaDataPrimeiro": "escolha a data primeiro",
+    "escolhaDataParaOpcionais": "Escolha a data do passeio para incluir opcionais.",
+    "titulo": "Turbine seu passeio",
+    "subtitulo": "Opcionais oferecidos pelo dono — adicione à sua reserva com um toque.",
+    "servico": "Serviço",
+    "produto": "Produto",
+    "adicionarItem": "Adicionar {item}",
+    "removerItem": "Remover {item}",
+    "adicionado": "Adicionado",
+    "adicionar": "Adicionar",
+    "resumoSelecionados": "{count, plural, one {# opcional adicionado} other {# opcionais adicionados}}",
+    "noTotal": " · + {valor} no total da reserva"
+  },
+  "AcoesRoteiro": {
+    "favoritar": "Favoritar",
+    "favoritado": "Favoritado",
+    "compartilhar": "Compartilhar",
+    "textoCompartilhar": "Confira o roteiro \"{nome}\" no Boatzy!",
+    "instagramDica": "copia o link para o story/direct",
+    "linkCopiado": "Link copiado!",
+    "copiarLink": "Copiar link"
+  },
+  "ContatoDono": {
+    "titulo": "Ficou com dúvida? Fale com o dono da embarcação",
+    "subtitulo": "A conversa acontece aqui pelo Boatzy, antes de você reservar.",
+    "placeholder": "Olá! Gostaria de saber se…",
+    "botao": "Conversar com o dono"
+  },
+  "Embarcacao": {
+    "equipamentos": {
+      "titulo": "O que esta embarcação possui",
+      "recolher": "(clique para recolher):",
+      "expandir": "(clique para expandir):",
+      "itens": "{count, plural, one {# item} other {# itens}}"
+    },
+    "categorias": {
+      "seguranca": {
+        "titulo": "Equipamentos de Segurança",
+        "contagem": "{count, plural, one {# item de segurança} other {# itens de segurança}}"
+      },
+      "acessorios": {
+        "titulo": "Acessórios da Embarcação",
+        "contagem": "{count, plural, one {# acessório} other {# acessórios}}"
+      },
+      "comodidades": {
+        "titulo": "Comodidades a bordo",
+        "contagem": "{count, plural, one {# comodidade} other {# comodidades}}"
+      }
+    },
+    "regras": {
+      "titulo": "Regras a bordo",
+      "contagem": "{count, plural, one {# regra} other {# regras}}"
+    },
+    "fotos": {
+      "verFotos": "Ver {count, plural, one {# foto} other {# fotos}} da embarcação {nome}",
+      "contagem": "{count, plural, one {# foto} other {# fotos}}",
+      "embarcacao": "Embarcação",
+      "nenhumaFoto": "Nenhuma foto disponível"
+    },
+    "specs": {
+      "quartos": "{count, plural, one {# quarto} other {# quartos}}",
+      "tripulacao": "{count} tripulação"
+    },
+    "badges": {
+      "novo": "Novo",
+      "verificada": "Embarcação Verificada"
+    },
+    "info": {
+      "pessoas": "Pessoas",
+      "tripulacao": "Tripulação",
+      "quartos": "Quartos",
+      "banheiros": "Banheiros",
+      "comprimento": "Comprimento"
+    },
+    "roteirosDesta": "Roteiros desta embarcação",
+    "converseComDono": "Converse com o dono"
+  },
+  "Avaliacoes": {
+    "titulo": "Avaliações",
+    "explicacao": "As avaliações são feitas por clientes após a experiência.",
+    "clienteBoatzy": "Cliente Boatzy",
+    "nota": "Nota {nota} de 5"
+  }
+}

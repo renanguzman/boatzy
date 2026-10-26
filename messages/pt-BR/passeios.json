@@ -1,0 +1,35 @@
+{
+  "Passeios": {
+    "ilha-do-campeche": {
+      "titulo": "Descubra o \"Caribe Brasileiro\": Roteiro Exclusivo de Barco para a Ilha do Campeche",
+      "resumo": "Fuja das filas e dos horários rígidos das escunas: veja por que chegar de lancha particular é a forma mais leve de conhecer o \"Caribe Brasileiro\"."
+    },
+    "costa-da-lagoa": {
+      "titulo": "O Segredo da Costa da Lagoa: Navegando pelas Águas de Florianópolis",
+      "resumo": "Uma vila só acessível por água, restaurantes badalados para ancorar e as águas calmas da Lagoa da Conceição — o roteiro perfeito para quem busca sossego."
+    },
+    "caixa-d-aco": {
+      "titulo": "O Destino Mais Badalado do Litoral: Roteiro Náutico para o Caixa D'Aço",
+      "resumo": "Bares flutuantes, o clipe do Michel Teló e a experiência VIP de chegar de lancha particular ao point mais concorrido do litoral catarinense."
+    },
+    "praia-do-tingua": {
+      "titulo": "O Refúgio Exclusivo dos Barcos: A Magia da Praia do Tinguá",
+      "resumo": "Acesso terrestre difícil torna essa enseada praticamente exclusiva para quem chega de barco — mar liso, gastronomia à beira-mar e pouca gente."
+    },
+    "praia-de-palmas": {
+      "titulo": "Águas de Padrão Internacional: Navegando pela Praia e Ilha de Palmas",
+      "resumo": "Selo \"Bandeira Azul\", águas cristalinas e mergulho de snorkel: conheça a ilha que carrega o padrão internacional de qualidade mais cobiçado do litoral."
+    }
+  },
+  "Experiencias": {
+    "metaTitulo": "Experiências — Boatzy",
+    "metaDescricao": "Roteiros, destinos e histórias para inspirar seu próximo passeio de barco: conheça os melhores lugares para navegar com o Boatzy.",
+    "sobretitulo": "Inspire-se",
+    "titulo": "Experiências <destaque>para navegar</destaque>",
+    "subtitulo": "Roteiros, destinos e histórias reais para te ajudar a escolher o próximo passeio de barco — direto de quem conhece o litoral catarinense.",
+    "lerExperiencia": "Ler experiência",
+    "ctaTitulo": "Pronto para viver a sua?",
+    "ctaTexto": "Encontre a embarcação certa e reserve o roteiro que combina com a experiência que você quer viver.",
+    "ctaBotao": "Buscar embarcações"
+  }
+}
