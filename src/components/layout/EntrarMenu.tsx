@@ -68,7 +68,7 @@ export default function EntrarMenu({ entrarClienteUrl }: Props) {
               </span>
             </Link>
             <Link
-              href="/painel"
+              href="/painel/login?aba=entrar"
               onClick={() => setOpen(false)}
               role="menuitem"
               className="flex items-center gap-3 px-4 py-3 text-sm text-slate-700 hover:bg-slate-50 hover:text-marinho transition-colors"

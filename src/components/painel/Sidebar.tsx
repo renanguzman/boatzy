@@ -141,7 +141,7 @@ export default function Sidebar({
       >
         <div className="px-6 py-5 lg:py-6 flex items-start justify-between gap-3">
           <Link href="/painel" className="block">
-            <Image src="/images/logo.png" alt="Boatzy" width={180} height={54} className="h-10 lg:h-12 w-auto mb-1" priority />
+            <Image src="/images/logo-horizontal-header-site.svg" alt="Boatzy" width={459} height={130} className="h-9 lg:h-10 w-auto mb-1.5" priority />
             <span className="text-[10px] text-slate-400 font-medium tracking-wider uppercase ml-1 block">
               Admin Portal
             </span>

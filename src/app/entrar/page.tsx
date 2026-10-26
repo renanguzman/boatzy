@@ -359,7 +359,7 @@ export default function EntrarPage() {
 
         <p className="text-center text-xs text-slate-400 mt-6">
           É gestor de embarcações?{' '}
-          <Link href="/painel/login" className="text-marinho font-medium hover:underline">
+          <Link href="/painel/login?aba=entrar" className="text-marinho font-medium hover:underline">
             Acesse o Painel
           </Link>
         </p>

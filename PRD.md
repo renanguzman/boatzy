@@ -59,7 +59,8 @@ cinzas neutros e das cores semânticas de status — erro, alerta, sucesso). Det
 
 **Regra do amarelo:** é cor de exceção, nunca de base. Não usar em fundos de seção, texto corrido nem
 como cor padrão de botões (o botão principal é marinho). Hoje aparece só na palavra de impacto do título
-do hero ("O horizonte é **seu**"), nas estrelas de nota, no selo **"Preço reduzido"** dos anúncios de
+do hero ("O horizonte é **seu**") e, com a mesma função, na palavra de impacto da landing do proprietário
+("Lancha parada é dinheiro **ancorado**", 26/10/2026), nas estrelas de nota, no selo **"Preço reduzido"** dos anúncios de
 venda e no botão **"Conversar com o dono"** do detalhe do roteiro (única exceção de botão, decidida em
 24/10/2026) — sempre com texto marinho. Qualquer novo uso deve substituir ou justificar a ênfase, não somar.
 
@@ -81,7 +82,9 @@ venda e no botão **"Conversar com o dono"** do detalhe do roteiro (única exce�
   mensagens de "salvo" de Minha Conta, aos requisitos de senha e ao detalhe de vendas. Continuam
   verdes só o status "Confirmada" de Minhas reservas (legenda de status) e o ícone do WhatsApp.
 - ⏳ **Pendente:** painel do gestor (`/painel`) e admin (`/administrator`) ainda usam as cores
-  antigas.
+  antigas. Exceções (26/10/2026): a landing de acesso do proprietário (`/painel/login`) já nasceu com
+  a paleta oficial, e as **logos novas** substituíram as antigas no menu lateral do painel, no topo do
+  painel no celular e nas telas de recuperar/redefinir senha do painel.
 
 ---
 
@@ -100,7 +103,7 @@ venda e no botão **"Conversar com o dono"** do detalhe do roteiro (única exce�
 - Avaliar embarcação
 
 #### Dono da Embarcação (role: gestor)
-- ✅ Cadastro/Login exclusivo em `/painel/cadastro` e `/painel/login` (Supabase Auth — email/senha, Google, Facebook, Apple)
+- ✅ Cadastro/Login exclusivo na landing do proprietário `/painel/login`, com abas **Criar conta** e **Já tenho conta** (Supabase Auth — email/senha, Google, Facebook, Apple). `/painel/cadastro` redireciona para a aba de cadastro (26/10/2026 — ver "Landing do proprietário")
 - ✅ Role `gestor` concedida só após **aprovação do admin** do pedido de acesso (desde 22/10/2026 — ver "Pedido de acesso de gestor")
 - ✅ Dashboard em `/painel` com visão geral (stats)
 - ✅ Menu com Agendamentos e Embarcações
@@ -122,9 +125,9 @@ venda e no botão **"Conversar com o dono"** do detalhe do roteiro (única exce�
 
 - ✅ O `Header` (site público, desktop e mobile) tem 3 links de navegação: **Roteiros** (`/buscar`), **Embarcações** (`/buscar?tipo=embarcacao`) e **Vendas** (`/vendas`). Substituem os antigos rótulos "Charters"/"Destinos"/"Experiências", que apontavam para rotas inexistentes (`/charters`, `/destinations`, `/experiences`).
 - ✅ O `Footer`, bloco "Explorar", tem 4 links: **Roteiros** (`/buscar`), **Embarcações** (`/buscar?tipo=embarcacao`), **Vendas** (`/vendas`) e **Experiências** (`/experiencias`, ver 6.10).
-- ✅ No `Header`, o antigo seletor de idioma ("PT") foi substituído pelo CTA (ícone `Megaphone`, pill marinho `#0E2F4F` com ícone turquesa — paleta oficial, ver 4.1) que leva a `/painel`. Presente tanto no desktop (ao lado do botão "Entrar") quanto no menu mobile (abaixo dos links de navegação). O rótulo muda conforme quem está logado: **"Anuncie sua embarcação"** para visitante/cliente, **"Minhas embarcações"** quando o usuário logado também tem o perfil de gestor (dono de embarcação) — checado no cliente via `user_roles` (RLS permite o próprio usuário ler suas roles).
+- ✅ No `Header`, o antigo seletor de idioma ("PT") foi substituído pelo CTA (ícone `Megaphone`, pill marinho `#0E2F4F` com ícone turquesa — paleta oficial, ver 4.1) que leva à landing do proprietário (`/painel/login`) para visitante/cliente e direto a `/painel` para quem já é gestor (desde 26/10/2026; antes ia sempre a `/painel`). Presente tanto no desktop (ao lado do botão "Entrar") quanto no menu mobile (abaixo dos links de navegação). O rótulo muda conforme quem está logado: **"Anuncie sua embarcação"** para visitante/cliente, **"Minhas embarcações"** quando o usuário logado também tem o perfil de gestor (dono de embarcação) — checado no cliente via `user_roles` (RLS permite o próprio usuário ler suas roles).
 - ✅ O link **Vendas** do `Header` (desktop e mobile) ganhou um selo circular pequeno com gradiente (azul → ciano) e o ícone `Tag`, ao lado do nome — o mesmo ícone já usado para "Vendas" em outros pontos do site (menu do painel, seletor de busca). O seletor de tipo de busca da Home (`SearchTypeToggle`, hero) deixou de mostrar a aba "Vendas" — quem quer anunciar/ver embarcações à venda usa o link do `Header`. O toggle da barra de busca compacta (`/buscar`) e o da própria página `/vendas` continuam mostrando as 3 abas normalmente.
-- ✅ O botão **"Entrar"** do `Header` (usuário deslogado) oferece duas portas de acesso, bem visíveis: **"Entrar como Cliente"** (`/entrar`) e **"Entrar como Proprietário"** (`/painel`). No desktop é um dropdown (mesmo padrão visual do menu do usuário logado); no mobile são dois botões sempre visíveis (sem precisar abrir submenu) dentro do menu hambúrguer.
+- ✅ O botão **"Entrar"** do `Header` (usuário deslogado) oferece duas portas de acesso, bem visíveis: **"Entrar como Cliente"** (`/entrar`) e **"Entrar como Proprietário"** (`/painel/login?aba=entrar` — abre a landing já na aba de login, desde 26/10/2026). No desktop é um dropdown (mesmo padrão visual do menu do usuário logado); no mobile são dois botões sempre visíveis (sem precisar abrir submenu) dentro do menu hambúrguer.
 
 ### 6.1 Autenticação
 
@@ -2385,6 +2388,8 @@ sociais, campanhas, links diretos), quem navega e como o funil de reserva conver
 | `purchase` | pagamento confirmado (nº do pedido, valor, forma, cupom) — 1 vez por pedido |
 | `iniciar_conversa` | abriu o chat com o dono (roteiro, embarcação ou anúncio de venda) |
 | `clique_anunciar` | clicou em "Anuncie sua embarcação" (header ou menu do celular) |
+| `sign_up` | (landing do proprietário) criou conta de gestor por e-mail ou escolheu um login social na aba "Criar conta" |
+| `login` | (landing do proprietário) entrou por e-mail ou escolheu um login social na aba "Já tenho conta" |
 | `solicitar_acesso_gestor` | enviou o pedido para ser gestor |
 | `gestor_respondeu_reserva` | (painel) gestor aceitou ou recusou uma solicitação |
 
@@ -2654,6 +2659,75 @@ com preços e agenda parecidos.
 - Nada é gravado na cópia: tudo segue editável e só vai para o banco ao salvar. Só copia de roteiros do
   próprio gestor (checado no servidor); a edição do admin não mostra a opção.
 - Detalhes técnicos: `SPEC.md` §92.
+
+### ✅ Landing do proprietário — "Anuncie sua lancha" em `/painel/login` (26/10/2026)
+
+**Objetivo:** convencer o dono de lancha a anunciar no Boatzy e, na mesma página, deixar a entrada no
+sistema a um clique. A antiga tela de login do painel (só formulário, logo e cores antigas) virou uma
+página de captação com o formulário de cadastro/login no topo. Referência analisada: página de
+operadores de um concorrente (hero "seu barco gera renda", 3 passos, exemplo de ganhos, 4 benefícios)
+— aqui com a paleta oficial (4.1), as logos novas do site e só promessas que o produto cumpre.
+
+**Público deste primeiro momento:** donos de **lancha** (o texto fala só de lancha).
+
+**Seções, na ordem:**
+1. **Topo + formulário** (fundo marinho sobre foto aérea real de Caixa d'Aço): logo nova, "Voltar ao
+   site" e "Já tenho conta"; selo "Para donos de lancha"; título **"Lancha parada é dinheiro
+   ancorado."** (palavra de impacto em amarelo destaque); texto curto do que o Boatzy faz; selos
+   "Cadastro grátis", "Sem mensalidade", "100% do seu preço é seu"; atalho para o simulador. Ao lado
+   (no celular, logo abaixo), o **cartão de acesso** com as abas **Criar conta** / **Já tenho conta**,
+   login social (Google, Facebook, Apple — três botões lado a lado) e e-mail/senha.
+2. **Fatos** (faixa sobre a base do topo): R$ 0 para anunciar · 100% do seu preço · Pix ou cartão, pago
+   antes do passeio · 1 painel para tudo.
+3. **Simulador de ganhos:** o dono arrasta o preço por passeio (R$ 500 a R$ 6.000) e os passeios por
+   mês (1 a 20, com atalhos "1 por semana", "Todo fim de semana", "Temporada cheia") e vê quanto recebe
+   por mês, na temporada de verão (4 meses) e que a taxa do Boatzy para ele é R$ 0. Aviso de que é
+   simulação.
+4. **Como funciona — 4 passos:** criar conta → contar sobre você (a equipe analisa e libera o painel)
+   → montar o anúncio (com tutorial) → aceitar e receber.
+5. **"Menos mensagem. Mais mar."** — grade de benefícios: preço por data (com miniatura de semana com
+   preços e dia fechado), aviso de pedido novo (miniatura de solicitação), pagamento garantido,
+   conversa organizada, opcionais que aumentam o ticket, vitrine que vende, receitas sem planilha
+   (miniatura de gráfico). "E ainda": equipe e tripulação, anúncio de venda, tutorial guiado,
+   avaliações.
+6. **"Chega de alugar a lancha no improviso."** — comparação "Do jeito antigo" × "Com o Boatzy".
+7. **Perguntas frequentes** (8, abre/fecha): custo, quando recebe, recusar pedidos, tipo de
+   embarcação (lancha, sempre com capitão), por que há análise, CPF ou CNPJ, onde funciona, vender a
+   lancha. Link "fale com a gente" (`/contact`).
+8. **Chamada final** ("O próximo passeio de alguém pode ser na sua lancha.") com "Criar minha conta
+   grátis" e "Já tenho conta", e o rodapé do site.
+
+**Comportamento do acesso:**
+- Todo botão de chamada da página (topo, chamada final, barra flutuante) rola até o cartão de acesso e
+  já troca para a aba certa, com o cursor no primeiro campo.
+- **Aba inicial:** `?aba=entrar` ou `?aba=cadastro` mandam; quem veio de uma página protegida do painel
+  (`redirect_to`, ex.: link de e-mail) abre em "Já tenho conta"; o navegador que já entrou ou se
+  cadastrou pela página antes também (cookie de 1 ano); nos demais casos, "Criar conta".
+- **Barra flutuante** "Anunciar minha lancha grátis": aparece quando o cartão de acesso sai da tela
+  (rolando para baixo) e some quando ele volta ou quando a chamada final aparece. No celular ocupa a
+  base da tela; no computador é uma pílula no canto.
+- **Cadastro por e-mail:** pede nome, e-mail e senha (mínimo 6 caracteres), como antes. Depois mostra
+  "Confirme seu e-mail" com os próximos passos (abrir o link → contar sobre a lancha → a equipe libera
+  o acesso). Na aba de cadastro, um aviso já antecipa que o acesso passa pela equipe Boatzy.
+- **Já logado:** gestor (ou admin) é levado direto ao painel (ou à página do `redirect_to`). Quem está
+  logado sem ser gestor (ex.: cliente do site) vê a página com "Que bom te ver, Fulano" e o botão
+  **Continuar para o painel** (onde fica o pedido de acesso), mais "Não é você? Entrar com outra conta".
+- O fluxo depois do login não mudou: setup-role → `/painel` → pedido de acesso, aprovado pelo admin.
+
+**Ajustes ligados:**
+- `/painel/cadastro` agora só redireciona para `/painel/login?aba=cadastro` (links antigos continuam
+  funcionando).
+- Links do site que levam o dono ao painel passaram a abrir a landing: CTA "Anuncie sua embarcação" do
+  topo (desktop e celular — quem já é gestor continua indo direto a `/painel`), "Entrar como
+  Proprietário" (aba de login), "Quero anunciar" da página Sobre, a pergunta "Como anuncio?" da Central
+  de Ajuda e "É gestor? Acesse o Painel" de `/entrar` (aba de login).
+- Logos novas no painel: menu lateral, topo no celular e telas de recuperar/redefinir senha.
+- Medição: eventos `sign_up` e `login` (ver Google Analytics 4).
+
+**Decisões:** sem números de tração inventados (os "fatos" são regras do produto); sem percentual da
+taxa na página (ela é configurável por gestor — a página só diz que é paga pelo cliente); o repasse é
+descrito como "depois do passeio", regra decidida (6.6, D6) cuja automação ainda está na Fase 3 de
+pagamentos. Detalhes técnicos: `SPEC.md` §93.
 
 ## 11. Não Incluído no MVP
 

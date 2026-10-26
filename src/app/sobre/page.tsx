@@ -217,7 +217,7 @@ export default function SobrePage() {
                   Sua embarcação pode trabalhar nos dias em que fica parada.
                 </p>
                 <Link
-                  href="/painel"
+                  href="/painel/login"
                   className="mt-6 inline-flex items-center justify-center gap-2 rounded-xl bg-turquesa hover:brightness-110 text-marinho text-sm font-semibold px-6 py-3 transition-all"
                 >
                   Quero anunciar

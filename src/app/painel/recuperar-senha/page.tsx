@@ -134,7 +134,7 @@ export default function PainelRecuperarSenhaPage() {
         />
         <div className="absolute inset-0 bg-gradient-to-t from-[#0B2447]/80 via-[#0B2447]/30 to-transparent" />
         <div className="absolute top-10 left-10 z-20">
-          <Image src="/images/logo-white.png" alt="Boatzy" width={200} height={60} className="h-14 w-auto" priority />
+          <Image src="/images/logo-nome-horizontal.svg" alt="Boatzy" width={299} height={100} className="h-11 w-auto" priority />
         </div>
         <div className="absolute bottom-12 left-10 right-10 z-10">
           <p className="text-white/90 font-semibold text-lg italic mb-2">Precisão em cada nó.</p>
@@ -149,7 +149,7 @@ export default function PainelRecuperarSenhaPage() {
       <div className="flex-1 flex flex-col justify-between px-8 py-10 lg:px-16 xl:px-24">
         <div className="flex-1 flex flex-col justify-center max-w-md mx-auto w-full">
           <div className="flex items-center gap-2.5 mb-10">
-            <Image src="/images/logo.png" alt="Boatzy" width={952} height={817} className="h-12 w-auto object-contain" priority />
+            <Image src="/images/logo-horizontal-header-site.svg" alt="Boatzy" width={459} height={130} className="h-11 w-auto object-contain" priority />
           </div>
 
           <Suspense fallback={<div className="h-64 flex items-center justify-center"><Loader2 className="w-6 h-6 animate-spin text-slate-400" /></div>}>

@@ -148,7 +148,7 @@ const FAQ_ITEMS: FaqItem[] = [
     resposta: (
       <>
         Clique em &quot;Anuncie sua embarcação&quot; no topo do site, ou acesse diretamente o{' '}
-        <Link href="/painel" className="text-marinho underline hover:no-underline">
+        <Link href="/painel/login" className="text-marinho underline hover:no-underline">
           Painel do Proprietário
         </Link>
         . Crie sua conta de gestor, cadastre sua embarcação com fotos, comodidades e preços e

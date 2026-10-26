@@ -141,7 +141,7 @@ export default function Header() {
             {/* CTA do painel — pílula azul-marinho (contraponto ao menu claro), mesma
                 altura da cápsula do menu; ícone num círculo translúcido e seta ↗ no hover. */}
             <Link
-              href="/painel"
+              href={isGestor ? '/painel' : '/painel/login'}
               onClick={() => { if (!isGestor) rastrear('clique_anunciar', { posicao: 'header' }); }}
               className="group hidden md:inline-flex items-center gap-2 rounded-full bg-marinho py-1.5 pl-1.5 pr-4 text-sm font-semibold text-white shadow-sm ring-1 ring-marinho/10 transition-all duration-200 hover:bg-marinho-escuro hover:shadow-md hover:shadow-marinho/25 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-marinho"
             >
@@ -201,7 +201,7 @@ export default function Header() {
                 </span>
               </Link>
               <Link
-                href="/painel"
+                href={isGestor ? '/painel' : '/painel/login'}
                 onClick={() => { setMobileMenuOpen(false); if (!isGestor) rastrear('clique_anunciar', { posicao: 'menu_mobile' }); }}
                 className="mx-3 mt-2 flex items-center justify-center gap-2 rounded-full bg-marinho px-4 py-2.5 text-sm font-semibold text-white"
               >
@@ -223,7 +223,7 @@ export default function Header() {
                     Entrar como Cliente
                   </Link>
                   <Link
-                    href="/painel"
+                    href="/painel/login?aba=entrar"
                     onClick={() => setMobileMenuOpen(false)}
                     className="flex items-center gap-3 rounded-xl border border-slate-200 px-4 py-3 text-sm font-semibold text-marinho"
                   >

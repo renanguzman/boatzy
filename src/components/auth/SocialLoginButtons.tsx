@@ -43,9 +43,11 @@ type Props = {
   onProvider: (provider: OAuthProvider) => Promise<void> | void;
   /** Desabilita os botões enquanto outra ação (ex.: login por e-mail) está em andamento. */
   disabled?: boolean;
+  /** Três botões lado a lado, só com o nome do provedor (formulários com pouca altura, ex.: landing do painel). */
+  compacto?: boolean;
 };
 
-export default function SocialLoginButtons({ onProvider, disabled }: Props) {
+export default function SocialLoginButtons({ onProvider, disabled, compacto = false }: Props) {
   const [loading, setLoading] = useState<OAuthProvider | null>(null);
 
   async function handle(provider: OAuthProvider) {
@@ -60,17 +62,20 @@ export default function SocialLoginButtons({ onProvider, disabled }: Props) {
   }
 
   return (
-    <div className="flex flex-col gap-3">
+    <div className={compacto ? 'grid grid-cols-3 gap-2' : 'flex flex-col gap-3'}>
       {socialProviders.map(({ id, label, icon }) => (
         <button
           key={id}
           type="button"
           onClick={() => handle(id)}
           disabled={disabled || loading !== null}
-          className="flex items-center justify-center gap-3 w-full py-3 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-sm font-medium text-slate-700 transition-all disabled:opacity-60 disabled:cursor-not-allowed"
+          aria-label={compacto ? `Continuar com ${label}` : undefined}
+          className={`flex items-center justify-center w-full rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-sm font-medium text-slate-700 transition-all disabled:opacity-60 disabled:cursor-not-allowed ${
+            compacto ? 'gap-2 py-2.5' : 'gap-3 py-3'
+          }`}
         >
           {loading === id ? <Loader2 className="w-5 h-5 animate-spin" /> : icon}
-          Continuar com {label}
+          {compacto ? label : `Continuar com ${label}`}
         </button>
       ))}
     </div>

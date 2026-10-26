@@ -42,7 +42,7 @@ export default function Header({ title = 'Overview' }: HeaderProps) {
           <Menu className="w-5 h-5" />
         </button>
         <Link href="/painel" className="lg:hidden shrink-0" aria-label="Boatzy — Dashboard">
-          <Image src="/images/logo.png" alt="Boatzy" width={120} height={36} className="h-8 w-auto" />
+          <Image src="/images/logo-vertical.svg" alt="Boatzy" width={282} height={290} className="h-10 w-auto" />
         </Link>
         <h2 className="hidden lg:block text-sm font-semibold text-[#0B2447] truncate">{title}</h2>
       </div>

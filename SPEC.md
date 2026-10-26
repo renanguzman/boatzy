@@ -46,7 +46,7 @@ opacidade (`bg-marinho/90`, `bg-turquesa/10`). **Não usar hex solto (`[#...]`) 
 |---|---|---|
 | `marinho` | `#0E2F4F` | Títulos (`text-marinho`), botões principais (`bg-marinho`), links, Footer, overlays de foto (`from-marinho/70`), ícones ativos |
 | `turquesa` | `#17B5B0` | Ícones/eyebrow sobre fundo escuro (`text-turquesa`), fim do gradiente, tintas (`bg-turquesa/10`, `/15`, `/35`) |
-| `destaque` | `#FFC844` | Ênfase pontual (~10%): palavra de impacto do hero, estrelas de nota (`fill-destaque text-destaque`), selo "Preço reduzido" de vendas (`bg-destaque text-marinho`; na sidebar `bg-destaque/30 text-marinho`), botão "Conversar com o dono" do roteiro (`bg-destaque text-marinho`, única exceção de botão) |
+| `destaque` | `#FFC844` | Ênfase pontual (~10%): palavra de impacto do hero (home e landing do proprietário `/painel/login` — §93), estrelas de nota (`fill-destaque text-destaque`), selo "Preço reduzido" de vendas (`bg-destaque text-marinho`; na sidebar `bg-destaque/30 text-marinho`), botão "Conversar com o dono" do roteiro (`bg-destaque text-marinho`, única exceção de botão) |
 | `areia` | `#FBF7EF` | Fundo das seções alternadas (`bg-areia`) |
 | `grafite` | `#1C2B36` | Texto corrido; também é o `--foreground` (cor padrão do `body`) |
 | gradiente | — | `bg-gradient-to-r from-marinho to-turquesa` (texto com `bg-clip-text text-transparent`) |
@@ -282,8 +282,8 @@ Módulo independente do hotsite, acessível apenas por usuários cuja lista de r
 
 | Rota | Descrição | Auth |
 |------|-----------|------|
-| `/painel/login` | Login de gestores | Pública |
-| `/painel/cadastro` | Cadastro de gestores | Pública |
+| `/painel/login` | Landing do proprietário + cadastro/login de gestores (§93) | Pública |
+| `/painel/cadastro` | Redireciona para `/painel/login?aba=cadastro` (§93) | Pública |
 | `/painel` | Dashboard com dados reais do gestor (ver "Dashboard" abaixo) | gestor/admin |
 | `/painel/agendamentos` | Listagem/gestão de reservas (Confirmar/Recusar) — ver §20 | gestor/admin |
 | `/painel/embarcacoes` | CRUD de embarcações | gestor/admin |
@@ -408,7 +408,7 @@ order by i.provider;
 ```
 > ⚠️ `public.users.email` é `NOT NULL UNIQUE`. Caso o vínculo automático não ocorra (ex.: e-mail não verificado pelo provedor), o Supabase criaria um segundo `auth.users` com o mesmo e-mail e o insert em `public.users` violaria a unicidade — hoje esse erro não é tratado em `setup-cliente`/`setup-role`. Confirmado em produção que Google + Facebook com e-mail verificado vinculam corretamente.
 
-Os botões de login social são renderizados pelo componente compartilhado `SocialLoginButtons` (`src/components/auth/SocialLoginButtons.tsx`), usado em `/entrar`, `/painel/login` e `/painel/cadastro`. Ele recebe `onProvider(provider)` e gerencia o próprio estado de loading; cada tela monta o `redirectTo` apropriado (site → `/auth/callback`; painel → `/painel/auth/callback`). Todas as telas derivam a URL base de `NEXT_PUBLIC_APP_URL` (helper `baseUrl()` em `/entrar`; constante `APP_URL` no painel), com fallback para `window.location.origin` apenas se a env não estiver definida — assim os três provedores sempre retornam ao domínio de produção.
+Os botões de login social são renderizados pelo componente compartilhado `SocialLoginButtons` (`src/components/auth/SocialLoginButtons.tsx`), usado em `/entrar` e `/painel/login` (`/painel/cadastro` só redireciona desde 26/10/2026). Ele recebe `onProvider(provider)` e gerencia o próprio estado de loading; a prop opcional `compacto` (landing do painel, §93) põe os três botões lado a lado só com o nome do provedor (`aria-label` "Continuar com X"); cada tela monta o `redirectTo` apropriado (site → `/auth/callback`; painel → `/painel/auth/callback`). Todas as telas derivam a URL base de `NEXT_PUBLIC_APP_URL` (helper `baseUrl()` em `/entrar`; constante `APP_URL` no painel), com fallback para `window.location.origin` apenas se a env não estiver definida — assim os três provedores sempre retornam ao domínio de produção.
 
 ### Login de Cliente no Site (`/entrar`)
 
@@ -6709,7 +6709,8 @@ usuários com o papel vindo do formulário — inclusive `admin`.
   (`isValidCpfOuCnpj`), município do estado escolhido, quantidade (1–999) e mensagem; insere o
   pedido (23505 → "Você já tem um pedido em análise"); completa `users.phone`/`cpf_cnpj` só se
   vazios; `after()` → e-mail a todos os admins.
-- `/painel/cadastro`: o aviso pós-cadastro diz que o acesso passa pela aprovação da equipe.
+- `/painel/cadastro`: o aviso pós-cadastro diz que o acesso passa pela aprovação da equipe. *(Desde
+  26/10/2026 o cadastro é a aba "Criar conta" de `/painel/login`, que mantém o aviso — §93.)*
 
 **Administrator** — novo menu **USUÁRIOS** (contador de pedidos pendentes), com abas
 (`UsuariosAbas`):
@@ -6886,6 +6887,8 @@ nova → novo envio.
 | `purchase` | `/reservas/[id]/pagar` com pedido `pago` (`umaVez`) | `transaction_id` (nº do pedido — o GA deduplica), `value`, `payment_type`, `coupon`, `items` |
 | `iniciar_conversa` | `/roteiros/[id]/chat`, `/embarcacoes/[id]/chat`, `/vendas/[id]/chat` (`umaVez` por item) | `origem`, `item_id` |
 | `clique_anunciar` | `Header` (CTA desktop e menu mobile, só para quem não é gestor) | `posicao` |
+| `sign_up` | `AcessoGestorForm` (§93): `signUp` ok, ou clique em login social na aba "Criar conta" | `method` (`email`/provedor), `perfil: 'gestor'` |
+| `login` | `AcessoGestorForm` (§93): `signInWithPassword` ok, ou clique em login social na aba "Já tenho conta" | `method`, `perfil: 'gestor'` |
 | `solicitar_acesso_gestor` | `SolicitacaoGestor` (envio ok) | `qtd_embarcacoes` |
 | `gestor_respondeu_reserva` | `ReservaAcoes` (painel) | `resposta` (`aceitou`/`recusou`) |
 
@@ -7876,3 +7879,109 @@ solicitação").
   `/painel/roteiros/[id]/editar` idem com `.neq('id', id)`. Admin não passa a prop → opção oculta.
 - Testes: `tsc`/`eslint` limpos; consultas da action validadas no banco (localização com município/estado,
   campos de preço, regras e `roteiro_disponibilidade_dia`). Fluxo logado no navegador não exercitado.
+
+## 93. Landing do proprietário + acesso do gestor — `/painel/login` (26/10/2026)
+
+Página de captação do dono de lancha com o formulário de cadastro/login embutido. Substitui a tela de
+login do painel e absorve o cadastro (`/painel/cadastro`).
+
+### 93.1 Arquivos
+
+| Arquivo | Tipo | Papel |
+|---|---|---|
+| `src/app/painel/login/page.tsx` | Server Component | Landing (seções estáticas, `metadata`), decide aba inicial e sessão |
+| `src/app/painel/login/_components/AcessoGestorForm.tsx` | client | Cartão de acesso: abas, social, e-mail/senha, "confirme seu e-mail", "já conectado" |
+| `src/app/painel/login/_components/SimuladorGanhos.tsx` | client | Simulador (2 `range` + atalhos), saída `aria-live` |
+| `src/app/painel/login/_components/IrParaAcesso.tsx` | client | Botão de CTA → `abrirAcesso(aba)` |
+| `src/app/painel/login/_components/BarraAcessoFlutuante.tsx` | client | CTA fixo controlado por `IntersectionObserver` |
+| `src/app/painel/login/_lib/acesso.ts` | módulo comum (sem `'use client'`) | `AbaAcesso`, cookie, evento, `resolverAbaInicial` |
+| `src/app/painel/cadastro/page.tsx` | Server Component | `redirect('/painel/login?aba=cadastro')` |
+
+`_lib/acesso.ts` não leva `'use client'` porque o Server Component importa dele constantes e
+`resolverAbaInicial` (constante importada de módulo de cliente chegaria como referência de cliente).
+
+### 93.2 Server Component (`page.tsx`)
+
+- `searchParams: Promise<…>` (Next 16): lê `aba` e `redirect_to`.
+- `createClient()` (server) → `auth.getUser()`. Com sessão, consulta `user_roles` via `supabaseAdmin`;
+  `gestor`/`admin` → `redirect(destinoPainelSeguro(redirect_to) ?? '/painel')`. Sem papel de gestor →
+  `usuario = { nome: user_metadata.full_name ?? name, email }`, passado ao formulário.
+- `resolverAbaInicial(aba, redirectTo, cookies().has('boatzy_painel_conta'))`:
+  `aba` válido (`entrar`|`cadastro`) → ele; senão `redirect_to` ou cookie → `entrar`; senão `cadastro`.
+- Página dinâmica (searchParams/cookies/sessão). `metadata.title` "Anuncie sua lancha no Boatzy — …".
+- Fora do grupo `(gestao)`: não herda sidebar nem checagem de papel. Rota já pública no `proxy.ts`.
+
+### 93.3 Contratos
+
+```ts
+// _lib/acesso.ts
+type AbaAcesso = 'cadastro' | 'entrar';
+const COOKIE_JA_ENTROU_PAINEL = 'boatzy_painel_conta';   // 1 ano, path=/, samesite=lax
+const ID_FORMULARIO_ACESSO = 'acesso';                   // id do cartão de acesso
+resolverAbaInicial(aba?: string, redirectTo?: string, jaEntrou: boolean): AbaAcesso
+lembrarQueJaEntrou(): void                               // grava o cookie (browser)
+abrirAcesso(aba): void      // CustomEvent 'boatzy:abrir-acesso-gestor' + scrollIntoView(center)
+                            // + foco no 1º input (preventScroll), respeitando prefers-reduced-motion
+aoAbrirAcesso(cb): () => void                            // inscrição; devolve o unsubscribe
+
+// componentes
+<AcessoGestorForm abaInicial: AbaAcesso usuario: { nome; email } | null />
+<IrParaAcesso aba className>{children}</IrParaAcesso>
+<BarraAcessoFlutuante aba rotulo />   // observa #acesso e #chamada-final
+<SimuladorGanhos />                   // sem props
+<SocialLoginButtons … compacto? />    // nova prop, padrão false
+```
+
+### 93.4 `AcessoGestorForm`
+
+- **Cadastro:** `supabase.auth.signUp({ email, password, options: { data: { full_name }, emailRedirectTo:
+  `${APP_URL}/painel/auth/callback` } })` — mesmo contrato da antiga `/painel/cadastro` (senha ≥ 6).
+  Sucesso → estado "Confirme seu e-mail" (3 próximos passos) + `lembrarQueJaEntrou()`.
+- **Entrar:** `signInWithPassword` → `lembrarQueJaEntrou()` + `lembrarDestino()` (cookie
+  `boatzy_painel_destino` a partir de `redirect_to`, §20.9 / `painel-destino.ts`) →
+  `location.href = '/api/painel/setup-role'`.
+- **Social:** `signInWithOAuth({ provider, options: { redirectTo: `${APP_URL}/painel/auth/callback` } })`,
+  com os mesmos cookies antes do redirect.
+- **Já conectado (`usuario`):** link `/painel` (pedido de acesso, §62) e "Entrar com outra conta"
+  (`signOut()` → `/painel/login?aba=entrar`).
+- Erros traduzidos por aba (`traduzirErroLogin` / `traduzirErroCadastro`, mesmos textos das telas
+  antigas; "já registrado" orienta a usar "Já tenho conta"). Abas com `role=tablist/tab` e
+  `aria-selected`; erro com `role=alert`.
+
+### 93.5 Simulador e conteúdo
+
+- `porMes = preco × passeios`; temporada = `porMes × 4` (`MESES_TEMPORADA`, dez–mar). Faixas: preço
+  500–6.000 (passo 100, padrão 1.500), passeios 1–20 (padrão 4); atalhos 4/8/16. Formata com
+  `formatarPreco` (`src/lib/precos-roteiro.ts`). Base: o gestor recebe 100% do preço (PRD 6.6, D7).
+- Textos derivados do produto: taxa paga pelo cliente (§14), aceite/recusa com e-mail ao cliente (§20,
+  §48), pagamento antes do passeio (§34), aprovação do gestor (§62) e das publicações (§45), capitão
+  obrigatório (§38), calendário de preços (§46), chat (§21), receitas (§24), equipe (§32), catálogo de
+  opcionais, vendas (§29), tutorial (§28). As miniaturas (semana de preços, solicitação, gráfico) são
+  ilustrações `aria-hidden`, sem dados reais.
+- Imagens: `passeios/caixa-d-aco.png` (hero, `priority`), `yacht-card-2.png` (simulador, só ≥ lg),
+  `yacht-card-1.png` (comparativo, 25% de opacidade), `passeios/praia-do-tingua.png` (chamada final).
+  Logos: `logo-nome-horizontal.svg` (fundo escuro). Rodapé: `Footer` do site.
+- Animação de entrada dos 4 passos com `MontagemAoRolar` (mesmo padrão da home); FAQ com
+  `<details>/<summary>` (sem JS).
+
+### 93.6 Links e logos alterados
+
+- `Header`: CTA "Anuncie sua embarcação" → `isGestor ? '/painel' : '/painel/login'` (desktop e menu
+  mobile); "Entrar como Proprietário" (mobile) e `EntrarMenu` → `/painel/login?aba=entrar`.
+- `/sobre` ("Quero anunciar") e `FaqContent` ("Painel do Proprietário") → `/painel/login`;
+  `/entrar` ("Acesse o Painel") → `/painel/login?aba=entrar`.
+- Logos antigas (`logo.png`, `logo-white.png`) trocadas: `components/painel/Sidebar.tsx` →
+  `logo-horizontal-header-site.svg`; `components/painel/Header.tsx` (celular) → `logo-vertical.svg`;
+  `painel/recuperar-senha` e `painel/redefinir-senha` → `logo-nome-horizontal.svg` (painel escuro) e
+  `logo-horizontal-header-site.svg` (lado claro). Ainda usam `logo.png`: `/entrar`, `/recuperar-senha`,
+  `/redefinir-senha` (site), comprovante em `/minhas-reservas/[id]`, login e menu do admin.
+
+### 93.7 Validação
+
+`tsc` e `eslint` limpos. Navegador headless (1440 px e 390 px): sem erros de console, sem rolagem
+horizontal; aba padrão "Criar conta"; "Já tenho conta" do topo troca a aba e foca o e-mail; barra
+flutuante aparece no meio da página, volta ao formulário na aba de cadastro e some na chamada final;
+simulador ("Todo fim de semana" → R$ 12.000); FAQ abre; `?aba=entrar`; login inválido → "E-mail ou
+senha incorretos."; `/painel/cadastro` → `/painel/login?aba=cadastro`; `/painel/agendamentos`
+deslogado → `?redirect_to=…` em "Já tenho conta". Não exercitado: cadastro real por e-mail, login social
+e estado "já conectado" (exigem conta).
