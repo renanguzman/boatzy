@@ -5,6 +5,7 @@ import { supabaseAdmin } from '@/lib/supabase';
 import { ensureGestorEquipeMembro } from '@/lib/equipe';
 import NovoMembroForm from './_components/NovoMembroForm';
 import EquipeGrid, { type MembroListItem } from './_components/EquipeGrid';
+import type { EquipeFuncao } from '@/types/supabase';
 
 type MembroRow = {
   id: string;
@@ -12,6 +13,7 @@ type MembroRow = {
   cpf: string | null;
   email: string | null;
   telefone: string | null;
+  funcao: EquipeFuncao | null;
   foto_url: string | null;
   ativo: boolean;
   user_id: string | null;
@@ -31,7 +33,7 @@ export default async function EquipePage() {
     supabaseAdmin
       .from('equipe_membro')
       .select(
-        `id, nome_completo, cpf, email, telefone, foto_url, ativo, user_id, created_at,
+        `id, nome_completo, cpf, email, telefone, funcao, foto_url, ativo, user_id, created_at,
          equipe_membro_embarcacao ( embarcacao ( id, nome ) )`,
       )
       .eq('owner_id', user.id)
@@ -68,6 +70,7 @@ export default async function EquipePage() {
     cpf: m.cpf,
     email: m.email,
     telefone: m.telefone,
+    funcao: m.funcao,
     foto_url: m.foto_url,
     ativo: m.ativo,
     tem_conta_vinculada: m.user_id != null,

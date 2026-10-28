@@ -4,6 +4,7 @@ import { ArrowLeft } from 'lucide-react';
 import { createClient } from '@/lib/supabase/server';
 import { supabaseAdmin } from '@/lib/supabase';
 import MembroForm, { type MembroFormData } from '../../_components/MembroForm';
+import type { EquipeFuncao } from '@/types/supabase';
 
 type MembroRow = {
   id: string;
@@ -13,6 +14,7 @@ type MembroRow = {
   cpf: string | null;
   email: string | null;
   telefone: string | null;
+  funcao: EquipeFuncao | null;
   foto_url: string | null;
   user_id: string | null;
   equipe_membro_embarcacao: { embarcacao_id: string }[];
@@ -29,7 +31,7 @@ export default async function EditarMembroPage({ params }: { params: Promise<{ i
   const { data } = await supabaseAdmin
     .from('equipe_membro')
     .select(
-      `id, owner_id, is_gestor, nome_completo, cpf, email, telefone, foto_url, user_id,
+      `id, owner_id, is_gestor, nome_completo, cpf, email, telefone, funcao, foto_url, user_id,
        equipe_membro_embarcacao ( embarcacao_id ),
        conta:users!equipe_membro_user_id_fkey ( name, email )`,
     )
@@ -53,6 +55,7 @@ export default async function EditarMembroPage({ params }: { params: Promise<{ i
     cpf: m.cpf,
     email: m.email,
     telefone: m.telefone,
+    funcao: m.funcao,
     foto_url: m.foto_url,
     user_id: m.user_id,
     conta_nome: m.conta ? `${m.conta.name} (${m.conta.email})` : null,
@@ -71,6 +74,13 @@ export default async function EditarMembroPage({ params }: { params: Promise<{ i
 
       <h1 className="mt-4 text-xl sm:text-2xl font-bold text-[#0B2447]">Editar membro</h1>
       <p className="text-slate-500 mt-0.5 text-sm mb-6">{m.nome_completo}</p>
+
+      {(!m.cpf || !m.telefone) && (
+        <p className="mb-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+          Cadastro incompleto: falta {[!m.cpf && 'o CPF', !m.telefone && 'o telefone'].filter(Boolean).join(' e ')}.
+          Complete para indicar esta pessoa como atendente das reservas.
+        </p>
+      )}
 
       <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-4 sm:p-6">
         <MembroForm embarcacoes={(embarcacoesData ?? []) as { id: string; nome: string }[]} membro={membro} />

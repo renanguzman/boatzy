@@ -15,7 +15,14 @@ export type NotificacaoTipo =
   | 'pagamento_aprovado'
   | 'pagamento_recusado'
   | 'reembolso'
-  | 'mensagem';
+  | 'mensagem'
+  | 'documento_vencendo'; // só gestor: documento da embarcação/condutor vencendo ou vencido (SPEC §95)
+/** Documentos da embarcação e do condutor (SPEC §95). */
+export type DocumentoTipo = 'tie' | 'tiem' | 'dpem' | 'prpm' | 'cha' | 'cir' | 'outro';
+export type DocumentoEscopo = 'embarcacao' | 'condutor';
+export type DocumentoOrigem = 'pdf' | 'ocr' | 'manual';
+/** Papel do membro da equipe (SPEC §95). */
+export type EquipeFuncao = 'marinheiro' | 'capitao' | 'auxiliar';
 /** Quem vê a notificação: sino do site (cliente) ou sino do painel (gestor) — SPEC §87. */
 export type NotificacaoPublico = 'cliente' | 'gestor';
 /** Status de publicação (embarcação e roteiro) — pipeline de aprovação, SPEC §45. */
@@ -1776,6 +1783,103 @@ export type Database = {
           },
         ];
       };
+      documento: {
+        Row: {
+          id: string;
+          owner_id: string;
+          escopo: DocumentoEscopo;
+          tipo: DocumentoTipo;
+          embarcacao_id: string | null;
+          equipe_membro_id: string | null;
+          titulo: string | null;
+          numero: string | null;
+          titular: string | null;
+          embarcacao_nome: string | null;
+          categoria: string | null;
+          data_emissao: string | null;
+          data_validade: string | null;
+          dados: Json;
+          arquivo_key: string | null;
+          arquivo_nome: string | null;
+          arquivo_tipo: string | null;
+          arquivo_tamanho: number | null;
+          origem: DocumentoOrigem;
+          arquivado_em: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          owner_id: string;
+          escopo: DocumentoEscopo;
+          tipo: DocumentoTipo;
+          embarcacao_id?: string | null;
+          equipe_membro_id?: string | null;
+          titulo?: string | null;
+          numero?: string | null;
+          titular?: string | null;
+          embarcacao_nome?: string | null;
+          categoria?: string | null;
+          data_emissao?: string | null;
+          data_validade?: string | null;
+          dados?: Json;
+          arquivo_key?: string | null;
+          arquivo_nome?: string | null;
+          arquivo_tipo?: string | null;
+          arquivo_tamanho?: number | null;
+          origem?: DocumentoOrigem;
+          arquivado_em?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          owner_id?: string;
+          escopo?: DocumentoEscopo;
+          tipo?: DocumentoTipo;
+          embarcacao_id?: string | null;
+          equipe_membro_id?: string | null;
+          titulo?: string | null;
+          numero?: string | null;
+          titular?: string | null;
+          embarcacao_nome?: string | null;
+          categoria?: string | null;
+          data_emissao?: string | null;
+          data_validade?: string | null;
+          dados?: Json;
+          arquivo_key?: string | null;
+          arquivo_nome?: string | null;
+          arquivo_tipo?: string | null;
+          arquivo_tamanho?: number | null;
+          origem?: DocumentoOrigem;
+          arquivado_em?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'documento_owner_id_fkey';
+            columns: ['owner_id'];
+            isOneToOne: false;
+            referencedRelation: 'users';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'documento_embarcacao_id_fkey';
+            columns: ['embarcacao_id'];
+            isOneToOne: false;
+            referencedRelation: 'embarcacao';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'documento_equipe_membro_id_fkey';
+            columns: ['equipe_membro_id'];
+            isOneToOne: false;
+            referencedRelation: 'equipe_membro';
+            referencedColumns: ['id'];
+          },
+        ];
+      };
       equipe_membro: {
         Row: {
           id: string;
@@ -1783,6 +1887,7 @@ export type Database = {
           user_id: string | null;
           is_gestor: boolean;
           nome_completo: string;
+          funcao: EquipeFuncao | null;
           cpf: string | null;
           email: string | null;
           telefone: string | null;
@@ -1797,6 +1902,7 @@ export type Database = {
           user_id?: string | null;
           is_gestor?: boolean;
           nome_completo: string;
+          funcao?: EquipeFuncao | null;
           cpf?: string | null;
           email?: string | null;
           telefone?: string | null;
@@ -1811,6 +1917,7 @@ export type Database = {
           user_id?: string | null;
           is_gestor?: boolean;
           nome_completo?: string;
+          funcao?: EquipeFuncao | null;
           cpf?: string | null;
           email?: string | null;
           telefone?: string | null;

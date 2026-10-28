@@ -6,6 +6,8 @@ import { supabaseAdmin } from '@/lib/supabase';
 import { checkRoleInDb } from '@/lib/roles';
 import { onlyDigits, isValidCPF } from '@/lib/validators';
 import { deleteFromR2, buildKeyFromUrl } from '@/lib/r2';
+import { apagarArquivoDocumento } from '@/lib/documentos/arquivo-server';
+import type { EquipeFuncao } from '@/types/supabase';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Tipos
@@ -16,6 +18,8 @@ export type MembroFormPayload = {
   cpf: string;
   email: string;
   telefone: string;
+  /** Papel na embarcação (marinheiro, capitão, auxiliar) — opcional. */
+  funcao: EquipeFuncao | '';
   /** Embarcações em que o membro é indicado como atendente. */
   embarcacaoIds: string[];
   /** Conta da plataforma a vincular (opcional). */
@@ -55,6 +59,7 @@ function validarCampos(p: MembroFormPayload): string | null {
   if (tel.length < 10 || tel.length > 11) return 'Telefone inválido — informe DDD + número.';
   const email = p.email.trim();
   if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return 'E-mail inválido.';
+  if (p.funcao && !['marinheiro', 'capitao', 'auxiliar'].includes(p.funcao)) return 'Função inválida.';
   if (!p.embarcacaoIds || p.embarcacaoIds.length === 0) {
     return 'Vincule o membro a pelo menos uma embarcação.';
   }
@@ -147,6 +152,7 @@ export async function criarMembro(payload: MembroFormPayload): Promise<CriarMemb
       cpf: onlyDigits(payload.cpf),
       email: payload.email.trim() || null,
       telefone: onlyDigits(payload.telefone),
+      funcao: payload.funcao || null,
       ativo: true,
     })
     .select('id')
@@ -193,6 +199,7 @@ export async function atualizarMembro(
       cpf: onlyDigits(payload.cpf),
       email: payload.email.trim() || null,
       telefone: onlyDigits(payload.telefone),
+      funcao: payload.funcao || null,
     })
     .eq('id', membroId);
 
@@ -300,6 +307,13 @@ export async function excluirMembro(membroId: string): Promise<ActionResult> {
   if (membro.foto_url) {
     await deleteFromR2(buildKeyFromUrl(membro.foto_url)).catch(() => null);
   }
+
+  // Habilitações do membro saem junto (ON DELETE CASCADE): apaga os arquivos do bucket privado.
+  const { data: docs } = await supabaseAdmin
+    .from('documento')
+    .select('arquivo_key')
+    .eq('equipe_membro_id', membroId);
+  await Promise.all((docs ?? []).map((d) => apagarArquivoDocumento(d.arquivo_key)));
 
   const { error: delErr } = await supabaseAdmin
     .from('equipe_membro')

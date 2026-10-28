@@ -5,6 +5,7 @@ import {
   CircleAlert,
   Clock,
   CreditCard,
+  FileWarning,
   Inbox,
   MessageCircle,
   RotateCcw,
@@ -34,6 +35,7 @@ export const VISUAL_NOTIFICACAO: Record<NotificacaoTipo, Visual> = {
   pagamento_recusado: { icone: CreditCard, cor: 'bg-rose-50 text-rose-500', rotulo: 'Pagamento recusado' },
   reembolso: { icone: RotateCcw, cor: 'bg-sky-50 text-sky-600', rotulo: 'Reembolso' },
   mensagem: { icone: MessageCircle, cor: 'bg-marinho/10 text-marinho', rotulo: 'Mensagem' },
+  documento_vencendo: { icone: FileWarning, cor: 'bg-amber-50 text-amber-600', rotulo: 'Documento vencendo' },
 };
 
 export function visualNotificacao(tipo: string): Visual {

@@ -20,6 +20,7 @@ import {
   BookOpen,
   Tag,
   UsersRound,
+  FileCheck2,
   X,
 } from 'lucide-react';
 import clsx from 'clsx';
@@ -30,6 +31,7 @@ const navItems = [
   { href: '/painel', label: 'DASHBOARD', icon: LayoutDashboard, exact: true, tour: 'nav-dashboard' },
   { href: '/painel/agendamentos', label: 'AGENDAMENTOS', icon: CalendarDays, exact: false, tour: 'nav-agendamentos' },
   { href: '/painel/embarcacoes', label: 'EMBARCAÇÕES', icon: Ship, exact: false, tour: 'nav-embarcacoes' },
+  { href: '/painel/documentos', label: 'DOCUMENTOS', icon: FileCheck2, exact: false, tour: 'nav-documentos' },
   { href: '/painel/roteiros', label: 'ROTEIROS / PREÇOS', icon: MapPin, exact: false, tour: 'nav-roteiros' },
   { href: '/painel/vendas', label: 'VENDAS', icon: Tag, exact: false, tour: 'nav-vendas' },
   { href: '/painel/catalogo', label: 'CATÁLOGO', icon: BookOpen, exact: false, tour: 'nav-catalogo' },
@@ -42,8 +44,11 @@ export default function Sidebar({
   naoLidas = 0,
   pendentes = 0,
   userId = null,
+  documentos = { alerta: 0, vencidos: 0 },
 }: {
   naoLidas?: number;
+  /** Documentos vencidos ou vencendo em até 60 dias (badge de DOCUMENTOS — SPEC §95.6). */
+  documentos?: { alerta: number; vencidos: number };
   /** Solicitações de reserva aguardando resposta do gestor (badge de AGENDAMENTOS). */
   pendentes?: number;
   userId?: string | null;
@@ -160,10 +165,17 @@ export default function Sidebar({
           {navItems.map(({ href, label, icon: Icon, exact, tour }) => {
             const active = exact ? pathname === href : pathname.startsWith(href);
             // Clientes: mensagens não lidas. Agendamentos: solicitações aguardando resposta.
-            const badge = href === '/painel/clientes' ? totalNaoLidas : href === '/painel/agendamentos' ? totalPendentes : 0;
+            // Documentos: vencidos (vermelho) ou só vencendo em breve (âmbar).
+            const badge = href === '/painel/clientes' ? totalNaoLidas
+              : href === '/painel/agendamentos' ? totalPendentes
+              : href === '/painel/documentos' ? documentos.alerta
+              : 0;
             const tituloBadge = href === '/painel/agendamentos'
               ? `${badge} solicitaç${badge === 1 ? 'ão' : 'ões'} aguardando resposta`
-              : `${badge} mensage${badge === 1 ? 'm' : 'ns'} não lida${badge === 1 ? '' : 's'}`;
+              : href === '/painel/documentos'
+                ? `${badge} documento${badge === 1 ? '' : 's'} vencido${badge === 1 ? '' : 's'} ou vencendo`
+                : `${badge} mensage${badge === 1 ? 'm' : 'ns'} não lida${badge === 1 ? '' : 's'}`;
+            const corBadge = href === '/painel/documentos' && documentos.vencidos === 0 ? 'bg-amber-500' : 'bg-red-500';
             return (
               <Link
                 key={href}
@@ -182,7 +194,7 @@ export default function Sidebar({
                   <span
                     title={tituloBadge}
                     aria-label={tituloBadge}
-                    className="min-w-[18px] h-[18px] px-1 flex items-center justify-center rounded-full bg-red-500 text-white text-[10px] font-bold leading-none"
+                    className={clsx('min-w-[18px] h-[18px] px-1 flex items-center justify-center rounded-full text-white text-[10px] font-bold leading-none', corBadge)}
                   >
                     {badge > 99 ? '99+' : badge}
                   </span>

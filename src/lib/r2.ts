@@ -27,6 +27,13 @@ export const R2_BUCKET     = process.env.R2_BUCKET_NAME!;
 export const R2_PUBLIC_URL = process.env.R2_PUBLIC_URL!;
 
 /**
+ * Bucket PRIVADO dos documentos da embarcação e dos condutores (SPEC §95.2).
+ * Sem acesso público: os arquivos só são abertos por URL assinada, para o dono.
+ * Usa as mesmas credenciais (o token precisa ter acesso a este bucket).
+ */
+export const R2_DOCUMENTOS_BUCKET = process.env.R2_DOCUMENTOS_BUCKET_NAME || 'boatzy-documentos';
+
+/**
  * Monta o caminho (key) da foto de um membro da equipe no R2.
  * Estrutura: equipe/{gestorId}/{membroId}/{filename}
  * — pasta `equipe` + pasta com o id do gestor, conforme especificado.

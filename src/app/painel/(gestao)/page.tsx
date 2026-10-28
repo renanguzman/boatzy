@@ -13,13 +13,20 @@ import {
   Tag,
   Inbox,
   CreditCard,
+  FileCheck2,
+  Upload,
 } from 'lucide-react';
 import { createClient } from '@/lib/supabase/server';
 import { supabaseAdmin } from '@/lib/supabase';
 import { concluirReservasVencidas } from '@/lib/reservas';
 import { formatCurrency } from '@/lib/utils';
 import type { ReservaStatus, ReservaTipo } from '@/types/supabase';
-import { FUSO_HORARIO, partesNoFuso } from '@/lib/datas';
+import { FUSO_HORARIO, formatarData, partesNoFuso } from '@/lib/datas';
+import { getResumoDocumentos, proximosVencimentos } from '@/lib/documentos/server';
+import { nomeCurtoDocumento } from '@/lib/documentos/tipos';
+import { textoPrazo } from '@/lib/documentos/validade';
+import ResumoValidadeCards from '@/components/painel/documentos/ResumoValidadeCards';
+import { SeloValidade } from '@/components/painel/documentos/SeloValidade';
 
 type ReservaDashboard = {
   id: string;
@@ -64,7 +71,10 @@ export default async function PainelDashboardPage() {
   // Transição lazy confirmada → concluída antes de contar/exibir status.
   await concluirReservasVencidas();
 
-  const [{ data: embarcacoesData }, { data: roteirosData }, { data: reservasData }, { data: anunciosData }, { data: funilData }] =
+  const [
+    { data: embarcacoesData }, { data: roteirosData }, { data: reservasData }, { data: anunciosData }, { data: funilData },
+    resumoDocs, vencimentos,
+  ] =
     await Promise.all([
       supabaseAdmin.from('embarcacao').select('id, nome, status').eq('owner_id', user.id),
       supabaseAdmin.from('roteiro').select('id, nome, status, ativo').eq('owner_id', user.id),
@@ -80,6 +90,9 @@ export default async function PainelDashboardPage() {
       supabaseAdmin.from('anuncio_venda').select('id, status, embarcacao ( nome )').eq('owner_id', user.id),
       // Leads dos anúncios de venda (1 linha por lead↔anúncio) — RPC vendas_funil.
       supabaseAdmin.rpc('vendas_funil', { p_gestor: user.id }),
+      // Painel de validade dos documentos (SPEC §95.6).
+      getResumoDocumentos(user.id),
+      proximosVencimentos(user.id, 3),
     ]);
 
   const embarcacoes = embarcacoesData ?? [];
@@ -280,6 +293,60 @@ export default async function PainelDashboardPage() {
           <Clock className="h-4 w-4" />
           {emAnalise === 1 ? '1 cadastro aguarda' : `${emAnalise} cadastros aguardam`} a análise da equipe Boatzy — ele{emAnalise === 1 ? '' : 's'} aparece{emAnalise === 1 ? '' : 'm'} no site assim que for{emAnalise === 1 ? '' : 'em'} aprovado{emAnalise === 1 ? '' : 's'}.
         </p>
+      )}
+
+      {/* Documentação — validade dos documentos da embarcação e das habilitações (SPEC §95.6) */}
+      {embarcacoes.length > 0 && (
+        <section className="mb-6 sm:mb-8 rounded-2xl border border-slate-100 bg-white p-4 sm:p-6 shadow-sm">
+          <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
+            <div className="flex items-start gap-3">
+              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-teal-50">
+                <FileCheck2 className="h-4 w-4 text-teal-600" />
+              </span>
+              <div>
+                <h3 className="text-base font-bold text-[#0B2447]">Documentação</h3>
+                <p className="text-xs text-slate-400 mt-0.5">TIE, seguro e habilitação náutica — avisamos antes de cada vencimento</p>
+              </div>
+            </div>
+            <Link href="/painel/documentos" className="inline-flex items-center gap-0.5 text-xs font-semibold text-[#0B3D91] hover:text-[#0B2447]">
+              Ver documentos <ChevronRight className="h-3.5 w-3.5" />
+            </Link>
+          </div>
+          {resumoDocs.total === 0 ? (
+            <div className="flex flex-col items-start gap-3 rounded-xl border border-dashed border-slate-200 bg-slate-50/60 p-4 sm:flex-row sm:items-center sm:justify-between">
+              <p className="text-sm text-slate-600">
+                Envie o <strong>TIE</strong> das suas embarcações e a <strong>habilitação</strong> de quem conduz. É só tirar uma foto —
+                nós lemos os dados e avisamos você antes de vencer.
+              </p>
+              <Link
+                href="/painel/documentos/novo"
+                className="inline-flex shrink-0 items-center gap-2 rounded-xl bg-[#0B2447] px-4 py-2.5 text-xs font-semibold text-white hover:bg-[#0B3D91]"
+              >
+                <Upload className="h-3.5 w-3.5" /> Enviar primeiro documento
+              </Link>
+            </div>
+          ) : (
+            <>
+              <ResumoValidadeCards resumo={resumoDocs} hrefBase="/painel/documentos" />
+              {vencimentos.length > 0 && (
+                <ul className="mt-4 divide-y divide-slate-100 rounded-xl border border-slate-100">
+                  {vencimentos.map((v) => (
+                    <li key={v.id}>
+                      <Link href="/painel/documentos" className="flex flex-wrap items-center gap-x-3 gap-y-1 px-3 py-2.5 hover:bg-slate-50">
+                        <span className="w-12 shrink-0 text-xs font-bold text-[#0B2447]">{nomeCurtoDocumento(v.tipo, v.titulo)}</span>
+                        <span className="min-w-0 flex-1 truncate text-sm text-slate-700">{v.alvo}</span>
+                        <span className="text-xs text-slate-500">
+                          {formatarData(v.data_validade)} · {textoPrazo(v.data_validade)}
+                        </span>
+                        <SeloValidade validade={v.data_validade} />
+                      </Link>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </>
+          )}
+        </section>
       )}
 
       {/* Stats Grid */}

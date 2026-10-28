@@ -1308,6 +1308,12 @@ confirmada — mais segurança e previsibilidade para quem contratou.
 - Embarcação(ões) em que o membro é sempre indicado como atendente (N:N, ≥ 1);
 - Vínculo opcional com uma conta da plataforma — para quando a pessoa já existe na Boatzy ou vier
   a se tornar um gestor de embarcação (apenas identidade; não concede acesso).
+- Função (opcional, 28/10/2026): Marinheiro, Capitão ou Auxiliar.
+
+**Cadastro automático pela habilitação (28/10/2026):** ao enviar a CHA/CIR de alguém que não está na
+equipe, a pessoa é cadastrada como membro (função escolhida no envio, padrão Marinheiro), com o CPF lido
+do documento e **sem telefone**. O card mostra "Cadastro incompleto — falta telefone" até o gestor
+completar (ver §6.14).
 
 **Regras:**
 - Membro com histórico de atendimento não é excluído, apenas desativado.
@@ -1316,6 +1322,89 @@ confirmada — mais segurança e previsibilidade para quem contratou.
   a reserva estiver confirmada/concluída.
 
 Detalhes técnicos: SPEC §32.
+
+---
+
+### 6.14 Documentos da embarcação e do condutor
+
+**Status:** ✅ Implementado (28/10/2026) — fases 1 a 5. Migration `20261028_documentos.sql` a aplicar.
+
+Novo menu **Documentos** no painel do gestor (`/painel/documentos`), logo abaixo de Embarcações. O dono
+guarda os documentos das embarcações e as habilitações náuticas de quem conduz, e o Boatzy acompanha a
+validade e avisa antes de vencer. A área foi pensada para crescer (abas: hoje Embarcações e Condutores;
+depois, por exemplo, Manutenção).
+
+**Documentos aceitos** (nomes da Autoridade Marítima, NORMAM-211/212):
+
+| Documento | Sigla | De quem | Validade usual |
+|---|---|---|---|
+| Título de Inscrição de Embarcação | TIE | Embarcação (até 100 AB) | 5 anos |
+| Título de Inscrição de Embarcação Miúda | TIEM | Embarcação miúda | 5 anos |
+| Seguro DPEM (Danos Pessoais causados por Embarcações) | DPEM | Embarcação — recomendado | 1 ano |
+| Provisão de Registro da Propriedade Marítima | PRPM | Embarcação (acima de 100 AB) | não vence |
+| Carteira de Habilitação de Amador (Motonauta, Veleiro, Arrais, Mestre, Capitão-Amador) | CHA | Condutor | 10 anos |
+| Caderneta de Inscrição e Registro (aquaviário profissional) | CIR | Condutor | informada pelo gestor |
+| Outro documento (nome livre) | — | Embarcação ou condutor | opcional |
+
+**Envio em 3 passos:** (1) o que é — de quem e qual documento, e de qual embarcação; (2) arquivo — "Tirar
+foto" ou "Escolher arquivo" (JPG, PNG, WEBP ou PDF, até 20 MB); (3) conferir e salvar.
+
+**Câmera do painel (28/10/2026):** "Tirar foto" abre a câmera dentro do painel — no celular (traseira) e
+no notebook (webcam), após o gestor permitir o acesso. Uma moldura ajuda a enquadrar o documento (em pé
+para o TIE, deitada para a CHA, com botão para girar). Logo após tirar a foto, o painel avalia a qualidade
+— nitidez (tremida/fora de foco), iluminação (escura ou clara demais), reflexo do plástico e resolução — e
+mostra "Foto boa para leitura" ou o que melhorar, com **Tirar outra** ou **Usar esta foto**. Foto escolhida
+da galeria também é avaliada. Se a câmera estiver bloqueada ou indisponível, o painel explica como liberar
+e oferece a câmera do próprio aparelho ou um arquivo.
+
+**Leitura automática (sem IA):** no passo 2 o documento é lido **no próprio aparelho do gestor** — sem
+custo de servidor e sem o texto sair do aparelho. PDF digital: texto extraído direto do PDF (instantâneo).
+Foto: OCR em português, que acerta a posição da foto sozinho (de lado ou de cabeça para baixo). O passo 3
+vem preenchido, com o selo "lido do documento" em cada campo, e o gestor **sempre confere** antes de
+salvar. Testado com TIE real (foto de frente, foto girada com dois documentos e PDF): número de inscrição,
+nome da embarcação e validade lidos corretamente em ~3–5 s por foto. Se a leitura falhar, o gestor digita.
+- O que é gravado: número, titular (proprietário/condutor), nome da embarcação no documento, categoria da
+  CHA, emissão, validade e extras não sensíveis (tipo da embarcação, área de navegação, atividade).
+  **Não** gravamos CPF, nascimento ou filiação no documento.
+- A frente do TIE não traz o proprietário: o campo vem com o nome do gestor, editável.
+- Avisos na conferência: arquivo que parece de outro tipo ("parece ser um TIEM — trocar") ou de outra
+  embarcação do gestor ("salvar nela").
+
+**Habilitação vinculada à equipe:** ao enviar CHA/CIR, o nome (e o CPF, se lido) é procurado na Equipe:
+- mesmo CPF ou mesmo nome → vinculado automaticamente (inclusive à ficha "Você (gestor)");
+- nome parecido → "É a mesma pessoa?" com as opções;
+- ninguém → cadastro automático na equipe com a função escolhida (padrão **Marinheiro**), o CPF lido do
+  documento e o telefone pendente; ao salvar, uma tela oferece "Completar cadastro".
+- A pessoa passa a ser atendente das embarcações marcadas no passo 1 (uma ou várias, com "Marcar todas");
+  as que ela já atendia continuam.
+
+**Gestão de validade — bem visível:**
+- **Situações:** Vencido (vermelho), Vence em breve (≤ 60 dias, âmbar), Em dia (verde) e Pendente
+  (embarcação sem TIE/TIEM/PRPM).
+- **Dashboard:** quadro "Documentação" logo acima dos números gerais, com os quatro contadores (clicáveis)
+  e os próximos vencimentos; sem documentos, convida a enviar o primeiro.
+- **Topo de todas as telas do painel:** faixa vermelha/âmbar quando há documento vencido ou vencendo em até
+  30 dias, com "Ver documentos" (pode ser fechada; volta na próxima sessão ou se a situação mudar).
+- **Menu:** contador no item Documentos (vermelho se houver vencido, âmbar se só vencendo).
+- **Avisos automáticos:** todo dia às 8h (Brasília) — sino do painel + e-mail — a 60, 30 e 7 dias do
+  vencimento e no dia (ou ao vencer), com a orientação de renovação (ex.: "peça a renovação na Capitania
+  até 30 dias antes").
+- **Renovação:** "Renovar" envia o documento novo do mesmo tipo; o anterior vai para o **Histórico** da
+  embarcação/condutor e os avisos param.
+
+**Tela `/painel/documentos`:** contadores (filtram a lista), abas **Embarcações** (card por embarcação com
+seus documentos, pendência de TIE em destaque e DPEM como recomendação) e **Condutores** (card por pessoa da
+equipe, com função, "Completar cadastro" e habilitações). Em cada documento: ver arquivo, renovar, editar e
+excluir. Funciona no celular (cards empilhados).
+
+**Privacidade:** os arquivos ficam num armazenamento **privado** (`boatzy-documentos`), abertos só pelo dono
+por link temporário de 5 minutos.
+
+**Pendências para entrar no ar:** aplicar a migration; configurar a variável `R2_DOCUMENTOS_BUCKET_NAME` e o
+CORS do bucket `boatzy-documentos` (ver `SPEC.md` §95.2); garantir que o token do R2 acessa o bucket novo.
+Amostra de CHA ainda não recebida — a leitura da CHA foi calibrada com um texto simulado.
+
+Detalhes técnicos: `SPEC.md` §95.
 
 ---
 
@@ -1396,6 +1485,7 @@ nome_completo
 cpf
 email               (opcional)
 telefone
+funcao              (opcional: marinheiro | capitao | auxiliar)
 foto_url            (Cloudflare R2)
 ativo
 created_at / updated_at
@@ -1407,6 +1497,25 @@ created_at / updated_at
 id
 equipe_membro_id
 embarcacao_id
+```
+
+### documento  (documentos da embarcação e habilitações — §6.14)
+
+```
+id
+owner_id            (gestor)
+escopo              (embarcacao | condutor)
+tipo                (tie | tiem | dpem | prpm | cha | cir | outro)
+embarcacao_id       (escopo embarcacao)
+equipe_membro_id    (escopo condutor)
+titulo              (tipo outro)
+numero, titular, embarcacao_nome, categoria
+data_emissao, data_validade
+dados               (extras não sensíveis)
+arquivo_key         (bucket R2 privado)
+origem              (pdf | ocr | manual)
+arquivado_em        (renovado → histórico)
+created_at / updated_at
 ```
 
 ### reserva_atendente  (quem atende a reserva)
@@ -2856,6 +2965,10 @@ Detalhes técnicos: `SPEC.md` §94.
   "Novos Roteiros" / "Novas Embarcações" de volta para "Roteiros Mais Bem Avaliados" / "Embarcações
   Mais Bem Avaliadas" (ranking bayesiano, com troca por proximidade). Passo a passo no `TODO(avaliações)`
   de `FeaturedChartersSection` e `TopRatedSection` e em `SPEC.md` §69.
+- **Documentos — próximos passos** (§6.14): aba **Manutenção** na mesma área (revisões, vistorias,
+  troca de óleo, com vencimento); leitura do QR Code dos documentos digitais para validar autenticidade;
+  se o OCR não bastar em fotos ruins, leitura em nuvem como reserva (ex.: Google Cloud Vision, 1.000
+  leituras grátis/mês); avisar o admin de embarcação ativa sem TIE válido.
 - **Relatório de atendimentos da equipe** (§6.13): a nível de gestor, quantos atendimentos cada
   membro (incluindo o próprio gestor) fez num determinado mês — `reserva_atendente ⨝ reserva`
   agrupado por membro. Modelo de dados já preparado (índice `reserva_atendente_membro_idx`).

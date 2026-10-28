@@ -8,6 +8,8 @@ import {
 } from 'lucide-react';
 import { maskCPF, applyPhoneMask, onlyDigits } from '@/lib/validators';
 import { alternarAtivoMembro, excluirMembro } from '../actions';
+import { rotuloFuncao } from '@/lib/documentos/tipos';
+import type { EquipeFuncao } from '@/types/supabase';
 
 export type MembroListItem = {
   id: string;
@@ -15,6 +17,7 @@ export type MembroListItem = {
   cpf: string | null;
   email: string | null;
   telefone: string | null;
+  funcao: EquipeFuncao | null;
   foto_url: string | null;
   ativo: boolean;
   tem_conta_vinculada: boolean;
@@ -137,6 +140,22 @@ export default function EquipeGrid({ membros }: { membros: MembroListItem[] }) {
                   </span>
                 )}
               </div>
+
+              {(rotuloFuncao(m.funcao) || !m.cpf || !m.telefone) && (
+                <div className="flex flex-wrap gap-1.5">
+                  {rotuloFuncao(m.funcao) && (
+                    <span className="rounded-full bg-teal-50 px-2 py-0.5 text-[11px] font-semibold text-teal-700">{rotuloFuncao(m.funcao)}</span>
+                  )}
+                  {(!m.cpf || !m.telefone) && (
+                    <Link
+                      href={`/painel/equipe/${m.id}/editar`}
+                      className="rounded-full bg-amber-50 px-2 py-0.5 text-[11px] font-semibold text-amber-700 hover:bg-amber-100"
+                    >
+                      Cadastro incompleto — falta {[!m.cpf && 'CPF', !m.telefone && 'telefone'].filter(Boolean).join(' e ')}
+                    </Link>
+                  )}
+                </div>
+              )}
 
               <div className="flex flex-wrap gap-1.5">
                 {m.embarcacoes.length === 0 ? (

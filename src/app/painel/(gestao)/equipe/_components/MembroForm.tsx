@@ -8,6 +8,8 @@ import {
 } from 'lucide-react';
 import { maskCPF, onlyDigits, applyPhoneMask } from '@/lib/validators';
 import { MAX_IMAGE_SIZE_BYTES, MAX_IMAGE_SIZE_ERROR } from '@/lib/upload';
+import { FUNCOES_EQUIPE } from '@/lib/documentos/tipos';
+import type { EquipeFuncao } from '@/types/supabase';
 import {
   criarMembro,
   atualizarMembro,
@@ -27,6 +29,7 @@ export type MembroFormData = {
   cpf: string | null;
   email: string | null;
   telefone: string | null;
+  funcao: EquipeFuncao | null;
   foto_url: string | null;
   embarcacaoIds: string[];
   user_id: string | null;
@@ -52,6 +55,7 @@ export default function MembroForm({ embarcacoes, membro }: Props) {
   const [cpf, setCpf] = useState(membro?.cpf ? maskCPF(membro.cpf) : '');
   const [email, setEmail] = useState(membro?.email ?? '');
   const [telefone, setTelefone] = useState(membro?.telefone ? phoneMask(membro.telefone) : '');
+  const [funcao, setFuncao] = useState<EquipeFuncao | ''>(membro?.funcao ?? '');
   const [selEmb, setSelEmb] = useState<string[]>(membro?.embarcacaoIds ?? []);
 
   // Foto
@@ -131,6 +135,7 @@ export default function MembroForm({ embarcacoes, membro }: Props) {
       cpf,
       email,
       telefone,
+      funcao,
       embarcacaoIds: selEmb,
       vincularUserId: vinculoId,
     };
@@ -278,8 +283,19 @@ export default function MembroForm({ embarcacoes, membro }: Props) {
           />
         </div>
 
+        {/* Função */}
+        <div>
+          <label className="block text-sm font-medium text-slate-700 mb-1.5">Função</label>
+          <select className={inputCls} value={funcao} onChange={(e) => setFuncao(e.target.value as EquipeFuncao | '')}>
+            <option value="">Não informada</option>
+            {FUNCOES_EQUIPE.map((f) => (
+              <option key={f.valor} value={f.valor}>{f.rotulo}</option>
+            ))}
+          </select>
+        </div>
+
         {/* E-mail */}
-        <div className="md:col-span-2">
+        <div>
           <label className="block text-sm font-medium text-slate-700 mb-1.5">E-mail</label>
           <input
             className={inputCls}

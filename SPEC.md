@@ -288,6 +288,9 @@ Módulo independente do hotsite, acessível apenas por usuários cuja lista de r
 | `/painel/agendamentos` | Listagem/gestão de reservas (Confirmar/Recusar) — ver §20 | gestor/admin |
 | `/painel/embarcacoes` | CRUD de embarcações | gestor/admin |
 | `/painel/clientes` | Clientes com reserva no gestor + chat (ver §21) | gestor/admin |
+| `/painel/documentos` | Documentos da embarcação e habilitações, com validade (§95) | gestor/admin |
+| `/painel/documentos/novo` | Envio em 3 passos com leitura automática (§95.4) | gestor/admin |
+| `/painel/documentos/[id]/editar` | Edição dos dados / troca do arquivo (§95) | gestor/admin |
 
 > `/painel/usuarios` foi **removida** em 22/10/2026 (listava todas as contas e criava usuários com qualquer papel, inclusive `admin`). A consulta de contas passou para `/administrator/usuarios`, somente leitura — §62.
 
@@ -4681,6 +4684,16 @@ painel "Equipe que vai atender" com edição quando a reserva já está confirma
 Bloco "Quem vai te atender" (foto, nome ou "Gestor da embarcação", telefone mascarado) renderizado
 só quando `status ∈ {confirmada, concluida}` e há atendentes.
 
+### 32.6-B Função e cadastro automático (28/10/2026)
+
+- `equipe_membro.funcao text NULL CHECK (funcao IN ('marinheiro','capitao','auxiliar'))` (migration
+  `20261028_documentos.sql`). `MembroForm` tem o select "Função" (opcional); `criarMembro`/`atualizarMembro`
+  validam e gravam (`MembroFormPayload.funcao: EquipeFuncao | ''`).
+- Membro criado pela habilitação (§95.5) nasce com `telefone = NULL` (e `cpf` NULL se não lido). `EquipeGrid`
+  mostra a função e o selo "Cadastro incompleto — falta …" (link para editar); a edição mostra o aviso.
+  `validarCampos` continua exigindo CPF e telefone ao salvar pela tela da Equipe.
+- `excluirMembro` apaga do bucket privado os arquivos das habilitações do membro antes do DELETE (cascade).
+
 ### 32.7 Futuro (to-do)
 
 Relatório a nível de gestor: nº de atendimentos por membro em um mês —
@@ -8301,4 +8314,193 @@ unificada da lista.
 - **Fora do escopo:** nome de município/estado (vêm do IBGE), conteúdo escrito pelo dono, e-mails.
 
 **Validação (Fase 4):** `tsc`, `eslint` e `next build` limpos; `i18n:verificar` ok. Migration aplicada: 75/75 itens com en e es. Sem a migration o site abriu normalmente em pt-BR (fallback). Navegador (build de produção) em en-US e es: selo do tipo (Speedboat/Yate), seletores e filtros de tipo, filtros de comodidade (Air conditioning/Aire acondicionado, Barbecue grill/Parrilla), itens de segurança do roteiro traduzidos e ordenados no idioma, título da busca com o tipo traduzido e sem erros de console. Não exercitado: telas do admin (exigem login de admin).
+
+## 95. Documentos da embarcação e do condutor — `/painel/documentos` (28/10/2026)
+
+Gestor envia documentos das embarcações (TIE, TIEM, DPEM, PRPM, outro) e habilitações dos condutores (CHA,
+CIR, outro); o painel acompanha a validade e avisa antes de vencer. Requisitos: PRD §6.14.
+
+### 95.1 Modelo de dados — migration `20261028_documentos.sql`
+
+**`documento`** (RLS + GRANTs para anon/authenticated/service_role; policies `service_role_all`
+TO service_role e `owner_*` com `owner_id = auth.uid()`):
+
+| coluna | tipo | notas |
+|---|---|---|
+| `id` | uuid PK | gerado no navegador no cadastro (o arquivo sobe antes do registro) |
+| `owner_id` | uuid → users ON DELETE CASCADE | |
+| `escopo` | text `embarcacao`/`condutor` | |
+| `tipo` | text `tie`/`tiem`/`dpem`/`prpm`/`cha`/`cir`/`outro` | |
+| `embarcacao_id` | uuid → embarcacao ON DELETE CASCADE | obrigatório no escopo embarcação |
+| `equipe_membro_id` | uuid → equipe_membro ON DELETE CASCADE | obrigatório no escopo condutor |
+| `titulo` | text | obrigatório no tipo `outro` (CHECK) |
+| `numero`, `titular`, `embarcacao_nome`, `categoria` | text | `categoria`: `motonauta`/`veleiro`/`arrais`/`mestre`/`capitao` |
+| `data_emissao`, `data_validade` | date | validade NULL = não vence |
+| `dados` | jsonb `{}` | `tipo_embarcacao`, `area_navegacao`, `atividade`, `qtd_passageiros`, `qtd_tripulantes` |
+| `arquivo_key`, `arquivo_nome`, `arquivo_tipo`, `arquivo_tamanho` | | objeto no bucket privado |
+| `origem` | text `pdf`/`ocr`/`manual` | como os campos foram preenchidos |
+| `arquivado_em` | timestamptz | não nulo = histórico (renovado) |
+| `created_at`, `updated_at` | timestamptz | trigger `documento_updated_at_trigger` |
+
+CHECK `documento_alvo_valido` amarra escopo × alvo × tipo. Índices: owner, embarcacao, membro,
+`documento_validade_ativos_idx (owner_id, data_validade) WHERE arquivado_em IS NULL`; únicos parciais
+`documento_embarcacao_tipo_ativo_uniq` / `documento_membro_tipo_ativo_uniq` (um ativo por alvo e tipo,
+exceto `outro`). Também na migration: `equipe_membro.funcao` (§32.6-B) e o tipo `documento_vencendo` no
+CHECK `notificacao_tipo_valido`.
+
+**Tipos TS** (`src/types/supabase.ts`): `DocumentoTipo`, `DocumentoEscopo`, `DocumentoOrigem`,
+`EquipeFuncao`, tabela `documento`, `equipe_membro.funcao`, `NotificacaoTipo` + `documento_vencendo`
+(`VISUAL_NOTIFICACAO`: `FileWarning`, âmbar). Sino do painel: seção "Reservas, pagamentos e documentos".
+
+### 95.2 Arquivos — bucket R2 privado
+
+- `R2_DOCUMENTOS_BUCKET` em `src/lib/r2.ts` = env `R2_DOCUMENTOS_BUCKET_NAME` (padrão `boatzy-documentos`),
+  mesmas credenciais do R2. Key `documentos/{ownerId}/{documentoId}/{8 chars}-{nome}`.
+- `src/lib/documentos/arquivo-server.ts`: `processarUploadDocumento` (rota
+  `POST /api/painel/documentos/upload`) — mesmo fluxo da §44.2: `{acao:'preparar', documentoId, nome, tipo,
+  tamanho}` → `{uploadUrl, key}` (PUT assinado com content-type/length, 10 min) e `{acao:'confirmar',
+  documentoId, key}` → `{key}` (lê `bytes=0-15` e confere JPG/PNG/WEBP/`%PDF-`; inválido é apagado). Tipos
+  `TIPOS_ARQUIVO_DOCUMENTO`, máx. 20 MB. Documento existente: só o dono. Nunca devolve URL pública.
+- `GET /api/painel/documentos/[id]/arquivo` → confere dono e redireciona para URL assinada de 5 min
+  (`urlAssinadaDocumento`, `inline`). `apagarArquivoDocumento(key)` na troca de arquivo e na exclusão.
+- Navegador: `src/lib/documentos/envio.ts` — `validarArquivoDocumento`, `enviarArquivoDocumento(file, id,
+  onProgresso)` → `ArquivoEnviado { key, nome, tipo, tamanho }`.
+- **Pré-requisito — CORS do bucket `boatzy-documentos`** (mesma regra do `boatzy-prod`): origens
+  `https://boatzy.app`, `https://www.boatzy.app`, `http://localhost:3000`, `http://localhost:3001`; métodos
+  GET/PUT; header `content-type`; MaxAge 3600. Sem isso o PUT falha no preflight ("Não foi possível enviar
+  ao armazenamento de documentos"). **Não configurado a partir desta sessão** (sem credenciais do R2 no
+  ambiente local). O token do R2 precisa ter acesso ao bucket novo.
+
+### 95.3 Registro de tipos e validade
+
+- `src/lib/documentos/tipos.ts` (neutro): `TIPOS_DOCUMENTO: Record<DocumentoTipo, TipoDocumentoInfo>`
+  (`sigla`, `nome`, `descricao`, `validadeAnos`, `renovacao`, rótulos, `temCategoria`, `temTitulo`),
+  `TIPOS_POR_ESCOPO`, `TIPOS_INSCRICAO` (`tie`,`tiem`,`prpm`), `CATEGORIAS_CHA`, `FUNCOES_EQUIPE`,
+  `nomeCurtoDocumento`, `DadosDocumento`. Tipo novo = entrada aqui + valor no CHECK.
+- `src/lib/documentos/validade.ts`: `situacaoValidade(validade, hoje?)` → `vencido` (< 0 dia) |
+  `vence_em_breve` (≤ `DIAS_ALERTA` = 60) | `em_dia` | `sem_validade`; `diasParaVencer`, `textoPrazo`,
+  `marcoAviso` (`MARCOS_AVISO` = 60, 30, 7, 0 → o mais urgente alcançado), `DIAS_FAIXA_TOPO` = 30,
+  `VISUAL_SITUACAO`, `ResumoValidade`. "Hoje" via `hojeISO()` (Brasília).
+- Validade obrigatória quando `validadeAnos != null` (TIE, TIEM, DPEM, CHA); PRPM/CIR/outro opcional.
+
+### 95.4 Leitura automática (sem IA, no navegador)
+
+- `src/lib/documentos/ocr.ts` — `lerDocumento(file, { embarcacoesConhecidas, pessoasConhecidas,
+  onProgresso })` → `{ origem: 'pdf'|'ocr', campos: CamposLidos, confianca }`. Import dinâmico de
+  `pdfjs-dist@5.7.284` (worker pelo jsDelivr na mesma versão) e `tesseract.js@7.0.0` (motor + `por` pelo
+  jsDelivr, em cache no navegador após a 1ª vez).
+  1. PDF com texto (≥ 40 caracteres e `pontuarTexto ≥ 2`): texto da 1ª página → `lerCampos`.
+  2. Foto/PDF escaneado: canvas com orientação EXIF, lado maior 1600–2000 px, tons de cinza + contraste
+     esticado (percentis 1–99). Tesseract `PSM.SPARSE_TEXT` (11) — o modo que leu os campos nas molduras
+     do TIE (comparado com PSM 3 e 6). Rotações 0°, 270°, 90°, 180°, até `pontuarTexto ≥ 6` e confiança ≥ 55
+     (nota = pontos×10 + confiança/10). Se faltar validade ou número, passadas extras na melhor rotação —
+     binarizada (limiar 150) e, se ainda faltar, nitidez reforçada (máscara 3×3) —, completando só os
+     campos vazios.
+  - `anosValidade` (do tipo escolhido: TIE/TIEM 5, CHA 10, DPEM 1) vai para `lerCampos`.
+- `src/lib/documentos/leitura.ts` (puro) — `lerCampos(texto, { embarcacoesConhecidas, pessoasConhecidas,
+  anoAtual })` → `CamposLidos { tipoDetectado, numero, titular, embarcacaoNome, categoria, cpf, dataEmissao,
+  dataValidade, tipoEmbarcacao, areaNavegacao, atividade }`:
+  - validade: maior data plausível — até `ano + anosValidade` do tipo (sem tipo: +11) e no máximo 6 anos
+    atrás. Descarta erros de OCR como "2037" num TIE (vale 5 anos) ou "2087", e a data de inscrição; a
+    leitura fica vazia e as passadas extras tentam de novo. Preferência pelas 6 linhas após
+    "VALIDADE/VENCIMENTO/VIGÊNCIA";
+  - número: `\d{3}[A-Z]\d{8,11}` (ex.: 441M2016005268) ou 9–11 dígitos (ex.: 3810498173), excluindo CPF
+    válido, com bônus perto de "INSCRIÇÃO/NÚMERO/APÓLICE/REGISTRO";
+  - nome da embarcação/titular: nome conhecido do gestor achado no texto (`encontrarNomeNoTexto`) ou linha
+    em maiúsculas após o rótulo; CPF com dígito verificador (só para o cadastro do condutor);
+  - tipo: "MIÚDA" → tiem, "HABILITAÇÃO DE AMADOR" → cha, "CADERNETA" → cir, "PROPRIEDADE MARÍTIMA" → prpm,
+    "DPEM", "TÍTULO DE INSCRI…" → tie.
+- **Validação:** navegador (Chromium headless, página temporária já removida) com as amostras reais do
+  gestor — TIE de frente (4,3 s), foto girada 90° com TIE+TIEM (3,2 s) e PDF digital (0,26 s): número
+  3810498173, embarcação DANIFER e validade 14/09/2027 corretos nos três. CHA: só texto simulado (amostra
+  real pendente). TIEM recortado da foto de baixa resolução não teve o número lido.
+
+### 95.5 Vínculo do condutor com a equipe — `src/lib/documentos/nomes.ts` + `server.ts`
+
+- `normalizarNome`, `tokensNome` (sem partículas de/da/dos…), `similaridadeNomes` (1 = mesmos nomes;
+  ≥ 0,85 = mesmo primeiro e último; senão Jaccard), `SIMILARIDADE_SUGESTAO` = 0,6, `nomeApresentavel`.
+- `analisarCondutor(ownerId, nome, cpf)` → `exato` (mesmo CPF ou nome) | `similar` (até 3 candidatos) |
+  `novo`. Action `analisarCondutorDocumento(nome, cpf)` (chamada com debounce no passo 3).
+- `criarDocumento` com `condutor: { modo: 'existente', membroId } | { modo: 'novo', nome, cpf, funcao }`:
+  novo → `equipe_membro` (`nomeApresentavel`, CPF se válido, `telefone NULL`, `funcao`); mesmo CPF já na
+  equipe → reutiliza. Vincula às `embarcacoesDoCondutorIds` (uma ou várias, só as do gestor) em
+  `equipe_membro_embarcacao` (upsert, só acrescenta — os vínculos que a pessoa já tinha continuam).
+  Devolve `membroCriado` → tela "Completar cadastro".
+
+### 95.6 Telas e visibilidade
+
+- **Server** (`src/lib/documentos/server.ts`): `listarDocumentos`, `obterDocumento`,
+  `listarEmbarcacoesDoGestor`, `listarCondutores` (gestor primeiro; `incompleto` = sem CPF ou telefone),
+  `getResumoDocumentos(ownerId)` (vencidos, venceEmBreve, emDia+semValidade, pendentes = embarcações sem
+  `TIPOS_INSCRICAO` ativo, urgentes = vencidos + ≤ 30 dias), `proximosVencimentos(ownerId, n)`.
+- **Actions** (`documentos/actions.ts`): `criarDocumento` (valida tipo × escopo, datas, validade ≥ emissão,
+  key na pasta do documento; arquiva o ativo do mesmo alvo/tipo e desfaz se o insert falhar),
+  `atualizarDocumento` (tipo e alvo fixos; troca de arquivo apaga o anterior), `excluirDocumento`.
+  Revalidam `/painel/documentos` e o layout `/painel`.
+- `/painel/documentos` (`page.tsx` + `PainelDocumentos`): `ResumoValidadeCards` (filtram; `?situacao=` e
+  `?aba=condutores` iniciais), abas Embarcações/Condutores, `CartaoAlvo` (pior situação, "+ Documento",
+  Histórico), `LinhaDocumento` (ver arquivo, Renovar → `novo?escopo&alvo&tipo`, editar, excluir),
+  `LinhaPendente` (TIE/TIEM faltando em destaque; DPEM recomendado; "Enviar CHA").
+- `/painel/documentos/novo` (`DocumentoWizard`): passos O que é → Arquivo → Conferir e salvar; atalhos por
+  query (`escopo`, `tipo`, `embarcacao`, `membro`, validados no servidor); aviso de substituição; campos
+  com selo "lido do documento"; proprietário sugerido com o nome do gestor; "Usar emissão + N anos";
+  `SecaoCondutor`. `/painel/documentos/[id]/editar`: mesmo componente com `documento`.
+- Compartilhados (`src/components/painel/documentos/`): `SeloValidade` (`validade` ou `situacao`),
+  `PrazoValidade`, `ResumoValidadeCards` (`onSelecionar` ou `hrefBase`), `AlertaDocumentos`.
+- Layout `(gestao)`: `getResumoDocumentos` junto dos badges → `Sidebar documentos={{ alerta, vencidos }}`
+  (item DOCUMENTOS abaixo de EMBARCAÇÕES; badge vermelho com vencido, âmbar só vencendo) e
+  `<AlertaDocumentos vencidos urgentes />` abaixo do Header (some em `/painel/documentos*`; fechar grava a
+  assinatura `vencidos:urgentes` no `sessionStorage`).
+- Dashboard (`/painel`): seção "Documentação" antes dos cards de estatística (só com ≥ 1 embarcação):
+  contadores como links + 3 próximos vencimentos, ou CTA "Enviar primeiro documento".
+
+### 95.7 Avisos — `/api/cron/documentos-validade`
+
+- `vercel.json`: `0 11 * * *` (08h Brasília). `CRON_SECRET` como os demais. Busca documentos ativos com
+  validade ≤ hoje + 60; para cada `marcoAviso` não nulo grava `notificacao` (`publico 'gestor'`, tipo
+  `documento_vencendo`, link `/painel/documentos`, chave `gestor:doc:<id>:<marco>:<validade>` — 23505 = já
+  avisado). Um e-mail por gestor com os novos avisos (`src/lib/emails/documentos-vencimento.ts`,
+  `montarEmailVencimentos`).
+
+**Testes:** `tsc` e `eslint` limpos; leitura validada no navegador (§95.4); telas conferidas visualmente
+(desktop e 390 px) com dados fictícios. Não exercitado: migration (sem acesso ao banco), upload ao bucket
+privado (CORS/credenciais), actions e cron contra o banco, telas logadas como gestor.
+
+### 95.8 Câmera do painel e qualidade da foto (28/10/2026)
+
+O "Tirar foto" com `<input capture="environment">` só abre a câmera no celular; no notebook abria o
+explorador de arquivos. Agora o painel tem câmera própria.
+
+- `documentos/_components/CameraDocumento.tsx` (portal em `document.body`, tela cheia, `z-[80]`):
+  - `getUserMedia({ video: { facingMode: { ideal: 'environment' }, width 1920, height 1080 } })`; troca
+    de câmera (`enumerateDevices`, `deviceId`) quando há mais de uma; trava a rolagem; Esc fecha; desliga
+    as faixas ao fechar.
+  - Moldura de enquadramento calculada pela área do vídeo (88% da largura / 72% da altura), proporção
+    `retrato` 1,42 (TIE) ou `paisagem` 0,63 (CHA/CIR — padrão do escopo condutor), com botão para girar.
+  - Captura: mapeia a moldura (tela, `object-cover`) para o quadro do vídeo, com folga de 6%, e recorta.
+    Com `ImageCapture` (Chrome/Android), usa `takePhoto()` na resolução cheia do sensor quando a proporção
+    bate com a do vídeo; senão, o quadro do vídeo (Safari/iPhone). JPEG 0,92 → `File`.
+  - Revisão: `avaliarQualidadeDe(canvas)` → "Foto boa para leitura" (Tirar outra / **Usar esta foto**) ou
+    "A foto pode não ser lida bem" com os problemas e dicas (Usar mesmo assim / **Tirar outra**); chips
+    Nitidez, Iluminação, Sem reflexo, Resolução.
+  - Erros: `NotAllowedError`/`SecurityError` → "Acesso à câmera bloqueado" (como liberar, inclusive no
+    iPhone); sem `isSecureContext`/API → "A câmera não abre por aqui"; `NotFoundError` → sem câmera;
+    `NotReadableError` → em uso. Ações: Tentar de novo, **Usar a câmera do aparelho** (o `<input
+    capture>` nativo) e Escolher arquivo. Obs.: a câmera do navegador exige HTTPS (ou localhost) —
+    acesso por IP da rede (`http://192.168…`) cai no plano B.
+- `src/lib/documentos/qualidade-foto.ts` (puro): `avaliarQualidade(pixelsRGBA ~640px, ladoMenorOriginal)`
+  → `{ boa, problemas: ('tremida'|'escura'|'clara'|'reflexo'|'pequena')[], medidas }`. Nitidez = variância
+  do Laplaciano (mínimo 600); brilho médio 70–225; reflexo = fração de pixels ≥ 250 (máx. 6%); lado
+  menor ≥ 600 px. `MENSAGEM_PROBLEMA` (título + dica). Calibração com o TIE real: o OCR leu todos os
+  campos até nitidez ~830 e falhou a partir de ~490 (desfoque σ1,2); escura, estourada e com reflexo
+  simulados foram detectados.
+- `DocumentoWizard`: "Tirar foto" abre a câmera; a foto da câmera já chega avaliada e a da galeria é
+  avaliada ao escolher (`createImageBitmap`). No passo 3, foto ruim ou leitura vazia mostram aviso com
+  **Tirar outra foto**; o painel do arquivo tem "Tirar outra" e "Trocar arquivo". Entradas de arquivo
+  sempre montadas (a câmera recorre a elas) e zeradas após cada escolha (permite o mesmo arquivo de novo).
+- **Validação (navegador headless, câmera simulada filmando o TIE real):** celular 390 px — câmera ao
+  vivo com moldura, captura, "Foto boa para leitura" e leitura de nº, nome e validade (14/09/2027);
+  versão desfocada → "Foto tremida ou fora de foco"; sem permissão → tela de acesso bloqueado. Regressão
+  do envio por arquivo (as duas fotos) ok. Não testado em aparelho real (iPhone/Android) nem o
+  `takePhoto()` de resolução cheia.
 

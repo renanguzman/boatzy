@@ -179,7 +179,7 @@ export default function NotificacoesBell({ userId }: { userId: string | null }) 
               <Bell className="h-8 w-8 text-slate-200 mx-auto mb-2" />
               <p className="text-sm font-medium text-slate-500">Nenhuma notificação por aqui</p>
               <p className="text-xs text-slate-400 mt-0.5">
-                Solicitações de reserva, pagamentos e mensagens dos clientes aparecem aqui.
+                Solicitações de reserva, pagamentos, mensagens e vencimento de documentos aparecem aqui.
               </p>
             </div>
           ) : (
@@ -187,7 +187,7 @@ export default function NotificacoesBell({ userId }: { userId: string | null }) 
               {itens.length > 0 && (
                 <section>
                   <p className="px-4 pt-3 pb-1 text-[10px] font-bold uppercase tracking-wider text-slate-400">
-                    Reservas e pagamentos
+                    Reservas, pagamentos e documentos
                   </p>
                   <div className="divide-y divide-slate-50">
                     {itens.map((n) => (
