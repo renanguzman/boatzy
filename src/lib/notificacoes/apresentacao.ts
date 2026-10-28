@@ -6,6 +6,7 @@ import {
   Clock,
   CreditCard,
   FileWarning,
+  HandCoins,
   Inbox,
   MessageCircle,
   RotateCcw,
@@ -36,6 +37,7 @@ export const VISUAL_NOTIFICACAO: Record<NotificacaoTipo, Visual> = {
   reembolso: { icone: RotateCcw, cor: 'bg-sky-50 text-sky-600', rotulo: 'Reembolso' },
   mensagem: { icone: MessageCircle, cor: 'bg-marinho/10 text-marinho', rotulo: 'Mensagem' },
   documento_vencendo: { icone: FileWarning, cor: 'bg-amber-50 text-amber-600', rotulo: 'Documento vencendo' },
+  cobranca_avulsa: { icone: HandCoins, cor: 'bg-sky-50 text-sky-600', rotulo: 'Cobrança' },
 };
 
 export function visualNotificacao(tipo: string): Visual {

@@ -16,6 +16,10 @@ import { getDatasReservadasEmbarcacao, haConflitoReservaRoteiro } from '@/lib/re
 import { getAtendenteOptions, getAtendentesDaReserva, resolveEmbarcacaoIdDaReserva } from '@/lib/equipe';
 import ReservaAcoes from './_components/ReservaAcoes';
 import AdicionarAoCalendario from './_components/AdicionarAoCalendario';
+import CobrancasAvulsas from './_components/CobrancasAvulsas';
+import {
+  listarCobrancasDaReserva, motivoBloqueioAvulso, opcoesFormasAvulso, taxaDaCobrancaAvulsa,
+} from '@/lib/pagamentos/avulso';
 import { FUSO_HORARIO } from '@/lib/datas';
 
 type ReservaDetalhe = {
@@ -41,7 +45,7 @@ type ReservaDetalhe = {
   observacao_gestor: string | null;
   solicitado_em: string;
   respondido_em: string | null;
-  cliente: { name: string; email: string; cpf_cnpj: string | null; avatar_url: string | null } | null;
+  cliente: { name: string; email: string; cpf_cnpj: string | null; avatar_url: string | null; phone: string | null } | null;
   roteiro: {
     nome: string;
     embarcacao_id: string | null;
@@ -122,7 +126,7 @@ export default async function ReservaDetalhePage({ params }: { params: Promise<{
        quantidade_diarias, flexibilidade, quantidade_pessoas, item_nome,
        preco_base, total_adicionais, taxa_servico, taxa_percent, total_estimado, cupom_codigo, desconto_valor,
        status, observacao_gestor, solicitado_em, respondido_em,
-       cliente:users!reserva_cliente_id_fkey ( name, email, cpf_cnpj, avatar_url ),
+       cliente:users!reserva_cliente_id_fkey ( name, email, cpf_cnpj, avatar_url, phone ),
        roteiro ( nome, embarcacao_id, municipios ( nome, estados ( uf ) ) ),
        embarcacao ( nome ),
        reserva_adicional ( id, descricao, valor, tipo ),
@@ -140,13 +144,32 @@ export default async function ReservaDetalhePage({ params }: { params: Promise<{
 
   let exigirPagamento = false;
   let horasPrazoPagamento = 24;
+  let cfgFinanceiro: Awaited<ReturnType<typeof getFinanceiroConfig>> | null = null;
   try {
-    const cfg = await getFinanceiroConfig();
-    exigirPagamento = cfg.exigir_pagamento;
-    horasPrazoPagamento = cfg.horas_prazo_pagamento;
+    cfgFinanceiro = await getFinanceiroConfig();
+    exigirPagamento = cfgFinanceiro.exigir_pagamento;
+    horasPrazoPagamento = cfgFinanceiro.horas_prazo_pagamento;
   } catch {
     // migration financeira ainda não aplicada → fluxo sem cobrança
   }
+
+  // Cobranças avulsas (SPEC §34.16): emitidas pelo gestor depois da reserva confirmada.
+  const bloqueioAvulso = cfgFinanceiro
+    ? motivoBloqueioAvulso(r, cfgFinanceiro)
+    : 'Cobranças adicionais indisponíveis no momento.';
+  const [cobrancas, catalogoAvulso, formasAvulso, taxaAvulso] = await Promise.all([
+    listarCobrancasDaReserva(r.id),
+    bloqueioAvulso
+      ? Promise.resolve([])
+      : supabaseAdmin
+          .from('catalogo')
+          .select('id, descricao, valor, tipo')
+          .eq('owner_id', user.id)
+          .order('descricao')
+          .then(({ data: cat }) => cat ?? []),
+    bloqueioAvulso ? Promise.resolve([]) : opcoesFormasAvulso().catch(() => []),
+    cfgFinanceiro ? taxaDaCobrancaAvulsa({ owner_id: user.id, taxa_percent: r.taxa_percent }, cfgFinanceiro) : Promise.resolve(0),
+  ]);
 
   // Pendente cuja data já foi tomada por outra reserva confirmada (mesma
   // embarcação ou mesmo roteiro) — aviso visual; a ação de recusar continua
@@ -328,6 +351,20 @@ export default async function ReservaDetalhePage({ params }: { params: Promise<{
               </div>
             )}
           </section>
+
+          <CobrancasAvulsas
+            reservaId={r.id}
+            itemNome={r.roteiro?.nome ?? r.item_nome}
+            cobrancas={cobrancas}
+            bloqueio={bloqueioAvulso}
+            catalogo={catalogoAvulso.map((c) => ({ id: c.id, descricao: c.descricao, valor: Number(c.valor), tipo: c.tipo }))}
+            formas={formasAvulso}
+            taxaPercent={taxaAvulso}
+            prazoPadraoHoras={cfgFinanceiro?.avulso_prazo_padrao_horas ?? 72}
+            prazoMaxDias={cfgFinanceiro?.avulso_prazo_max_dias ?? 15}
+            baseUrl={(process.env.NEXT_PUBLIC_APP_URL ?? 'https://boatzy.app').trim().replace(/\/+$/, '')}
+            clienteTelefone={r.cliente?.phone ?? null}
+          />
 
           {/* Observação já registrada */}
           {r.observacao_gestor && (

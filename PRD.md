@@ -586,12 +586,55 @@ Boatzy + repasse por Pix), regras de negócio, decisões pendentes e fases:
   "Pix indisponível, use o cartão" e a falha fica registrada no pedido.
 - Detalhes técnicos: SPEC §34.15.
 
+#### ✅ Implementado — Cobrança avulsa do gestor (29/10/2026)
+
+Depois de uma reserva confirmada (ou já concluída), o gestor pode cobrar do cliente algo que não
+estava na reserva — um produto ou serviço do catálogo, uma taxa ou qualquer item com descrição livre —
+e o cliente paga pelo Boatzy, com o mesmo rastreio do pagamento da reserva.
+
+- **Gestor — detalhe da reserva (`/painel/agendamentos/[id]`)**: card **Cobranças adicionais** com
+  **Nova cobrança**: título, itens (do catálogo, com valor preenchido e editável, ou livres — taxa,
+  produto, serviço, outro), quantidade e valor; **total editável** (desconto ou acréscimo, com motivo
+  obrigatório); formas permitidas (**Pix e/ou cartão**) e, no cartão, **em até quantas vezes**; prazo
+  para pagar e recado ao cliente. Prévia: você recebe / taxa de serviço / cliente paga. Depois de
+  gerada: **copiar link** e **enviar no WhatsApp** (direto para o celular do cliente, se cadastrado),
+  ver itens, status, prazo, se o cliente já abriu e **cancelar** (enquanto não paga). Agendamentos
+  mostram quantas cobranças estão em aberto; **Receitas** inclui as cobranças pagas (linha própria,
+  "Cobrança avulsa", na data do passeio; somam na receita mas não contam como reserva).
+- **Cliente**: e-mail e aviso no site ("Nova cobrança do seu passeio") com o link; **`/cobrancas/[id]`**
+  com itens (valores já com a taxa embutida, como no resto do site), recado do proprietário, total,
+  prazo e o mesmo checkout da reserva (Pix ou cartão, só as formas e parcelas liberadas). Em **Minhas
+  reservas**, selo "N cobranças adicionais pendentes · Pagar"; no detalhe da reserva, seção
+  **Cobranças adicionais** e as pagas no comprovante. Textos em pt-BR, inglês e espanhol.
+- **Admin**: em **Pedidos**, filtro e selo **Avulsa**, busca pelo título/itens, colunas próprias na
+  exportação; o detalhe mostra a cobrança discriminada (itens, origem catálogo/livre, ajuste e motivo,
+  formas e parcelas permitidas, quem emitiu, quando o gestor copiou o link e quando o cliente abriu),
+  o vínculo com o **gestor**, a **reserva/passeio** e o **pedido da reserva**; o pedido da reserva lista
+  as avulsas vinculadas. Ações do admin (sincronizar, prorrogar, expirar, cancelar cobrança, reenviar
+  e-mail) valem igual. **Financeiro → Configurações** ganhou o card **Cobrança avulsa do gestor**.
+- **Rastreio**: cada cobrança é um pedido do tipo "avulso" — webhooks, tentativas, parcelas, cartão,
+  estornos, expiração e auditoria são os mesmos do pedido da reserva; a **linha do tempo do pedido**
+  (criada, link copiado/WhatsApp, aberta pelo cliente, e-mail enviado, cobrança gerada, paga, expirada,
+  cancelada) passou a valer também para o pedido da reserva. GA4: `cobranca_avulsa_criada` (painel),
+  `add_payment_info` e `purchase` (`item_category: cobranca_avulsa`).
+- **Decisões (29/10/2026)**: (D1) a **taxa de serviço da reserva** é somada e paga pelo cliente
+  (chave no admin para desligar); (D2) parcelas **até o máximo global** do admin (hoje 1x); (D3) emissão
+  em reserva **confirmada ou concluída até 30 dias após o passeio** (configurável); (D4) o link **exige
+  login** do cliente da reserva; (D5) a cobrança é **imutável** — para mudar, cancela e emite outra;
+  (D6) só o **gestor dono** da reserva emite. Até 10 cobranças em aberto por reserva e 30 itens por
+  cobrança; prazo padrão 72h, máximo 15 dias (configuráveis).
+- **Regras de proteção**: a cobrança avulsa **nunca altera a reserva** (expirar/cancelar não libera a
+  data); cancelar a reserva encerra as avulsas em aberto e é **bloqueado** se alguma já foi paga
+  (reembolso é Fase 2). O repasse do valor da avulsa entra na Fase 3 com as mesmas regras da reserva.
+- Detalhes técnicos: SPEC §34.16.
+
 #### 🔜 Próximas etapas
 
 1. **Agendador do Supabase** a cada ~10 min para expirar pedidos e reprocessar webhooks (hoje:
    1×/dia + automaticamente quando cliente/gestor abrem as telas de reservas).
-3. Fases 2 (cancelamento/estornos), 3 (repasses — inclui a confirmação de realização pelo gestor e o
-   livro-razão financeiro), 4 (controle total) e 5 (produção).
+3. Fases 2 (cancelamento/estornos — inclui reembolso de cobrança avulsa), 3 (repasses — inclui a
+   confirmação de realização pelo gestor, o livro-razão financeiro e o repasse das cobranças avulsas),
+   4 (controle total) e 5 (produção).
 
 #### ⏳ Decisões pendentes (ver planejamento §12)
 
@@ -794,7 +837,7 @@ As etapas **Preço** e **Disponibilidade** do cadastro/edição de roteiro virar
 **Gestor (painel e edição pelo admin)**
 - Novo passo **③ Quando o roteiro opera**: dias da semana em que o passeio sai e **"Abrir reservas para os próximos 3 · 6 · 9 meses · 1 ano"** (padrão 3 meses), com "Clientes podem reservar até dd/mm/aaaa". Preços especiais virou ④ e o calendário ⑤.
 - O **calendário** mostra, dia a dia, preço **e** situação: aberto (cor do preço), **Fechado** (cadeado), **Não opera** (dia da semana fora da operação), **Reservado** (reserva deste roteiro), **Barco ocupado** (reserva de outro roteiro do mesmo barco, com o nome do roteiro), **Barco fechado**, **fora da janela** (hachurado — editável, para deixar tudo pronto antes de abrir) e marcador de **pedido pendente**.
-- Ao clicar num dia (ou vários / período / "Selecionar o mês"), a barra do dia ganha **Fechar para reservas**, **Fechar o barco inteiro** (fecha o dia em todos os roteiros do barco — ex.: manutenção), **Abrir para reservas** (inclusive um dia fora da operação, ex.: feriado numa quarta) e **Reabrir o barco**, além do preço. Dia reservado mostra a reserva e o link para Agendamentos (não se fecha um dia com reserva).
+- Ao clicar num dia (ou vários / período / "Selecionar o mês"), a barra do dia ganha **Fechar para reservas**, **Fechar o barco inteiro** (fecha o dia em todos os roteiros do barco — ex.: manutenção), **Abrir para reservas** (inclusive um dia fora da operação, ex.: feriado numa quarta) e **Reabrir o barco**, além do preço. Dia reservado mostra a reserva e o link para Agendamentos (não se fecha um dia com reserva). Os botões de fechar têm um tom vermelho suave (bloqueio) e os de abrir/reabrir, verde.
 - Chips "Disponibilidade alterada" listam dias fechados, abertos e de barco fechado, com desfazer. Tudo vale ao salvar o roteiro.
 
 **Cliente (página do roteiro)**

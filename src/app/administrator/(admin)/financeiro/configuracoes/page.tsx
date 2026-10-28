@@ -9,10 +9,12 @@ import { formatarDataHoraBR } from '@/lib/termos/formato';
 import FinanceiroAbas from '../_components/FinanceiroAbas';
 import FormasPagamentoCard from './_components/FormasPagamentoCard';
 import PrazosCard from './_components/PrazosCard';
+import CobrancaAvulsaCard from './_components/CobrancaAvulsaCard';
 
 const ACAO_LABEL: Record<string, string> = {
   'forma_pagamento.atualizar': 'Forma de pagamento alterada',
   'financeiro_config.atualizar': 'Cobrança e prazos alterados',
+  'financeiro_config.cobranca_avulsa': 'Regras da cobrança avulsa alteradas',
 };
 
 export default async function AdminFinanceiroConfiguracoesPage() {
@@ -77,6 +79,13 @@ export default async function AdminFinanceiroConfiguracoesPage() {
               exigirPagamento={config.exigir_pagamento}
               horasPrazoPagamento={config.horas_prazo_pagamento}
               horasRepasseAposPasseio={config.horas_repasse_apos_passeio}
+            />
+
+            <CobrancaAvulsaCard
+              cobrarComissao={config.avulso_cobrar_comissao}
+              prazoPadraoHoras={config.avulso_prazo_padrao_horas}
+              prazoMaxDias={config.avulso_prazo_max_dias}
+              diasAposPasseio={config.avulso_dias_apos_passeio}
             />
 
             {/* Comissão: configurada no módulo Taxas — aqui só a regra e o atalho. */}

@@ -29,6 +29,13 @@ export default async function AgendamentosPage() {
     .order('data_reserva', { ascending: true });
 
   const eventos = (data ?? []) as unknown as ReservaEvento[];
+  // Cobranças avulsas aguardando o cliente (SPEC §34.16) — aparecem no detalhe de cada reserva.
+  const { count: cobrancasAbertas } = await supabaseAdmin
+    .from('pedido')
+    .select('id', { count: 'exact', head: true })
+    .eq('gestor_id', user.id)
+    .eq('tipo', 'avulso')
+    .eq('status', 'aguardando_pagamento');
   const pendentes = eventos.filter((e) => e.status === 'pendente');
   const temPendentes = pendentes.length > 0;
 
@@ -45,6 +52,11 @@ export default async function AgendamentosPage() {
             {temPendentes && (
               <span className="ml-2 inline-flex items-center rounded-full bg-amber-100 text-amber-700 px-2 py-0.5 text-xs font-semibold">
                 {pendentes.length} pendente{pendentes.length !== 1 ? 's' : ''}
+              </span>
+            )}
+            {(cobrancasAbertas ?? 0) > 0 && (
+              <span className="ml-2 inline-flex items-center rounded-full bg-violet-100 text-violet-700 px-2 py-0.5 text-xs font-semibold">
+                {cobrancasAbertas} cobrança{cobrancasAbertas !== 1 ? 's' : ''} adicional{cobrancasAbertas !== 1 ? 'is' : ''} em aberto
               </span>
             )}
           </p>

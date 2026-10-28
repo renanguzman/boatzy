@@ -154,6 +154,7 @@ export default function ReceitasGrid({
               <div className="flex items-start justify-between gap-3">
                 <p className="min-w-0 text-sm font-semibold text-[#0B2447]">
                   {r.roteiro?.nome ?? r.embarcacao?.nome ?? r.item_nome}
+                  {r.avulsa && <span className="block text-xs font-medium text-sky-700">Cobrança #{r.avulsa.numero} · {r.avulsa.titulo}</span>}
                 </p>
                 <span className="shrink-0 text-sm font-semibold text-[#0B2447] whitespace-nowrap">
                   {formatCurrencyPrecise(r.total_estimado ?? 0)}
@@ -166,7 +167,7 @@ export default function ReceitasGrid({
                 <span className={`inline-block text-[11px] font-semibold px-2 py-0.5 rounded-full ${STATUS_BADGE[r.status]}`}>
                   {STATUS_LABEL[r.status]}
                 </span>
-                <span className="text-[11px] text-slate-400">{TIPO_LABEL[r.tipo]}</span>
+                <span className="text-[11px] text-slate-400">{r.avulsa ? 'Cobrança avulsa' : TIPO_LABEL[r.tipo]}</span>
               </div>
             </li>
           ))}
@@ -194,8 +195,9 @@ export default function ReceitasGrid({
                   <td className="py-3.5 px-4 text-sm text-slate-700">{r.cliente?.name ?? '—'}</td>
                   <td className="py-3.5 px-4 text-sm text-slate-700">
                     {r.roteiro?.nome ?? r.embarcacao?.nome ?? r.item_nome}
+                    {r.avulsa && <span className="block text-xs text-sky-700">Cobrança #{r.avulsa.numero} · {r.avulsa.titulo}</span>}
                   </td>
-                  <td className="py-3.5 px-4 text-xs text-slate-500">{TIPO_LABEL[r.tipo]}</td>
+                  <td className="py-3.5 px-4 text-xs text-slate-500">{r.avulsa ? 'Cobrança avulsa' : TIPO_LABEL[r.tipo]}</td>
                   <td className="py-3.5 px-4 text-sm text-slate-600">{r.quantidade_pessoas}</td>
                   <td className="py-3.5 px-4">
                     <span className={`inline-block text-[11px] font-semibold px-2.5 py-1 rounded-full ${STATUS_BADGE[r.status]}`}>

@@ -255,5 +255,41 @@
       "abrirPagina": "No se pudo abrir la página de pago.",
       "gerarCobranca": "No se pudo generar el cobro ahora. Inténtalo de nuevo en unos instantes."
     }
+  },
+  "Cobranca": {
+    "metaTitulo": "Cobro #{numero} | Boatzy",
+    "voltar": "← Mi reserva",
+    "titulo": "Cobro de tu paseo",
+    "subtitulo": "{proprietario} envió este cobro referente a tu reserva. El pago se hace por Boatzy, con seguridad.",
+    "proprietario": "El propietario",
+    "referente": "Referente a",
+    "itens": "Ítems",
+    "ajuste": "Ajuste",
+    "total": "Total",
+    "numero": "Cobro #{numero}",
+    "recado": "Mensaje del propietario",
+    "pagaTitulo": "¡Pago confirmado!",
+    "pagaTexto": "Recibimos el pago de este cobro. ¡Gracias!",
+    "expiradaTitulo": "Terminó el plazo de este cobro",
+    "canceladaTitulo": "Este cobro fue cancelado",
+    "nenhumValor": "No se cobró nada. Si tienes dudas, escríbele al propietario en la conversación de la reserva.",
+    "verReserva": "Ver mi reserva",
+    "conversar": "Hablar con el propietario",
+    "secaoTitulo": "Cobros adicionales",
+    "secaoTexto": "Valores extra enviados por el propietario después de la reserva.",
+    "pagar": "Pagar {valor}",
+    "verCobranca": "Ver cobro",
+    "pagueAte": "Paga hasta {data}",
+    "pagaEm": "Pagado el {data}",
+    "pendentes": "{count, plural, one {# cobro adicional pendiente} other {# cobros adicionales pendientes}}",
+    "status": {
+      "aguardando_pagamento": "Esperando pago",
+      "pago": "Pagado",
+      "expirado": "Vencido",
+      "cancelado": "Cancelado",
+      "reembolsado": "Reembolsado",
+      "reembolsado_parcial": "Reembolsado parcialmente",
+      "em_disputa": "En revisión"
+    }
   }
 }

@@ -8,12 +8,18 @@ import type { FormaPagamentoCodigo } from '@/types/supabase';
 import { rastrear } from '@/lib/analytics';
 import { maskCPF } from '@/lib/validators';
 import { useFormatos } from '@/i18n/formatos';
-import { consultarStatusPedido, pagarReserva } from '../actions';
+import { consultarStatusPedido, pagarPedido } from '@/lib/pagamentos/actions-cliente';
 
 export type FormaCheckout = { codigo: FormaPagamentoCodigo; nome: string; opcoesParcelas: number[] };
 
+/**
+ * Checkout do cliente (Pix / cartão) — usado na página de pagamento da reserva
+ * e na da cobrança avulsa (SPEC §34.12/§34.16).
+ */
 type Props = {
-  reservaId: string;
+  pedidoId: string;
+  /** Página onde o checkout está (volta para as formas após o retorno do cartão). */
+  caminho: string;
   valorTotal: number;
   expiraEm: string;
   formas: FormaCheckout[];
@@ -38,7 +44,7 @@ function formatRestante(ms: number): string {
 }
 
 export default function CheckoutPagamento({
-  reservaId, valorTotal, expiraEm, formas, precisaCpf, formaInicial, pixInicial, retornoCartao, sandbox,
+  pedidoId, caminho, valorTotal, expiraEm, formas, precisaCpf, formaInicial, pixInicial, retornoCartao, sandbox,
 }: Props) {
   const router = useRouter();
   const t = useTranslations('Pagamento');
@@ -65,11 +71,11 @@ export default function CheckoutPagamento({
   useEffect(() => {
     if (!acompanhando) return;
     const t = setInterval(async () => {
-      const { status } = await consultarStatusPedido(reservaId);
+      const { status } = await consultarStatusPedido(pedidoId);
       if (status && status !== 'aguardando_pagamento') router.refresh();
     }, 5_000);
     return () => clearInterval(t);
-  }, [acompanhando, reservaId, router]);
+  }, [acompanhando, pedidoId, router]);
 
   async function pagar(formaEscolhida: FormaPagamentoCodigo) {
     if (precisaCpf && !cpf) {
@@ -78,7 +84,7 @@ export default function CheckoutPagamento({
     }
     setCarregando(true);
     setErro(null);
-    const r = await pagarReserva({ reservaId, forma: formaEscolhida, parcelas, cpf: precisaCpf ? cpf : undefined });
+    const r = await pagarPedido({ pedidoId, forma: formaEscolhida, parcelas, cpf: precisaCpf ? cpf : undefined });
     if (!r.ok) {
       setCarregando(false);
       setErro({ texto: r.error, campo: r.campo });
@@ -116,7 +122,7 @@ export default function CheckoutPagamento({
         </p>
         <button
           type="button"
-          onClick={() => router.replace(`/reservas/${reservaId}/pagar`)}
+          onClick={() => router.replace(caminho)}
           className="mt-4 text-sm font-medium text-marinho hover:underline"
         >
           {t('voltarFormas')}

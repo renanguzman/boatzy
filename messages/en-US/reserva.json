@@ -255,5 +255,41 @@
       "abrirPagina": "We couldn't open the payment page.",
       "gerarCobranca": "We couldn't generate the charge right now. Try again in a moment."
     }
+  },
+  "Cobranca": {
+    "metaTitulo": "Charge #{numero} | Boatzy",
+    "voltar": "← My booking",
+    "titulo": "Charge for your trip",
+    "subtitulo": "{proprietario} sent this charge related to your booking. Payment is made securely through Boatzy.",
+    "proprietario": "The owner",
+    "referente": "Related to",
+    "itens": "Items",
+    "ajuste": "Adjustment",
+    "total": "Total",
+    "numero": "Charge #{numero}",
+    "recado": "Note from the owner",
+    "pagaTitulo": "Payment confirmed!",
+    "pagaTexto": "We received the payment for this charge. Thank you!",
+    "expiradaTitulo": "The deadline for this charge has passed",
+    "canceladaTitulo": "This charge was canceled",
+    "nenhumValor": "Nothing was charged. If you have questions, message the owner in the booking chat.",
+    "verReserva": "View my booking",
+    "conversar": "Message the owner",
+    "secaoTitulo": "Extra charges",
+    "secaoTexto": "Additional amounts sent by the owner after the booking.",
+    "pagar": "Pay {valor}",
+    "verCobranca": "View charge",
+    "pagueAte": "Pay by {data}",
+    "pagaEm": "Paid on {data}",
+    "pendentes": "{count, plural, one {# extra charge pending} other {# extra charges pending}}",
+    "status": {
+      "aguardando_pagamento": "Awaiting payment",
+      "pago": "Paid",
+      "expirado": "Expired",
+      "cancelado": "Canceled",
+      "reembolsado": "Refunded",
+      "reembolsado_parcial": "Partially refunded",
+      "em_disputa": "Under review"
+    }
   }
 }

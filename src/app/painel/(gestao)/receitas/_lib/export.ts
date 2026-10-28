@@ -18,8 +18,8 @@ function linhas(rows: ReservaReceita[]) {
   return rows.map((r) => ({
     Data: formatDataCurta(r.data_reserva),
     Cliente: r.cliente?.name ?? '—',
-    Item: r.roteiro?.nome ?? r.embarcacao?.nome ?? r.item_nome,
-    Tipo: TIPO_LABEL[r.tipo],
+    Item: `${r.roteiro?.nome ?? r.embarcacao?.nome ?? r.item_nome}${r.avulsa ? ` — cobrança #${r.avulsa.numero}: ${r.avulsa.titulo}` : ''}`,
+    Tipo: r.avulsa ? 'Cobrança avulsa' : TIPO_LABEL[r.tipo],
     Pessoas: r.quantidade_pessoas,
     Status: STATUS_LABEL[r.status],
     Valor: r.total_estimado ?? 0,

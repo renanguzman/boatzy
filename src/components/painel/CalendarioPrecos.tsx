@@ -928,7 +928,8 @@ function BotaoDisponibilidade({ icone: Icone, onClick, titulo, destaque, childre
       className={`inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-[11px] font-semibold transition-colors ${
         destaque
           ? 'border-emerald-300 bg-emerald-50 text-emerald-800 hover:bg-emerald-100'
-          : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50'
+          // Fechar (bloqueio): vermelho suave — indica indisponibilidade sem gritar.
+          : 'border-red-200 bg-red-50/50 text-red-700 hover:border-red-300 hover:bg-red-50'
       }`}>
       <Icone className="w-3.5 h-3.5" />
       {children}

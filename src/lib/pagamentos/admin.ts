@@ -4,9 +4,10 @@ import { supabaseAdmin } from '@/lib/supabase';
 import { AsaasError, mensagemErroAsaas } from '@/lib/asaas/client';
 import { consultarCobranca, listarCobrancasDoParcelamento, removerCobranca } from '@/lib/asaas/cobrancas';
 import type { AsaasCobranca } from '@/lib/asaas/tipos';
-import type { PagamentoStatus } from '@/types/supabase';
+import type { PagamentoStatus, PedidoTipo } from '@/types/supabase';
+import { getFinanceiroConfig } from '@/lib/financeiro/config';
 import { emailPagamentoConfirmado, emailPagamentoPendente } from './emails';
-import { dadosParaEmail, PAGAMENTO_CANCELAVEL } from './pedidos';
+import { baseEmailPedido, dadosParaEmail, PAGAMENTO_CANCELAVEL } from './pedidos';
 import { aplicarCobranca } from './webhook';
 
 /**
@@ -78,7 +79,7 @@ export async function sincronizarPedidoComAsaas(
 /**
  * Estende o prazo de pagamento de um pedido aguardando pagamento: novo prazo =
  * (o maior entre o prazo atual e agora) + `horas`, limitado ao fim do dia do
- * passeio. Cobranças pendentes continuam valendo; se o Asaas as marcar como
+ * passeio (cobrança avulsa: ao prazo máximo de `financeiro_config`). Cobranças pendentes continuam valendo; se o Asaas as marcar como
  * vencidas, a página do cliente gera outra automaticamente.
  */
 export async function prorrogarPrazoPedido(
@@ -89,19 +90,27 @@ export async function prorrogarPrazoPedido(
 
   const { data } = await supabaseAdmin
     .from('pedido')
-    .select('status, expira_em, reserva:reserva_id ( data_reserva )')
+    .select('status, tipo, expira_em, reserva:reserva_id ( data_reserva )')
     .eq('id', pedidoId)
     .maybeSingle();
-  const pedido = data as unknown as { status: string; expira_em: string | null; reserva: { data_reserva: string } | null } | null;
-  if (!pedido?.reserva) return { ok: false, erro: 'Pedido não encontrado.' };
+  const pedido = data as unknown as {
+    status: string; tipo: PedidoTipo; expira_em: string | null; reserva: { data_reserva: string } | null;
+  } | null;
+  if (!pedido || (pedido.tipo === 'reserva' && !pedido.reserva)) return { ok: false, erro: 'Pedido não encontrado.' };
   if (pedido.status !== 'aguardando_pagamento') return { ok: false, erro: 'Só pedidos aguardando pagamento têm prazo.' };
 
   const agora = Date.now();
   const base = Math.max(pedido.expira_em ? new Date(pedido.expira_em).getTime() : agora, agora);
-  const limite = new Date(`${pedido.reserva.data_reserva}T23:59:59-03:00`).getTime();
+  // Pedido da reserva: até o fim do dia do passeio. Cobrança avulsa: até o prazo máximo configurado, contado de agora.
+  const limite = pedido.tipo === 'avulso'
+    ? agora + (await getFinanceiroConfig()).avulso_prazo_max_dias * 86_400_000
+    : new Date(`${pedido.reserva!.data_reserva}T23:59:59-03:00`).getTime();
   const novo = Math.min(base + horas * 3_600_000, limite);
   if (novo <= agora || (pedido.expira_em && novo <= new Date(pedido.expira_em).getTime())) {
-    return { ok: false, erro: 'O prazo já está no limite (fim do dia do passeio).' };
+    return {
+      ok: false,
+      erro: pedido.tipo === 'avulso' ? 'O prazo já está no limite máximo da cobrança avulsa.' : 'O prazo já está no limite (fim do dia do passeio).',
+    };
   }
 
   const depois = new Date(novo).toISOString();
@@ -153,16 +162,9 @@ export async function reenviarEmailPedido(
   if (!pedido) return { ok: false, erro: 'Pedido não encontrado.' };
 
   const d = await dadosParaEmail(pedidoId);
-  if (!d?.reserva || !d.cliente?.email) return { ok: false, erro: 'Cliente sem e-mail.' };
-  const base = {
-    para: d.cliente.email,
-    nome: d.cliente.name,
-    reservaId: d.reserva_id,
-    pedidoNumero: d.numero,
-    itemNome: d.reserva.item_nome,
-    dataReserva: d.reserva.data_reserva,
-    valorTotal: Number(d.valor_total),
-  };
+  const dadosBase = d ? baseEmailPedido(d) : null;
+  if (!d || !dadosBase || !d.cliente?.email) return { ok: false, erro: 'Cliente sem e-mail.' };
+  const base = { ...dadosBase, para: d.cliente.email, nome: d.cliente.name };
 
   if (pedido.status === 'aguardando_pagamento' && pedido.expira_em) {
     await emailPagamentoPendente({ ...base, expiraEm: pedido.expira_em });

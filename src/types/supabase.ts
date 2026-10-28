@@ -16,7 +16,8 @@ export type NotificacaoTipo =
   | 'pagamento_recusado'
   | 'reembolso'
   | 'mensagem'
-  | 'documento_vencendo'; // só gestor: documento da embarcação/condutor vencendo ou vencido (SPEC §95)
+  | 'documento_vencendo' // só gestor: documento da embarcação/condutor vencendo ou vencido (SPEC §95)
+  | 'cobranca_avulsa'; // cobrança avulsa criada/expirada/cancelada (SPEC §34.16)
 /** Documentos da embarcação e do condutor (SPEC §95). */
 export type DocumentoTipo = 'tie' | 'tiem' | 'dpem' | 'prpm' | 'cha' | 'cir' | 'outro';
 export type DocumentoEscopo = 'embarcacao' | 'condutor';
@@ -62,6 +63,11 @@ export type FormaPagamentoCodigo = 'pix' | 'cartao_credito';
 export type PedidoStatus =
   | 'aguardando_pagamento' | 'pago' | 'expirado' | 'cancelado' | 'reembolsado' | 'reembolsado_parcial' | 'em_disputa';
 export type PedidoDescontoTipo = 'cupom' | 'manual' | 'promocional';
+/** 'reserva' = pedido do aceite (1 por reserva); 'avulso' = cobrança avulsa do gestor (SPEC §34.16). */
+export type PedidoTipo = 'reserva' | 'avulso';
+export type PedidoItemOrigem = 'catalogo' | 'livre';
+export type PedidoItemTipo = 'produto' | 'servico' | 'taxa' | 'outro';
+export type PedidoEventoAtor = 'gestor' | 'cliente' | 'admin' | 'sistema';
 export type PagamentoStatus =
   | 'pendente' | 'em_analise' | 'confirmado' | 'recebido' | 'recusado' | 'vencido' | 'cancelado'
   | 'estorno_em_andamento' | 'estornado' | 'estornado_parcial' | 'em_disputa';
@@ -2120,7 +2126,8 @@ export type Database = {
         Row: {
           id: string;
           numero: number;
-          reserva_id: string;
+          tipo: PedidoTipo;
+          reserva_id: string | null; // só no tipo 'reserva' (avulso: pedido_avulso.reserva_id)
           cliente_id: string;
           gestor_id: string;
           valor_itens: number;
@@ -2138,7 +2145,8 @@ export type Database = {
         };
         Insert: {
           id?: string;
-          reserva_id: string;
+          tipo?: PedidoTipo;
+          reserva_id?: string | null;
           cliente_id: string;
           gestor_id: string;
           valor_itens: number;
@@ -2156,7 +2164,8 @@ export type Database = {
         };
         Update: {
           id?: string;
-          reserva_id?: string;
+          tipo?: PedidoTipo;
+          reserva_id?: string | null;
           cliente_id?: string;
           gestor_id?: string;
           valor_itens?: number;
@@ -2190,6 +2199,150 @@ export type Database = {
           {
             foreignKeyName: 'pedido_gestor_id_fkey';
             columns: ['gestor_id'];
+            isOneToOne: false;
+            referencedRelation: 'users';
+            referencedColumns: ['id'];
+          },
+        ];
+      };
+      // Cobrança avulsa — configuração 1:1 com o pedido de tipo 'avulso' (SPEC §34.16).
+      pedido_avulso: {
+        Row: {
+          pedido_id: string;
+          reserva_id: string;
+          titulo: string;
+          mensagem_cliente: string | null;
+          formas_permitidas: FormaPagamentoCodigo[];
+          parcelas_max: number;
+          valor_calculado: number;
+          valor_ajuste: number;
+          motivo_ajuste: string | null;
+          criado_por: string | null;
+          link_copiado_em: string | null;
+          visualizado_em: string | null;
+          criado_em: string;
+        };
+        Insert: {
+          pedido_id: string;
+          reserva_id: string;
+          titulo: string;
+          mensagem_cliente?: string | null;
+          formas_permitidas: FormaPagamentoCodigo[];
+          parcelas_max?: number;
+          valor_calculado: number;
+          valor_ajuste?: number;
+          motivo_ajuste?: string | null;
+          criado_por?: string | null;
+          link_copiado_em?: string | null;
+          visualizado_em?: string | null;
+          criado_em?: string;
+        };
+        Update: {
+          link_copiado_em?: string | null;
+          visualizado_em?: string | null;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'pedido_avulso_pedido_id_fkey';
+            columns: ['pedido_id'];
+            isOneToOne: true;
+            referencedRelation: 'pedido';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'pedido_avulso_reserva_id_fkey';
+            columns: ['reserva_id'];
+            isOneToOne: false;
+            referencedRelation: 'reserva';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'pedido_avulso_criado_por_fkey';
+            columns: ['criado_por'];
+            isOneToOne: false;
+            referencedRelation: 'users';
+            referencedColumns: ['id'];
+          },
+        ];
+      };
+      // Itens discriminados do pedido (snapshot do catálogo ou livres).
+      pedido_item: {
+        Row: {
+          id: string;
+          pedido_id: string;
+          ordem: number;
+          origem: PedidoItemOrigem;
+          catalogo_id: string | null;
+          tipo: PedidoItemTipo;
+          descricao: string;
+          quantidade: number;
+          valor_unitario: number;
+          valor_total: number;
+          criado_em: string;
+        };
+        Insert: {
+          id?: string;
+          pedido_id: string;
+          ordem?: number;
+          origem: PedidoItemOrigem;
+          catalogo_id?: string | null;
+          tipo: PedidoItemTipo;
+          descricao: string;
+          quantidade?: number;
+          valor_unitario: number;
+          valor_total: number;
+          criado_em?: string;
+        };
+        Update: Record<string, never>;
+        Relationships: [
+          {
+            foreignKeyName: 'pedido_item_pedido_id_fkey';
+            columns: ['pedido_id'];
+            isOneToOne: false;
+            referencedRelation: 'pedido';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'pedido_item_catalogo_id_fkey';
+            columns: ['catalogo_id'];
+            isOneToOne: false;
+            referencedRelation: 'catalogo';
+            referencedColumns: ['id'];
+          },
+        ];
+      };
+      // Linha do tempo de negócio do pedido — append-only (SPEC §34.16).
+      pedido_evento: {
+        Row: {
+          id: string;
+          pedido_id: string;
+          evento: string;
+          ator_id: string | null;
+          ator_papel: PedidoEventoAtor;
+          dados: Json | null;
+          criado_em: string;
+        };
+        Insert: {
+          id?: string;
+          pedido_id: string;
+          evento: string;
+          ator_id?: string | null;
+          ator_papel?: PedidoEventoAtor;
+          dados?: Json | null;
+          criado_em?: string;
+        };
+        Update: Record<string, never>;
+        Relationships: [
+          {
+            foreignKeyName: 'pedido_evento_pedido_id_fkey';
+            columns: ['pedido_id'];
+            isOneToOne: false;
+            referencedRelation: 'pedido';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'pedido_evento_ator_id_fkey';
+            columns: ['ator_id'];
             isOneToOne: false;
             referencedRelation: 'users';
             referencedColumns: ['id'];
@@ -2542,6 +2695,10 @@ export type Database = {
           horas_repasse_apos_passeio: number;
           repasse_automatico: boolean;
           exigir_pagamento: boolean;
+          avulso_prazo_padrao_horas: number;
+          avulso_prazo_max_dias: number;
+          avulso_dias_apos_passeio: number;
+          avulso_cobrar_comissao: boolean;
           atualizado_por: string | null;
           atualizado_em: string;
         };
@@ -2552,6 +2709,10 @@ export type Database = {
           horas_repasse_apos_passeio?: number;
           repasse_automatico?: boolean;
           exigir_pagamento?: boolean;
+          avulso_prazo_padrao_horas?: number;
+          avulso_prazo_max_dias?: number;
+          avulso_dias_apos_passeio?: number;
+          avulso_cobrar_comissao?: boolean;
           atualizado_por?: string | null;
           atualizado_em?: string;
         };
@@ -2562,6 +2723,10 @@ export type Database = {
           horas_repasse_apos_passeio?: number;
           repasse_automatico?: boolean;
           exigir_pagamento?: boolean;
+          avulso_prazo_padrao_horas?: number;
+          avulso_prazo_max_dias?: number;
+          avulso_dias_apos_passeio?: number;
+          avulso_cobrar_comissao?: boolean;
           atualizado_por?: string | null;
           atualizado_em?: string;
         };
@@ -2906,6 +3071,27 @@ export type Database = {
       chat_total_nao_lidas: {
         Args: { p_gestor?: string };
         Returns: number;
+      };
+      /** Cobrança avulsa: pedido + pedido_avulso + itens + evento + aviso ao cliente (SPEC §34.16). */
+      criar_pedido_avulso: {
+        Args: {
+          p_reserva_id: string;
+          p_gestor_id: string;
+          p_titulo: string;
+          p_mensagem: string | null;
+          p_formas: string[];
+          p_parcelas_max: number;
+          p_valor_calculado: number;
+          p_valor_ajuste: number;
+          p_motivo_ajuste: string | null;
+          p_valor_itens: number;
+          p_comissao_percentual: number;
+          p_valor_comissao: number;
+          p_valor_total: number;
+          p_expira_em: string;
+          p_itens: Json;
+        };
+        Returns: { id: string; numero: number }[];
       };
       notificar_gestor_nova_solicitacao: {
         Args: { p_reserva_id: string };

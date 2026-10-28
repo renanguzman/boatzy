@@ -61,7 +61,8 @@
       },
       "pagamento_aprovado": {
         "titulo": "Pagamento aprovado",
-        "mensagem": "Recebemos o pagamento do pedido #{numero}. Sua reserva de {item} para {data} está confirmada."
+        "mensagem": "Recebemos o pagamento do pedido #{numero}. Sua reserva de {item} para {data} está confirmada.",
+        "mensagemAvulso": "Recebemos o pagamento da cobrança #{numero} ({titulo}), referente a {item}."
       },
       "pagamento_recusado": {
         "titulo": "Pagamento recusado",
@@ -73,6 +74,14 @@
       },
       "mensagem": {
         "titulo": "{count, plural, one {Nova mensagem de {remetente}} other {# novas mensagens de {remetente}}}"
+      },
+      "cobranca_avulsa": {
+        "tituloCriada": "Nova cobrança do seu passeio",
+        "mensagemCriada": "O proprietário enviou uma cobrança ({titulo}) referente a {item} ({data}). Pague até {prazo}.",
+        "tituloExpirada": "Cobrança expirada",
+        "mensagemExpirada": "O prazo para pagar a cobrança #{numero} ({titulo}) terminou. Nenhum valor foi cobrado.",
+        "tituloCancelada": "Cobrança cancelada",
+        "mensagemCancelada": "O proprietário cancelou a cobrança #{numero} ({titulo}). Nenhum valor foi cobrado."
       }
     }
   }

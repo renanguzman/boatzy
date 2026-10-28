@@ -4,7 +4,9 @@ import type {
   AsaasAmbienteDb,
   FormaPagamentoCodigo,
   PagamentoStatus,
+  PedidoItemTipo,
   PedidoStatus,
+  PedidoTipo,
   ReservaStatus,
   ReservaTipo,
 } from '@/types/supabase';
@@ -30,6 +32,7 @@ export type PagamentoLinha = {
 export type PedidoLinha = {
   id: string;
   numero: number;
+  tipo: PedidoTipo;
   status: PedidoStatus;
   criado_em: string;
   expira_em: string | null;
@@ -53,6 +56,15 @@ export type PedidoLinha = {
   } | null;
   pagamento: PagamentoLinha[];
   pedido_desconto: { cupom_codigo: string | null }[];
+  /** Cobrança avulsa (SPEC §34.16) — `reserva` acima já vem preenchida com a reserva de origem. */
+  avulso: {
+    titulo: string;
+    valor_ajuste: number;
+    motivo_ajuste: string | null;
+    formas_permitidas: FormaPagamentoCodigo[];
+    parcelas_max: number;
+  } | null;
+  itens: { descricao: string; quantidade: number; valor_total: number; tipo: PedidoItemTipo }[];
 };
 
 

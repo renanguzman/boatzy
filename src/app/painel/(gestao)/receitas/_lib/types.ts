@@ -15,6 +15,8 @@ export type ReservaReceita = {
   cliente: { id: string; name: string } | null;
   roteiro: { id: string; nome: string } | null;
   embarcacao: { id: string; nome: string } | null;
+  /** Linha de cobrança avulsa paga (SPEC §34.16) — demais campos vêm da reserva de origem. */
+  avulsa?: { titulo: string; numero: number } | null;
 };
 
 export type Filtros = {

@@ -61,7 +61,8 @@
       },
       "pagamento_aprovado": {
         "titulo": "Payment approved",
-        "mensagem": "We received payment for order #{numero}. Your booking for {item} on {data} is confirmed."
+        "mensagem": "We received payment for order #{numero}. Your booking for {item} on {data} is confirmed.",
+        "mensagemAvulso": "We received the payment for charge #{numero} ({titulo}), related to {item}."
       },
       "pagamento_recusado": {
         "titulo": "Payment declined",
@@ -73,6 +74,14 @@
       },
       "mensagem": {
         "titulo": "{count, plural, one {New message from {remetente}} other {# new messages from {remetente}}}"
+      },
+      "cobranca_avulsa": {
+        "tituloCriada": "New charge for your trip",
+        "mensagemCriada": "The owner sent you a charge ({titulo}) related to {item} ({data}). Pay by {prazo}.",
+        "tituloExpirada": "Charge expired",
+        "mensagemExpirada": "The deadline to pay charge #{numero} ({titulo}) has passed. Nothing was charged.",
+        "tituloCancelada": "Charge canceled",
+        "mensagemCancelada": "The owner canceled charge #{numero} ({titulo}). Nothing was charged."
       }
     }
   }

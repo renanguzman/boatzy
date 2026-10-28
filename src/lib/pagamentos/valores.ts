@@ -104,3 +104,60 @@ export function opcoesParcelas(total: number, parcelasMax: number, valorMinimoPa
   }
   return opcoes;
 }
+
+// ── Cobrança avulsa (SPEC §34.16) ───────────────────────────────────────────
+
+export type ItemAvulso = { quantidade: number; valorUnitario: number };
+
+/** Total de uma linha (quantidade × unitário), em centavos exatos. */
+export function totalItemAvulso(item: ItemAvulso): number {
+  return arredondarCentavos(item.quantidade * item.valorUnitario);
+}
+
+export type ValoresAvulso = ValoresPedido & {
+  /** Soma das linhas. */
+  valorCalculado: number;
+  /** Total editado pelo gestor − soma das linhas (0 se não editou). */
+  valorAjuste: number;
+};
+
+/**
+ * Valores da cobrança avulsa. O gestor pode editar o total que recebe
+ * (`valorFinal`); a diferença para a soma dos itens vira ajuste. A comissão
+ * segue a regra do pedido da reserva (reais inteiros sobre o valor do gestor).
+ */
+export function calcularValoresAvulso(input: {
+  itens: ItemAvulso[];
+  valorFinal?: number | null;
+  taxaPercent: number;
+}): ValoresAvulso {
+  const valorCalculado = arredondarCentavos(input.itens.reduce((s, i) => s + totalItemAvulso(i), 0));
+  const valorItens = input.valorFinal != null ? arredondarCentavos(input.valorFinal) : valorCalculado;
+  const v = calcularValoresPedido({
+    precoUnitario: valorItens, multiplicador: 1, totalAdicionais: 0, taxaPercent: input.taxaPercent, descontoCupom: 0,
+  });
+  return { ...v, valorCalculado, valorAjuste: arredondarCentavos(valorItens - valorCalculado) };
+}
+
+/**
+ * Linhas da cobrança avulsa como o CLIENTE vê: a taxa de serviço distribuída
+ * proporcionalmente (o site nunca mostra a taxa em linha própria). O ajuste do
+ * gestor vira uma linha a mais; o arredondamento vai para a última linha, para
+ * a soma bater exatamente com o total.
+ */
+export function linhasAvulsoParaCliente(input: {
+  itens: number[]; // total de cada linha (valor do gestor)
+  valorAjuste: number;
+  valorItens: number;
+  valorTotal: number;
+}): { itens: number[]; ajuste: number } {
+  const fator = input.valorItens > 0 ? input.valorTotal / input.valorItens : 1;
+  const itens = input.itens.map((v) => arredondarCentavos(v * fator));
+  let ajuste = input.valorAjuste !== 0 ? arredondarCentavos(input.valorAjuste * fator) : 0;
+  const diferenca = arredondarCentavos(input.valorTotal - itens.reduce((s, v) => s + v, 0) - ajuste);
+  if (diferenca !== 0) {
+    if (ajuste !== 0) ajuste = arredondarCentavos(ajuste + diferenca);
+    else if (itens.length) itens[itens.length - 1] = arredondarCentavos(itens[itens.length - 1] + diferenca);
+  }
+  return { itens, ajuste };
+}

@@ -29,6 +29,8 @@ import AvaliacaoReserva from '../../_components/AvaliacaoReserva';
 import { STATUS } from '../../_lib/status';
 import BotaoImprimir from './BotaoImprimir';
 import ConversarDonoReserva from '../../_components/ConversarDonoReserva';
+import CobrancasAdicionais from '../../_components/CobrancasAdicionais';
+import { listarCobrancasDaReserva } from '@/lib/pagamentos/avulso';
 
 /* ── Tipos do select ─────────────────────────────────────────────────────── */
 
@@ -235,7 +237,7 @@ const ESTILO_ETAPA: Record<EtapaEstado, { bolinha: string; titulo: string; Icone
  * (outra pessoa → 404). A página faz a checagem de sessão.
  */
 export default async function DetalheReserva({ reservaId: id, clienteId }: { reservaId: string; clienteId: string }) {
-  const [t, tStatus, tTipo, tPessoas, tPag, tMR, tOpc, tLocal, f] = await Promise.all([
+  const [t, tStatus, tTipo, tPessoas, tPag, tMR, tOpc, tLocal, tCob, f] = await Promise.all([
     getTranslations('DetalheReserva'),
     getTranslations('StatusReserva'),
     getTranslations('Pagamento.tipo'),
@@ -244,6 +246,7 @@ export default async function DetalheReserva({ reservaId: id, clienteId }: { res
     getTranslations('MinhasReservas'),
     getTranslations('Opcionais'),
     getTranslations('Roteiro.localizacao'),
+    getTranslations('Cobranca'),
     getFormatos(),
   ]);
 
@@ -278,7 +281,7 @@ export default async function DetalheReserva({ reservaId: id, clienteId }: { res
   const pedido = um(r.pedido);
   const avaliacao = um(r.avaliacao);
 
-  const [{ data: pagamentosData }, { data: cliente }, { data: dono }, { data: aceite }, { data: naoLidasRows }] = await Promise.all([
+  const [{ data: pagamentosData }, { data: cliente }, { data: dono }, { data: aceite }, { data: naoLidasRows }, cobrancas] = await Promise.all([
     pedido
       ? supabaseAdmin
           .from('pagamento')
@@ -303,7 +306,9 @@ export default async function DetalheReserva({ reservaId: id, clienteId }: { res
       .limit(1)
       .maybeSingle(),
     supabaseAdmin.rpc('chat_nao_lidas_por_gestor', { p_cliente: clienteId }),
+    listarCobrancasDaReserva(r.id),
   ]);
+  const cobrancasPagas = cobrancas.filter((c) => c.status === 'pago');
 
   const pagamentos = (pagamentosData ?? []) as unknown as PagamentoDetalhe[];
   const pagamento = pagamentos.find((p) => PAGAMENTO_COM_COMPROVANTE.includes(p.status)) ?? null;
@@ -599,6 +604,9 @@ export default async function DetalheReserva({ reservaId: id, clienteId }: { res
               <StatusPagamento r={r} pedido={pedido} pagamento={pagamento} />
             </section>
 
+            {/* Cobranças avulsas do proprietário (SPEC §34.16) */}
+            <CobrancasAdicionais cobrancas={cobrancas} />
+
             {/* Ações */}
             <section className="rounded-2xl border border-slate-200 bg-white shadow-sm p-5 space-y-3">
               {chatIndisponivel ? (
@@ -720,6 +728,24 @@ export default async function DetalheReserva({ reservaId: id, clienteId }: { res
                   </div>
                 </div>
               </div>
+
+              {/* Cobranças avulsas pagas (cada uma tem o próprio recibo na página da cobrança) */}
+              {cobrancasPagas.length > 0 && (
+                <div className="mt-4 rounded-xl border border-slate-200 p-4 text-sm">
+                  <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">{tCob('secaoTitulo')}</p>
+                  <ul className="mt-2 space-y-1">
+                    {cobrancasPagas.map((c) => (
+                      <li key={c.id} className="flex justify-between gap-3 text-slate-600">
+                        <span className="min-w-0 break-words">
+                          {tCob('numero', { numero: c.numero })} · {c.titulo}
+                          {c.pago_em && <span className="text-slate-400"> · {tCob('pagaEm', { data: f.dataHora(c.pago_em) })}</span>}
+                        </span>
+                        <span className="shrink-0 font-semibold text-marinho">{f.moedaCentavos(Number(c.valor_total))}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
 
               {/* Reembolsos */}
               {estornos.length > 0 && (

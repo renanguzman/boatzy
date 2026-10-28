@@ -4,8 +4,11 @@ import { supabaseAdmin } from '@/lib/supabase';
 import type { AsaasCobranca } from '@/lib/asaas/tipos';
 import type { EventoAsaasRow } from '@/lib/asaas/eventos';
 import type { Database, Json, PagamentoParcelaStatus, PagamentoStatus, PedidoStatus } from '@/types/supabase';
-import { confirmarPedidoPago, dadosParaEmail } from './pedidos';
-import { emailGestorPagamentoRecusado, emailGestorReembolso, emailPagamentoRecusado, emailReembolso } from './emails';
+import { baseEmailPedido, confirmarPedidoPago, dadosParaEmail, type DadosEmailPedido } from './pedidos';
+import { registrarEventoPedido } from './historico';
+import {
+  emailGestorPagamentoRecusado, emailGestorReembolso, emailPagamentoRecusado, emailReembolso, type DadosPedidoEmail,
+} from './emails';
 
 /**
  * Handler dos eventos `PAYMENT_*` do Asaas (registrado em
@@ -275,6 +278,9 @@ export async function aplicarCobranca(
       .in('status', ['pago', 'reembolsado_parcial', 'em_disputa'])
       .select('id')
       .maybeSingle();
+    if (alterado && antes?.status !== novoStatusPedido) {
+      await registrarEventoPedido({ pedidoId: pagamento.pedido_id, evento: novoStatusPedido, dados: { pagamento_id: pagamento.id } });
+    }
     // Aviso de reembolso ao cliente e ao gestor (o in-app vem do trigger `notificacao_pedido`, SPEC §64/§87).
     if (alterado && antes?.status !== novoStatusPedido && (novoStatusPedido === 'reembolsado' || novoStatusPedido === 'reembolsado_parcial')) {
       const parcial = novoStatusPedido === 'reembolsado_parcial';
@@ -307,21 +313,13 @@ export async function aplicarCobranca(
   return { resultado: 'processado', pagamentoId: pagamento.id, statusAnterior, statusNovo: statusAplicado };
 }
 
-type DadosEmailPedido = NonNullable<Awaited<ReturnType<typeof dadosParaEmail>>>;
-type BaseEmailPedido = { reservaId: string; pedidoNumero: number; itemNome: string; dataReserva: string; valorTotal: number };
-
 /** Carrega o pedido e dispara os e-mails (cliente e/ou gestor) — falha só é logada (o webhook não pode falhar por e-mail). */
-async function avisarPorEmail(pedidoId: string, enviar: (d: DadosEmailPedido, base: BaseEmailPedido) => Promise<void>) {
+async function avisarPorEmail(pedidoId: string, enviar: (d: DadosEmailPedido, base: DadosPedidoEmail) => Promise<void>) {
   try {
     const d = await dadosParaEmail(pedidoId);
-    if (!d?.reserva) return;
-    await enviar(d, {
-      reservaId: d.reserva_id,
-      pedidoNumero: d.numero,
-      itemNome: d.reserva.item_nome,
-      dataReserva: d.reserva.data_reserva,
-      valorTotal: Number(d.valor_total),
-    });
+    const base = d ? baseEmailPedido(d) : null;
+    if (!d || !base) return;
+    await enviar(d, base);
   } catch (err) {
     console.error('[pagamentos/webhook] falha ao enviar e-mail', pedidoId, err instanceof Error ? err.message : err);
   }

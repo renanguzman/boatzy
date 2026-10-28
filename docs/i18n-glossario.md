@@ -37,6 +37,7 @@ Referência para manter os mesmos termos em todas as telas traduzidas. A fonte �
 | Ponto de embarque | Boarding point | Punto de embarque | |
 | Taxa de serviço | Service fee | Tarifa de servicio | |
 | Cupom | Coupon / promo code | Cupón | |
+| Cobrança (avulsa) | Charge (extra charge) | Cobro (cobro adicional) | cobrança extra do proprietário após a reserva (SPEC §34.16) |
 | Favoritos | Favorites | Favoritos | |
 | Favoritar / Favoritado | Save / Saved | Guardar / Guardado | botão do roteiro |
 | Diária / Por Diária | Day / Per day | Día / Por día | modelo de cobrança |

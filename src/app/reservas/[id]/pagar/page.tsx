@@ -10,10 +10,9 @@ import { isValidCPF } from '@/lib/validators';
 import { lerAsaasConfig } from '@/lib/asaas/config';
 import { getFormasPagamento } from '@/lib/financeiro/config';
 import { expirarPedidosVencidosSemFalhar, PAGAMENTO_PAGO } from '@/lib/pagamentos/pedidos';
-import { opcoesParcelas } from '@/lib/pagamentos/valores';
-import { retomarPixPendente } from '@/lib/pagamentos/checkout';
+import { formasPermitidasDoPedido, retomarPixPendente } from '@/lib/pagamentos/checkout';
 import type { FormaPagamentoCodigo, PedidoStatus } from '@/types/supabase';
-import CheckoutPagamento, { type FormaCheckout, type Pix } from './_components/CheckoutPagamento';
+import CheckoutPagamento, { type FormaCheckout, type Pix } from '@/components/pagamento/CheckoutPagamento';
 import { getFormatos } from '@/i18n/formatos-servidor';
 import EventoAnalytics from '@/components/analytics/EventoAnalytics';
 
@@ -124,16 +123,8 @@ export default async function PagarReservaPage({
         .limit(1)
         .maybeSingle(),
     ]);
-    formas = todas
-      .filter((forma) => forma.ativo)
-      .map((forma) => ({
-        codigo: forma.codigo,
-        nome: forma.codigo === 'pix' || forma.codigo === 'cartao_credito' ? t(`formas.${forma.codigo}`) : forma.nome,
-        opcoesParcelas:
-          forma.codigo === 'cartao_credito'
-            ? opcoesParcelas(Number(pedido.valor_total), forma.parcelas_max, forma.valor_minimo_parcela != null ? Number(forma.valor_minimo_parcela) : null)
-            : [1],
-      }));
+    formas = formasPermitidasDoPedido(todas, { valor_total: Number(pedido.valor_total) })
+      .map((forma) => ({ ...forma, nome: t(`formas.${forma.codigo}`) }));
     precisaCpf = !(usuario?.cpf_cnpj && isValidCPF(usuario.cpf_cnpj));
     formaInicial = pendente && formas.some((forma) => forma.codigo === pendente.forma_pagamento) ? pendente.forma_pagamento : null;
     if (formaInicial === 'pix' && sp.retorno !== '1') pixInicial = await retomarPixPendente(pedido.id);
@@ -213,7 +204,8 @@ export default async function PagarReservaPage({
                 </div>
               ) : (
                 <CheckoutPagamento
-                  reservaId={reserva.id}
+                  pedidoId={pedido.id}
+                  caminho={`/reservas/${reserva.id}/pagar`}
                   valorTotal={Number(pedido.valor_total)}
                   expiraEm={pedido.expira_em}
                   formas={formas}

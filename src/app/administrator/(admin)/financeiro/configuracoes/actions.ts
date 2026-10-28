@@ -143,3 +143,61 @@ export async function salvarPrazosFinanceiro(payload: PrazosPayload): Promise<Ac
   revalidatePath(CAMINHO);
   return { ok: true };
 }
+
+export type CobrancaAvulsaPayload = {
+  cobrarComissao: boolean;
+  prazoPadraoHoras: string;
+  prazoMaxDias: string;
+  diasAposPasseio: string;
+};
+
+/**
+ * Regras da cobrança avulsa do gestor (SPEC §34.16): se leva a taxa de serviço
+ * da reserva, prazo padrão e máximo para pagar e até quantos dias depois do
+ * passeio o gestor pode emitir. Vale para as cobranças emitidas daqui em diante.
+ */
+export async function salvarCobrancaAvulsa(payload: CobrancaAvulsaPayload): Promise<ActionResult> {
+  const auth = await requireAdmin();
+  if (!auth.ok) return auth;
+
+  const prazoMax = paraNumero(payload.prazoMaxDias);
+  if (prazoMax === null || !Number.isInteger(prazoMax) || prazoMax < 1 || prazoMax > 60) {
+    return { ok: false, error: 'O prazo máximo deve ser um número inteiro de 1 a 60 dias.' };
+  }
+  const prazoPadrao = paraNumero(payload.prazoPadraoHoras);
+  if (prazoPadrao === null || !Number.isInteger(prazoPadrao) || prazoPadrao < 1 || prazoPadrao > prazoMax * 24) {
+    return { ok: false, error: `O prazo padrão deve ser um número inteiro de 1 a ${prazoMax * 24} horas.` };
+  }
+  const janela = paraNumero(payload.diasAposPasseio);
+  if (janela === null || !Number.isInteger(janela) || janela < 0 || janela > 365) {
+    return { ok: false, error: 'Os dias após o passeio devem ser um número inteiro de 0 a 365.' };
+  }
+
+  const { data: antes } = await supabaseAdmin.from('financeiro_config').select('*').eq('singleton', true).single();
+
+  const { data: depois, error } = await supabaseAdmin
+    .from('financeiro_config')
+    .update({
+      avulso_cobrar_comissao: payload.cobrarComissao,
+      avulso_prazo_padrao_horas: prazoPadrao,
+      avulso_prazo_max_dias: prazoMax,
+      avulso_dias_apos_passeio: janela,
+      atualizado_por: auth.userId,
+    })
+    .eq('singleton', true)
+    .select('*')
+    .single();
+  if (error) return { ok: false, error: error.message };
+
+  await registrarAuditoria({
+    adminId: auth.userId,
+    acao: 'financeiro_config.cobranca_avulsa',
+    entidade: 'financeiro_config',
+    entidadeId: depois.id,
+    antes,
+    depois,
+  });
+
+  revalidatePath(CAMINHO);
+  return { ok: true };
+}

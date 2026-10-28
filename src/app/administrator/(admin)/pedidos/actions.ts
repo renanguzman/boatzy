@@ -57,6 +57,16 @@ export async function exportarPedidos(
       const cupom = p.pedido_desconto.find((d) => d.cupom_codigo)?.cupom_codigo ?? '';
       return {
         Pedido: p.numero,
+        'Tipo do pedido': p.tipo === 'avulso' ? 'Cobrança avulsa' : 'Reserva',
+        'Título da cobrança': p.avulso?.titulo ?? '',
+        'Itens da cobrança': p.itens
+          .map((i) => `${Number(i.quantidade) !== 1 ? `${Number(i.quantidade)} × ` : ''}${i.descricao} (${i.tipo}) = ${Number(i.valor_total).toFixed(2)}`)
+          .join(' | '),
+        'Ajuste do gestor': p.avulso ? Number(p.avulso.valor_ajuste) : '',
+        'Motivo do ajuste': p.avulso?.motivo_ajuste ?? '',
+        'Formas permitidas': p.avulso ? p.avulso.formas_permitidas.map((f) => FORMA_LABEL[f]).join(', ') : '',
+        'Parcelas máx. (avulsa)': p.avulso?.parcelas_max ?? '',
+        'ID da reserva': p.reserva?.id ?? '',
         'Criado em': dataHora(p.criado_em),
         'Status do pedido': PEDIDO_STATUS[p.status].label,
         Cliente: p.cliente?.name ?? '',

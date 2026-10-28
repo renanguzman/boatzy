@@ -3,8 +3,11 @@ import 'server-only';
 import { supabaseAdmin } from '@/lib/supabase';
 import { removerCobranca } from '@/lib/asaas/cobrancas';
 import { mensagemErroAsaas } from '@/lib/asaas/client';
-import type { PagamentoStatus } from '@/types/supabase';
-import { emailGestorPedidoExpirado, emailPagamentoConfirmado, emailPedidoExpirado, emailReservaPaga } from './emails';
+import type { PagamentoStatus, PedidoTipo } from '@/types/supabase';
+import {
+  emailGestorPedidoExpirado, emailPagamentoConfirmado, emailPedidoExpirado, emailReservaPaga, type DadosPedidoEmail,
+} from './emails';
+import { registrarEventoPedido } from './historico';
 
 /**
  * Ciclo de vida do pedido (SPEC §34.11):
@@ -12,6 +15,9 @@ import { emailGestorPedidoExpirado, emailPagamentoConfirmado, emailPedidoExpirad
  *   aceite do gestor → pedido `aguardando_pagamento` + reserva `aguardando_pagamento` (segura a data)
  *   pagamento confirmado (webhook) → pedido `pago` + reserva `confirmada`
  *   prazo vencido sem pagamento → cobranças removidas no Asaas → pedido `expirado` + reserva `expirada`
+ *
+ * Cobrança avulsa (`pedido.tipo = 'avulso'`, SPEC §34.16): mesmo ciclo, mas
+ * NUNCA altera a reserva (que já está confirmada/concluída).
  *
  * Toda transição é guardada pelo status de origem (UPDATE … WHERE status = …),
  * então chamadas repetidas ou concorrentes não fazem nada a mais.
@@ -71,34 +77,75 @@ export async function cancelarCobrancasPendentes(
   return erro ? { ok: false, erro } : { ok: true };
 }
 
-export async function dadosParaEmail(pedidoId: string) {
+type ReservaEmail = { id: string; item_nome: string; data_reserva: string };
+
+export type DadosEmailPedido = {
+  numero: number;
+  status: string;
+  tipo: PedidoTipo;
+  expira_em: string | null;
+  valor_total: number;
+  valor_itens: number;
+  /** Reserva do pedido — no avulso, a reserva de origem da cobrança. */
+  reserva_id: string;
+  reserva: ReservaEmail | null;
+  avulso: { pedidoId: string; titulo: string } | null;
+  cliente: { name: string; email: string } | null;
+  gestor: { name: string; email: string } | null;
+};
+
+/** Pedido + reserva (de origem, no avulso) + cliente/gestor, para os e-mails. */
+export async function dadosParaEmail(pedidoId: string): Promise<DadosEmailPedido | null> {
   const { data } = await supabaseAdmin
     .from('pedido')
     .select(
-      `numero, status, expira_em, valor_total, valor_itens, reserva_id,
-       reserva:reserva_id ( item_nome, data_reserva ),
+      `id, numero, status, tipo, expira_em, valor_total, valor_itens,
+       reserva:reserva_id ( id, item_nome, data_reserva ),
+       pedido_avulso ( titulo, reserva:reserva_id ( id, item_nome, data_reserva ) ),
        cliente:users!pedido_cliente_id_fkey ( name, email ),
        gestor:users!pedido_gestor_id_fkey ( name, email )`,
     )
     .eq('id', pedidoId)
     .single();
-  return data as unknown as {
-    numero: number;
-    status: string;
-    expira_em: string | null;
-    valor_total: number;
-    valor_itens: number;
-    reserva_id: string;
-    reserva: { item_nome: string; data_reserva: string } | null;
-    cliente: { name: string; email: string } | null;
-    gestor: { name: string; email: string } | null;
-  } | null;
+  const d = data as unknown as (Omit<DadosEmailPedido, 'reserva_id' | 'avulso'> & {
+    id: string;
+    pedido_avulso: { titulo: string; reserva: ReservaEmail | null } | null;
+  }) | null;
+  if (!d) return null;
+  const pa = Array.isArray(d.pedido_avulso) ? (d.pedido_avulso[0] ?? null) : d.pedido_avulso;
+  const reserva = d.tipo === 'avulso' ? pa?.reserva ?? null : d.reserva;
+  return {
+    numero: d.numero,
+    status: d.status,
+    tipo: d.tipo,
+    expira_em: d.expira_em,
+    valor_total: d.valor_total,
+    valor_itens: d.valor_itens,
+    reserva_id: reserva?.id ?? '',
+    reserva,
+    avulso: d.tipo === 'avulso' && pa ? { pedidoId: d.id, titulo: pa.titulo } : null,
+    cliente: d.cliente,
+    gestor: d.gestor,
+  };
+}
+
+/** Campos comuns dos e-mails do pedido (null se a reserva não foi encontrada). */
+export function baseEmailPedido(d: DadosEmailPedido): DadosPedidoEmail | null {
+  if (!d.reserva) return null;
+  return {
+    reservaId: d.reserva_id,
+    pedidoNumero: d.numero,
+    itemNome: d.reserva.item_nome,
+    dataReserva: d.reserva.data_reserva,
+    valorTotal: Number(d.valor_total),
+    avulso: d.avulso,
+  };
 }
 
 /**
- * Pagamento confirmado: pedido → `pago`, reserva → `confirmada`, remove as
- * outras cobranças pendentes do mesmo pedido (ex.: um Pix gerado antes de o
- * cliente pagar no cartão) e avisa cliente e gestor. Idempotente.
+ * Pagamento confirmado: pedido → `pago`, reserva → `confirmada` (só no pedido
+ * da reserva), remove as outras cobranças pendentes do mesmo pedido (ex.: um
+ * Pix gerado antes de o cliente pagar no cartão) e avisa cliente e gestor. Idempotente.
  * Devolve false se o pedido não estava aguardando pagamento.
  */
 export async function confirmarPedidoPago(pedidoId: string): Promise<boolean> {
@@ -107,28 +154,25 @@ export async function confirmarPedidoPago(pedidoId: string): Promise<boolean> {
     .update({ status: 'pago', pago_em: new Date().toISOString() })
     .eq('id', pedidoId)
     .eq('status', 'aguardando_pagamento')
-    .select('id, reserva_id')
+    .select('id, reserva_id, tipo')
     .maybeSingle();
   if (!pedido) return false;
+  await registrarEventoPedido({ pedidoId, evento: 'pago' });
 
-  const { error } = await supabaseAdmin
-    .from('reserva')
-    .update({ status: 'confirmada' })
-    .eq('id', pedido.reserva_id)
-    .eq('status', 'aguardando_pagamento');
-  if (error) console.error('[pagamentos/pedidos] falha ao confirmar reserva', pedido.reserva_id, error.message);
+  if (pedido.tipo === 'reserva' && pedido.reserva_id) {
+    const { error } = await supabaseAdmin
+      .from('reserva')
+      .update({ status: 'confirmada' })
+      .eq('id', pedido.reserva_id)
+      .eq('status', 'aguardando_pagamento');
+    if (error) console.error('[pagamentos/pedidos] falha ao confirmar reserva', pedido.reserva_id, error.message);
+  }
 
   await cancelarCobrancasPendentes(pedidoId);
 
   const d = await dadosParaEmail(pedidoId);
-  if (d?.reserva) {
-    const base = {
-      reservaId: d.reserva_id,
-      pedidoNumero: d.numero,
-      itemNome: d.reserva.item_nome,
-      dataReserva: d.reserva.data_reserva,
-      valorTotal: Number(d.valor_total),
-    };
+  const base = d ? baseEmailPedido(d) : null;
+  if (d && base) {
     await Promise.all([
       emailPagamentoConfirmado({ ...base, para: d.cliente?.email ?? '', nome: d.cliente?.name ?? '' }),
       emailReservaPaga({
@@ -155,7 +199,7 @@ export type ResultadoExpiracao = 'expirado' | 'confirmado' | 'cobranca_nao_remov
 export async function expirarPedido(pedidoId: string, motivo: string): Promise<ResultadoExpiracao> {
   const { data: pedido } = await supabaseAdmin
     .from('pedido')
-    .select('id, reserva_id, status')
+    .select('id, reserva_id, status, tipo')
     .eq('id', pedidoId)
     .maybeSingle();
   if (!pedido || pedido.status !== 'aguardando_pagamento') return 'nao_aguardando';
@@ -182,22 +226,20 @@ export async function expirarPedido(pedidoId: string, motivo: string): Promise<R
     .select('id')
     .maybeSingle();
   if (!expirado) return 'nao_aguardando';
+  await registrarEventoPedido({ pedidoId: pedido.id, evento: 'expirado', dados: { motivo } });
 
-  await supabaseAdmin
-    .from('reserva')
-    .update({ status: 'expirada', expirada_em: agora })
-    .eq('id', pedido.reserva_id)
-    .eq('status', 'aguardando_pagamento');
+  // Só o pedido da reserva segura a data; a cobrança avulsa nunca mexe na reserva.
+  if (pedido.tipo === 'reserva' && pedido.reserva_id) {
+    await supabaseAdmin
+      .from('reserva')
+      .update({ status: 'expirada', expirada_em: agora })
+      .eq('id', pedido.reserva_id)
+      .eq('status', 'aguardando_pagamento');
+  }
 
   const d = await dadosParaEmail(pedido.id);
-  if (d?.reserva) {
-    const base = {
-      reservaId: d.reserva_id,
-      pedidoNumero: d.numero,
-      itemNome: d.reserva.item_nome,
-      dataReserva: d.reserva.data_reserva,
-      valorTotal: Number(d.valor_total),
-    };
+  const base = d ? baseEmailPedido(d) : null;
+  if (d && base) {
     await Promise.all([
       emailPedidoExpirado({ ...base, para: d.cliente?.email ?? '', nome: d.cliente?.name ?? '' }),
       emailGestorPedidoExpirado({
@@ -248,6 +290,7 @@ export async function cancelarPedidoAguardando(reservaId: string, motivo: string
     .from('pedido')
     .select('id, status')
     .eq('reserva_id', reservaId)
+    .eq('tipo', 'reserva')
     .maybeSingle();
   if (!pedido || pedido.status !== 'aguardando_pagamento') return { ok: true };
 
@@ -261,10 +304,13 @@ export async function cancelarPedidoAguardando(reservaId: string, motivo: string
     .in('status', PAGAMENTO_PAGO);
   if (pagos) return { ok: false, erro: 'Esta reserva já foi paga.' };
 
-  await supabaseAdmin
+  const { data: cancelado } = await supabaseAdmin
     .from('pedido')
     .update({ status: 'cancelado', cancelado_em: new Date().toISOString(), motivo_cancelamento: motivo })
     .eq('id', pedido.id)
-    .eq('status', 'aguardando_pagamento');
+    .eq('status', 'aguardando_pagamento')
+    .select('id')
+    .maybeSingle();
+  if (cancelado) await registrarEventoPedido({ pedidoId: pedido.id, evento: 'cancelado', atorPapel: 'cliente', dados: { motivo } });
   return { ok: true };
 }

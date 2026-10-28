@@ -13,6 +13,10 @@ type DadosNotificacao = {
   parcial?: boolean | null;
   recado?: string | null;
   remetente?: string | null;
+  /** Cobrança avulsa (SPEC §34.16): título e o que aconteceu com ela. */
+  titulo?: string | null;
+  avulso?: boolean | null;
+  evento?: 'criada' | 'expirada' | 'cancelada' | null;
 };
 
 function lerDados(n: Notificacao): DadosNotificacao | null {
@@ -57,7 +61,22 @@ export function useTextoNotificacao() {
       case 'aguardando_pagamento':
         return { titulo: t('textos.aguardando_pagamento.titulo'), mensagem: t('textos.aguardando_pagamento.mensagem', { item, data, prazo }) };
       case 'pagamento_aprovado':
-        return { titulo: t('textos.pagamento_aprovado.titulo'), mensagem: t('textos.pagamento_aprovado.mensagem', { item, data, numero }) };
+        return {
+          titulo: t('textos.pagamento_aprovado.titulo'),
+          mensagem: d.avulso
+            ? t('textos.pagamento_aprovado.mensagemAvulso', { item, numero, titulo: d.titulo ?? '' })
+            : t('textos.pagamento_aprovado.mensagem', { item, data, numero }),
+        };
+      case 'cobranca_avulsa': {
+        const titulo = d.titulo ?? '';
+        if (d.evento === 'expirada') {
+          return { titulo: t('textos.cobranca_avulsa.tituloExpirada'), mensagem: t('textos.cobranca_avulsa.mensagemExpirada', { numero, titulo }) };
+        }
+        if (d.evento === 'cancelada') {
+          return { titulo: t('textos.cobranca_avulsa.tituloCancelada'), mensagem: t('textos.cobranca_avulsa.mensagemCancelada', { numero, titulo }) };
+        }
+        return { titulo: t('textos.cobranca_avulsa.tituloCriada'), mensagem: t('textos.cobranca_avulsa.mensagemCriada', { item, data, prazo, titulo }) };
+      }
       case 'pagamento_recusado':
         return { titulo: t('textos.pagamento_recusado.titulo'), mensagem: t('textos.pagamento_recusado.mensagem', { item, prazo }) };
       case 'reembolso':

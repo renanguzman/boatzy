@@ -8,6 +8,8 @@ import type { Database, ReservaModalidadePreco, ReservaStatus, ReservaTipo } fro
  * pedido, cliente, gestor, reserva (com adicionais, atendentes, aceite do
  * termo), descontos/cupom, cada tentativa de pagamento com cartão, parcelas,
  * movimentos e estornos, os eventos crus do webhook do Asaas e a auditoria.
+ * Cobrança avulsa (SPEC §34.16): configuração do gestor, itens, pedido da
+ * reserva de origem; no pedido da reserva, as avulsas vinculadas.
  */
 
 type Tabela<T extends keyof Database['public']['Tables']> = Database['public']['Tables'][T]['Row'];
@@ -65,6 +67,27 @@ export type PagamentoDetalhe = Tabela<'pagamento'> & {
 
 export type AuditoriaDetalhe = Tabela<'financeiro_auditoria'> & { admin: { name: string; email: string } | null };
 
+export type EventoPedidoDetalhe = Tabela<'pedido_evento'> & { ator: { name: string; email: string } | null };
+
+export type AvulsoDetalhe = {
+  config: Tabela<'pedido_avulso'>;
+  criadoPor: { name: string; email: string } | null;
+  itens: Tabela<'pedido_item'>[];
+  /** Pedido da reserva de origem (null se a reserva foi confirmada sem pagamento pelo Boatzy). */
+  pedidoReserva: { id: string; numero: number; status: string } | null;
+};
+
+export type AvulsaVinculada = {
+  id: string;
+  numero: number;
+  status: string;
+  titulo: string;
+  valor_total: number;
+  valor_itens: number;
+  criado_em: string;
+  pago_em: string | null;
+};
+
 export type DetalhePedido = {
   pedido: Tabela<'pedido'>;
   cliente: UsuarioDetalhe | null;
@@ -79,6 +102,12 @@ export type DetalhePedido = {
   cupom: { id: string; codigo: string; tipo_desconto: string; valor: number; ativo: boolean } | null;
   cupomUso: { valor_desconto: number; criado_em: string } | null;
   taxaAtualGestor: { percent: number; origem: 'geral' | 'especifica' } | null;
+  /** Só no pedido de tipo 'avulso'. */
+  avulso: AvulsoDetalhe | null;
+  /** Só no pedido da reserva: cobranças avulsas da mesma reserva. */
+  avulsasVinculadas: AvulsaVinculada[];
+  /** Linha do tempo de negócio (`pedido_evento`). */
+  eventosPedido: EventoPedidoDetalhe[];
 };
 
 const USUARIO = 'id, name, email, phone, cpf_cnpj, avatar_url, created_at';
@@ -89,17 +118,24 @@ export async function carregarDetalhePedido(id: string): Promise<DetalhePedido |
     .select(
       `*, cliente:users!pedido_cliente_id_fkey ( ${USUARIO} ),
        gestor:users!pedido_gestor_id_fkey ( ${USUARIO} ),
-       pedido_desconto ( * )`,
+       pedido_desconto ( * ),
+       pedido_avulso ( * ),
+       pedido_item ( * )`,
     )
     .eq('id', id)
     .maybeSingle();
   if (!bruto) return null;
 
-  const { cliente, gestor, pedido_desconto, ...pedido } = bruto as unknown as Tabela<'pedido'> & {
+  const { cliente, gestor, pedido_desconto, pedido_avulso, pedido_item, ...pedido } = bruto as unknown as Tabela<'pedido'> & {
     cliente: UsuarioDetalhe | null;
     gestor: UsuarioDetalhe | null;
     pedido_desconto: Tabela<'pedido_desconto'>[];
+    pedido_avulso: Tabela<'pedido_avulso'> | Tabela<'pedido_avulso'>[] | null;
+    pedido_item: Tabela<'pedido_item'>[];
   };
+  const configAvulso = Array.isArray(pedido_avulso) ? (pedido_avulso[0] ?? null) : pedido_avulso;
+  // Reserva do pedido — na cobrança avulsa, a reserva de origem.
+  const reservaId = pedido.reserva_id ?? configAvulso?.reserva_id ?? '';
 
   const [reservaRes, pagamentosRes, auditoriaRes, clienteAsaasRes, aceitesRes, taxaEspRes, taxaGeralRes] = await Promise.all([
     supabaseAdmin
@@ -114,7 +150,7 @@ export async function carregarDetalhePedido(id: string): Promise<DetalhePedido |
          reserva_adicional ( id, descricao, valor, tipo ),
          reserva_atendente ( equipe_membro ( nome_completo, is_gestor, telefone ) )`,
       )
-      .eq('id', pedido.reserva_id)
+      .eq('id', reservaId)
       .maybeSingle(),
     supabaseAdmin
       .from('pagamento')
@@ -134,7 +170,7 @@ export async function carregarDetalhePedido(id: string): Promise<DetalhePedido |
       .from('termos_uso_aceite')
       .select('id, evidencia_hash, aceito_em, termo_versao, termo_identificador')
       .eq('contexto_tipo', 'reserva')
-      .eq('contexto_id', pedido.reserva_id),
+      .eq('contexto_id', reservaId),
     supabaseAdmin
       .from('usuario_taxa')
       .select('taxa_percent, ativo, data_validade')
@@ -170,7 +206,8 @@ export async function carregarDetalhePedido(id: string): Promise<DetalhePedido |
   const adminPorId = new Map((admins ?? []).map((a) => [a.id, a]));
 
   // Cupom (cadastro atual) + registro de uso desta reserva.
-  const cupomId = pedido_desconto.find((d) => d.cupom_id)?.cupom_id ?? reserva?.cupom_id ?? null;
+  // Cobrança avulsa não tem cupom (o da reserva vale só para o pedido da reserva).
+  const cupomId = pedido.tipo === 'avulso' ? null : pedido_desconto.find((d) => d.cupom_id)?.cupom_id ?? reserva?.cupom_id ?? null;
   const [cupomRes, usoRes] = cupomId
     ? await Promise.all([
         supabaseAdmin.from('cupom').select('id, codigo, tipo_desconto, valor, ativo').eq('id', cupomId).maybeSingle(),
@@ -178,7 +215,7 @@ export async function carregarDetalhePedido(id: string): Promise<DetalhePedido |
           .from('cupom_uso')
           .select('valor_desconto, criado_em')
           .eq('cupom_id', cupomId)
-          .eq('reserva_id', pedido.reserva_id)
+          .eq('reserva_id', reservaId)
           .maybeSingle(),
       ])
     : [{ data: null }, { data: null }];
@@ -192,6 +229,30 @@ export async function carregarDetalhePedido(id: string): Promise<DetalhePedido |
     : taxaGeralRes.data
       ? { percent: Number(taxaGeralRes.data.taxa_percent), origem: 'geral' as const }
       : null;
+
+  // Cobrança avulsa ↔ pedido da reserva, e a linha do tempo de negócio.
+  const [eventosPedidoRes, vinculadasRes, origemRes, criadorRes] = await Promise.all([
+    supabaseAdmin.from('pedido_evento').select('*').eq('pedido_id', id).order('criado_em', { ascending: true }),
+    pedido.tipo === 'reserva' && reservaId
+      ? supabaseAdmin
+          .from('pedido_avulso')
+          .select('titulo, pedido!inner ( id, numero, status, valor_total, valor_itens, criado_em, pago_em )')
+          .eq('reserva_id', reservaId)
+          .order('criado_em', { ascending: true })
+      : Promise.resolve({ data: [] }),
+    configAvulso
+      ? supabaseAdmin.from('pedido').select('id, numero, status').eq('reserva_id', configAvulso.reserva_id).eq('tipo', 'reserva').maybeSingle()
+      : Promise.resolve({ data: null }),
+    configAvulso?.criado_por
+      ? supabaseAdmin.from('users').select('name, email').eq('id', configAvulso.criado_por).maybeSingle()
+      : Promise.resolve({ data: null }),
+  ]);
+  const eventosPedidoBrutos = (eventosPedidoRes.data ?? []) as Tabela<'pedido_evento'>[];
+  const idsAtores = [...new Set(eventosPedidoBrutos.map((e) => e.ator_id).filter((v): v is string => !!v))];
+  const { data: atores } = idsAtores.length
+    ? await supabaseAdmin.from('users').select('id, name, email').in('id', idsAtores)
+    : { data: [] as { id: string; name: string; email: string }[] };
+  const atorPorId = new Map((atores ?? []).map((a) => [a.id, a]));
 
   return {
     pedido,
@@ -209,5 +270,16 @@ export async function carregarDetalhePedido(id: string): Promise<DetalhePedido |
       : null,
     cupomUso: usoRes.data ? { valor_desconto: Number(usoRes.data.valor_desconto), criado_em: usoRes.data.criado_em } : null,
     taxaAtualGestor,
+    avulso: configAvulso
+      ? {
+          config: configAvulso,
+          criadoPor: (criadorRes.data as { name: string; email: string } | null) ?? null,
+          itens: [...(pedido_item ?? [])].sort((a, b) => a.ordem - b.ordem),
+          pedidoReserva: (origemRes.data as { id: string; numero: number; status: string } | null) ?? null,
+        }
+      : null,
+    avulsasVinculadas: ((vinculadasRes.data ?? []) as unknown as { titulo: string; pedido: Omit<AvulsaVinculada, 'titulo'> }[])
+      .map((v) => ({ ...v.pedido, titulo: v.titulo })),
+    eventosPedido: eventosPedidoBrutos.map((e) => ({ ...e, ator: e.ator_id ? atorPorId.get(e.ator_id) ?? null : null })),
   };
 }

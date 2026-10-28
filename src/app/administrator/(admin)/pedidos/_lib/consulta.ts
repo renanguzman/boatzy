@@ -1,7 +1,7 @@
 import 'server-only';
 
 import { supabaseAdmin } from '@/lib/supabase';
-import type { FormaPagamentoCodigo, PedidoStatus } from '@/types/supabase';
+import type { FormaPagamentoCodigo, PedidoStatus, PedidoTipo } from '@/types/supabase';
 import { PAGAMENTO_COM_DINHEIRO, type PedidoLinha } from './linha';
 
 export { cartaoDe, pagamentoPrincipal, type PagamentoLinha, type PedidoLinha } from './linha';
@@ -19,6 +19,7 @@ const STATUS_PEDIDO: PedidoStatus[] = [
   'aguardando_pagamento', 'pago', 'expirado', 'cancelado', 'reembolsado', 'reembolsado_parcial', 'em_disputa',
 ];
 const FORMAS: FormaPagamentoCodigo[] = ['pix', 'cartao_credito'];
+const TIPOS: PedidoTipo[] = ['reserva', 'avulso'];
 export const ORDENACOES = ['numero', 'criado_em', 'cliente', 'gestor', 'data_passeio', 'valor_total', 'status'] as const;
 export type Ordenacao = (typeof ORDENACOES)[number];
 
@@ -26,6 +27,8 @@ export type FiltrosPedidos = {
   q: string;
   status: PedidoStatus | null;
   forma: FormaPagamentoCodigo | null;
+  /** Pedido da reserva ou cobrança avulsa (SPEC §34.16). */
+  tipo: PedidoTipo | null;
   de: string | null; // AAAA-MM-DD (criação do pedido)
   ate: string | null;
   sort: Ordenacao;
@@ -41,6 +44,7 @@ export function lerFiltros(sp: Record<string, string | undefined>): FiltrosPedid
     q: (sp.q ?? '').trim().replace(/[,()"%*]/g, ''),
     status: STATUS_PEDIDO.includes(sp.status as PedidoStatus) ? (sp.status as PedidoStatus) : null,
     forma: FORMAS.includes(sp.forma as FormaPagamentoCodigo) ? (sp.forma as FormaPagamentoCodigo) : null,
+    tipo: TIPOS.includes(sp.tipo as PedidoTipo) ? (sp.tipo as PedidoTipo) : null,
     de: sp.de && DATA.test(sp.de) ? sp.de : null,
     ate: sp.ate && DATA.test(sp.ate) ? sp.ate : null,
     sort: ORDENACOES.includes(sp.sort as Ordenacao) ? (sp.sort as Ordenacao) : 'criado_em',
@@ -48,11 +52,15 @@ export function lerFiltros(sp: Record<string, string | undefined>): FiltrosPedid
   };
 }
 
-const SELECT = `id, numero, status, criado_em, expira_em, pago_em, cancelado_em,
+const RESERVA_LINHA = 'id, tipo, item_nome, data_reserva, data_fim_reserva, quantidade_pessoas, status';
+
+const SELECT = `id, numero, tipo, status, criado_em, expira_em, pago_em, cancelado_em,
   valor_itens, comissao_percentual, valor_comissao, valor_desconto, valor_total,
   cliente:users!pedido_cliente_id_fkey ( id, name, email, cpf_cnpj ),
   gestor:users!pedido_gestor_id_fkey ( id, name, email ),
-  reserva:reserva_id ( id, tipo, item_nome, data_reserva, data_fim_reserva, quantidade_pessoas, status ),
+  reserva:reserva_id ( ${RESERVA_LINHA} ),
+  pedido_avulso ( titulo, valor_ajuste, motivo_ajuste, formas_permitidas, parcelas_max, reserva:reserva_id ( ${RESERVA_LINHA} ) ),
+  pedido_item ( descricao, quantidade, valor_total, tipo, ordem ),
   pagamento ( id, forma_pagamento, status, numero_parcelas, ambiente, valor_tarifa, valor_liquido,
               asaas_payment_id, criado_em, recebido_em, credito_previsto_em,
               pagamento_cartao ( bandeira, ultimos_digitos ) ),
@@ -67,10 +75,16 @@ async function clausulasDaBusca(q: string): Promise<string[]> {
   const clausulas: string[] = [];
   const numero = q.replace(/^#/, '');
   if (/^\d{1,12}$/.test(numero)) clausulas.push(`numero.eq.${numero}`);
-  if (UUID.test(q)) clausulas.push(`id.eq.${q}`, `reserva_id.eq.${q}`, `cliente_id.eq.${q}`, `gestor_id.eq.${q}`);
+  if (UUID.test(q)) {
+    clausulas.push(`id.eq.${q}`, `reserva_id.eq.${q}`, `cliente_id.eq.${q}`, `gestor_id.eq.${q}`);
+    // Cobranças avulsas da reserva informada.
+    const { data: avulsasDaReserva } = await supabaseAdmin.from('pedido_avulso').select('pedido_id').eq('reserva_id', q).limit(200);
+    const ids = (avulsasDaReserva ?? []).map((a) => a.pedido_id);
+    if (ids.length) clausulas.push(`id.in.(${ids.join(',')})`);
+  }
   if (q.length < 2) return clausulas;
 
-  const [usuarios, reservas, pagamentos, descontos] = await Promise.all([
+  const [usuarios, reservas, pagamentos, descontos, titulos, itens] = await Promise.all([
     supabaseAdmin.from('users').select('id').or(`name.ilike.%${q}%,email.ilike.%${q}%`).limit(200),
     supabaseAdmin.from('reserva').select('id').ilike('item_nome', `%${q}%`).limit(300),
     supabaseAdmin
@@ -79,6 +93,8 @@ async function clausulasDaBusca(q: string): Promise<string[]> {
       .or(`asaas_payment_id.ilike.%${q}%,asaas_customer_id.ilike.%${q}%,asaas_parcelamento_id.ilike.%${q}%`)
       .limit(200),
     supabaseAdmin.from('pedido_desconto').select('pedido_id').ilike('cupom_codigo', `%${q}%`).limit(200),
+    supabaseAdmin.from('pedido_avulso').select('pedido_id').ilike('titulo', `%${q}%`).limit(200),
+    supabaseAdmin.from('pedido_item').select('pedido_id').ilike('descricao', `%${q}%`).limit(200),
   ]);
 
   const idsUsuarios = (usuarios.data ?? []).map((u) => u.id);
@@ -86,8 +102,16 @@ async function clausulasDaBusca(q: string): Promise<string[]> {
     clausulas.push(`cliente_id.in.(${idsUsuarios.join(',')})`, `gestor_id.in.(${idsUsuarios.join(',')})`);
   }
   const idsReservas = (reservas.data ?? []).map((r) => r.id);
-  if (idsReservas.length) clausulas.push(`reserva_id.in.(${idsReservas.join(',')})`);
-  const idsPedidos = [...new Set([...(pagamentos.data ?? []), ...(descontos.data ?? [])].map((p) => p.pedido_id))];
+  let avulsasDasReservas: { pedido_id: string }[] = [];
+  if (idsReservas.length) {
+    clausulas.push(`reserva_id.in.(${idsReservas.join(',')})`);
+    const { data } = await supabaseAdmin.from('pedido_avulso').select('pedido_id').in('reserva_id', idsReservas).limit(300);
+    avulsasDasReservas = data ?? [];
+  }
+  const idsPedidos = [...new Set(
+    [...(pagamentos.data ?? []), ...(descontos.data ?? []), ...(titulos.data ?? []), ...(itens.data ?? []), ...avulsasDasReservas]
+      .map((p) => p.pedido_id),
+  )];
   if (idsPedidos.length) clausulas.push(`id.in.(${idsPedidos.join(',')})`);
   return clausulas;
 }
@@ -101,6 +125,7 @@ export type IndicadoresPedidos = {
   tarifas: number; // tarifa do Asaas dos pagamentos pagos
   margem: number; // comissão líquida − tarifas
   aRepassar: number; // valor dos itens dos pagos (gestores)
+  avulsas: { qtd: number; pagas: number; valorPago: number }; // cobranças avulsas (SPEC §34.16)
 };
 
 const PAGO: PedidoStatus[] = ['pago', 'reembolsado_parcial', 'em_disputa'];
@@ -115,8 +140,16 @@ function calcularIndicadores(linhas: PedidoLinha[]): IndicadoresPedidos {
     tarifas: 0,
     margem: 0,
     aRepassar: 0,
+    avulsas: { qtd: 0, pagas: 0, valorPago: 0 },
   };
   for (const p of linhas) {
+    if (p.tipo === 'avulso') {
+      r.avulsas.qtd++;
+      if (PAGO.includes(p.status)) {
+        r.avulsas.pagas++;
+        r.avulsas.valorPago += Number(p.valor_total);
+      }
+    }
     if (p.status === 'aguardando_pagamento') {
       r.aguardando.qtd++;
       r.aguardando.valor += Number(p.valor_total);
@@ -160,6 +193,7 @@ export async function buscarPedidos(
     query = query.or(clausulas.join(','));
   }
   if (f.status) query = query.eq('status', f.status);
+  if (f.tipo) query = query.eq('tipo', f.tipo);
   if (f.de) query = query.gte('criado_em', `${f.de}T00:00:00-03:00`);
   if (f.ate) query = query.lte('criado_em', `${f.ate}T23:59:59-03:00`);
 
@@ -169,7 +203,21 @@ export async function buscarPedidos(
     return vazio;
   }
 
-  let linhas = (data ?? []) as unknown as PedidoLinha[];
+  type Bruta = Omit<PedidoLinha, 'avulso' | 'itens'> & {
+    pedido_avulso: (NonNullable<PedidoLinha['avulso']> & { reserva: PedidoLinha['reserva'] }) | (NonNullable<PedidoLinha['avulso']> & { reserva: PedidoLinha['reserva'] })[] | null;
+    pedido_item: (PedidoLinha['itens'][number] & { ordem: number })[];
+  };
+  // Cobrança avulsa: a reserva de origem ocupa o lugar de `reserva` (item, data, pessoas na lista).
+  let linhas: PedidoLinha[] = ((data ?? []) as unknown as Bruta[]).map(({ pedido_avulso, pedido_item, ...p }) => {
+    const pa = Array.isArray(pedido_avulso) ? (pedido_avulso[0] ?? null) : pedido_avulso;
+    const { reserva: reservaOrigem, ...avulso } = pa ?? { reserva: null };
+    return {
+      ...p,
+      reserva: p.tipo === 'avulso' ? reservaOrigem ?? null : p.reserva,
+      avulso: p.tipo === 'avulso' && pa ? (avulso as NonNullable<PedidoLinha['avulso']>) : null,
+      itens: [...(pedido_item ?? [])].sort((a, b) => a.ordem - b.ordem),
+    };
+  });
   // Forma de pagamento: pedidos com ao menos uma tentativa nessa forma.
   if (f.forma) linhas = linhas.filter((p) => p.pagamento.some((pg) => pg.forma_pagamento === f.forma));
 

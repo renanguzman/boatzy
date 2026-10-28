@@ -3,7 +3,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 import {
   ArrowLeft, Receipt, User, Anchor, MapPin, Ship, CalendarDays, Users, CreditCard, QrCode, FlaskConical,
-  Wallet, History, Webhook, TicketPercent, ShieldCheck, StickyNote, ExternalLink, ShoppingCart, Percent,
+  Wallet, History, Webhook, TicketPercent, ShieldCheck, StickyNote, ExternalLink, ShoppingCart, Percent, HandCoins,
 } from 'lucide-react';
 import { createClient } from '@/lib/supabase/server';
 import { formatCurrencyPrecise } from '@/lib/utils';
@@ -119,18 +119,42 @@ function montarLinhaDoTempo(d: DetalhePedido): ItemTempo[] {
   const itens: ItemTempo[] = [];
   const r = d.reserva;
   const p = d.pedido;
-  if (r) {
+  const avulso = p.tipo === 'avulso';
+  if (r && !avulso) {
     itens.push({ em: r.solicitado_em, titulo: 'Reserva solicitada', detalhe: `${r.item_nome} · ${r.quantidade_pessoas} pessoa(s)`, origem: 'cliente' });
     for (const a of d.aceites) {
       itens.push({ em: a.aceito_em, titulo: `Termo da reserva aceito (v${a.termo_versao})`, detalhe: `Protocolo ${a.evidencia_hash.slice(0, 12).toUpperCase()}`, origem: 'cliente' });
     }
   }
-  itens.push({
-    em: r?.aceita_em ?? p.criado_em,
-    titulo: `Gestor aceitou — pedido #${p.numero} gerado`,
-    detalhe: `Total ${brl(p.valor_total)} · prazo inicial para pagar calculado a partir do aceite`,
-    origem: 'gestor',
-  });
+  itens.push(
+    avulso
+      ? {
+          em: p.criado_em,
+          titulo: `${d.avulso?.criadoPor?.name ?? 'Gestor'} emitiu a cobrança avulsa #${p.numero}`,
+          detalhe: `${d.avulso?.config.titulo ?? ''} · total ${brl(p.valor_total)} · prazo ${dh(p.expira_em)}`,
+          origem: 'gestor',
+        }
+      : {
+          em: r?.aceita_em ?? p.criado_em,
+          titulo: `Gestor aceitou — pedido #${p.numero} gerado`,
+          detalhe: `Total ${brl(p.valor_total)} · prazo inicial para pagar calculado a partir do aceite`,
+          origem: 'gestor',
+        },
+  );
+  // Rastreio de negócio (pedido_evento) que não aparece nos outros registros.
+  for (const e of d.eventosPedido) {
+    const dados = (e.dados ?? {}) as Record<string, unknown>;
+    const titulo = EVENTO_PEDIDO_LABEL[e.evento];
+    if (!titulo) continue;
+    if (e.evento === 'cancelado' && e.ator_papel !== 'gestor') continue; // já vem de cancelado_em
+    itens.push({
+      em: e.criado_em,
+      titulo: e.evento === 'link_copiado' && dados.canal === 'whatsapp' ? 'Gestor enviou o link pelo WhatsApp' : titulo,
+      detalhe: [e.ator?.name, typeof dados.para === 'string' ? dados.para : null, typeof dados.motivo === 'string' ? dados.motivo : null]
+        .filter(Boolean).join(' · ') || undefined,
+      origem: e.ator_papel === 'gestor' ? 'gestor' : e.ator_papel === 'cliente' ? 'cliente' : e.ator_papel === 'admin' ? 'admin' : 'sistema',
+    });
+  }
   d.pagamentos.forEach((pg, i) => {
     for (const t of pg.pagamento_transacao) {
       itens.push({
@@ -144,11 +168,18 @@ function montarLinhaDoTempo(d: DetalhePedido): ItemTempo[] {
       itens.push({ em: e.solicitado_em, titulo: `Estorno ${ESTORNO_STATUS[e.status].label.toLowerCase()}`, detalhe: `${brl(e.valor)} · ${e.motivo}`, origem: e.origem === 'admin' ? 'admin' : 'gateway' });
     }
   });
-  if (p.pago_em) itens.push({ em: p.pago_em, titulo: 'Pedido pago — reserva confirmada', detalhe: 'E-mails de confirmação enviados ao cliente e ao gestor', origem: 'sistema' });
-  if (p.cancelado_em) {
-    itens.push({ em: p.cancelado_em, titulo: p.status === 'expirado' ? 'Pedido expirado — data liberada' : 'Pedido cancelado', detalhe: p.motivo_cancelamento ?? undefined, origem: 'sistema' });
+  if (p.pago_em) {
+    itens.push({ em: p.pago_em, titulo: avulso ? 'Cobrança avulsa paga' : 'Pedido pago — reserva confirmada', detalhe: 'E-mails de confirmação enviados ao cliente e ao gestor', origem: 'sistema' });
   }
-  if (r?.cancelada_em) itens.push({ em: r.cancelada_em, titulo: 'Cliente cancelou a reserva', origem: 'cliente' });
+  if (p.cancelado_em) {
+    itens.push({
+      em: p.cancelado_em,
+      titulo: p.status === 'expirado' ? (avulso ? 'Cobrança expirada' : 'Pedido expirado — data liberada') : avulso ? 'Cobrança cancelada' : 'Pedido cancelado',
+      detalhe: p.motivo_cancelamento ?? undefined,
+      origem: 'sistema',
+    });
+  }
+  if (r?.cancelada_em && !avulso) itens.push({ em: r.cancelada_em, titulo: 'Cliente cancelou a reserva', origem: 'cliente' });
   for (const a of d.auditoria) {
     itens.push({
       em: a.criado_em,
@@ -159,6 +190,16 @@ function montarLinhaDoTempo(d: DetalhePedido): ItemTempo[] {
   }
   return itens.sort((a, b) => a.em.localeCompare(b.em));
 }
+
+/** Eventos de `pedido_evento` mostrados na linha do tempo (os demais já vêm de outros registros). */
+const EVENTO_PEDIDO_LABEL: Record<string, string> = {
+  link_copiado: 'Gestor copiou o link da cobrança',
+  visualizado: 'Cliente abriu a página da cobrança',
+  email_enviado: 'E-mail da cobrança enviado ao cliente',
+  cancelado: 'Gestor cancelou a cobrança',
+};
+
+const TIPO_ITEM_LABEL: Record<string, string> = { produto: 'Produto', servico: 'Serviço', taxa: 'Taxa', outro: 'Outro' };
 
 // ─── Pagamento (tentativa) ──────────────────────────────────────────────────
 
@@ -365,8 +406,9 @@ export default async function AdminPedidoDetalhePage({ params }: { params: Promi
           </div>
           <div>
             <div className="flex flex-wrap items-center gap-2">
-              <h1 className="text-2xl font-bold text-[#0B2447]">Pedido #{p.numero}</h1>
+              <h1 className="text-2xl font-bold text-[#0B2447]">{d.avulso ? 'Cobrança avulsa' : 'Pedido'} #{p.numero}</h1>
               <Badge cls={PEDIDO_STATUS[p.status].cls}>{PEDIDO_STATUS[p.status].label}</Badge>
+              {d.avulso && <Badge cls="bg-sky-50 text-sky-700"><HandCoins className="w-3 h-3 inline -mt-0.5 mr-1" />Avulsa</Badge>}
               {r && <Badge cls={RESERVA_STATUS[r.status].cls}>Reserva: {RESERVA_STATUS[r.status].label}</Badge>}
               {ambientes.includes('sandbox') && (
                 <Badge cls="bg-amber-50 text-amber-700"><FlaskConical className="w-3 h-3 inline -mt-0.5 mr-1" />Sandbox</Badge>
@@ -385,18 +427,79 @@ export default async function AdminPedidoDetalhePage({ params }: { params: Promi
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
         {/* Coluna principal */}
         <div className="xl:col-span-2 space-y-6">
+          {/* Cobrança avulsa — configuração do gestor e itens discriminados (SPEC §34.16) */}
+          {d.avulso && (
+            <Card
+              titulo="Cobrança avulsa"
+              icon={HandCoins}
+              extra={
+                d.avulso.pedidoReserva ? (
+                  <Link href={`/administrator/pedidos/${d.avulso.pedidoReserva.id}`} className="text-xs font-semibold text-[#0B3D91] hover:underline">
+                    Pedido da reserva #{d.avulso.pedidoReserva.numero}
+                  </Link>
+                ) : <span className="text-[11px] text-slate-400">Reserva sem pedido no Boatzy</span>
+              }
+            >
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <div className="col-span-2"><Campo label="Título">{d.avulso.config.titulo}</Campo></div>
+                <Campo label="Emitida por">{d.avulso.criadoPor ? `${d.avulso.criadoPor.name} (${d.avulso.criadoPor.email})` : '—'}</Campo>
+                <Campo label="Emitida em">{dh(d.avulso.config.criado_em)}</Campo>
+                <Campo label="Formas permitidas">{d.avulso.config.formas_permitidas.map((f) => FORMA_LABEL[f]).join(' · ')}</Campo>
+                <Campo label="Parcelas (máx.)">{d.avulso.config.parcelas_max}x</Campo>
+                <Campo label="Link copiado pelo gestor">{dh(d.avulso.config.link_copiado_em)}</Campo>
+                <Campo label="Aberta pelo cliente">{dh(d.avulso.config.visualizado_em)}</Campo>
+                {d.avulso.config.mensagem_cliente && (
+                  <div className="col-span-2 md:col-span-4"><Campo label="Recado ao cliente">{d.avulso.config.mensagem_cliente}</Campo></div>
+                )}
+                <div className="col-span-2 md:col-span-4">
+                  <Campo label="Link do cliente (exige login)"><CopiarValor valor={`${(process.env.NEXT_PUBLIC_APP_URL ?? 'https://boatzy.app').trim().replace(/\/+$/, '')}/cobrancas/${p.id}`} /></Campo>
+                </div>
+              </div>
+              <div className="mt-5 overflow-x-auto">
+                <table className="w-full text-left text-xs">
+                  <thead>
+                    <tr className="text-slate-400 border-b border-slate-100">
+                      <th className="py-1.5 pr-3">Item</th><th className="py-1.5 pr-3">Tipo</th><th className="py-1.5 pr-3">Origem</th>
+                      <th className="py-1.5 pr-3 text-right">Qtd.</th><th className="py-1.5 pr-3 text-right">Unitário</th><th className="py-1.5 text-right">Total</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {d.avulso.itens.map((i) => (
+                      <tr key={i.id} className="border-b border-slate-50">
+                        <td className="py-1.5 pr-3 text-slate-700">{i.descricao}</td>
+                        <td className="py-1.5 pr-3">{TIPO_ITEM_LABEL[i.tipo] ?? i.tipo}</td>
+                        <td className="py-1.5 pr-3">{i.origem === 'catalogo' ? 'Catálogo' : 'Livre'}</td>
+                        <td className="py-1.5 pr-3 text-right">{Number(i.quantidade).toLocaleString('pt-BR')}</td>
+                        <td className="py-1.5 pr-3 text-right">{brl(i.valor_unitario)}</td>
+                        <td className="py-1.5 text-right font-medium">{brl(i.valor_total)}</td>
+                      </tr>
+                    ))}
+                    <tr><td colSpan={5} className="py-1.5 pr-3 text-right text-slate-500">Soma dos itens</td><td className="py-1.5 text-right">{brl(d.avulso.config.valor_calculado)}</td></tr>
+                    {Number(d.avulso.config.valor_ajuste) !== 0 && (
+                      <tr>
+                        <td colSpan={5} className="py-1.5 pr-3 text-right text-slate-500">Ajuste do gestor{d.avulso.config.motivo_ajuste ? ` — ${d.avulso.config.motivo_ajuste}` : ''}</td>
+                        <td className="py-1.5 text-right">{Number(d.avulso.config.valor_ajuste) > 0 ? '+' : ''}{brl(d.avulso.config.valor_ajuste)}</td>
+                      </tr>
+                    )}
+                    <tr><td colSpan={5} className="py-1.5 pr-3 text-right font-semibold text-[#0B2447]">Valor do gestor</td><td className="py-1.5 text-right font-semibold text-[#0B2447]">{brl(p.valor_itens)}</td></tr>
+                  </tbody>
+                </table>
+              </div>
+            </Card>
+          )}
+
           {/* Resumo financeiro */}
           <Card titulo="Resumo financeiro" icon={Wallet}>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-x-10">
               <div>
                 <p className="text-[10px] font-bold text-slate-400 tracking-wider uppercase mb-1">O que o cliente paga</p>
-                {r && r.preco_base != null && (
+                {r && !d.avulso && r.preco_base != null && (
                   <Linha
                     label={`${MODALIDADE_LABEL[r.modalidade_preco] ?? 'Preço'}${multiplicador > 1 ? ` (${brl(r.preco_base)} × ${multiplicador})` : ''}`}
                     valor={brl(Number(r.preco_base) * multiplicador)}
                   />
                 )}
-                {r && Number(r.total_adicionais) > 0 && <Linha label="Adicionais" valor={brl(r.total_adicionais)} />}
+                {r && !d.avulso && Number(r.total_adicionais) > 0 && <Linha label="Adicionais" valor={brl(r.total_adicionais)} />}
                 <Linha label="Valor dos itens (do gestor)" valor={brl(p.valor_itens)} />
                 <Linha label={`Taxa de serviço (${Number(p.comissao_percentual).toLocaleString('pt-BR', { maximumFractionDigits: 2 })}%)`} valor={brl(p.valor_comissao)} />
                 {Number(p.valor_desconto) > 0 && <Linha label="Desconto (cupom)" valor={`−${brl(p.valor_desconto)}`} cor="text-emerald-600" />}
@@ -423,7 +526,7 @@ export default async function AdminPedidoDetalhePage({ params }: { params: Promi
               <Campo label="Crédito previsto">{formatarDataCurta(pagamentoPago?.credito_previsto_em)}</Campo>
               {p.motivo_cancelamento && <div className="col-span-2 md:col-span-4"><Campo label="Motivo do encerramento">{p.motivo_cancelamento}</Campo></div>}
               <div className="col-span-2 md:col-span-4 text-xs text-slate-500">
-                Taxa congelada na solicitação: <b>{Number(p.comissao_percentual).toLocaleString('pt-BR')}%</b>
+                {d.avulso ? 'Taxa da reserva aplicada à cobrança' : 'Taxa congelada na solicitação'}: <b>{Number(p.comissao_percentual).toLocaleString('pt-BR')}%</b>
                 {d.taxaAtualGestor && (
                   <> · taxa que valeria hoje para este gestor: <b>{d.taxaAtualGestor.percent.toLocaleString('pt-BR')}%</b> ({d.taxaAtualGestor.origem === 'especifica' ? 'específica' : 'geral'})</>
                 )}
@@ -577,7 +680,18 @@ export default async function AdminPedidoDetalhePage({ params }: { params: Promi
                   </Campo>
                 )}
                 {r.observacao_gestor && <Campo label="Observação do gestor ao cliente">{r.observacao_gestor}</Campo>}
-                {d.aceites.map((a) => (
+                {d.avulsasVinculadas.length > 0 && (
+                  <div className="rounded-lg bg-sky-50/60 border border-sky-100 p-3">
+                    <p className="flex items-center gap-1.5 text-xs font-semibold text-sky-800 mb-1.5"><HandCoins className="w-3.5 h-3.5" /> Cobranças avulsas ({d.avulsasVinculadas.length})</p>
+                    {d.avulsasVinculadas.map((a) => (
+                      <Link key={a.id} href={`/administrator/pedidos/${a.id}`} className="flex justify-between gap-2 text-xs text-slate-600 hover:text-[#0B3D91] py-0.5">
+                        <span className="min-w-0 truncate">#{a.numero} · {a.titulo}</span>
+                        <span className="shrink-0">{brl(a.valor_total)} · {PEDIDO_STATUS[a.status as keyof typeof PEDIDO_STATUS]?.label ?? a.status}</span>
+                      </Link>
+                    ))}
+                  </div>
+                )}
+                {!d.avulso && d.aceites.map((a) => (
                   <Link key={a.id} href={`/administrator/termos/aceites/${a.id}`}
                     className="flex items-center gap-2 rounded-lg border border-emerald-100 bg-emerald-50/50 px-3 py-2 text-xs text-emerald-800 hover:bg-emerald-50">
                     <ShieldCheck className="w-4 h-4" /> Termo da reserva aceito (v{a.termo_versao}) em {dh(a.aceito_em)} · ver evidências
@@ -587,7 +701,7 @@ export default async function AdminPedidoDetalhePage({ params }: { params: Promi
             )}
           </Card>
 
-          <Card titulo="Descontos e cupom" icon={TicketPercent}>
+          {!d.avulso && <Card titulo="Descontos e cupom" icon={TicketPercent}>
             {d.descontos.length === 0 ? (
               <p className="text-sm text-slate-400">Sem desconto.</p>
             ) : (
@@ -614,7 +728,7 @@ export default async function AdminPedidoDetalhePage({ params }: { params: Promi
                 <p className="text-[11px] text-slate-400">O desconto sai só da taxa de serviço (limitado a ela).</p>
               </div>
             )}
-          </Card>
+          </Card>}
 
           <Card titulo={`Anotações internas (${anotacoes.length})`} icon={StickyNote}>
             {anotacoes.length === 0 ? (

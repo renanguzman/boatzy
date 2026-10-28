@@ -51,14 +51,20 @@ export default async function AdminPedidosPage({ searchParams }: { searchParams:
         <div>
           <h1 className="text-2xl font-bold text-[#0B2447]">Pedidos</h1>
           <p className="text-sm text-slate-500">
-            Todos os pedidos da plataforma — cliente, gestor, reserva, pagamentos e transações no Asaas.
+            Todos os pedidos da plataforma — de reserva e cobranças avulsas dos gestores —, com cliente, gestor, reserva, pagamentos e transações no Asaas.
             Os indicadores seguem os filtros aplicados.
           </p>
         </div>
       </div>
 
       <div className="grid grid-cols-2 lg:grid-cols-4 xl:grid-cols-8 gap-3 mb-6">
-        <Indicador label="Pedidos" valor={String(k.total)} sub={`${k.encerrados} expirado(s)/cancelado(s)`} icon={Receipt} cor="text-slate-400" />
+        <Indicador
+          label="Pedidos"
+          valor={String(k.total)}
+          sub={`${k.encerrados} expirado(s)/cancelado(s) · ${k.avulsas.qtd} avulsa(s), ${k.avulsas.pagas} paga(s)`}
+          icon={Receipt}
+          cor="text-slate-400"
+        />
         <Indicador label="Aguardando" valor={String(k.aguardando.qtd)} sub={brl(k.aguardando.valor)} icon={Hourglass} cor="text-violet-500" />
         <Indicador label="Pagos" valor={String(k.pagos.qtd)} sub="pago, reembolso parcial ou disputa" icon={BadgeCheck} cor="text-emerald-500" />
         <Indicador label="Recebido (GMV)" valor={brl(k.pagos.valor)} sub="total pago pelos clientes" icon={TrendingUp} cor="text-emerald-500" />

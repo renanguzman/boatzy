@@ -6,6 +6,7 @@ import { getTranslations } from 'next-intl/server';
 import { createClient } from '@/lib/supabase/server';
 import { supabaseAdmin } from '@/lib/supabase';
 import { cancelarPedidoAguardando } from '@/lib/pagamentos/pedidos';
+import { cancelarAvulsasDaReserva } from '@/lib/pagamentos/avulso';
 import { emailReservaCancelada } from '@/lib/emails/reserva-cliente';
 import { emailGestorReservaCancelada } from '@/lib/emails/reserva-gestor';
 
@@ -48,6 +49,13 @@ export async function cancelarReserva(reservaId: string): Promise<ActionResult> 
   if (reserva.status === 'aguardando_pagamento') {
     const cancelamento = await cancelarPedidoAguardando(reservaId, 'Cancelado pelo cliente');
     if (!cancelamento.ok) return { ok: false, error: cancelamento.erro ?? t('naoFoiPossivelAgora') };
+  }
+
+  // Cobranças avulsas do gestor (SPEC §34.16): as em aberto são encerradas; se alguma já foi paga, a
+  // reserva só é cancelada com reembolso (Fase 2).
+  if (reserva.status === 'confirmada') {
+    const avulsas = await cancelarAvulsasDaReserva(reservaId, 'Reserva cancelada pelo cliente');
+    if (!avulsas.ok) return { ok: false, error: avulsas.temPaga ? t('pagaNaoCancela') : t('naoFoiPossivelAgora') };
   }
 
   const { error } = await supabaseAdmin

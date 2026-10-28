@@ -14,6 +14,7 @@ import { createClient } from '@/lib/supabase/server';
 import { supabaseAdmin } from '@/lib/supabase';
 import { concluirReservasVencidas } from '@/lib/reservas';
 import { expirarPedidosVencidosSemFalhar } from '@/lib/pagamentos/pedidos';
+import { resumoAvulsasPorReserva } from '@/lib/pagamentos/avulso';
 import { getFormatos } from '@/i18n/formatos-servidor';
 import type { ReservaStatus, AvaliacaoStatus, PedidoStatus } from '@/types/supabase';
 import CancelarReservaButton from './_components/CancelarReservaButton';
@@ -99,6 +100,7 @@ export default async function MinhasReservasPage() {
     getTranslations('Chat'),
     getFormatos(),
   ]);
+  const tCob = await getTranslations('Cobranca');
   const formatData = (iso: string, flex: number | null) => {
     const label = f.data(iso, { weekday: 'long', day: '2-digit', month: 'long', year: 'numeric' });
     return flex && flex > 0 ? t('dataFlex', { data: label, count: flex }) : label;
@@ -125,6 +127,10 @@ export default async function MinhasReservasPage() {
     .order('solicitado_em', { ascending: false });
 
   const reservas = (data ?? []) as unknown as ReservaCliente[];
+  // Cobranças avulsas em aberto por reserva (SPEC §34.16).
+  const avulsas = await resumoAvulsasPorReserva(
+    reservas.filter((r) => r.status === 'confirmada' || r.status === 'concluida').map((r) => r.id),
+  );
 
   // Mensagens de chat não lidas por gestor (enviadas pelo gestor ao cliente).
   const { data: naoLidasRows } = await supabaseAdmin.rpc('chat_nao_lidas_por_gestor', {
@@ -312,6 +318,24 @@ export default async function MinhasReservasPage() {
                         {pedido.pago_em && ` · ${f.dataHora(pedido.pago_em)}`}
                         <Link href={`/minhas-reservas/${r.id}#comprovante`} className="font-semibold text-marinho hover:underline">
                           {tPag('verComprovante')}
+                        </Link>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Cobranças avulsas do proprietário em aberto */}
+                  {(avulsas[r.id]?.abertas ?? 0) > 0 && (
+                    <div className="px-4 pb-4">
+                      <div className="rounded-xl border border-violet-200 bg-violet-50 p-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                        <p className="text-sm font-semibold text-violet-800">
+                          {tCob('pendentes', { count: avulsas[r.id].abertas })}
+                        </p>
+                        <Link
+                          href={`/minhas-reservas/${r.id}`}
+                          className="inline-flex items-center justify-center gap-1.5 rounded-xl bg-marinho hover:bg-marinho-escuro px-4 py-2.5 text-sm font-semibold text-white transition-colors whitespace-nowrap"
+                        >
+                          <CreditCard className="h-4 w-4" />
+                          {tCob('pagar', { valor: f.moedaCentavos(avulsas[r.id].valorAberto) })}
                         </Link>
                       </div>
                     </div>

@@ -69,7 +69,8 @@ export default function ReceitasView({ reservas }: { reservas: ReservaReceita[] 
 
   const kpis = useMemo(() => {
     const receita = sum(filtered);
-    const totalReservas = filtered.length;
+    // Cobranças avulsas somam na receita, mas não contam como reserva.
+    const totalReservas = filtered.filter((r) => !r.avulsa).length;
     const ticketMedio = totalReservas > 0 ? receita / totalReservas : 0;
 
     // Valor pendente: informativo, sempre relativo a 'pendente' — independe do
@@ -148,7 +149,7 @@ export default function ReceitasView({ reservas }: { reservas: ReservaReceita[] 
       if (!r.cliente) continue;
       const cur = map.get(r.cliente.id) ?? { nome: r.cliente.name, valor: 0, reservas: 0 };
       cur.valor += r.total_estimado ?? 0;
-      cur.reservas += 1;
+      if (!r.avulsa) cur.reservas += 1;
       map.set(r.cliente.id, cur);
     }
     return [...map.values()].sort((a, b) => b.valor - a.valor).slice(0, 8);
@@ -159,7 +160,7 @@ export default function ReceitasView({ reservas }: { reservas: ReservaReceita[] 
       <div className="mb-6">
         <h1 className="text-xl sm:text-2xl font-bold text-[#0B2447]">Receitas</h1>
         <p className="text-sm text-slate-500 mt-1">
-          Visão financeira das suas reservas — filtre por período, embarcação, roteiro ou cliente.
+          Visão financeira das suas reservas e cobranças adicionais pagas — filtre por período, embarcação, roteiro ou cliente.
         </p>
       </div>
 

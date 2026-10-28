@@ -4867,6 +4867,7 @@ implementado**.
 | 1.2 — Aceite → pedido → cobrança | Status novos da reserva, aceite gera pedido, página de pagamento do cliente | ✅ 30/09/2026 |
 | 1.3 — Confirmação por webhook | Handlers `PAYMENT_*`, pedido pago → reserva confirmada, expiração, e-mails | ✅ 30/09/2026 (ledger adiado para a Fase 3) |
 | 1.4 — Admin: Pedidos | Menu Pedidos: lista com indicadores/filtros/exportação + detalhe completo com controles do admin | ✅ 30/09/2026 |
+| Cobrança avulsa | Gestor cobra à parte após a reserva (pedido `tipo = 'avulso'`), página `/cobrancas/[id]`, admin discriminado — §34.16 | ✅ 29/10/2026 |
 | 2 — Cancelamento e estornos | Política configurável, estornos | 🔜 |
 | 3 — Repasses | Recebedor, job de repasse, validação de saque | 🔜 (depende de D1–D4) |
 | 4 — Controle total | Dashboard, conciliação, disputas, auditoria | 🔜 |
@@ -5039,8 +5040,11 @@ valor_total numeric(12,2)        -- CHECK = GREATEST(0, itens + comissão − de
 status text DEFAULT 'aguardando_pagamento'  -- aguardando_pagamento | pago | expirado | cancelado |
                                             -- reembolsado | reembolsado_parcial | em_disputa
 expira_em, pago_em, cancelado_em timestamptz | motivo_cancelamento text | criado_em | atualizado_em
+tipo text DEFAULT 'reserva'      -- 'reserva' | 'avulso' (migration 20261029 — §34.16)
 ```
-Índices: `(cliente_id, criado_em DESC)`, `(gestor_id, criado_em DESC)`, `(status, expira_em)`.
+Índices: `(cliente_id, criado_em DESC)`, `(gestor_id, criado_em DESC)`, `(status, expira_em)`, `(tipo, status)`.
+Desde 29/10/2026 `reserva_id` é **NULL no pedido avulso** (CHECK `(tipo = 'reserva') = (reserva_id IS NOT
+NULL)`) e continua UNIQUE: os embeds `reserva → pedido(...)` seguem 1:1 e nunca trazem cobranças avulsas.
 
 **`pedido_desconto`** — `pedido_id` FK CASCADE; `tipo` `cupom|manual|promocional`; `cupom_id` FK
 `cupom` SET NULL (+ `cupom_codigo` snapshot, obrigatório se `tipo = 'cupom'`); `descricao`;
@@ -5179,10 +5183,14 @@ Com a chave desligada, o aceite confirma direto (fluxo anterior). `definirAtende
 
 **Checkout — `src/lib/pagamentos/checkout.ts`**
 
-`iniciarPagamento({ reservaId, userId, forma, parcelas, cpf? })` → Pix `{ imagem, payload, expiraEm }`
-ou cartão `{ faturaUrl }`. Valida pedido (do cliente, `aguardando_pagamento`, dentro do prazo, ≥ R$5),
-forma ativa e parcelas permitidas (`opcoesParcelas`: 1..`parcelas_max`, respeitando o valor mínimo
-por parcela e R$5 por parcela). Recusa se já há pagamento confirmado. Reaproveita a cobrança
+`iniciarPagamento({ pedidoId, userId, forma, parcelas, cpf? })` (desde 29/10/2026 por **pedido** — da
+reserva ou avulso) → Pix `{ imagem, payload, expiraEm }` ou cartão `{ faturaUrl }`. Valida pedido (do
+cliente, `aguardando_pagamento`, dentro do prazo, ≥ R$5), forma e parcelas permitidas por
+`formasPermitidasDoPedido(formas, pedido)` (formas ativas; no avulso ∩ `pedido_avulso.formas_permitidas`
+e parcelas ≤ `min(global, pedido_avulso.parcelas_max)`; `opcoesParcelas`: 1..máx, respeitando o valor
+mínimo por parcela e R$5 por parcela). `caminhoPagamentoPedido(pedido)` dá a página de retorno do
+cartão (`/reservas/[id]/pagar` ou `/cobrancas/[id]`); descrição no Asaas do avulso: `Boatzy · Cobrança
+#N · <título> · ref. <item> <data>`. Grava `pedido_evento('cobranca_gerada')`. Recusa se já há pagamento confirmado. Reaproveita a cobrança
 pendente da mesma forma/parcelas; senão remove as pendentes (`cancelarCobrancasPendentes`) e cria
 outra. CPF: `users.cpf_cnpj` válido ou o informado (validado e salvo). Grava o `pagamento` **antes**
 da cobrança (`externalReference = pagamento.id`); em timeout/erro de rede consulta o Asaas pela
@@ -5228,8 +5236,9 @@ o QR do Pix pendente para a página já abrir com ele.
 
 ### 34.12 Telas
 
-- **Cliente — `/reservas/[id]/pagar`** (`page.tsx` + `actions.ts` [`pagarReserva`,
-  `consultarStatusPedido`] + `_components/CheckoutPagamento.tsx`): resumo (itens, taxa com %, desconto
+- **Cliente — `/reservas/[id]/pagar`** (`page.tsx` + `src/lib/pagamentos/actions-cliente.ts`
+  [`pagarPedido({ pedidoId, … })`, `consultarStatusPedido(pedidoId)`] + `src/components/pagamento/
+  CheckoutPagamento.tsx` [props `pedidoId`, `caminho`], compartilhados com `/cobrancas/[id]` — §34.16): resumo (itens, taxa com %, desconto
   do cupom, total, nº do pedido); prazo com contagem regressiva; escolha Pix/cartão (formas ativas);
   CPF quando falta no cadastro; parcelas quando o limite > 1. Pix: QR (base64) + copia e cola +
   acompanhamento a cada 5s no **nosso banco** até o webhook confirmar. Cartão: redireciona para a
@@ -5342,6 +5351,117 @@ eventoId, ocorridoEm})` (usada pelo webhook e pela sincronização; com `evento 
 `expirarPedido(pedidoId, motivo)` (o lote `expirarPedidosVencidos` usa essa função) e
 `dadosParaEmail`; `src/lib/asaas/cobrancas.ts` ganhou `listarCobrancasDoParcelamento`; tipos com a
 relação `pagamento_estorno → pagamento`.
+
+### 34.16 Cobrança avulsa do gestor (29/10/2026)
+
+Depois da reserva confirmada/concluída, o gestor cobra do cliente um valor extra (produto/serviço do
+catálogo ou item livre). A cobrança é um **`pedido` de tipo `'avulso'`**: `pagamento`, `pagamento_transacao`,
+parcelas, cartão, estornos, webhook (`tratarEventoCobranca` localiza pelo `pagamento`), cron de expiração e
+Admin → Pedidos funcionam iguais. A reserva **nunca** é alterada pela avulsa.
+
+**Decisões (PRD §6.6):** D1 comissão = `reserva.taxa_percent` (ou `getTaxaEfetiva`) somada e paga pelo
+cliente, desligável em `financeiro_config.avulso_cobrar_comissao` (mesma conta do pedido: reais inteiros);
+D2 parcelas ≤ `forma_pagamento.parcelas_max` global (e valor mínimo por parcela); D3 emissão em reserva
+`confirmada`/`concluida` até `avulso_dias_apos_passeio` (30) dias após `coalesce(data_fim_reserva,
+data_reserva)`; D4 link exige login do cliente do pedido (outro usuário → 404); D5 imutável — cancela e
+emite outra; D6 só `reserva.owner_id`. Limites: `MAX_AVULSAS_ABERTAS = 10` por reserva, `MAX_ITENS_AVULSO =
+30`, mínimo R$ 5,00 (Asaas).
+
+#### Migration `20261029_cobranca_avulsa.sql`
+
+- `pedido.tipo` (`'reserva' | 'avulso'`, DEFAULT `'reserva'`), `reserva_id` NULLável + CHECK
+  `pedido_tipo_reserva_coerente`; índice `(tipo, status)`.
+- `financeiro_config`: `avulso_prazo_padrao_horas` (72, 1–1440), `avulso_prazo_max_dias` (15, 1–60),
+  `avulso_dias_apos_passeio` (30, 0–365), `avulso_cobrar_comissao` (true).
+- **`pedido_avulso`** (1:1, `pedido_id` PK FK CASCADE): `reserva_id` NOT NULL FK RESTRICT, `titulo` (2–120),
+  `mensagem_cliente` (≤1000), `formas_permitidas text[]` (⊆ {pix, cartao_credito}, ≥1), `parcelas_max`
+  (1–12; >1 só com cartão), `valor_calculado` (soma dos itens), `valor_ajuste` (total editado − soma;
+  ≠0 exige `motivo_ajuste`), `criado_por`, `link_copiado_em`, `visualizado_em`, `criado_em`. Índice
+  `(reserva_id, criado_em DESC)`. Só uma FK para `pedido` (o pedido da reserva de origem é derivado por
+  `reserva_id`), para o embed `pedido → pedido_avulso(...)` não ficar ambíguo.
+- **`pedido_item`** (genérica): `pedido_id` FK CASCADE, `ordem`, `origem` (`catalogo|livre`), `catalogo_id`
+  FK SET NULL, `tipo` (`produto|servico|taxa|outro`), `descricao` (snapshot, 1–200), `quantidade` (>0,
+  ≤9999), `valor_unitario`, `valor_total` (CHECK = round(qtd × unit, 2) ± R$ 0,01).
+- **`pedido_evento`** (append-only — trigger `financeiro_auditoria_imutavel`): `pedido_id`, `evento`
+  (`^[a-z_]{3,40}$`), `ator_id`, `ator_papel` (`gestor|cliente|admin|sistema`), `dados jsonb`, `criado_em`.
+  Eventos: `criado`, `email_enviado`, `link_copiado` (`{canal: copiar|whatsapp}`), `visualizado`,
+  `cobranca_gerada`, `pago`, `expirado`, `cancelado`, e os de webhook `reembolsado`/`reembolsado_parcial`/
+  `em_disputa` — gravados também para o pedido da reserva.
+- RLS + **GRANTs** (AGENTS.md) nas 3 tabelas; `participante_select` (cliente ou gestor do pedido) em
+  `pedido_avulso` e `pedido_item`; `pedido_evento` só service role.
+- **RPC `criar_pedido_avulso(p_reserva_id, p_gestor_id, p_titulo, p_mensagem, p_formas, p_parcelas_max,
+  p_valor_calculado, p_valor_ajuste, p_motivo_ajuste, p_valor_itens, p_comissao_percentual, p_valor_comissao,
+  p_valor_total, p_expira_em, p_itens jsonb)` → `{ id, numero }`** — numa transação: confere dono e status
+  (`reserva_invalida`, `reserva_status_invalido`, `itens_invalidos`), grava pedido + pedido_avulso + itens +
+  `pedido_evento('criado')` e a notificação do cliente. `EXECUTE` só `service_role`; `SET timezone`.
+- Notificações: tipo **`cobranca_avulsa`** no CHECK. `trg_notificacao_pedido` ramifica no avulso (INSERT
+  não avisa; `pago` → `pagamento_aprovado` cliente `{item, numero, titulo, avulso: true}` + gestor;
+  reembolso; `expirado`/`cancelado` → `cobranca_avulsa` `{evento: expirada|cancelada, numero, titulo}` e,
+  se expirado, gestor). `trg_notificacao_pagamento` (recusa) usa link `/cobrancas/[id]` no avulso. Link do
+  cliente: `/cobrancas/<pedido_id>`; do gestor: `/painel/agendamentos/<reserva_id>`.
+- Validada em PGlite (Postgres 16): 39 cenários — criação, transação sem órfãos, CHECKs, notificações por
+  status, fluxo da reserva inalterado, append-only e RLS.
+
+#### Servidor — `src/lib/pagamentos/`
+
+- **`avulso.ts`**: `criarCobrancaAvulsa(input)` (valida posse, `motivoBloqueioAvulso`, limite de abertas,
+  título/itens, itens de catálogo só do próprio gestor — tipo vem do catálogo —, valores
+  `calcularValoresAvulso`, formas ∩ ativas, parcelas por `opcoesParcelas`, prazo 1h..`avulso_prazo_max_dias`;
+  chama a RPC e envia `emailCobrancaAvulsaCriada`), `cancelarCobrancaAvulsa({ pedidoId, ator, motivo,
+  gestorId?, avisarCliente? })` (remove cobranças no Asaas; recusa se já pago), `cancelarAvulsasDaReserva`
+  (antes de cancelar a reserva; bloqueia se houver paga/em disputa), `registrarLinkCopiado`,
+  `registrarVisualizacao`, `listarCobrancasDaReserva` (`CobrancaAvulsa[]`), `resumoAvulsasPorReserva`,
+  `limiteEmissaoAvulso`, `taxaDaCobrancaAvulsa`, `opcoesFormasAvulso`.
+- **`valores.ts`**: `totalItemAvulso`, `calcularValoresAvulso({ itens, valorFinal?, taxaPercent })` →
+  `{ valorItens, valorComissao, valorDesconto: 0, valorTotal, valorCalculado, valorAjuste }`,
+  `linhasAvulsoParaCliente` (taxa distribuída proporcionalmente nas linhas; arredondamento na última).
+- **`historico.ts`**: `registrarEventoPedido({ pedidoId, evento, atorId?, atorPapel?, dados? })`.
+- **`pedidos.ts`**: `dadosParaEmail` normalizado (`tipo`, `reserva_id`/`reserva` de origem, `avulso: {
+  pedidoId, titulo } | null`) + `baseEmailPedido(d)`; `confirmarPedidoPago` e `expirarPedido` só tocam a
+  reserva quando `tipo = 'reserva'`; `cancelarPedidoAguardando` filtra `tipo = 'reserva'`.
+- **`emails.ts`**: `DadosPedidoEmail.avulso` muda textos/links dos e-mails existentes (pendente, confirmado,
+  pago ao gestor, expirado, recusado, reembolso); novos `emailCobrancaAvulsaCriada` (itens com a taxa
+  embutida) e `emailCobrancaAvulsaCancelada`.
+- **`admin.ts`**: `prorrogarPrazoPedido` no avulso limita a `agora + avulso_prazo_max_dias`.
+- `src/app/minhas-reservas/actions.ts` (`cancelarReserva`): reserva `confirmada` → `cancelarAvulsasDaReserva`.
+
+#### Gestor — `/painel/agendamentos/[id]`
+
+- `cobrancas-actions.ts` (`'use server'`, role gestor/admin + posse na lib): `emitirCobrancaAvulsa`,
+  `cancelarCobrancaAvulsaGestor`, `registrarCompartilhamentoCobranca(pedidoId, canal)`.
+- `_components/CobrancasAvulsas.tsx` (card; some se não há cobranças e não pode emitir) e
+  `NovaCobrancaModal.tsx` (props: `reservaId`, `catalogo`, `formas`, `taxaPercent`, `prazoPadraoHoras`,
+  `prazoMaxDias`, `baseUrl`, `clienteTelefone`, `itemNome`); `compartilhar.ts` → `linkWhatsAppCobranca`
+  (`wa.me/55<celular>` quando há telefone). GA4 `cobranca_avulsa_criada`.
+- `/painel/agendamentos`: chip "N cobranças adicionais em aberto". `/painel/receitas`: avulsas pagas
+  (`pago|reembolsado_parcial|em_disputa`) viram linhas `ReservaReceita` com `avulsa: { titulo, numero }`
+  (valor = `pedido.valor_total`, data/status/cliente da reserva de origem); não contam em "reservas".
+
+#### Cliente
+
+- **`/cobrancas/[id]`** (`src/app/cobrancas/[id]/page.tsx`, `noindex`): sem login → `/entrar?redirect_to=…`;
+  pedido avulso de outro cliente → 404. Itens via `linhasAvulsoParaCliente`, recado, total, checkout
+  compartilhado (formas do pedido), estados pago (GA4 `purchase` com `item_category: 'cobranca_avulsa'`),
+  expirada/cancelada. `after(() => registrarVisualizacao(...))`.
+- `/minhas-reservas`: selo com `resumoAvulsasPorReserva`. `/minhas-reservas/[id]`:
+  `_components/CobrancasAdicionais.tsx` na coluna lateral + avulsas pagas no comprovante.
+- i18n: namespace **`Cobranca`** (`messages/*/reserva.json`) e `Notificacoes.textos.cobranca_avulsa` /
+  `pagamento_aprovado.mensagemAvulso`; `useTextoNotificacao` lê `dados.{titulo, avulso, evento}`. Glossário:
+  Cobrança (avulsa) = Charge / Cobro.
+
+#### Admin
+
+- **Pedidos (lista)**: `FiltrosPedidos.tipo` (`?tipo=reserva|avulso`), select "Reservas e avulsas", selo
+  **Avulsa**, título + "ref. <item>"; `PedidoLinha` ganhou `tipo`, `avulso`, `itens` e, no avulso, `reserva`
+  = reserva de origem; busca também por título, descrição de item e id da reserva de origem; indicadores
+  `avulsas { qtd, pagas, valorPago }`; exportação com tipo, título, itens, ajuste/motivo, formas, parcelas e
+  id da reserva.
+- **Pedido (detalhe)**: `DetalhePedido.avulso { config, criadoPor, itens, pedidoReserva }`,
+  `avulsasVinculadas` (no pedido da reserva) e `eventosPedido`; card **Cobrança avulsa** (itens, ajuste,
+  formas, parcelas, emissor, link copiado/aberto, link do cliente), linha do tempo com os eventos de
+  `pedido_evento`; cupom e "Descontos" ocultos no avulso.
+- **Financeiro → Configurações**: `CobrancaAvulsaCard` + action `salvarCobrancaAvulsa` (auditoria
+  `financeiro_config.cobranca_avulsa`).
 
 ---
 

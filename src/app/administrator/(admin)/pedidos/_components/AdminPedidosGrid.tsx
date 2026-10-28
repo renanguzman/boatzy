@@ -114,7 +114,7 @@ export default function AdminPedidosGrid({ pedidos, total, page, perPage, pageSi
   }
 
   const totalPages = Math.max(1, Math.ceil(total / perPage));
-  const filtrosAtivos = ['q', 'status', 'forma', 'de', 'ate'].some((k) => searchParams.get(k));
+  const filtrosAtivos = ['q', 'status', 'forma', 'tipo', 'de', 'ate'].some((k) => searchParams.get(k));
 
   return (
     <div>
@@ -128,7 +128,7 @@ export default function AdminPedidosGrid({ pedidos, total, page, perPage, pageSi
           )}
           <input
             type="text"
-            placeholder="Nº do pedido, cliente, gestor, e-mail, item, cupom, id do Asaas (pay_, cus_)…"
+            placeholder="Nº do pedido, cliente, gestor, e-mail, item, cobrança avulsa, cupom, id do Asaas (pay_, cus_)…"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             className={`w-full pl-10 pr-4 ${controleCls} placeholder:text-slate-400`}
@@ -138,6 +138,11 @@ export default function AdminPedidosGrid({ pedidos, total, page, perPage, pageSi
           <select value={searchParams.get('status') ?? ''} onChange={(e) => setParams({ status: e.target.value, page: null })} className={`${controleCls} cursor-pointer`}>
             <option value="">Todos os status</option>
             {Object.entries(PEDIDO_STATUS).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
+          </select>
+          <select value={searchParams.get('tipo') ?? ''} onChange={(e) => setParams({ tipo: e.target.value, page: null })} className={`${controleCls} cursor-pointer`}>
+            <option value="">Reservas e avulsas</option>
+            <option value="reserva">Pedidos de reserva</option>
+            <option value="avulso">Cobranças avulsas</option>
           </select>
           <select value={searchParams.get('forma') ?? ''} onChange={(e) => setParams({ forma: e.target.value, page: null })} className={`${controleCls} cursor-pointer`}>
             <option value="">Todas as formas</option>
@@ -154,7 +159,7 @@ export default function AdminPedidosGrid({ pedidos, total, page, perPage, pageSi
           {filtrosAtivos && (
             <button
               type="button"
-              onClick={() => { setSearch(''); setParams({ q: null, status: null, forma: null, de: null, ate: null, page: null }); }}
+              onClick={() => { setSearch(''); setParams({ q: null, status: null, forma: null, tipo: null, de: null, ate: null, page: null }); }}
               className="inline-flex items-center gap-1 px-3 py-2.5 rounded-xl text-sm font-medium text-slate-500 hover:bg-slate-100"
             >
               <X className="w-4 h-4" /> Limpar
@@ -212,6 +217,9 @@ export default function AdminPedidosGrid({ pedidos, total, page, perPage, pageSi
                           #{p.numero}
                         </Link>
                         <p className="text-[10px] text-slate-400 mt-0.5 font-mono">{p.id.slice(0, 8)}</p>
+                        {p.tipo === 'avulso' && (
+                          <span className="mt-1 inline-block text-[9px] font-bold uppercase tracking-wide text-sky-700 bg-sky-50 px-1.5 py-0.5 rounded">Avulsa</span>
+                        )}
                       </td>
                       <td className="py-4 px-3">
                         <p className="text-sm font-medium text-slate-700 whitespace-nowrap">{p.cliente?.name ?? '—'}</p>
@@ -222,7 +230,14 @@ export default function AdminPedidosGrid({ pedidos, total, page, perPage, pageSi
                         <p className="text-[11px] text-slate-400">{p.gestor?.email}</p>
                       </td>
                       <td className="py-4 px-3">
-                        <p className="text-sm text-slate-700 max-w-[220px] truncate" title={p.reserva?.item_nome}>{p.reserva?.item_nome ?? '—'}</p>
+                        {p.avulso && (
+                          <p className="text-sm font-medium text-sky-800 max-w-[220px] truncate" title={p.itens.map((i) => i.descricao).join(', ')}>
+                            {p.avulso.titulo}
+                          </p>
+                        )}
+                        <p className={`max-w-[220px] truncate ${p.avulso ? 'text-[11px] text-slate-500' : 'text-sm text-slate-700'}`} title={p.reserva?.item_nome}>
+                          {p.avulso ? 'ref. ' : ''}{p.reserva?.item_nome ?? '—'}
+                        </p>
                         <p className="text-[11px] text-slate-400 whitespace-nowrap">
                           {p.reserva?.tipo === 'embarcacao' ? 'Embarcação' : 'Roteiro'} · {formatarDataCurta(p.reserva?.data_reserva)}
                           {p.reserva?.data_fim_reserva && p.reserva.data_fim_reserva !== p.reserva.data_reserva && ` → ${formatarDataCurta(p.reserva.data_fim_reserva)}`}

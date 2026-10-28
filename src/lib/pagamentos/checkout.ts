@@ -8,9 +8,10 @@ import { AsaasError, mensagemErroAsaas } from '@/lib/asaas/client';
 import { garantirClienteAsaas } from '@/lib/asaas/clientes';
 import { buscarCobrancaPorReferencia, criarCobranca, obterQrCodePix } from '@/lib/asaas/cobrancas';
 import type { AsaasCobranca } from '@/lib/asaas/tipos';
-import { getFormasPagamento } from '@/lib/financeiro/config';
+import { getFormasPagamento, type FormaPagamento } from '@/lib/financeiro/config';
 import type { FormaPagamentoCodigo, Json } from '@/types/supabase';
 import { cancelarCobrancasPendentes, PAGAMENTO_PAGO } from './pedidos';
+import { registrarEventoPedido } from './historico';
 import { opcoesParcelas, VALOR_MINIMO_COBRANCA } from './valores';
 import { FUSO_HORARIO } from '@/lib/datas';
 
@@ -35,6 +36,37 @@ function dataSaoPaulo(d: Date): string {
   return new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Sao_Paulo' }).format(d);
 }
 
+export type FormaPermitida = { codigo: FormaPagamentoCodigo; nome: string; opcoesParcelas: number[] };
+
+/**
+ * Formas e parcelas que o cliente pode usar neste pedido: as formas ativas na
+ * configuração global (Admin → Financeiro) e, na cobrança avulsa, só as que o
+ * gestor liberou, com o nº de parcelas limitado pelos dois (SPEC §34.16).
+ */
+export function formasPermitidasDoPedido(
+  formas: FormaPagamento[],
+  pedido: { valor_total: number; avulso?: { formas_permitidas: FormaPagamentoCodigo[]; parcelas_max: number } | null },
+): FormaPermitida[] {
+  const total = Number(pedido.valor_total);
+  return formas
+    .filter((f) => f.ativo && (!pedido.avulso || pedido.avulso.formas_permitidas.includes(f.codigo as FormaPagamentoCodigo)))
+    .map((f) => {
+      const max = pedido.avulso ? Math.min(f.parcelas_max, pedido.avulso.parcelas_max) : f.parcelas_max;
+      return {
+        codigo: f.codigo as FormaPagamentoCodigo,
+        nome: f.nome,
+        opcoesParcelas: f.codigo === 'cartao_credito'
+          ? opcoesParcelas(total, max, f.valor_minimo_parcela != null ? Number(f.valor_minimo_parcela) : null)
+          : [1],
+      };
+    });
+}
+
+/** Página de pagamento do pedido: `/reservas/[id]/pagar` (reserva) ou `/cobrancas/[id]` (avulso). */
+export function caminhoPagamentoPedido(p: { id: string; tipo: string; reserva_id: string | null }): string {
+  return p.tipo === 'avulso' || !p.reserva_id ? `/cobrancas/${p.id}` : `/reservas/${p.reserva_id}/pagar`;
+}
+
 async function carregarQrCode(pagamentoId: string, asaasPaymentId: string): Promise<PixParaPagar> {
   const qr = await obterQrCodePix(asaasPaymentId);
   const expiraEm = dataAsaasParaIso(qr.expirationDate);
@@ -46,7 +78,8 @@ async function carregarQrCode(pagamentoId: string, asaasPaymentId: string): Prom
 }
 
 /**
- * Inicia (ou retoma) o pagamento do pedido de uma reserva pelo cliente.
+ * Inicia (ou retoma) o pagamento de um pedido pelo cliente — pedido da reserva
+ * ou cobrança avulsa (SPEC §34.16).
  *
  * - Reaproveita a cobrança pendente da mesma forma/parcelas (recarregar a
  *   página não gera outra cobrança); trocar de forma remove a anterior no Asaas.
@@ -57,7 +90,7 @@ async function carregarQrCode(pagamentoId: string, asaasPaymentId: string): Prom
  *   é salvo em `users.cpf_cnpj`.
  */
 export async function iniciarPagamento(input: {
-  reservaId: string;
+  pedidoId: string;
   userId: string;
   forma: FormaPagamentoCodigo;
   parcelas: number;
@@ -71,14 +104,27 @@ export async function iniciarPagamento(input: {
   }
   const ambiente = cfg.config.ambiente;
 
-  const { data: pedido } = await supabaseAdmin
+  type ReservaCheckout = { id: string; item_nome: string; data_reserva: string };
+  const { data } = await supabaseAdmin
     .from('pedido')
-    .select('id, numero, status, valor_total, expira_em, reserva:reserva_id ( id, item_nome, data_reserva )')
-    .eq('reserva_id', input.reservaId)
+    .select(
+      `id, numero, tipo, status, valor_total, expira_em, reserva_id,
+       reserva:reserva_id ( id, item_nome, data_reserva ),
+       pedido_avulso ( titulo, formas_permitidas, parcelas_max, reserva:reserva_id ( id, item_nome, data_reserva ) )`,
+    )
+    .eq('id', input.pedidoId)
     .eq('cliente_id', input.userId)
     .maybeSingle();
-  const reserva = (pedido as unknown as { reserva: { id: string; item_nome: string; data_reserva: string } | null } | null)?.reserva;
-  if (!pedido || !reserva) return { ok: false, error: t('pedidoNaoEncontrado') };
+  const pedido = data as unknown as {
+    id: string; numero: number; tipo: string; status: string; valor_total: number; expira_em: string | null;
+    reserva_id: string | null; reserva: ReservaCheckout | null;
+    pedido_avulso: {
+      titulo: string; formas_permitidas: FormaPagamentoCodigo[]; parcelas_max: number; reserva: ReservaCheckout | null;
+    } | null;
+  } | null;
+  const avulso = pedido?.tipo === 'avulso' ? pedido.pedido_avulso : null;
+  const reserva = avulso ? avulso.reserva : pedido?.reserva;
+  if (!pedido || !reserva || (pedido.tipo === 'avulso' && !avulso)) return { ok: false, error: t('pedidoNaoEncontrado') };
   if (pedido.status !== 'aguardando_pagamento') return { ok: false, error: t('naoAguardando') };
   if (!pedido.expira_em || new Date(pedido.expira_em) <= new Date()) {
     return { ok: false, error: t('prazoTerminou') };
@@ -89,17 +135,13 @@ export async function iniciarPagamento(input: {
     return { ok: false, error: t('abaixoMinimo') };
   }
 
-  // Forma e parcelas permitidas pela configuração global (Admin → Financeiro → Configurações).
-  const formas = await getFormasPagamento();
-  const forma = formas.find((f) => f.codigo === input.forma && f.ativo);
+  // Forma e parcelas permitidas pela configuração global (Admin → Financeiro → Configurações)
+  // e, na cobrança avulsa, pelo que o gestor liberou.
+  const forma = formasPermitidasDoPedido(await getFormasPagamento(), { valor_total: valorTotal, avulso })
+    .find((f) => f.codigo === input.forma);
   if (!forma) return { ok: false, error: t('formaIndisponivel') };
   const parcelas = input.forma === 'cartao_credito' ? Math.trunc(input.parcelas) || 1 : 1;
-  const permitidas = opcoesParcelas(
-    valorTotal,
-    forma.parcelas_max,
-    forma.valor_minimo_parcela != null ? Number(forma.valor_minimo_parcela) : null,
-  );
-  if (!permitidas.includes(parcelas)) return { ok: false, error: t('parcelasIndisponivel') };
+  if (!forma.opcoesParcelas.includes(parcelas)) return { ok: false, error: t('parcelasIndisponivel') };
 
   // Já existe pagamento confirmado aguardando o webhook? Não cobra de novo.
   const { count: pagos } = await supabaseAdmin
@@ -186,9 +228,11 @@ export async function iniciarPagamento(input: {
         valorTotal,
         parcelas,
         vencimento: dataSaoPaulo(new Date(pedido.expira_em)),
-        descricao: `Boatzy · Pedido #${pedido.numero} · ${reserva.item_nome} · ${dataPasseio}`,
+        descricao: avulso
+          ? `Boatzy · Cobrança #${pedido.numero} · ${avulso.titulo} · ref. ${reserva.item_nome} ${dataPasseio}`
+          : `Boatzy · Pedido #${pedido.numero} · ${reserva.item_nome} · ${dataPasseio}`,
         externalReference: pagamento.id,
-        urlRetorno: input.forma === 'cartao_credito' ? `${baseUrl()}/reservas/${input.reservaId}/pagar?retorno=1` : undefined,
+        urlRetorno: input.forma === 'cartao_credito' ? `${baseUrl()}${caminhoPagamentoPedido(pedido)}?retorno=1` : undefined,
       });
     } catch (err) {
       // Timeout/falha de rede: a cobrança pode ter sido criada — consulta antes de desistir.
@@ -231,6 +275,13 @@ export async function iniciarPagamento(input: {
     await supabaseAdmin
       .from('pagamento_transacao')
       .insert({ pagamento_id: pagamento.id, tipo: 'criacao', status_asaas: cobranca.status, valor: valorTotal });
+    await registrarEventoPedido({
+      pedidoId: pedido.id,
+      evento: 'cobranca_gerada',
+      atorId: input.userId,
+      atorPapel: 'cliente',
+      dados: { pagamento_id: pagamento.id, forma: input.forma, parcelas, asaas_payment_id: cobranca.id },
+    });
 
     if (input.forma === 'pix') {
       return { ok: true, forma: 'pix', pix: await carregarQrCode(pagamento.id, cobranca.id) };
@@ -238,7 +289,7 @@ export async function iniciarPagamento(input: {
     if (!cobranca.invoiceUrl) return { ok: false, error: t('abrirPagina') };
     return { ok: true, forma: 'cartao_credito', faturaUrl: cobranca.invoiceUrl };
   } catch (err) {
-    console.error('[pagamentos/checkout] falha ao iniciar pagamento', input.reservaId, mensagemErroAsaas(err));
+    console.error('[pagamentos/checkout] falha ao iniciar pagamento', input.pedidoId, mensagemErroAsaas(err));
     return { ok: false, error: t('gerarCobranca') };
   }
 }
