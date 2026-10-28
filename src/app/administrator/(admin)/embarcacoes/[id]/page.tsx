@@ -9,6 +9,8 @@ import TimelinePublicacao from '@/components/publicacao/TimelinePublicacao';
 import {
   CabecalhoRevisao, CamposAlteradosCard, DadosRevisao, GaleriaRevisao, SecaoRevisao,
 } from '@/components/publicacao/RevisaoAdmin';
+import { documentacaoDaEmbarcacao } from '@/lib/documentos/admin';
+import { DocumentosEmbarcacaoAdmin, EquipeHabilitacoesAdmin } from './_components/DocumentacaoAdmin';
 import type { ModalidadeCapitao, PublicacaoStatus } from '@/types/supabase';
 
 const CAPITAO: Record<ModalidadeCapitao, string> = {
@@ -40,10 +42,11 @@ export default async function AdminRevisaoEmbarcacaoPage({ params }: { params: P
 
   if (!emb) notFound();
 
-  const [{ data: gestor }, campos, timeline] = await Promise.all([
+  const [{ data: gestor }, campos, timeline, documentacao] = await Promise.all([
     supabaseAdmin.from('users').select('name, email').eq('id', emb.owner_id).maybeSingle(),
     camposAlteradosDesdeAprovacao('embarcacao', id),
     listarTimeline('embarcacao', id, { incluirInterna: true }),
+    documentacaoDaEmbarcacao(id, emb.owner_id),
   ]);
 
   const tipo = emb.embarcacao_tipo as unknown as { nome: string } | null;
@@ -89,6 +92,9 @@ export default async function AdminRevisaoEmbarcacaoPage({ params }: { params: P
               { label: 'Equipamentos de segurança', valor: nomes<{ equipamentos_seguranca: { nome: string } | null }>(emb.embarcacao_equipamentos_seguranca, r => r.equipamentos_seguranca?.nome), largo: true },
             ]} />
           </SecaoRevisao>
+
+          <DocumentosEmbarcacaoAdmin documentos={documentacao.documentos} />
+          <EquipeHabilitacoesAdmin equipe={documentacao.equipe} />
 
           {roteiros.length > 0 && (
             <SecaoRevisao titulo={`Roteiros vinculados (${roteiros.length})`}>

@@ -2727,6 +2727,11 @@ export type Database = {
     };
     Views: Record<string, never>;
     Functions: {
+      /** Documentação no admin — contadores por situação numa passada (SPEC §95.9). */
+      contar_documentacao_embarcacoes: {
+        Args: { p_status?: string | null };
+        Returns: { vencida: number; nao_enviada: number; em_dia: number; vencendo: number }[];
+      };
       /** Decisão do admin sobre o pedido de gestor; aprovar concede o papel (SPEC §62). */
       decidir_solicitacao_gestor: {
         Args: {

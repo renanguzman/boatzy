@@ -16,10 +16,15 @@ import {
   ChevronRight,
   Loader2,
   ClipboardCheck,
+  UserRound,
 } from 'lucide-react';
 import type { PublicacaoStatus } from '@/types/supabase';
 import { formatarData } from '@/lib/datas';
 import StatusPublicacaoBadge from '@/components/publicacao/StatusPublicacaoBadge';
+import { SeloValidade } from '@/components/painel/documentos/SeloValidade';
+import type { DocumentacaoEmbarcacao } from '@/lib/documentos/admin';
+import { nomeCurtoDocumento } from '@/lib/documentos/tipos';
+import { textoPrazo } from '@/lib/documentos/validade';
 
 const PAGE_SIZES = [10, 25, 50];
 
@@ -38,6 +43,7 @@ export type AdminEmbarcacaoListItem = {
   municipios: { nome: string; estados: { uf: string } | null } | null;
   embarcacao_imagens: { url_imagem: string; principal: boolean }[];
   roteiro: { id: string; nome: string }[];
+  documentacao: DocumentacaoEmbarcacao;
 };
 
 // Colunas ordenáveis no servidor (colunas diretas da tabela embarcacao).
@@ -96,6 +102,48 @@ function ThSortable({ col, label, className = '', sortKey, sortDir, onSort }: {
   );
 }
 
+const siglas = (docs: { tipo: Parameters<typeof nomeCurtoDocumento>[0]; titulo: string | null }[]) =>
+  [...new Set(docs.map((d) => nomeCurtoDocumento(d.tipo, d.titulo)))].join(', ');
+
+/**
+ * Documentação da embarcação na lista (SPEC §95.9): Vencida / Não enviada / Em dia.
+ * "Vence em breve" só com o filtro `doc=vencendo`. A equipe aparece numa linha
+ * discreta abaixo — é informação secundária.
+ */
+function CelulaDocumentacao({ id, d, mostrarVencendo }: { id: string; d: DocumentacaoEmbarcacao; mostrarVencendo: boolean }) {
+  let detalhe: string;
+  let selo: React.ReactNode;
+  if (mostrarVencendo && d.vencendo.length > 0 && d.situacao !== 'vencida') {
+    selo = <SeloValidade situacao="vence_em_breve" />;
+    detalhe = `${siglas(d.vencendo)} · ${textoPrazo(d.vencendo[0].data_validade)}`;
+  } else if (d.situacao === 'vencida') {
+    selo = <SeloValidade situacao="vencido" />;
+    detalhe = `${siglas(d.vencidos)} · ${textoPrazo(d.vencidos[0].data_validade)}`;
+  } else if (d.situacao === 'nao_enviada') {
+    selo = (
+      <span className="inline-flex items-center gap-1.5 rounded-full border border-dashed border-slate-300 bg-slate-50 px-2.5 py-0.5 text-[11px] font-semibold text-slate-500 whitespace-nowrap">
+        <span className="h-1.5 w-1.5 rounded-full bg-slate-300" /> Não enviada
+      </span>
+    );
+    detalhe = d.total > 0 ? 'falta TIE/TIEM' : 'nenhum documento';
+  } else {
+    selo = <SeloValidade situacao="em_dia" />;
+    detalhe = `${d.total} ${d.total === 1 ? 'documento' : 'documentos'}`;
+  }
+  return (
+    <Link href={`/administrator/embarcacoes/${id}#documentacao`} title="Ver documentos e equipe" className="group block">
+      {selo}
+      <p className="mt-1 text-[10px] text-slate-400 whitespace-nowrap group-hover:text-slate-600">{detalhe}</p>
+      {d.habilitacoesVencidas > 0 && (
+        <p className="mt-0.5 inline-flex items-center gap-1 text-[10px] text-slate-500 whitespace-nowrap">
+          <UserRound className="h-3 w-3 text-red-400" />
+          Equipe: {d.habilitacoesVencidas} {d.habilitacoesVencidas === 1 ? 'habilitação vencida' : 'habilitações vencidas'}
+        </p>
+      )}
+    </Link>
+  );
+}
+
 function ThPlain({ label, className = '' }: { label: string; className?: string }) {
   return (
     <th className={`pb-3 px-4 text-[10px] font-bold text-slate-400 tracking-wider uppercase whitespace-nowrap ${className}`}>
@@ -111,6 +159,8 @@ export default function AdminEmbarcacoesGrid({ embarcacoes, total, page, perPage
 
   const sortKey = (searchParams.get('sort') ?? 'created_at') as SortKey;
   const sortDir = searchParams.get('dir') === 'asc' ? 'asc' : 'desc';
+  const mostrarVencendo = searchParams.get('doc') === 'vencendo';
+  const mostrarFiltroDoc = !!searchParams.get('doc');
 
   const [search, setSearch] = useState(searchParams.get('q') ?? '');
   const [isNavigating, startNavigation] = useTransition();
@@ -174,7 +224,9 @@ export default function AdminEmbarcacoesGrid({ embarcacoes, total, page, perPage
           <div className="flex flex-col items-center justify-center py-20 text-center">
             <Ship className="w-12 h-12 text-slate-200 mb-4" />
             <p className="text-sm font-medium text-slate-500">
-              {search ? 'Nenhuma embarcação encontrada' : 'Nenhuma embarcação cadastrada'}
+              {mostrarFiltroDoc
+                ? 'Nenhuma embarcação nesta situação de documentação'
+                : search ? 'Nenhuma embarcação encontrada' : 'Nenhuma embarcação cadastrada'}
             </p>
             {search && (
               <p className="text-xs text-slate-400 mt-1">Tente outros termos de busca.</p>
@@ -189,6 +241,7 @@ export default function AdminEmbarcacoesGrid({ embarcacoes, total, page, perPage
                   <ThPlain    label="Gestor" />
                   <ThPlain    label="Tipo" />
                   <ThSortable col="status"     label="Status"     sortKey={sortKey} sortDir={sortDir} onSort={handleSort} />
+                  <ThPlain    label="Documentação" />
                   <ThPlain    label="Localização" />
                   <ThSortable col="capacidade" label="Capacidade" sortKey={sortKey} sortDir={sortDir} onSort={handleSort} />
                   <ThPlain    label="Roteiros" />
@@ -266,6 +319,11 @@ export default function AdminEmbarcacoesGrid({ embarcacoes, total, page, perPage
                             desde {formatarData(e.enviado_analise_em)}{e.revisao > 1 ? ` · ${e.revisao}ª análise` : ''}
                           </p>
                         )}
+                      </td>
+
+                      {/* Documentação */}
+                      <td className="py-4 px-4">
+                        <CelulaDocumentacao id={e.id} d={e.documentacao} mostrarVencendo={mostrarVencendo} />
                       </td>
 
                       {/* Localização */}

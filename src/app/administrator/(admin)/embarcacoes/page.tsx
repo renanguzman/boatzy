@@ -5,6 +5,11 @@ import { supabaseAdmin } from '@/lib/supabase';
 import AdminEmbarcacoesGrid, { type AdminEmbarcacaoListItem } from './_components/AdminEmbarcacoesGrid';
 import FiltroStatusPublicacao from '@/components/publicacao/FiltroStatusPublicacao';
 import { contarPorStatus } from '@/lib/publicacao/server';
+import {
+  FILTROS_DOCUMENTACAO, aplicarFiltroDocumentacao, contarDocumentacaoAdmin, documentacaoDasEmbarcacoes,
+  type FiltroDocumentacao,
+} from '@/lib/documentos/admin';
+import FiltroDocumentacaoAdmin from './_components/FiltroDocumentacaoAdmin';
 import type { PublicacaoStatus } from '@/types/supabase';
 
 const STATUSES: PublicacaoStatus[] = ['em_analise', 'retorno', 'ativo', 'em_manutencao', 'inativo'];
@@ -20,7 +25,7 @@ const SORT_COLUMNS: Record<string, string> = {
   enviado_analise_em: 'enviado_analise_em',
 };
 
-type SearchParams = { q?: string; page?: string; per?: string; sort?: string; dir?: string; st?: string };
+type SearchParams = { q?: string; page?: string; per?: string; sort?: string; dir?: string; st?: string; doc?: string };
 
 export default async function AdminEmbarcacoesPage({
   searchParams,
@@ -38,6 +43,8 @@ export default async function AdminEmbarcacoesPage({
   const st: PublicacaoStatus | 'todos' =
     sp.st === 'todos' || STATUSES.includes(sp.st as PublicacaoStatus) ? (sp.st as PublicacaoStatus | 'todos')
     : contagem.em_analise > 0 ? 'em_analise' : 'todos';
+  // Filtro de documentação (SPEC §95.9) — independente da aba de status.
+  const doc = FILTROS_DOCUMENTACAO.includes(sp.doc as FiltroDocumentacao) ? (sp.doc as FiltroDocumentacao) : null;
   // Na fila de análise, sem ordenação escolhida: mais antigos primeiro.
   const filaPadrao = st === 'em_analise' && !sp.sort;
 
@@ -77,6 +84,8 @@ export default async function AdminEmbarcacoesPage({
     `, { count: 'exact' });
 
   if (st !== 'todos') query = query.eq('status', st);
+  // Situação calculada no banco (campo calculado do PostgREST) — SPEC §95.9.
+  if (doc) query = aplicarFiltroDocumentacao(query, doc);
 
   if (q) {
     const orParts = [`nome.ilike.%${q}%`];
@@ -85,26 +94,34 @@ export default async function AdminEmbarcacoesPage({
   }
 
   // Desempate por id para paginação estável quando a coluna ordenada repete valores.
-  const { data, count } = await query
-    .order(sortCol, { ascending })
-    .order('id', { ascending: true })
-    .range((page - 1) * perPage, page * perPage - 1);
+  // Contadores do filtro de documentação: embarcações da aba de status atual.
+  const [{ data, count }, contagemDoc] = await Promise.all([
+    query
+      .order(sortCol, { ascending })
+      .order('id', { ascending: true })
+      .range((page - 1) * perPage, page * perPage - 1),
+    contarDocumentacaoAdmin(st === 'todos' ? null : st),
+  ]);
 
   const total = count ?? 0;
 
-  const rows = (data ?? []) as unknown as (Omit<AdminEmbarcacaoListItem, 'gestor'> & { owner_id: string })[];
+  const rows = (data ?? []) as unknown as (Omit<AdminEmbarcacaoListItem, 'gestor' | 'documentacao'> & { owner_id: string })[];
 
   // Gestores apenas da página atual: owner_id não possui FK declarada no PostgREST.
   const ownerIds = [...new Set(rows.map((r) => r.owner_id))];
-  const { data: gestores } = ownerIds.length
-    ? await supabaseAdmin.from('users').select('id, name, email').in('id', ownerIds)
-    : { data: [] };
+  const [{ data: gestores }, documentacao] = await Promise.all([
+    ownerIds.length
+      ? supabaseAdmin.from('users').select('id, name, email').in('id', ownerIds)
+      : Promise.resolve({ data: [] as { id: string; name: string; email: string }[] }),
+    documentacaoDasEmbarcacoes(rows.map((r) => ({ id: r.id, owner_id: r.owner_id }))),
+  ]);
 
   const gestorById = new Map((gestores ?? []).map((g) => [g.id, { name: g.name, email: g.email }]));
 
   const embarcacoes: AdminEmbarcacaoListItem[] = rows.map((r) => ({
     ...r,
     gestor: gestorById.get(r.owner_id) ?? null,
+    documentacao: documentacao.get(r.id)!,
   }));
 
   return (
@@ -118,6 +135,7 @@ export default async function AdminEmbarcacoesPage({
           <p className="text-sm text-slate-500">
             Todas as embarcações cadastradas na plataforma, com o gestor responsável.
             Analise os cadastros enviados, publique, devolva para ajustes ou retire do ar.
+            Acompanhe também a documentação (TIE, DPEM…) e as habilitações da equipe.
           </p>
         </div>
       </div>
@@ -129,6 +147,8 @@ export default async function AdminEmbarcacoesPage({
           ...STATUSES.map((value) => ({ value, count: contagem[value] ?? 0 })),
         ]}
       />
+
+      <FiltroDocumentacaoAdmin atual={doc} contagem={contagemDoc} />
 
       <AdminEmbarcacoesGrid
         embarcacoes={embarcacoes}

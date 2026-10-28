@@ -8504,3 +8504,67 @@ explorador de arquivos. Agora o painel tem câmera própria.
   do envio por arquivo (as duas fotos) ok. Não testado em aparelho real (iPhone/Android) nem o
   `takePhoto()` de resolução cheia.
 
+### 95.9 Documentação no administrator (28/10/2026)
+
+Admin acompanha a documentação de todas as embarcações; foco no que já venceu — "vence em breve" só com
+filtro explícito. Requisitos: PRD §6.14 "Visão do admin". Somente leitura.
+
+- **Migration `20261028b_documentacao_admin.sql`** (filtro e contadores no banco — antes a lista lia todos os
+  documentos e mandava os ids na URL):
+  - `situacao_documentacao(embarcacao) → text` e `documentacao_vencendo(embarcacao) → boolean`: **campos
+    calculados do PostgREST** — filtráveis na própria consulta da lista (`?situacao_documentacao=eq.vencida`,
+    `?documentacao_vencendo=is.true`), junto com status, busca, `count: 'exact'` e paginação.
+  - `contar_documentacao_embarcacoes(p_status text DEFAULT NULL) → (vencida, nao_enviada, em_dia, vencendo)`:
+    uma passada (GROUP BY dos documentos + LEFT JOIN em `embarcacao`); `p_status` NULL = todas.
+  - Índice parcial `documento_embarcacao_ativos_idx (embarcacao_id, data_validade, tipo) WHERE arquivado_em
+    IS NULL AND escopo = 'embarcacao'`.
+  - "Hoje" = `(now() AT TIME ZONE 'America/Sao_Paulo')::date` explícito (sem `SET timezone`, para o planner
+    poder embutir as funções SQL); 60 dias = `DIAS_ALERTA`; inscrição = `TIPOS_INSCRICAO` — manter em
+    sincronia com `validade.ts`/`tipos.ts`. `EXECUTE` só para `service_role` (revogado de PUBLIC/anon/
+    authenticated); `NOTIFY pgrst, 'reload schema'`.
+  - Validada num Postgres 17 em memória (PGlite) com 8 casos (sem documentos, só DPEM, DPEM vencido com TIE
+    em dia, vence hoje, venceu ontem, vence em 20 dias, vencido arquivado + novo, aba por status): funções e
+    contadores coerentes com `situacaoValidade`; anon sem `EXECUTE`.
+
+- **`src/lib/documentos/admin.ts`** (server-only):
+  - `SituacaoDocumentacao` = `vencida` (algum documento ativo da embarcação vencido) > `nao_enviada` (sem
+    `TIPOS_INSCRICAO` ativo — inclui embarcação sem nenhum documento) > `em_dia`. `FiltroDocumentacao` =
+    situação | `vencendo` (algum documento em `vence_em_breve`, ≤ `DIAS_ALERTA`); `FILTROS_DOCUMENTACAO`.
+  - `mapaEmbarcacoes(ids)` (interno): documentos ativos **só das embarcações informadas** (a página atual) →
+    situação, `total`, `vencidos[]`, `vencendo[]` (`DocResumido { tipo, titulo, data_validade }`, mais antigo
+    primeiro) — para o detalhe da célula (qual documento, há quantos dias).
+  - `aplicarFiltroDocumentacao(query, filtro)` → `.filter('situacao_documentacao', 'eq', filtro)` ou
+    `.filter('documentacao_vencendo', 'is', true)` na consulta da lista.
+  - `contarDocumentacaoAdmin(status | null)` → RPC `contar_documentacao_embarcacoes` (chips da aba atual).
+  - `documentacaoDasEmbarcacoes([{ id, owner_id }])` → `Map<id, DocumentacaoEmbarcacao>` com
+    `habilitacoesVencidas`: CHA/CIR/outro ativos vencidos do gestor dono (`equipe_membro.is_gestor`) + dos
+    membros **ativos** vinculados em `equipe_membro_embarcacao`.
+  - `resumoDocumentacaoAdmin()` → `{ embarcacoesVencidas, habilitacoesVencidas }` (dashboard: RPC com
+    `p_status` NULL + contagem `head` das habilitações vencidas).
+  - `documentacaoDaEmbarcacao(embarcacaoId, ownerId)` → `{ documentos, equipe: MembroComHabilitacoes[] }`
+    (documentos da embarcação ativos + histórico; equipe = gestor + vinculados, gestor primeiro, depois
+    ativos, por nome; cada um com seus documentos de condutor).
+- **`/administrator/embarcacoes`** (`page.tsx`): `?doc=vencida|nao_enviada|em_dia|vencendo` combinado com
+  `st` e `q`; `FiltroDocumentacaoAdmin` (`_components/`, chips; "Vencida" em vermelho quando > 0; "Vence em
+  até 60 dias" separado e tracejado). `AdminEmbarcacaoListItem.documentacao` → coluna **Documentação**
+  (`CelulaDocumentacao`): selo Vencido / Não enviada / Em dia + detalhe ("DPEM · venceu há 57 dias", "falta
+  TIE/TIEM", "2 documentos"); com `doc=vencendo`, selo "Vence em breve" + prazo; linha "Equipe: N
+  habilitações vencidas" quando houver. Link para `/administrator/embarcacoes/[id]#documentacao`.
+- **`/administrator/embarcacoes/[id]`**: `_components/DocumentacaoAdmin.tsx` (server) —
+  `DocumentosEmbarcacaoAdmin` (`#documentacao`; selo da embarcação pela mesma regra; linhas com sigla, nº,
+  validade, titular/extras, enviado em, "dados lidos do arquivo"; selo do documento sem "vence em breve" —
+  aparece como Em dia; faltando TIE/TIEM e DPEM; `<details>` Histórico) e `EquipeHabilitacoesAdmin`
+  (`#equipe`; cartão por pessoa: Gestor (proprietário), função, Inativo, Cadastro incompleto, CPF/telefone/
+  e-mail, habilitações e histórico). Na coluna da esquerda, após "Dados da embarcação".
+- **Dashboard** (`/administrator`): quadro abaixo da fila de análise — vermelho com "Ver embarcações"
+  (`?st=todos&doc=vencida`) quando há vencida; atalho "Vence em até 60 dias" (`?st=todos&doc=vencendo`);
+  habilitações vencidas da equipe em linha secundária.
+- **Arquivo:** `GET /api/painel/documentos/[id]/arquivo` aceita o dono **ou** quem tem role `admin`
+  (`checkRoleInDb`); qualquer outro → 404. Documentos e dados da equipe só são lidos no `/painel` (dono) e
+  no `/administrator` (via `supabaseAdmin`, atrás do guard de admin); nenhuma tela pública os consulta.
+- **Tipos:** `Functions.contar_documentacao_embarcacoes` em `src/types/supabase.ts`.
+- **Validação:** `tsc`/`eslint` limpos; consultas (versão em JS, antes da migration) conferidas contra o banco (5 embarcações: 4 não enviadas,
+  1 em dia — Blue Horizon Star com TIE; filtros e contadores coerentes) e telas renderizadas numa página
+  temporária (já removida) com casos fictícios: vencida + equipe, sem documentos, só DPEM, em dia vencendo em
+  20 dias, membro inativo/incompleto. Não exercitado logado como admin no navegador.
+

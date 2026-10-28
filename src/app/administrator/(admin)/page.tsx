@@ -15,11 +15,14 @@ import {
   UserCog,
   Receipt,
   ClipboardCheck,
+  FileWarning,
 } from 'lucide-react';
 import { createClient } from '@/lib/supabase/server';
 import { supabaseAdmin } from '@/lib/supabase';
 import { contarPendentesAnalise } from '@/lib/publicacao/server';
 import { contarSolicitacoesGestorPendentes } from '@/lib/solicitacao-gestor';
+import { resumoDocumentacaoAdmin } from '@/lib/documentos/admin';
+import { DIAS_ALERTA } from '@/lib/documentos/validade';
 
 export default async function AdministratorDashboardPage() {
   const supabase = await createClient();
@@ -158,7 +161,9 @@ export default async function AdministratorDashboardPage() {
   ];
 
   // Pipeline de aprovação: fila aguardando a decisão do admin.
-  const [pendentes, pedidosGestor] = await Promise.all([contarPendentesAnalise(), contarSolicitacoesGestorPendentes()]);
+  const [pendentes, pedidosGestor, documentacao] = await Promise.all([
+    contarPendentesAnalise(), contarSolicitacoesGestorPendentes(), resumoDocumentacaoAdmin(),
+  ]);
   const filaAnalise = [
     { label: 'Pedidos de gestor', n: pedidosGestor, href: '/administrator/usuarios/solicitacoes' },
     { label: 'Embarcações', n: pendentes.embarcacao, href: '/administrator/embarcacoes?st=em_analise' },
@@ -201,6 +206,37 @@ export default async function AdministratorDashboardPage() {
                 <ChevronRight className="h-3.5 w-3.5 text-slate-400" />
               </Link>
             ))}
+          </div>
+        </div>
+      </div>
+
+      {/* Documentação vencida (SPEC §95.9) — só o que já venceu; o resto fica no filtro da lista */}
+      <div className={`rounded-2xl border p-5 shadow-sm ${documentacao.embarcacoesVencidas > 0 ? 'border-red-200 bg-red-50/60' : 'border-slate-100 bg-white'}`}>
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <p className="flex items-center gap-2 text-sm font-bold text-[#0B2447]">
+              <FileWarning className={`h-5 w-5 ${documentacao.embarcacoesVencidas > 0 ? 'text-red-600' : 'text-slate-400'}`} />
+              {documentacao.embarcacoesVencidas > 0
+                ? `${documentacao.embarcacoesVencidas} ${documentacao.embarcacoesVencidas === 1 ? 'embarcação está' : 'embarcações estão'} com documentação vencida`
+                : 'Nenhuma embarcação com documentação vencida'}
+            </p>
+            {documentacao.habilitacoesVencidas > 0 && (
+              <p className="mt-1 pl-7 text-xs text-slate-500">
+                Equipe: {documentacao.habilitacoesVencidas} {documentacao.habilitacoesVencidas === 1 ? 'habilitação vencida' : 'habilitações vencidas'} (CHA/CIR)
+              </p>
+            )}
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {documentacao.embarcacoesVencidas > 0 && (
+              <Link href="/administrator/embarcacoes?st=todos&doc=vencida"
+                className="inline-flex items-center gap-1.5 rounded-xl bg-red-600 px-3 py-1.5 text-sm font-semibold text-white hover:bg-red-700">
+                Ver embarcações <ChevronRight className="h-3.5 w-3.5" />
+              </Link>
+            )}
+            <Link href="/administrator/embarcacoes?st=todos&doc=vencendo"
+              className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-sm font-medium text-slate-600 hover:border-[#0B2447]/30">
+              Vence em até {DIAS_ALERTA} dias <ChevronRight className="h-3.5 w-3.5 text-slate-400" />
+            </Link>
           </div>
         </div>
       </div>

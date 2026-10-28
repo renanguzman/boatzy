@@ -3,10 +3,12 @@ import { createClient } from '@/lib/supabase/server';
 import { supabaseAdmin } from '@/lib/supabase';
 import { urlAssinadaDocumento } from '@/lib/documentos/arquivo-server';
 import { ehUuid } from '@/lib/upload-imagem-server';
+import { checkRoleInDb } from '@/lib/roles';
 
 /**
  * Abre o arquivo de um documento (bucket privado — SPEC §95.2): confere que o
- * documento é do usuário logado e redireciona para uma URL assinada de 5 min.
+ * documento é do usuário logado — ou que ele é admin (SPEC §95.9) — e
+ * redireciona para uma URL assinada de 5 min. Ninguém mais acessa.
  */
 export async function GET(_req: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -21,7 +23,8 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
     .select('owner_id, arquivo_key, arquivo_nome')
     .eq('id', id)
     .maybeSingle();
-  if (!doc || doc.owner_id !== user.id || !doc.arquivo_key) {
+  const permitido = !!doc && (doc.owner_id === user.id || (await checkRoleInDb(user.id, ['admin'])));
+  if (!doc || !permitido || !doc.arquivo_key) {
     return NextResponse.json({ error: 'Documento não encontrado.' }, { status: 404 });
   }
 

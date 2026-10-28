@@ -1018,7 +1018,7 @@ Problema: ao clicar numa data do calendário de preços, o painel para definir o
 - Menu com os módulos previstos:
   - **Usuários** — ✅ lista de contas (somente leitura) e fila de **pedidos de gestor** (ver "Pedido de acesso de gestor")
   - **Avaliações** — ✅ implementado (ver abaixo)
-  - **Embarcações** — ✅ implementado (ver abaixo)
+  - **Embarcações** — ✅ implementado (ver abaixo), incluindo a documentação e a equipe (ver 6.14 "Visão do admin")
   - **Roteiros** — ✅ implementado (ver abaixo)
   - **Publicidade** — 🔜 gestão de espaços de publicidade (placeholder)
   - **Taxas** — ✅ implementado (ver abaixo)
@@ -1398,7 +1398,25 @@ equipe, com função, "Completar cadastro" e habilitações). Em cada documento:
 excluir. Funciona no celular (cards empilhados).
 
 **Privacidade:** os arquivos ficam num armazenamento **privado** (`boatzy-documentos`), abertos só pelo dono
-por link temporário de 5 minutos.
+e pela administração, por link temporário de 5 minutos. Documentos e dados da equipe aparecem **somente** no
+`/painel` do gestor e no `/administrator` — nunca no site público.
+
+**Visão do admin (28/10/2026):** a administração acompanha a documentação de todas as embarcações, com foco
+no que **já venceu** ("vence em breve" só aparece quando o admin aplica o filtro). Filtro e contadores são
+calculados no banco, então a lista continua rápida com o crescimento da plataforma — **requer aplicar a
+migration `20261028b_documentacao_admin.sql`** antes de publicar:
+- **Lista `/administrator/embarcacoes`:** nova coluna **Documentação** — *Vencida* (vermelho, com o documento
+  e há quantos dias venceu), *Não enviada* (sem TIE/TIEM/PRPM) ou *Em dia* — e, numa linha discreta abaixo,
+  "Equipe: N habilitações vencidas". Filtro **Documentação**: Todas / Vencida / Não enviada / Em dia e,
+  separado, **Vence em até 60 dias** (só aí aparece o prazo de quem está para vencer). Combina com as abas de
+  status e a busca. A célula leva ao detalhe.
+- **Detalhe `/administrator/embarcacoes/[id]`:** seções **Documentação da embarcação** (documentos ativos com
+  número, titular, validade, situação e "Ver arquivo"; TIE/TIEM e DPEM não enviados; histórico de
+  renovações) e **Equipe e habilitações** (o gestor e as pessoas vinculadas à embarcação — função, CPF,
+  telefone, e-mail, cadastro incompleto — com as CHA/CIR enviadas). Somente leitura.
+- **Dashboard do admin:** quadro "N embarcações com documentação vencida" (vermelho quando há), com o total de
+  habilitações vencidas da equipe em segundo plano e atalhos para a lista filtrada (Vencida e Vence em até 60
+  dias).
 
 **Pendências para entrar no ar:** aplicar a migration; configurar a variável `R2_DOCUMENTOS_BUCKET_NAME` e o
 CORS do bucket `boatzy-documentos` (ver `SPEC.md` §95.2); garantir que o token do R2 acessa o bucket novo.
