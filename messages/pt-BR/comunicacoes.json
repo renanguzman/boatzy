@@ -1,0 +1,114 @@
+{
+  "Comunicacoes": {
+    "titulo": "Comunicações automáticas",
+    "subtitulo": "E-mails e avisos que o Boatzy enviou sobre esta reserva.",
+    "vazio": "Nenhuma comunicação enviada ainda.",
+    "previsto": "Previsto para {data}",
+    "paraVoce": "para você",
+    "paraCliente": "para o cliente",
+    "paraProprietario": "para o proprietário",
+    "canal": {
+      "email": "E-mail",
+      "notificacao": "Aviso no site",
+      "whatsapp": "WhatsApp"
+    },
+    "status": {
+      "agendado": "Agendado",
+      "enviado": "Enviado",
+      "falhou": "Não entregue",
+      "dispensado": "Não enviado",
+      "pendente_integracao": "Aguardando integração"
+    },
+    "motivo": {
+      "confirmada_tarde": "A reserva foi confirmada depois do horário deste lembrete.",
+      "janela_perdida": "O horário deste lembrete passou sem envio.",
+      "sem_contato": "Sem e-mail cadastrado."
+    },
+    "tipos": {
+      "lembrete_d1": "Lembrete da véspera do passeio",
+      "lembrete_h3": "Lembrete do dia do passeio",
+      "lembrete_passeio": "Lembrete do passeio",
+      "reserva_solicitada": "Nova solicitação de reserva",
+      "reserva_confirmada": "Reserva confirmada",
+      "reserva_recusada": "Reserva não aceita",
+      "reserva_cancelada": "Reserva cancelada",
+      "reserva_expirada": "Prazo de pagamento expirado",
+      "reserva_concluida": "Convite para avaliar o passeio",
+      "aguardando_pagamento": "Reserva aceita — aguardando pagamento",
+      "pagamento_aprovado": "Pagamento aprovado",
+      "pagamento_recusado": "Pagamento recusado",
+      "reembolso": "Reembolso",
+      "cobranca_avulsa": "Cobrança adicional",
+      "outro": "Comunicação"
+    }
+  },
+  "EmailLembrete": {
+    "saudacao": "Olá, {nome}!",
+    "assunto": {
+      "d1": "Seu passeio é amanhã: {item}",
+      "h3": "Falta pouco! {item} sai às {hora}",
+      "hoje": "Seu passeio é hoje: {item}"
+    },
+    "intro": {
+      "d1": "Seu passeio {item} é amanhã! Reunimos abaixo tudo o que você precisa saber para o embarque.",
+      "h3": "Falta pouco: seu passeio {item} sai hoje às {hora}. Confira o ponto de embarque e chegue com antecedência.",
+      "hoje": "Seu passeio {item} é hoje! Confira abaixo o ponto de embarque e os detalhes da reserva."
+    },
+    "antecedencia": "Chegue ao ponto de embarque com 30 minutos de antecedência.",
+    "semHorario": "O proprietário ainda não informou o horário de saída — combine pelo chat do Boatzy.",
+    "blocos": {
+      "passeio": "Seu passeio",
+      "embarque": "Ponto de embarque",
+      "roteiro": "Roteiro",
+      "contatos": "Quem vai te receber",
+      "contratados": "O que você contratou",
+      "regras": "Regras da embarcação",
+      "levar": "O que levar",
+      "tempo": "Previsão do tempo",
+      "pagamento": "Pagamento"
+    },
+    "rotulos": {
+      "passeio": "Passeio",
+      "data": "Data",
+      "saida": "Saída",
+      "retorno": "Retorno aproximado",
+      "duracao": "Duração",
+      "pessoas": "Pessoas",
+      "embarcacao": "Embarcação",
+      "reserva": "Reserva",
+      "endereco": "Endereço",
+      "local": "Local",
+      "origem": "Saída de",
+      "destino": "Destino",
+      "parada": "Parada {n}",
+      "proprietario": "Proprietário",
+      "atendimento": "Atendimento",
+      "regra": "Regra {n}",
+      "item": "Item {n}",
+      "temperatura": "Temperatura",
+      "chuva": "Chance de chuva",
+      "vento": "Vento",
+      "situacao": "Situação"
+    },
+    "pessoasValor": "{count, plural, one {# pessoa} other {# pessoas}}",
+    "temperaturaValor": "{max}° / {min}°",
+    "ventoValor": "até {kmh} km/h",
+    "levar": {
+      "documento": "Documento com foto",
+      "protetor": "Protetor solar e chapéu",
+      "toalha": "Toalha e roupa de banho",
+      "agua": "Água e um casaco leve"
+    },
+    "pagamento": {
+      "pago": "Pago pelo Boatzy",
+      "combinado": "Combinado diretamente com o proprietário",
+      "cobrancasAbertas": "{count, plural, one {Há # cobrança adicional em aberto — pague antes do passeio.} other {Há # cobranças adicionais em aberto — pague antes do passeio.}}"
+    },
+    "abrirMapa": "Abrir no mapa",
+    "conversar": "Conversar com o proprietário",
+    "chatAviso": "Dúvidas ou imprevistos? Fale com o proprietário pelo chat do Boatzy:",
+    "celular": "Celular do proprietário para o dia do embarque: {telefone}",
+    "botao": "Ver minha reserva",
+    "rodape": "Você recebe este e-mail porque tem um passeio confirmado no Boatzy."
+  }
+}

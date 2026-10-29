@@ -82,6 +82,12 @@
         "mensagemExpirada": "The deadline to pay charge #{numero} ({titulo}) has passed. Nothing was charged.",
         "tituloCancelada": "Charge canceled",
         "mensagemCancelada": "The owner canceled charge #{numero} ({titulo}). Nothing was charged."
+      },
+      "lembrete_passeio": {
+        "tituloD1": "Your trip is tomorrow",
+        "tituloH3": "Almost time: your trip departs at {horario}",
+        "tituloHoje": "Your trip is today",
+        "mensagem": "{item} — {data}. Check the boarding point and your booking details."
       }
     }
   }

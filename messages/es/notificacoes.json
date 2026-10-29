@@ -82,6 +82,12 @@
         "mensagemExpirada": "Terminó el plazo para pagar el cobro #{numero} ({titulo}). No se cobró nada.",
         "tituloCancelada": "Cobro cancelado",
         "mensagemCancelada": "El propietario canceló el cobro #{numero} ({titulo}). No se cobró nada."
+      },
+      "lembrete_passeio": {
+        "tituloD1": "Tu paseo es mañana",
+        "tituloH3": "Falta poco: tu paseo sale a las {horario}",
+        "tituloHoje": "Tu paseo es hoy",
+        "mensagem": "{item} — {data}. Revisa el punto de embarque y los detalles de la reserva."
       }
     }
   }

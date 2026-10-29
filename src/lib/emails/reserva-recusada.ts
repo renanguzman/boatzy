@@ -11,6 +11,8 @@ import { baseUrl, enviarEmail, esc, montarEmailHtml } from './layout';
  * escolher outra data no mesmo roteiro. Falha no envio só é logada.
  */
 export async function emailReservaRecusada(input: {
+  /** Registra o envio na linha do tempo de comunicações da reserva (SPEC §96). */
+  reservaId: string;
   para: string | null | undefined;
   nome: string;
   itemNome: string;
@@ -45,5 +47,6 @@ export async function emailReservaRecusada(input: {
       rodape: 'Você recebe este e-mail porque solicitou uma reserva no Boatzy.',
     }),
     'reserva recusada',
+    { reservaId: input.reservaId, papel: 'cliente', tipo: 'reserva_recusada' },
   );
 }

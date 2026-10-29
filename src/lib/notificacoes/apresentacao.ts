@@ -1,6 +1,7 @@
 import {
   Ban,
   BadgeCheck,
+  BellRing,
   CalendarCheck,
   CircleAlert,
   Clock,
@@ -38,6 +39,7 @@ export const VISUAL_NOTIFICACAO: Record<NotificacaoTipo, Visual> = {
   mensagem: { icone: MessageCircle, cor: 'bg-marinho/10 text-marinho', rotulo: 'Mensagem' },
   documento_vencendo: { icone: FileWarning, cor: 'bg-amber-50 text-amber-600', rotulo: 'Documento vencendo' },
   cobranca_avulsa: { icone: HandCoins, cor: 'bg-sky-50 text-sky-600', rotulo: 'Cobrança' },
+  lembrete_passeio: { icone: BellRing, cor: 'bg-turquesa/10 text-turquesa-escuro', rotulo: 'Lembrete do passeio' },
 };
 
 export function visualNotificacao(tipo: string): Visual {

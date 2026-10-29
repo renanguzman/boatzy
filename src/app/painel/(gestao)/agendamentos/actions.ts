@@ -438,6 +438,7 @@ async function avisarClienteRecusa(reservaId: string, observacao: string | null)
     roteiro: { nome: string } | null; cliente: { name: string | null; email: string | null } | null;
   };
   await emailReservaRecusada({
+    reservaId,
     para: r.cliente?.email,
     nome: r.cliente?.name ?? '',
     itemNome: r.roteiro?.nome ?? r.item_nome,

@@ -17,6 +17,7 @@ import { getAtendenteOptions, getAtendentesDaReserva, resolveEmbarcacaoIdDaReser
 import ReservaAcoes from './_components/ReservaAcoes';
 import AdicionarAoCalendario from './_components/AdicionarAoCalendario';
 import CobrancasAvulsas from './_components/CobrancasAvulsas';
+import ComunicacoesReserva from '@/components/comunicacao/ComunicacoesReserva';
 import {
   listarCobrancasDaReserva, motivoBloqueioAvulso, opcoesFormasAvulso, taxaDaCobrancaAvulsa,
 } from '@/lib/pagamentos/avulso';
@@ -49,6 +50,7 @@ type ReservaDetalhe = {
   roteiro: {
     nome: string;
     embarcacao_id: string | null;
+    horario_saida: string | null;
     municipios: { nome: string; estados: { uf: string } | null } | null;
   } | null;
   embarcacao: { nome: string } | null;
@@ -127,7 +129,7 @@ export default async function ReservaDetalhePage({ params }: { params: Promise<{
        preco_base, total_adicionais, taxa_servico, taxa_percent, total_estimado, cupom_codigo, desconto_valor,
        status, observacao_gestor, solicitado_em, respondido_em,
        cliente:users!reserva_cliente_id_fkey ( name, email, cpf_cnpj, avatar_url, phone ),
-       roteiro ( nome, embarcacao_id, municipios ( nome, estados ( uf ) ) ),
+       roteiro ( nome, embarcacao_id, horario_saida, municipios ( nome, estados ( uf ) ) ),
        embarcacao ( nome ),
        reserva_adicional ( id, descricao, valor, tipo ),
        pedido ( numero, status, expira_em, pago_em, valor_total, valor_itens )`,
@@ -379,6 +381,15 @@ export default async function ReservaDetalhePage({ params }: { params: Promise<{
               )}
             </section>
           )}
+
+          {/* Comunicações automáticas (lembretes, avisos e e-mails — SPEC §96) */}
+          <ComunicacoesReserva
+            reservaId={r.id}
+            visao="gestor"
+            status={r.status}
+            dataReserva={r.data_reserva}
+            horarioSaida={r.roteiro?.horario_saida ?? null}
+          />
         </div>
 
         {/* Sidebar: valores + ações */}

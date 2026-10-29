@@ -17,6 +17,9 @@ type DadosNotificacao = {
   titulo?: string | null;
   avulso?: boolean | null;
   evento?: 'criada' | 'expirada' | 'cancelada' | null;
+  /** Lembrete do passeio (SPEC §96): marco e horário de saída 'HH:MM' (null se o roteiro não tem). */
+  marco?: 'd1' | 'h3' | null;
+  horario?: string | null;
 };
 
 function lerDados(n: Notificacao): DadosNotificacao | null {
@@ -77,6 +80,15 @@ export function useTextoNotificacao() {
         }
         return { titulo: t('textos.cobranca_avulsa.tituloCriada'), mensagem: t('textos.cobranca_avulsa.mensagemCriada', { item, data, prazo, titulo }) };
       }
+      case 'lembrete_passeio':
+        return {
+          titulo: d.marco === 'd1'
+            ? t('textos.lembrete_passeio.tituloD1')
+            : d.horario
+              ? t('textos.lembrete_passeio.tituloH3', { horario: f.horario(d.horario) })
+              : t('textos.lembrete_passeio.tituloHoje'),
+          mensagem: t('textos.lembrete_passeio.mensagem', { item, data }),
+        };
       case 'pagamento_recusado':
         return { titulo: t('textos.pagamento_recusado.titulo'), mensagem: t('textos.pagamento_recusado.mensagem', { item, prazo }) };
       case 'reembolso':

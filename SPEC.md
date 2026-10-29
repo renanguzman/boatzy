@@ -8688,3 +8688,136 @@ filtro explícito. Requisitos: PRD §6.14 "Visão do admin". Somente leitura.
   temporária (já removida) com casos fictícios: vencida + equipe, sem documentos, só DPEM, em dia vencendo em
   20 dias, membro inativo/incompleto. Não exercitado logado como admin no navegador.
 
+
+## 96. Comunicações da reserva — lembretes do passeio e linha do tempo (28/10/2026)
+
+PRD §6.15. Lembretes D-1/H-3 por e-mail e aviso no sino para cliente e gestor; linha do tempo de tudo o que o
+sistema envia sobre a reserva, visível a cliente, gestor e admin; WhatsApp como pendência preparada.
+
+### 96.1 Banco — migration `20261029b_reserva_comunicacao.sql`
+
+- **`reserva_comunicacao`** (histórico): `id`, `reserva_id` (FK CASCADE), `tipo` (`^[a-z0-9_]{3,40}$` —
+  `lembrete_d1`, `lembrete_h3` ou o tipo do aviso/e-mail: `reserva_confirmada`, `pagamento_aprovado`…),
+  `papel` (`cliente`|`gestor`, o destinatário), `canal` (`email`|`notificacao`|`whatsapp`), `status`
+  (`agendado`|`enviado`|`falhou`|`dispensado`|`pendente_integracao`), `destino`, `assunto`, `resumo`, `erro`
+  (no `dispensado`, o motivo: `confirmada_tarde`|`janela_perdida`|`sem_contato`), `provedor_id` (Resend),
+  `tentativas`, `chave` (**UNIQUE total** — NULLs não colidem; índice parcial impediria o `upsert` do
+  supabase-js), `notificacao_id` (FK SET NULL), `agendado_para`, `enviado_em`, `criado_em`, `atualizado_em`.
+  Índice `(reserva_id, criado_em)`.
+- RLS + GRANTs da Data API; `service_role_all`; `participante_select` (cliente ou dono da reserva). Sem
+  escrita para `authenticated`.
+- `trg_reserva_comunicacao_protege` (BEFORE UPDATE/DELETE + TRUNCATE): UPDATE só muda o resultado do envio
+  (reserva, tipo, papel, canal, chave e criado_em são fixos; atualiza `atualizado_em`); DELETE só pelo CASCADE
+  da reserva.
+- `notificacao.tipo` ganha **`lembrete_passeio`**.
+- **`trg_notificacao_comunicacao`** (AFTER INSERT em `notificacao`, SECURITY DEFINER): aviso com `reserva_id`
+  (exceto `mensagem`) vira item `canal='notificacao'`, `papel = publico`, `assunto = titulo`, `chave =
+  'notificacao:<id>'`. **Backfill** dos avisos existentes.
+
+### 96.2 Agenda — `src/lib/comunicacao/agenda.ts` (pura)
+
+`agendaLembretes(dataReserva, horarioSaida) → { partida, janelas: { d1, h3 } }`, cada janela `[inicio, fim)`:
+- `d1`: início às `HORA_LEMBRETE_D1` (10:00) do dia anterior; fim = início do H-3.
+- `h3`: início = partida − 3h; fim = partida. Sem horário de saída: início às `HORA_LEMBRETE_SEM_HORARIO`
+  (07:00) do dia; fim ao meio-dia.
+- Instantes montados com offset fixo `-03:00` (Brasília sem horário de verão desde 2019). Ex.: saída 02:00 do
+  dia 14 → H-3 às 23:00 do dia 13.
+
+### 96.3 Job — `GET|POST /api/cron/lembretes-passeio` → `processarLembretesPasseio()` (`src/lib/comunicacao/lembretes.ts`)
+
+- `Authorization: Bearer <CRON_SECRET>` (sem secret → 401, fail-safe). `maxDuration` 60.
+  Resposta: `{ ok, reservas, enviados, falhas, dispensados }`.
+- Busca reservas `confirmada` com `data_reserva` entre hoje e amanhã (Brasília) com alguma janela já
+  iniciada; carrega os dados (`carregarDadosPasseio`) e confere de novo o status.
+- Por marco com janela iniciada:
+  - `dispensado` (um item por papel, chave do e-mail, `upsert ignoreDuplicates`) quando a reserva foi
+    confirmada depois do início da janela (`confirmadaEm` = `pedido.pago_em` se pago pelo Boatzy, senão
+    `aceita_em ?? respondido_em`) ou quando a janela fechou sem envio;
+  - senão, para cliente e gestor: aviso no sino (`notificacao` tipo `lembrete_passeio`; chave
+    `lembrete:<reserva>:<marco>` / `gestor:lembrete:<reserva>:<marco>`; 23505 = já avisado); item WhatsApp
+    `pendente_integracao` (chave `…:whatsapp`, destino = `users.phone`); e-mail.
+- **E-mail idempotente** (`reservar`): INSERT `agendado` com a chave `lembrete:<reserva>:<marco>:<papel>:email`;
+  se já existe, só retoma `falhou` com `tentativas < 3` ou `agendado` parado há > 10 min — UPDATE condicional
+  (`status` + `atualizado_em` iguais aos lidos) para duas execuções não enviarem o mesmo e-mail. Depois do
+  `sendEmail` grava `enviado` (+ `provedor_id`, `enviado_em`) ou `falhou` (+ `erro`; sem `RESEND_API_KEY` →
+  "Provedor de e-mail não configurado"). Sem e-mail cadastrado → `dispensado` / `sem_contato`.
+- Extras carregados só quando há envio (`carregarExtras`): previsão (`buscarPrevisaoTempo`, Open-Meteo),
+  cobranças avulsas `aguardando_pagamento` e documentos do dono com `data_validade` < dia do passeio (escopo
+  `condutor` ou a embarcação do passeio).
+
+### 96.4 E-mails — `src/lib/emails/lembrete-passeio.ts`
+
+- `montarLembreteCliente(d, marco, extras)` (async): idioma de `users.idioma` (fallback pt-BR) via
+  `getTranslations({ locale, namespace: 'EmailLembrete' })` + `criarFormatos` — funciona fora de requisição.
+  Variantes `d1` (completa), `h3`, `hoje` (H-3 sem horário). Blocos: passeio, embarque, roteiro (paradas),
+  contatos, contratados, regras, o que levar (só `d1`), tempo (condição só em pt-BR — `weather.ts` não
+  traduz), pagamento (só `d1`). Celular do gestor em `aposBotao` (`formatarCelular`).
+- `montarLembreteGestor(d, marco, extras)` (pt-BR): checklist + alertas (sem equipe, sem horário, documentos
+  vencidos, cobranças em aberto). Celular do cliente em `aposBotao`.
+- `montarEmailHtml` ganhou `saudacao?: (primeiroNome) => string` e `lang?` (padrão "Olá, Nome!" / `pt-BR`).
+- Mensagens: `messages/*/comunicacoes.json` (namespaces `Comunicacoes` e `EmailLembrete`, nas 3 pastas e
+  `index.ts`); `Notificacoes.textos.lembrete_passeio` (`tituloD1`, `tituloH3 {horario}`, `tituloHoje`,
+  `mensagem {item, data}`) — `useTextoNotificacao` lê `dados { item, data, horario, marco }`.
+  `VISUAL_NOTIFICACAO.lembrete_passeio` (`BellRing`).
+
+### 96.5 Registro dos e-mails existentes — `enviarEmail(to, subject, html, contexto, registro?)`
+
+- `registro?: RegistroEmail` (`{ reservaId, papel, tipo }`, `src/lib/comunicacao/registrar.ts`) grava o
+  resultado em `reserva_comunicacao` (`registrarEmail`); falha ao registrar só é logada. `enviarEmail` agora
+  devolve o `SendEmailResult` (ou null sem destinatário).
+- Ligado em: `emailReservaConfirmada`/`emailReservaCancelada` (cliente), `emailGestorReservaCancelada`,
+  `notificarGestorNovaSolicitacao` (`reserva_solicitada`), `emailReservaRecusada` (ganhou `reservaId`) e todos
+  os de `src/lib/pagamentos/emails.ts` (helper `registro(input, papel, tipo)`; `emailCobrancaAvulsaCriada`
+  ganhou `reservaId?`, passado por `criarCobrancaAvulsa`). E-mails sem reserva (contato, publicação,
+  solicitação de gestor, documentos, conversas) não entram.
+
+### 96.6 Agendamento — cron-job.org (job novo)
+
+| Campo | Valor |
+|---|---|
+| Título | `Boatzy — Lembretes do passeio` |
+| URL | `https://www.boatzy.app/api/cron/lembretes-passeio` (usar o domínio **com www** — o redirect do domínio sem www descarta o header `Authorization`) |
+| Agenda | a cada 15 minutos (`*/15 * * * *`), fuso `America/Sao_Paulo` |
+| Método | `GET` |
+| Header | `Authorization: Bearer <CRON_SECRET>` (o mesmo valor da env `CRON_SECRET` na Vercel) |
+| Timeout | 60 s |
+| Sucesso | HTTP 200 com `{"ok":true,…}`; 401 = segredo errado; 500 = erro (ver logs da Vercel) |
+| Notificações | avisar em falha |
+
+Reserva na Vercel: `vercel.json` → `/api/cron/lembretes-passeio` às `5 13 * * *` (10:05 Brasília; cobre o
+D-1 se o cron-job.org falhar). Rodar a mais é seguro (idempotente).
+
+### 96.7 Linha do tempo — `ComunicacoesReserva` (`src/components/comunicacao/ComunicacoesReserva.tsx`)
+
+- Server Component `{ reservaId, visao: 'cliente'|'gestor'|'admin', status, dataReserva, horarioSaida }`; lê
+  com `supabaseAdmin` (quem chama já validou o acesso); textos de `Comunicacoes` (pt-BR no painel/admin).
+- Itens em ordem cronológica: ícone do canal, tipo (`tipos.<tipo>`, senão "Comunicação"), canal · "para
+  você / para o cliente / para o proprietário" · destino, assunto, motivo do `dispensado`, data/hora e selo
+  de status. cliente/gestor: destino por `mascararDestino` e **sem** itens `whatsapp`; admin: destino
+  completo + `erro`/`provedor_id`/`tentativas`.
+- Reserva `confirmada`: marcos sem item e com janela aberta aparecem como "Previsto para <início>".
+- Usada em `/minhas-reservas/[id]` (coluna principal, após avaliação), `/painel/agendamentos/[id]` (coluna
+  principal, ao final; o select passou a trazer `roteiro.horario_saida`) e `/administrator/reservas/[id]`.
+
+### 96.8 Admin — `/administrator/reservas`
+
+- `page.tsx`: lista paginada (25) por `data_reserva` desc; `?q=` (UUID → id; senão `item_nome` ilike ou
+  cliente/gestor por nome/e-mail) e `?status=`. Menu **RESERVAS** (`CalendarCheck`) no `AdminSidebar`.
+- `[id]/page.tsx`: todos os dados da reserva (passeio, embarque, paradas, adicionais, atendentes, recado,
+  datas, valores, cliente e gestor — `users!reserva_owner_id_fkey` —, pedido e cobranças avulsas com link para
+  `/administrator/pedidos/[id]`, aceite do termo, avaliação) + `ComunicacoesReserva visao="admin"`. O detalhe
+  do pedido linka "Reserva completa e comunicações".
+
+### 96.9 Pendência — WhatsApp
+
+Canal e status prontos (`whatsapp` / `pendente_integracao`, gravados pelo job com o celular de destino).
+Falta: provedor, modelos aprovados pela Meta (D-1/H-3 × cliente/gestor × idiomas do cliente), opt-in, telefone
+em E.164, envio no job (`registrarWhatsappPendente` → envio real) e webhook de status. Ver PRD §6.15.
+
+### 96.10 Validação
+
+`tsc`, `eslint` e `npm run i18n:verificar` limpos. Agenda conferida (saída 14:00, 02:00 e sem horário). Os 4
+e-mails renderizados numa rota temporária (já removida) com dados fictícios — cliente D-1 pt-BR, H-3 en-US,
+"hoje" es e gestor D-1. Rotas novas respondem (job sem segredo → 401; admin → login). **Não exercitado:** a
+migration não foi aplicada a partir desta sessão; job, linha do tempo e telas logadas não testados contra o
+banco.

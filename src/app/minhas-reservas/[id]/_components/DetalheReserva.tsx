@@ -31,6 +31,7 @@ import BotaoImprimir from './BotaoImprimir';
 import ConversarDonoReserva from '../../_components/ConversarDonoReserva';
 import CobrancasAdicionais from '../../_components/CobrancasAdicionais';
 import { listarCobrancasDaReserva } from '@/lib/pagamentos/avulso';
+import ComunicacoesReserva from '@/components/comunicacao/ComunicacoesReserva';
 
 /* ── Tipos do select ─────────────────────────────────────────────────────── */
 
@@ -566,6 +567,15 @@ export default async function DetalheReserva({ reservaId: id, clienteId }: { res
 
             {/* Avaliação (o componente já tem título e moldura) */}
             {r.status === 'concluida' && <AvaliacaoReserva reservaId={r.id} avaliacao={avaliacao} />}
+
+            {/* Comunicações automáticas (lembretes, avisos e e-mails — SPEC §96) */}
+            <ComunicacoesReserva
+              reservaId={r.id}
+              visao="cliente"
+              status={r.status}
+              dataReserva={r.data_reserva}
+              horarioSaida={r.roteiro?.horario_saida ?? null}
+            />
           </div>
 
           {/* ── Coluna lateral (no celular vem primeiro: valores, pagamento e ações) ── */}

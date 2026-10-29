@@ -9,6 +9,7 @@ import busca from './busca.json';
 import cards from './cards.json';
 import chat from './chat.json';
 import comum from './comum.json';
+import comunicacoes from './comunicacoes.json';
 import conta from './conta.json';
 import home from './home.json';
 import institucional from './institucional.json';
@@ -29,6 +30,7 @@ const mensagens = {
   ...cards,
   ...chat,
   ...comum,
+  ...comunicacoes,
   ...conta,
   ...home,
   ...institucional,

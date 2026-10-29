@@ -17,7 +17,12 @@ export type NotificacaoTipo =
   | 'reembolso'
   | 'mensagem'
   | 'documento_vencendo' // só gestor: documento da embarcação/condutor vencendo ou vencido (SPEC §95)
-  | 'cobranca_avulsa'; // cobrança avulsa criada/expirada/cancelada (SPEC §34.16)
+  | 'cobranca_avulsa' // cobrança avulsa criada/expirada/cancelada (SPEC §34.16)
+  | 'lembrete_passeio'; // lembrete D-1 / H-3 do passeio confirmado (SPEC §96)
+/** Linha do tempo de comunicações da reserva (SPEC §96). */
+export type ComunicacaoPapel = 'cliente' | 'gestor';
+export type ComunicacaoCanal = 'email' | 'notificacao' | 'whatsapp';
+export type ComunicacaoStatus = 'agendado' | 'enviado' | 'falhou' | 'dispensado' | 'pendente_integracao';
 /** Documentos da embarcação e do condutor (SPEC §95). */
 export type DocumentoTipo = 'tie' | 'tiem' | 'dpem' | 'prpm' | 'cha' | 'cir' | 'outro';
 export type DocumentoEscopo = 'embarcacao' | 'condutor';
@@ -2312,6 +2317,68 @@ export type Database = {
         ];
       };
       // Linha do tempo de negócio do pedido — append-only (SPEC §34.16).
+      // Linha do tempo de comunicações da reserva (SPEC §96) — histórico, sem DELETE.
+      reserva_comunicacao: {
+        Row: {
+          id: string;
+          reserva_id: string;
+          tipo: string;
+          papel: ComunicacaoPapel;
+          canal: ComunicacaoCanal;
+          status: ComunicacaoStatus;
+          destino: string | null;
+          assunto: string | null;
+          resumo: string | null;
+          erro: string | null;
+          provedor_id: string | null;
+          tentativas: number;
+          chave: string | null;
+          notificacao_id: string | null;
+          agendado_para: string | null;
+          enviado_em: string | null;
+          criado_em: string;
+          atualizado_em: string;
+        };
+        Insert: {
+          id?: string;
+          reserva_id: string;
+          tipo: string;
+          papel: ComunicacaoPapel;
+          canal: ComunicacaoCanal;
+          status?: ComunicacaoStatus;
+          destino?: string | null;
+          assunto?: string | null;
+          resumo?: string | null;
+          erro?: string | null;
+          provedor_id?: string | null;
+          tentativas?: number;
+          chave?: string | null;
+          notificacao_id?: string | null;
+          agendado_para?: string | null;
+          enviado_em?: string | null;
+          criado_em?: string;
+        };
+        Update: {
+          status?: ComunicacaoStatus;
+          destino?: string | null;
+          assunto?: string | null;
+          resumo?: string | null;
+          erro?: string | null;
+          provedor_id?: string | null;
+          tentativas?: number;
+          agendado_para?: string | null;
+          enviado_em?: string | null;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'reserva_comunicacao_reserva_id_fkey';
+            columns: ['reserva_id'];
+            isOneToOne: false;
+            referencedRelation: 'reserva';
+            referencedColumns: ['id'];
+          },
+        ];
+      };
       pedido_evento: {
         Row: {
           id: string;

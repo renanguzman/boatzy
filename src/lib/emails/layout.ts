@@ -1,6 +1,7 @@
 import 'server-only';
 
-import { sendEmail } from '@/lib/email';
+import { sendEmail, type SendEmailResult } from '@/lib/email';
+import { registrarEmail, type RegistroEmail } from '@/lib/comunicacao/registrar';
 
 /**
  * Layout padrão dos e-mails transacionais do Boatzy (cabeçalho navy, saudação,
@@ -32,8 +33,14 @@ export function montarEmailHtml(input: {
   /** Texto pequeno logo abaixo do botão (ex.: "Responda em até…"). HTML já escapado. */
   aposBotao?: string;
   rodape: string;
+  /** Saudação em outro idioma (texto puro), ex.: (nome) => `Hi, ${nome}!`. Padrão "Olá, Nome!". */
+  saudacao?: (primeiroNome: string) => string;
+  /** `lang` do HTML (padrão pt-BR). */
+  lang?: string;
 }): string {
-  const primeiroNome = esc((input.nome ?? '').split(' ')[0] || 'Olá');
+  const primeiroNomeTexto = (input.nome ?? '').split(' ')[0] || 'Olá';
+  const primeiroNome = esc(primeiroNomeTexto);
+  const saudacao = input.saudacao ? esc(input.saudacao(primeiroNomeTexto)) : `Olá, ${primeiroNome}!`;
 
   const blocos = (input.blocos ?? [])
     .filter((b) => b.linhas.length > 0)
@@ -65,13 +72,13 @@ export function montarEmailHtml(input: {
     : '';
 
   return `<!doctype html>
-<html lang="pt-BR"><body style="margin:0;background:#f1f5f9;font-family:Arial,Helvetica,sans-serif;">
+<html lang="${esc(input.lang ?? 'pt-BR')}"><body style="margin:0;background:#f1f5f9;font-family:Arial,Helvetica,sans-serif;">
   <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f1f5f9;padding:24px 0;">
     <tr><td align="center">
       <table role="presentation" width="480" cellpadding="0" cellspacing="0" style="background:#ffffff;border-radius:16px;overflow:hidden;border:1px solid #e2e8f0;">
         <tr><td style="background:#0E2F4F;padding:20px 24px;color:#ffffff;font-size:18px;font-weight:bold;">Boatzy</td></tr>
         <tr><td style="padding:24px;">
-          <h1 style="margin:0 0 8px;color:#0E2F4F;font-size:18px;">Olá, ${primeiroNome}!</h1>
+          <h1 style="margin:0 0 8px;color:#0E2F4F;font-size:18px;">${saudacao}</h1>
           ${input.paragrafos.map((p) => `<p style="margin:0 0 16px;color:#475569;font-size:14px;line-height:1.5;">${p}</p>`).join('')}
           ${blocos}
           ${botao}
@@ -84,9 +91,20 @@ export function montarEmailHtml(input: {
 </body></html>`;
 }
 
-/** Envia e só loga falhas — e-mail nunca interrompe o fluxo que o disparou. */
-export async function enviarEmail(to: string | null | undefined, subject: string, html: string, contexto: string) {
-  if (!to) return;
+/**
+ * Envia e só loga falhas — e-mail nunca interrompe o fluxo que o disparou. Com `registro`, o envio
+ * (ou a falha) entra na linha do tempo de comunicações da reserva (SPEC §96).
+ */
+export async function enviarEmail(
+  to: string | null | undefined,
+  subject: string,
+  html: string,
+  contexto: string,
+  registro?: RegistroEmail,
+): Promise<SendEmailResult | null> {
+  if (!to) return null;
   const r = await sendEmail({ to, subject, html });
   if (!r.ok && r.error !== 'no_provider') console.error(`[emails] ${contexto}:`, r.error);
+  if (registro) await registrarEmail(registro, to, subject, r);
+  return r;
 }

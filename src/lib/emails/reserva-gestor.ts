@@ -68,5 +68,6 @@ export async function emailGestorReservaCancelada(reservaId: string) {
       rodape: `Você recebe este e-mail porque é o gestor de ${item} no Boatzy.`,
     }),
     'reserva cancelada (gestor)',
+    { reservaId, papel: 'gestor', tipo: 'reserva_cancelada' },
   );
 }

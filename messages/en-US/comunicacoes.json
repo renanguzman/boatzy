@@ -1,0 +1,114 @@
+{
+  "Comunicacoes": {
+    "titulo": "Automatic communications",
+    "subtitulo": "Emails and alerts Boatzy sent about this booking.",
+    "vazio": "No communications sent yet.",
+    "previsto": "Scheduled for {data}",
+    "paraVoce": "to you",
+    "paraCliente": "to the guest",
+    "paraProprietario": "to the owner",
+    "canal": {
+      "email": "Email",
+      "notificacao": "Site alert",
+      "whatsapp": "WhatsApp"
+    },
+    "status": {
+      "agendado": "Scheduled",
+      "enviado": "Sent",
+      "falhou": "Not delivered",
+      "dispensado": "Not sent",
+      "pendente_integracao": "Awaiting integration"
+    },
+    "motivo": {
+      "confirmada_tarde": "The booking was confirmed after this reminder's time.",
+      "janela_perdida": "This reminder's time passed without sending.",
+      "sem_contato": "No email on file."
+    },
+    "tipos": {
+      "lembrete_d1": "Day-before trip reminder",
+      "lembrete_h3": "Trip-day reminder",
+      "lembrete_passeio": "Trip reminder",
+      "reserva_solicitada": "New booking request",
+      "reserva_confirmada": "Booking confirmed",
+      "reserva_recusada": "Booking not accepted",
+      "reserva_cancelada": "Booking canceled",
+      "reserva_expirada": "Payment deadline expired",
+      "reserva_concluida": "Invitation to review the trip",
+      "aguardando_pagamento": "Booking accepted — awaiting payment",
+      "pagamento_aprovado": "Payment approved",
+      "pagamento_recusado": "Payment declined",
+      "reembolso": "Refund",
+      "cobranca_avulsa": "Additional charge",
+      "outro": "Communication"
+    }
+  },
+  "EmailLembrete": {
+    "saudacao": "Hi, {nome}!",
+    "assunto": {
+      "d1": "Your trip is tomorrow: {item}",
+      "h3": "Almost time! {item} departs at {hora}",
+      "hoje": "Your trip is today: {item}"
+    },
+    "intro": {
+      "d1": "Your trip {item} is tomorrow! Below is everything you need to know for boarding.",
+      "h3": "Almost time: your trip {item} departs today at {hora}. Check the boarding point and arrive early.",
+      "hoje": "Your trip {item} is today! Check the boarding point and booking details below."
+    },
+    "antecedencia": "Arrive at the boarding point 30 minutes early.",
+    "semHorario": "The owner hasn't set the departure time yet — confirm it via Boatzy chat.",
+    "blocos": {
+      "passeio": "Your trip",
+      "embarque": "Boarding point",
+      "roteiro": "Itinerary",
+      "contatos": "Who will welcome you",
+      "contratados": "What you booked",
+      "regras": "Boat rules",
+      "levar": "What to bring",
+      "tempo": "Weather forecast",
+      "pagamento": "Payment"
+    },
+    "rotulos": {
+      "passeio": "Trip",
+      "data": "Date",
+      "saida": "Departure",
+      "retorno": "Approx. return",
+      "duracao": "Duration",
+      "pessoas": "Guests",
+      "embarcacao": "Boat",
+      "reserva": "Booking",
+      "endereco": "Address",
+      "local": "Location",
+      "origem": "Departs from",
+      "destino": "Destination",
+      "parada": "Stop {n}",
+      "proprietario": "Owner",
+      "atendimento": "Crew",
+      "regra": "Rule {n}",
+      "item": "Item {n}",
+      "temperatura": "Temperature",
+      "chuva": "Chance of rain",
+      "vento": "Wind",
+      "situacao": "Status"
+    },
+    "pessoasValor": "{count, plural, one {# guest} other {# guests}}",
+    "temperaturaValor": "{max}° / {min}°",
+    "ventoValor": "up to {kmh} km/h",
+    "levar": {
+      "documento": "Photo ID",
+      "protetor": "Sunscreen and a hat",
+      "toalha": "Towel and swimwear",
+      "agua": "Water and a light jacket"
+    },
+    "pagamento": {
+      "pago": "Paid through Boatzy",
+      "combinado": "Arranged directly with the owner",
+      "cobrancasAbertas": "{count, plural, one {There is # open additional charge — please pay before the trip.} other {There are # open additional charges — please pay before the trip.}}"
+    },
+    "abrirMapa": "Open in maps",
+    "conversar": "Chat with the owner",
+    "chatAviso": "Questions or last-minute changes? Talk to the owner on Boatzy chat:",
+    "celular": "Owner's mobile for boarding day: {telefone}",
+    "botao": "View my booking",
+    "rodape": "You're receiving this email because you have a confirmed trip on Boatzy."
+  }
+}

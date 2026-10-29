@@ -633,6 +633,7 @@ export default async function AdminPedidoDetalhePage({ params }: { params: Promi
                       {r.tipo === 'embarcacao' ? 'Reserva de embarcação' : 'Reserva de roteiro'}{localidade ? ` · ${localidade}` : ''}
                     </p>
                     <div className="flex flex-wrap gap-3 mt-1">
+                      <Link href={`/administrator/reservas/${r.id}`} className="text-xs font-semibold text-[#0B3D91] hover:underline">Reserva completa e comunicações</Link>
                       {r.roteiro_id && (
                         <Link href={`/administrator/roteiros/${r.roteiro_id}/editar`} className="text-xs font-semibold text-[#0B3D91] hover:underline">Roteiro no admin</Link>
                       )}

@@ -1467,6 +1467,75 @@ Amostra de CHA ainda não recebida — a leitura da CHA foi calibrada com um tex
 
 Detalhes técnicos: `SPEC.md` §95.
 
+### 6.15 Comunicação automática — lembretes do passeio e linha do tempo (28/10/2026)
+
+#### ✅ Implementado — Lembretes do passeio confirmado (e-mail + aviso no site)
+
+Todo passeio com reserva **confirmada** gera dois lembretes, cada um para o **cliente** e para o **gestor**
+(dono da embarcação), por **e-mail** e **aviso no sino** (site e painel):
+
+| Lembrete | Quando (horário de Brasília) |
+|---|---|
+| **Véspera (D-1)** | às 10h do dia anterior ao passeio |
+| **Dia do passeio (H-3)** | 3h antes do horário de saída do roteiro. Roteiro **sem horário de saída**: às 7h do dia ("Seu passeio é hoje") |
+
+- **Cliente** — e-mail no idioma da conta (pt-BR, en-US, es). O da véspera reforça tudo sobre o passeio:
+  nome, data por extenso, saída, retorno aproximado/duração, pessoas, embarcação e código da reserva;
+  **ponto de embarque** (endereço completo + "Abrir no mapa"), origem → destino; **roteiro** (paradas em
+  ordem); **quem vai receber** (proprietário e equipe escalada); adicionais contratados; **regras da
+  embarcação**; o que levar; **previsão do tempo**; situação do pagamento e aviso de cobrança adicional em
+  aberto; link para conversar com o proprietário pelo chat. O do dia é a versão curta (horário, embarque,
+  contato, tempo). O **celular do proprietário** aparece discretamente, abaixo do botão.
+- **Gestor** — e-mail em pt-BR, em forma de checklist: cliente e nº de pessoas, adicionais para preparar,
+  equipe escalada, financeiro (pago pelo Boatzy / você recebe, ou combinado direto), previsão do tempo e
+  **alertas**: ninguém escalado, roteiro sem horário de saída, documentos vencidos (embarcação/condutores) e
+  cobrança adicional em aberto. O **celular do cliente** aparece discretamente, abaixo do botão.
+- **Regras:** só reservas confirmadas (o status é conferido na hora do envio — cancelada não recebe);
+  passeio de várias diárias: só o primeiro dia; reserva confirmada **depois** do horário de um lembrete →
+  esse lembrete fica como "Não enviado" (a confirmação já levou o aviso); nada é enviado em duplicidade;
+  e-mail que falha é tentado de novo (até 3 vezes) enquanto o lembrete ainda faz sentido. Lembretes são
+  transacionais — não dependem da preferência de e-mail de conversas.
+- **Agendamento:** job `/api/cron/lembretes-passeio` acionado pelo **cron-job.org a cada 15 min** (o plano
+  Hobby da Vercel só permite cron diário; a Vercel roda 1×/dia às 10h05 como reserva da véspera).
+
+#### ✅ Implementado — Linha do tempo "Comunicações automáticas" dentro do passeio
+
+Seção no detalhe da reserva para **cliente** (`/minhas-reservas/[id]`), **gestor**
+(`/painel/agendamentos/[id]`) e **admin** (`/administrator/reservas/[id]`), listando tudo o que o sistema
+enviou sobre a reserva: lembretes, avisos no sino e e-mails transacionais (solicitação, confirmação, recusa,
+cancelamento, pagamento pendente/aprovado/recusado/expirado, reembolso, cobranças adicionais). Cada item
+mostra canal (e-mail / aviso no site / WhatsApp), para quem foi, quando e a situação (Enviado, Não
+entregue, Não enviado, Agendado, Aguardando integração). Os próximos lembretes aparecem como **"Previsto
+para…"**. Cliente e gestor veem o destino mascarado (a•••@gmail.com); o admin vê o destino completo, o erro
+técnico, o id do Resend e as tentativas. Avisos antigos do sino entraram na linha do tempo pela migration;
+e-mails enviados antes de 28/10/2026 não aparecem (não eram registrados).
+
+#### ✅ Implementado — Admin → Reservas (`/administrator/reservas`)
+
+Novo item **RESERVAS** no menu do admin: lista de todas as reservas (com ou sem pedido no Boatzy) com busca
+(passeio, cliente/gestor por nome ou e-mail, id) e filtro por status; o detalhe mostra todos os dados da
+reserva (passeio, embarque, paradas, adicionais, atendentes, recado do gestor, datas, valores, cliente,
+gestor, pedidos e cobranças vinculados, aceite do termo, avaliação) e a linha do tempo de comunicações. O
+detalhe do pedido ganhou o atalho "Reserva completa e comunicações".
+
+#### ⏸️ Pendência — Lembretes por WhatsApp
+
+Os mesmos lembretes (véspera e dia do passeio, cliente e gestor) devem sair também por **WhatsApp** quando a
+integração for implementada. Já preparado: o canal `whatsapp` existe na linha do tempo e cada lembrete grava
+o item "Aguardando integração" com o celular de destino (visível só para o admin). Para ligar:
+1. escolher o provedor (WhatsApp Cloud API da Meta ou um BSP, ex.: Twilio/Z-API);
+2. criar e aprovar na Meta os **modelos de mensagem** (véspera e dia × cliente e gestor; cliente em pt-BR,
+   en-US e es);
+3. coletar o **consentimento (opt-in)** de cliente e gestor para receber mensagens;
+4. normalizar `users.phone` em E.164;
+5. enviar no job de lembretes (trocar o item `pendente_integracao` pelo envio real) e receber o webhook de
+   status (entregue/lida) para atualizar a linha do tempo.
+
+**Pendências para entrar no ar:** aplicar a migration `20261029b_reserva_comunicacao.sql`; criar o job no
+cron-job.org (ver `SPEC.md` §96.6).
+
+Detalhes técnicos: `SPEC.md` §96.
+
 ---
 
 ## 7. Modelagem de Dados (Simplificada)

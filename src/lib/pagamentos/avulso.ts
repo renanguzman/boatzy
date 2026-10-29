@@ -239,6 +239,7 @@ export async function criarCobrancaAvulsa(input: CriarCobrancaAvulsaInput): Prom
     valorTotal: valores.valorTotal,
   });
   await emailCobrancaAvulsaCriada({
+    reservaId: reserva.id,
     para: cliente?.email ?? '',
     nome: cliente?.name ?? '',
     gestorNome: gestor?.name?.trim() || 'O gestor',

@@ -56,6 +56,7 @@ export async function emailReservaConfirmada(reservaId: string) {
       rodape: 'Você recebe este e-mail porque fez uma reserva no Boatzy.',
     }),
     'reserva confirmada',
+    { reservaId, papel: 'cliente', tipo: 'reserva_confirmada' },
   );
 }
 
@@ -78,5 +79,6 @@ export async function emailReservaCancelada(reservaId: string) {
       rodape: 'Você recebe este e-mail porque tinha uma reserva no Boatzy.',
     }),
     'reserva cancelada',
+    { reservaId, papel: 'cliente', tipo: 'reserva_cancelada' },
   );
 }

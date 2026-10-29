@@ -216,7 +216,7 @@ export async function notificarGestorNovaSolicitacao(reservaId: string): Promise
       horasPrazoPagamento,
     });
 
-    await enviarEmail(gestor.email, assunto, html, 'nova solicitação de reserva');
+    await enviarEmail(gestor.email, assunto, html, 'nova solicitação de reserva', { reservaId, papel: 'gestor', tipo: 'reserva_solicitada' });
   } catch (err) {
     console.error('[emails/reserva-solicitada] falha ao notificar gestor', reservaId, err instanceof Error ? err.message : err);
   }

@@ -2,6 +2,8 @@ import 'server-only';
 
 import { formatarData, formatarDataHora } from '@/lib/datas';
 import { baseUrl, enviarEmail, esc, montarEmailHtml } from '@/lib/emails/layout';
+import type { RegistroEmail } from '@/lib/comunicacao/registrar';
+import type { ComunicacaoPapel } from '@/types/supabase';
 
 /**
  * E-mails do fluxo de pagamento — layout padrão (`src/lib/emails/layout.ts`).
@@ -22,8 +24,12 @@ function montarHtml(input: {
   return montarEmailHtml({ ...input, blocos: [{ linhas: input.linhas }] });
 }
 
-const enviar = (to: string | null | undefined, subject: string, html: string, contexto: string) =>
-  enviarEmail(to, subject, html, `pagamentos/${contexto}`);
+const enviar = (to: string | null | undefined, subject: string, html: string, contexto: string, reg?: RegistroEmail) =>
+  enviarEmail(to, subject, html, `pagamentos/${contexto}`, reg);
+
+/** Registro na linha do tempo de comunicações da reserva (SPEC §96). */
+const registro = (input: { reservaId?: string | null }, papel: ComunicacaoPapel, tipo: string): RegistroEmail | undefined =>
+  input.reservaId ? { reservaId: input.reservaId, papel, tipo } : undefined;
 
 export type DadosPedidoEmail = {
   reservaId: string;
@@ -60,6 +66,7 @@ export async function emailPagamentoPendente(input: DadosPedidoEmail & { para: s
         rodape: RODAPE_CLIENTE_AVULSO,
       }),
       'cobranca avulsa pendente',
+      registro(input, 'cliente', 'cobranca_avulsa'),
     );
     return;
   }
@@ -82,6 +89,7 @@ export async function emailPagamentoPendente(input: DadosPedidoEmail & { para: s
       rodape: 'Você recebe este e-mail porque solicitou uma reserva no Boatzy.',
     }),
     'pagamento pendente',
+    registro(input, 'cliente', 'aguardando_pagamento'),
   );
 }
 
@@ -105,6 +113,7 @@ export async function emailPagamentoConfirmado(input: DadosPedidoEmail & { para:
         rodape: RODAPE_CLIENTE_AVULSO,
       }),
       'cobranca avulsa paga',
+      registro(input, 'cliente', 'pagamento_aprovado'),
     );
     return;
   }
@@ -125,6 +134,7 @@ export async function emailPagamentoConfirmado(input: DadosPedidoEmail & { para:
       rodape: 'Você recebe este e-mail porque fez uma reserva no Boatzy.',
     }),
     'pagamento confirmado',
+    registro(input, 'cliente', 'pagamento_aprovado'),
   );
 }
 
@@ -149,6 +159,7 @@ export async function emailReservaPaga(input: DadosPedidoEmail & { para: string;
         rodape: RODAPE_GESTOR,
       }),
       'gestor cobranca avulsa paga',
+      registro(input, 'gestor', 'pagamento_aprovado'),
     );
     return;
   }
@@ -170,6 +181,7 @@ export async function emailReservaPaga(input: DadosPedidoEmail & { para: string;
       rodape: 'Você recebe este e-mail porque é gestor no Boatzy.',
     }),
     'reserva paga',
+    registro(input, 'gestor', 'pagamento_aprovado'),
   );
 }
 
@@ -190,6 +202,7 @@ export async function emailPedidoExpirado(input: DadosPedidoEmail & { para: stri
         rodape: RODAPE_CLIENTE_AVULSO,
       }),
       'cobranca avulsa expirada',
+      registro(input, 'cliente', 'cobranca_avulsa'),
     );
     return;
   }
@@ -210,6 +223,7 @@ export async function emailPedidoExpirado(input: DadosPedidoEmail & { para: stri
       rodape: 'Você recebe este e-mail porque solicitou uma reserva no Boatzy.',
     }),
     'pedido expirado',
+    registro(input, 'cliente', 'reserva_expirada'),
   );
 }
 
@@ -232,6 +246,7 @@ export async function emailPagamentoRecusado(input: DadosPedidoEmail & { para: s
         rodape: RODAPE_CLIENTE_AVULSO,
       }),
       'cobranca avulsa recusada',
+      registro(input, 'cliente', 'pagamento_recusado'),
     );
     return;
   }
@@ -255,6 +270,7 @@ export async function emailPagamentoRecusado(input: DadosPedidoEmail & { para: s
       rodape: 'Você recebe este e-mail porque solicitou uma reserva no Boatzy.',
     }),
     'pagamento recusado',
+    registro(input, 'cliente', 'pagamento_recusado'),
   );
 }
 
@@ -282,6 +298,7 @@ export async function emailReembolso(input: DadosPedidoEmail & { para: string; n
       rodape: 'Você recebe este e-mail porque fez uma reserva no Boatzy.',
     }),
     'reembolso',
+    registro(input, 'cliente', 'reembolso'),
   );
 }
 
@@ -309,6 +326,7 @@ export async function emailGestorPedidoExpirado(input: DadosGestorEmail) {
         rodape: RODAPE_GESTOR,
       }),
       'gestor cobranca avulsa expirada',
+      registro(input, 'gestor', 'cobranca_avulsa'),
     );
     return;
   }
@@ -329,6 +347,7 @@ export async function emailGestorPedidoExpirado(input: DadosGestorEmail) {
       rodape: RODAPE_GESTOR,
     }),
     'gestor pedido expirado',
+    registro(input, 'gestor', 'reserva_expirada'),
   );
 }
 
@@ -356,6 +375,7 @@ export async function emailGestorPagamentoRecusado(input: DadosGestorEmail & { e
       rodape: RODAPE_GESTOR,
     }),
     'gestor pagamento recusado',
+    registro(input, 'gestor', 'pagamento_recusado'),
   );
 }
 
@@ -381,6 +401,7 @@ export async function emailGestorReembolso(input: DadosGestorEmail & { parcial: 
       rodape: RODAPE_GESTOR,
     }),
     'gestor reembolso',
+    registro(input, 'gestor', 'reembolso'),
   );
 }
 
@@ -388,6 +409,8 @@ export async function emailGestorReembolso(input: DadosGestorEmail & { parcial: 
 
 /** Cliente: o gestor emitiu uma cobrança avulsa — itens já com a taxa embutida. */
 export async function emailCobrancaAvulsaCriada(input: {
+  /** Reserva de origem — registra o envio na linha do tempo da reserva. */
+  reservaId?: string | null;
   para: string;
   nome: string;
   gestorNome: string;
@@ -420,6 +443,7 @@ export async function emailCobrancaAvulsaCriada(input: {
       rodape: RODAPE_CLIENTE_AVULSO,
     }),
     'cobranca avulsa criada',
+    registro(input, 'cliente', 'cobranca_avulsa'),
   );
 }
 
@@ -438,5 +462,6 @@ export async function emailCobrancaAvulsaCancelada(input: DadosPedidoEmail & { p
       rodape: RODAPE_CLIENTE_AVULSO,
     }),
     'cobranca avulsa cancelada',
+    registro(input, 'cliente', 'cobranca_avulsa'),
   );
 }
