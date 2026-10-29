@@ -94,7 +94,7 @@ venda e no botão **"Conversar com o dono"** do detalhe do roteiro (única exce�
 
 #### Usuário (Cliente) (role: cliente)
 - ✅ Cadastro/Login em `/entrar` (Supabase Auth — email/senha, Google, Facebook, Apple)
-- ✅ Cadastro por e-mail coleta **celular** (seletor de país com DDI + bandeira e máscara por país; padrão Brasil +55), **CPF** (máscara `000.000.000-00` + validação de dígitos verificadores) e exige **senha forte** com checklist de requisitos que marca cada regra em tempo real (≥8 caracteres, maiúscula, minúscula, número, caractere especial). Esses campos aparecem apenas no cadastro por e-mail — o fluxo SSO permanece inalterado; celular/CPF ficam `NULL` para contas SSO até serem completados em "Minha conta". Detalhes técnicos no `SPEC.md`.
+- ✅ Cadastro por e-mail coleta **celular** (seletor de país com DDI + bandeira e máscara por país; padrão Brasil +55), **CPF** (máscara `000.000.000-00` + validação de dígitos verificadores) e exige **senha forte** com checklist de requisitos que marca cada regra em tempo real (≥8 caracteres, maiúscula, minúscula, número, caractere especial), seguida do campo **Confirmar senha** (29/10/2026): o usuário digita a senha de novo e vê "As senhas coincidem" ou "As senhas não coincidem"; o cadastro só é enviado com as duas iguais. Esses campos aparecem apenas no cadastro por e-mail — o fluxo SSO permanece inalterado; celular/CPF ficam `NULL` para contas SSO até serem completados em "Minha conta". Detalhes técnicos no `SPEC.md`.
 - ✅ Role `cliente` atribuída automaticamente via `/api/auth/setup-cliente` após login/cadastro
 - Buscar embarcações
 - Visualizar detalhes
@@ -144,6 +144,7 @@ venda e no botão **"Conversar com o dono"** do detalhe do roteiro (única exce�
 - ✅ Cliente que tenta acessar `/painel` vê o **pedido de acesso de gestor** (formulário); aprovado pelo admin, a role `gestor` é adicionada sem destruir o vínculo de cliente. ~~"Tornar-me gestor" em um clique~~ (removido em 22/10/2026).
 - ✅ Recuperação de senha do cliente: `/recuperar-senha` (solicita e-mail) → e-mail com link → `/auth/confirm` (valida token e cria sessão) → `/redefinir-senha` (define nova senha). Mensagem de envio é genérica (anti-enumeração de contas) e o link funciona em qualquer navegador/dispositivo (client dedicado com `flowType: 'implicit'`, evitando a exigência de PKCE do client principal). Detalhes no `SPEC.md`.
 - ✅ Recuperação de senha do gestor: mesmo fluxo, rotas espelhadas (`/painel/recuperar-senha` → `/painel/auth/confirm` → `/painel/redefinir-senha`). Ao concluir, passa por `/api/painel/setup-role` (garante o registro do usuário, idempotente) antes de entrar em `/painel` — nem ele nem a recuperação de senha atribuem roles. Detalhes no `SPEC.md`.
+- ✅ **E-mails da conta com a cara do Boatzy (29/10/2026):** confirmação de cadastro, recuperação de senha e os demais e-mails do login (link de acesso, convite, troca de e-mail, código de verificação, avisos de segurança) saem com o layout do Boatzy — logo, cores, botão de ação, link alternativo para copiar e rodapé — e **no idioma do usuário** (pt-BR, inglês ou espanhol; no cadastro, o idioma em que o site estava; no painel do gestor, sempre pt-BR). Os links continuam os mesmos de antes. Funciona pelo "Send Email Hook" do Supabase: exige configurar o hook no Supabase e o segredo na Vercel (passo a passo no `SPEC.md` §98). A logo também passou a aparecer no cabeçalho de todos os e-mails do Boatzy.
 - Separação de perfis:
   - Cliente — acessa o hotsite (`/`), autenticado via social/email com role `cliente`
   - Gestor (Owner) — acessa o painel (`/painel`), com role `gestor`
@@ -628,6 +629,44 @@ e o cliente paga pelo Boatzy, com o mesmo rastreio do pagamento da reserva.
   (reembolso é Fase 2). O repasse do valor da avulsa entra na Fase 3 com as mesmas regras da reserva.
 - Detalhes técnicos: SPEC §34.16.
 
+#### ✅ Implementado — Comprovante (e futura nota fiscal) em nome de outra pessoa ou empresa (29/10/2026)
+
+No checkout (pagamento da reserva e cobrança avulsa), antes de gerar o Pix ou ir para o cartão, o
+cliente escolhe **em nome de quem** sai o pagamento. Por padrão é ele mesmo (nome e CPF do cadastro).
+
+- **Checkout**: bloco **"Comprovante e nota fiscal — Em nome de: …"** com o botão **Alterar**, que abre
+  três opções: **Meu nome**, **Outra pessoa (CPF)** e **Empresa (CNPJ)**.
+  - **Empresa (CNPJ)**: campo com máscara e validação dos dígitos; com o CNPJ completo e válido, o site
+    consulta o **OpenCNPJ** (dados da Receita Federal) e preenche razão social, endereço (CEP, logradouro,
+    número, complemento, bairro, cidade, UF) e telefone — tudo editável. Aviso quando a situação na
+    Receita não é "Ativa". Se o CNPJ não for encontrado ou a consulta falhar, o cliente preenche à mão.
+    Obrigatórios: razão social, CNPJ e endereço completo (telefone opcional).
+  - **Outra pessoa (CPF)**: campo com máscara e validação; o CPF não preenche dados. Todos os campos são
+    obrigatórios: nome completo, CPF, telefone e endereço completo (só o complemento é opcional).
+  - **Endereço pelo CEP** (outra pessoa e empresa): ao completar o CEP, logradouro, bairro, cidade e UF são
+    preenchidos pelo **ViaCEP** — o mesmo serviço do endereço em Minha conta — e o cursor vai para o número.
+    CEP não encontrado ou consulta indisponível → aviso e preenchimento manual. Tudo editável.
+  - Em nome de terceiro, o CPF do próprio cliente deixa de ser pedido. A cobrança no Asaas vai para um
+    cliente (customer) com os dados escolhidos — os mesmos que o Asaas usa para emitir nota fiscal.
+  - Trocar o titular depois de gerar o Pix refaz a cobrança; reabrir a página mostra o titular da
+    cobrança em aberto. Textos em pt-BR, inglês e espanhol.
+- **Comprovante do cliente** (`/minhas-reservas/[id]`, impresso/PDF): em nome de terceiro mostra
+  **"Em nome de" / "Em nome da empresa"** com nome/razão social e CPF/CNPJ completos, **endereço** e
+  **"Solicitado por"** (o cliente). Em nome próprio, segue "Pagador" com o CPF mascarado. As páginas de
+  pagamento concluído (`/reservas/[id]/pagar` e `/cobrancas/[id]`) mostram "Em nome de …".
+- **Painel do gestor** (`/painel/agendamentos/[id]`): o card **Pagamento** mostra "Comprovante / nota
+  fiscal em nome de" com nome, documento, endereço e telefone (avisando quando a cobrança ainda está em
+  aberto); as **cobranças adicionais** pagas mostram "Em nome de …".
+- **Admin** (`/administrator/pedidos/[id]`): cada tentativa de pagamento mostra em nome de quem saiu
+  (próprio cliente, outra pessoa ou empresa) com todos os dados; o card **Cliente** destaca "Pago em nome
+  de …" quando o pagamento confirmado foi de terceiro. A linha do tempo registra o titular na cobrança
+  gerada.
+- Os dados ficam gravados por tentativa de pagamento (snapshot): mudar o cadastro depois não altera o
+  comprovante. Pagamentos anteriores a esta funcionalidade continuam no nome do próprio cliente.
+- **Pendência — nota fiscal**: a emissão de NFS-e (Asaas) ainda não está ligada; os dados do titular já
+  estão gravados e no customer do Asaas para quando entrar (depende da decisão tributária D2).
+- Detalhes técnicos: SPEC §97.
+
 #### 🔜 Próximas etapas
 
 1. **Agendador do Supabase** a cada ~10 min para expirar pedidos e reprocessar webhooks (hoje:
@@ -635,6 +674,8 @@ e o cliente paga pelo Boatzy, com o mesmo rastreio do pagamento da reserva.
 3. Fases 2 (cancelamento/estornos — inclui reembolso de cobrança avulsa), 3 (repasses — inclui a
    confirmação de realização pelo gestor, o livro-razão financeiro e o repasse das cobranças avulsas),
    4 (controle total) e 5 (produção).
+4. **Nota fiscal (NFS-e)** emitida pelo Asaas em nome do titular escolhido no checkout (próprio cliente,
+   outra pessoa ou empresa) — dados já gravados (SPEC §97); depende de D2.
 
 #### ⏳ Decisões pendentes (ver planejamento §12)
 
@@ -1507,7 +1548,9 @@ cancelamento, pagamento pendente/aprovado/recusado/expirado, reembolso, cobranç
 mostra canal (e-mail / aviso no site / WhatsApp), para quem foi, quando e a situação (Enviado, Não
 entregue, Não enviado, Agendado, Aguardando integração). Os próximos lembretes aparecem como **"Previsto
 para…"**. Cliente e gestor veem o destino mascarado (a•••@gmail.com); o admin vê o destino completo, o erro
-técnico, o id do Resend e as tentativas. Avisos antigos do sino entraram na linha do tempo pela migration;
+técnico, o id do Resend e as tentativas. No **painel do gestor** a seção é um accordion que começa
+**fechado**, com o número de registros ao lado do título; ao clicar, abre a lista completa (29/10/2026).
+Avisos antigos do sino entraram na linha do tempo pela migration;
 e-mails enviados antes de 28/10/2026 não aparecem (não eram registrados).
 
 #### ✅ Implementado — Admin → Reservas (`/administrator/reservas`)

@@ -9,6 +9,8 @@ import { rastrear } from '@/lib/analytics';
 import { maskCPF } from '@/lib/validators';
 import { useFormatos } from '@/i18n/formatos';
 import { consultarStatusPedido, pagarPedido } from '@/lib/pagamentos/actions-cliente';
+import { TOMADOR_VAZIO, validarTomador, type CampoTomador, type TomadorForm } from '@/lib/pagamentos/tomador';
+import TomadorPagamento from './TomadorPagamento';
 
 export type FormaCheckout = { codigo: FormaPagamentoCodigo; nome: string; opcoesParcelas: number[] };
 
@@ -24,6 +26,10 @@ type Props = {
   expiraEm: string;
   formas: FormaCheckout[];
   precisaCpf: boolean;
+  /** Nome e CPF do cadastro — em nome de quem sai o pagamento por padrão (SPEC §97). */
+  titular: { nome: string; documento: string | null };
+  /** Tomador de terceiro da cobrança pendente (o checkout reabre com ele). */
+  tomadorInicial: TomadorForm | null;
   formaInicial: FormaPagamentoCodigo | null;
   /** QR do Pix já gerado (recarregar a página não cria outra cobrança). */
   pixInicial: Pix | null;
@@ -44,7 +50,7 @@ function formatRestante(ms: number): string {
 }
 
 export default function CheckoutPagamento({
-  pedidoId, caminho, valorTotal, expiraEm, formas, precisaCpf, formaInicial, pixInicial, retornoCartao, sandbox,
+  pedidoId, caminho, valorTotal, expiraEm, formas, precisaCpf, titular, tomadorInicial, formaInicial, pixInicial, retornoCartao, sandbox,
 }: Props) {
   const router = useRouter();
   const t = useTranslations('Pagamento');
@@ -52,8 +58,10 @@ export default function CheckoutPagamento({
   const [forma, setForma] = useState<FormaPagamentoCodigo>(formaInicial ?? formas[0]?.codigo ?? 'pix');
   const [parcelas, setParcelas] = useState(1);
   const [cpf, setCpf] = useState('');
+  const [tomador, setTomador] = useState<TomadorForm>(tomadorInicial ?? TOMADOR_VAZIO);
   const [carregando, setCarregando] = useState(false);
-  const [erro, setErro] = useState<{ texto: string; campo?: 'cpf' } | null>(null);
+  const [erro, setErro] = useState<{ texto: string; campo?: 'cpf' | CampoTomador } | null>(null);
+  const proprio = tomador.tipo === 'proprio';
   const [pix, setPix] = useState<Pix | null>(pixInicial);
   const [copiado, setCopiado] = useState(false);
   const [restante, setRestante] = useState(() => new Date(expiraEm).getTime() - Date.now());
@@ -78,13 +86,27 @@ export default function CheckoutPagamento({
   }, [acompanhando, pedidoId, router]);
 
   async function pagar(formaEscolhida: FormaPagamentoCodigo) {
-    if (precisaCpf && !cpf) {
+    if (proprio && precisaCpf && !cpf) {
       setErro({ texto: t('informeCpf'), campo: 'cpf' });
       return;
     }
+    if (!proprio) {
+      const v = validarTomador(tomador);
+      if (!v.ok) {
+        const chave = v.campo === 'documento' ? (tomador.tipo === 'cnpj' ? 'cnpj' : 'cpf') : v.campo;
+        setErro({ texto: t(`tomador.erros.${chave}`), campo: v.campo });
+        return;
+      }
+    }
     setCarregando(true);
     setErro(null);
-    const r = await pagarPedido({ pedidoId, forma: formaEscolhida, parcelas, cpf: precisaCpf ? cpf : undefined });
+    const r = await pagarPedido({
+      pedidoId,
+      forma: formaEscolhida,
+      parcelas,
+      cpf: proprio && precisaCpf ? cpf : undefined,
+      tomador: proprio ? null : tomador,
+    });
     if (!r.ok) {
       setCarregando(false);
       setErro({ texto: r.error, campo: r.campo });
@@ -174,7 +196,14 @@ export default function CheckoutPagamento({
             })}
           </div>
 
-          {precisaCpf && (
+          <TomadorPagamento
+            titular={titular}
+            valor={tomador}
+            onChange={setTomador}
+            erroCampo={erro?.campo && erro.campo !== 'cpf' ? erro.campo : null}
+          />
+
+          {proprio && precisaCpf && (
             <label className="block">
               <span className="text-xs font-semibold text-slate-600">{t('cpfPagador')}</span>
               <input

@@ -4,6 +4,8 @@ import { getTranslations } from 'next-intl/server';
 import { createClient } from '@/lib/supabase/server';
 import { supabaseAdmin } from '@/lib/supabase';
 import { iniciarPagamento, type IniciarPagamentoResultado } from '@/lib/pagamentos/checkout';
+import type { TomadorForm } from '@/lib/pagamentos/tomador';
+import { consultarCnpj, type ConsultaCnpj } from '@/lib/cnpj';
 import type { FormaPagamentoCodigo, PedidoStatus } from '@/types/supabase';
 
 /**
@@ -27,10 +29,21 @@ export async function pagarPedido(input: {
   forma: FormaPagamentoCodigo;
   parcelas: number;
   cpf?: string;
+  /** Em nome de quem sai o pagamento (SPEC §97); omitido = o próprio cliente. */
+  tomador?: TomadorForm | null;
 }): Promise<IniciarPagamentoResultado> {
   const userId = await usuarioLogado();
   if (!userId) return { ok: false, error: (await getTranslations('Pagamento'))('sessao') };
   return iniciarPagamento({ ...input, userId });
+}
+
+/**
+ * Dados da empresa pelo CNPJ (OpenCNPJ) para preencher o tomador no checkout
+ * (SPEC §97). Só para usuário logado — não vira um proxy público da API.
+ */
+export async function consultarCnpjTomador(cnpj: string): Promise<ConsultaCnpj> {
+  if (!(await usuarioLogado())) return { ok: false, motivo: 'indisponivel' };
+  return consultarCnpj(cnpj);
 }
 
 /** Status do pedido para a tela acompanhar o pagamento (lê o nosso banco, não o Asaas). */

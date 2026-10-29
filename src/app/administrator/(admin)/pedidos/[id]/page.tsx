@@ -19,6 +19,7 @@ import {
 import PedidoAcoes from './_components/PedidoAcoes';
 import CancelarCobrancaButton from './_components/CancelarCobrancaButton';
 import CopiarValor from './_components/CopiarValor';
+import { enderecoTomador } from '@/lib/pagamentos/tomador';
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const brl = (v: number | string | null | undefined) => (v == null ? '—' : formatCurrencyPrecise(Number(v)));
@@ -203,6 +204,31 @@ const TIPO_ITEM_LABEL: Record<string, string> = { produto: 'Produto', servico: '
 
 // ─── Pagamento (tentativa) ──────────────────────────────────────────────────
 
+const TOMADOR_LABEL = { proprio: 'Próprio cliente', cpf: 'Outra pessoa (CPF)', cnpj: 'Empresa (CNPJ)' } as const;
+
+/** Em nome de quem a tentativa saiu — dados do comprovante e da futura nota fiscal (SPEC §97). */
+function TomadorPagamento({ pg }: { pg: PagamentoDetalhe }) {
+  const t = pg.pagamento_tomador;
+  if (!t) {
+    return <p className="text-xs text-slate-400">Comprovante / nota em nome do próprio cliente (tentativa anterior ao registro do tomador).</p>;
+  }
+  return (
+    <div className={`rounded-xl border px-4 py-3 ${t.tipo === 'proprio' ? 'border-slate-100 bg-slate-50/60' : 'border-sky-100 bg-sky-50/60'}`}>
+      <p className="text-[10px] font-bold text-slate-400 tracking-wider uppercase mb-2">
+        Comprovante / nota fiscal em nome de · {TOMADOR_LABEL[t.tipo]}
+      </p>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+        <Campo label={t.tipo === 'cnpj' ? 'Razão social' : 'Nome'}>{t.nome}</Campo>
+        <Campo label={t.tipo === 'cnpj' ? 'CNPJ' : 'CPF'}><CopiarValor valor={formatarDocumento(t.documento)} /></Campo>
+        {t.nome_fantasia && <Campo label="Nome fantasia">{t.nome_fantasia}</Campo>}
+        {t.telefone && <Campo label="Telefone">{formatarTelefone(t.telefone)}</Campo>}
+        {t.email && <Campo label="E-mail">{t.email}</Campo>}
+        {enderecoTomador(t) && <div className="md:col-span-2"><Campo label="Endereço">{enderecoTomador(t)}</Campo></div>}
+      </div>
+    </div>
+  );
+}
+
 function PagamentoCard({ pg, indice }: { pg: PagamentoDetalhe; indice: number }) {
   const cartao = Array.isArray(pg.pagamento_cartao) ? pg.pagamento_cartao[0] : pg.pagamento_cartao;
   const FormaIcon = pg.forma_pagamento === 'cartao_credito' ? CreditCard : QrCode;
@@ -255,6 +281,8 @@ function PagamentoCard({ pg, indice }: { pg: PagamentoDetalhe; indice: number })
             </>
           )}
         </div>
+
+        <TomadorPagamento pg={pg} />
 
         {pg.forma_pagamento === 'pix' && pg.pix_qrcode_payload && (
           <Campo label="Pix copia e cola"><CopiarValor valor={pg.pix_qrcode_payload} curto /></Campo>
@@ -605,6 +633,13 @@ export default async function AdminPedidoDetalhePage({ params }: { params: Promi
         <div className="space-y-6">
           <Card titulo="Cliente" icon={User}>
             <Pessoa u={d.cliente} papel="Cliente" />
+            {pagamentoPago?.pagamento_tomador && pagamentoPago.pagamento_tomador.tipo !== 'proprio' && (
+              <div className="mt-4 pt-3 border-t border-slate-100">
+                <Campo label={`Pago em nome de · ${TOMADOR_LABEL[pagamentoPago.pagamento_tomador.tipo]}`}>
+                  {pagamentoPago.pagamento_tomador.nome} · {formatarDocumento(pagamentoPago.pagamento_tomador.documento)}
+                </Campo>
+              </div>
+            )}
             {d.clienteAsaas.length > 0 && (
               <div className="mt-4 pt-3 border-t border-slate-100 space-y-2">
                 {d.clienteAsaas.map((c) => (

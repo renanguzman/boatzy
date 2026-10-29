@@ -387,23 +387,38 @@ export type CobrancaAvulsa = {
   link_copiado_em: string | null;
   visualizado_em: string | null;
   itens: ItemCobranca[];
+  /** Em nome de quem saiu o pagamento, se foi outra pessoa/empresa (SPEC §97); `null` = o próprio cliente. */
+  em_nome_de: { tipo: 'cpf' | 'cnpj'; nome: string; documento: string } | null;
 };
 
 const SELECT_COBRANCA = `pedido_id, titulo, mensagem_cliente, formas_permitidas, parcelas_max, valor_calculado, valor_ajuste,
   motivo_ajuste, link_copiado_em, visualizado_em,
   pedido!inner ( id, numero, status, criado_em, expira_em, pago_em, cancelado_em, motivo_cancelamento,
                  valor_itens, comissao_percentual, valor_comissao, valor_total,
-                 pedido_item ( id, ordem, origem, tipo, descricao, quantidade, valor_unitario, valor_total ) )`;
+                 pedido_item ( id, ordem, origem, tipo, descricao, quantidade, valor_unitario, valor_total ),
+                 pagamento ( status, criado_em, pagamento_tomador ( tipo, nome, documento ) ) )`;
 
 type LinhaCobranca = Omit<CobrancaAvulsa, 'itens' | 'id' | 'numero' | 'status' | 'criado_em' | 'expira_em' | 'pago_em' | 'cancelado_em' | 'motivo_cancelamento' | 'valor_itens' | 'comissao_percentual' | 'valor_comissao' | 'valor_total'> & {
   pedido_id: string;
-  pedido: Omit<CobrancaAvulsa, 'titulo' | 'mensagem_cliente' | 'formas_permitidas' | 'parcelas_max' | 'valor_calculado' | 'valor_ajuste' | 'motivo_ajuste' | 'link_copiado_em' | 'visualizado_em' | 'itens'> & {
+  pedido: Omit<CobrancaAvulsa, 'titulo' | 'mensagem_cliente' | 'formas_permitidas' | 'parcelas_max' | 'valor_calculado' | 'valor_ajuste' | 'motivo_ajuste' | 'link_copiado_em' | 'visualizado_em' | 'itens' | 'em_nome_de'> & {
     pedido_item: (ItemCobranca & { ordem: number })[];
+    pagamento: {
+      status: string;
+      criado_em: string;
+      pagamento_tomador: TomadorCobranca | TomadorCobranca[] | null;
+    }[];
   };
 };
 
+type TomadorCobranca = { tipo: 'proprio' | 'cpf' | 'cnpj'; nome: string; documento: string };
+
 function montarCobranca(l: LinhaCobranca): CobrancaAvulsa {
-  const { pedido_item, ...p } = l.pedido;
+  const { pedido_item, pagamento, ...p } = l.pedido;
+  // Tomador do pagamento que valeu (pago/estornado) — as tentativas canceladas não contam.
+  const pago = [...(pagamento ?? [])]
+    .filter((pg) => (PAGAMENTO_PAGO as string[]).includes(pg.status) || pg.status.startsWith('estorn') || pg.status === 'em_disputa')
+    .sort((a, b) => b.criado_em.localeCompare(a.criado_em))[0];
+  const tomador = pago ? (Array.isArray(pago.pagamento_tomador) ? pago.pagamento_tomador[0] : pago.pagamento_tomador) ?? null : null;
   return {
     ...p,
     titulo: l.titulo,
@@ -416,6 +431,7 @@ function montarCobranca(l: LinhaCobranca): CobrancaAvulsa {
     link_copiado_em: l.link_copiado_em,
     visualizado_em: l.visualizado_em,
     itens: [...(pedido_item ?? [])].sort((a, b) => a.ordem - b.ordem),
+    em_nome_de: tomador && tomador.tipo !== 'proprio' ? { tipo: tomador.tipo, nome: tomador.nome, documento: tomador.documento } : null,
   };
 }
 

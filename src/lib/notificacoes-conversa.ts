@@ -2,6 +2,7 @@ import 'server-only';
 
 import { supabaseAdmin } from '@/lib/supabase';
 import { sendEmail } from '@/lib/email';
+import { cabecalhoEmailHtml } from '@/lib/emails/layout';
 import { origemTipoLabel } from '@/lib/conversa-origem';
 
 // ============================================================
@@ -198,7 +199,7 @@ function montarHtml({
   <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f1f5f9;padding:24px 0;">
     <tr><td align="center">
       <table role="presentation" width="480" cellpadding="0" cellspacing="0" style="background:#ffffff;border-radius:16px;overflow:hidden;border:1px solid #e2e8f0;">
-        <tr><td style="background:#0E2F4F;padding:20px 24px;color:#ffffff;font-size:18px;font-weight:bold;">Boatzy</td></tr>
+        ${cabecalhoEmailHtml()}
         <tr><td style="padding:24px;">
           <h1 style="margin:0 0 8px;color:#0E2F4F;font-size:18px;">Olá, ${primeiroNome}!</h1>
           <p style="margin:0 0 16px;color:#475569;font-size:14px;line-height:1.5;">

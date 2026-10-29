@@ -63,6 +63,8 @@ export type PagamentoDetalhe = Tabela<'pagamento'> & {
   pagamento_parcela: Tabela<'pagamento_parcela'>[];
   pagamento_transacao: Tabela<'pagamento_transacao'>[];
   pagamento_estorno: Tabela<'pagamento_estorno'>[];
+  /** Em nome de quem saiu (SPEC §97); `null` = tentativa anterior à funcionalidade (o próprio cliente). */
+  pagamento_tomador: Tabela<'pagamento_tomador'> | null;
 };
 
 export type AuditoriaDetalhe = Tabela<'financeiro_auditoria'> & { admin: { name: string; email: string } | null };
@@ -154,7 +156,7 @@ export async function carregarDetalhePedido(id: string): Promise<DetalhePedido |
       .maybeSingle(),
     supabaseAdmin
       .from('pagamento')
-      .select('*, pagamento_cartao ( * ), pagamento_parcela ( * ), pagamento_transacao ( * ), pagamento_estorno ( * )')
+      .select('*, pagamento_cartao ( * ), pagamento_parcela ( * ), pagamento_transacao ( * ), pagamento_estorno ( * ), pagamento_tomador ( * )')
       .eq('pedido_id', id)
       .order('criado_em', { ascending: true }),
     supabaseAdmin
@@ -182,6 +184,7 @@ export async function carregarDetalhePedido(id: string): Promise<DetalhePedido |
   const reserva = (reservaRes.data ?? null) as unknown as ReservaDetalhe | null;
   const pagamentos = ((pagamentosRes.data ?? []) as unknown as PagamentoDetalhe[]).map((p) => ({
     ...p,
+    pagamento_tomador: (Array.isArray(p.pagamento_tomador) ? p.pagamento_tomador[0] : p.pagamento_tomador) ?? null,
     pagamento_parcela: [...(p.pagamento_parcela ?? [])].sort((a, b) => a.numero - b.numero),
     pagamento_transacao: [...(p.pagamento_transacao ?? [])].sort((a, b) => a.ocorrido_em.localeCompare(b.ocorrido_em)),
     pagamento_estorno: [...(p.pagamento_estorno ?? [])].sort((a, b) => a.solicitado_em.localeCompare(b.solicitado_em)),

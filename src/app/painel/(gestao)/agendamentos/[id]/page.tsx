@@ -8,7 +8,8 @@ import { createClient } from '@/lib/supabase/server';
 import { supabaseAdmin } from '@/lib/supabase';
 import { formatCurrency, formatCurrencyPrecise } from '@/lib/utils';
 import { getFinanceiroConfig } from '@/lib/financeiro/config';
-import { expirarPedidosVencidosSemFalhar } from '@/lib/pagamentos/pedidos';
+import { expirarPedidosVencidosSemFalhar, PAGAMENTO_PAGO } from '@/lib/pagamentos/pedidos';
+import { documentoTomador, enderecoTomador, maskTelefoneBR, type TomadorRegistro } from '@/lib/pagamentos/tomador';
 import { multiplicadorDaReserva } from '@/lib/pagamentos/valores';
 import { formatarDataHoraBR } from '@/lib/termos/formato';
 import type { PedidoStatus, ReservaStatus } from '@/types/supabase';
@@ -59,6 +60,7 @@ type ReservaDetalhe = {
 };
 
 type PedidoResumo = {
+  id: string;
   numero: number;
   status: PedidoStatus;
   expira_em: string | null;
@@ -132,7 +134,7 @@ export default async function ReservaDetalhePage({ params }: { params: Promise<{
        roteiro ( nome, embarcacao_id, horario_saida, municipios ( nome, estados ( uf ) ) ),
        embarcacao ( nome ),
        reserva_adicional ( id, descricao, valor, tipo ),
-       pedido ( numero, status, expira_em, pago_em, valor_total, valor_itens )`,
+       pedido ( id, numero, status, expira_em, pago_em, valor_total, valor_itens )`,
     )
     .eq('id', id)
     .eq('owner_id', user.id)
@@ -143,6 +145,21 @@ export default async function ReservaDetalhePage({ params }: { params: Promise<{
   const r = data as unknown as ReservaDetalhe;
   const s = STATUS[r.status];
   const pedido = Array.isArray(r.pedido) ? (r.pedido[0] ?? null) : r.pedido;
+
+  // Em nome de quem saiu o pagamento (SPEC §97): o pago ou, enquanto aguarda, a cobrança em aberto.
+  let tomador: TomadorRegistro | null = null;
+  if (pedido) {
+    const { data: pg } = await supabaseAdmin
+      .from('pagamento')
+      .select('pagamento_tomador ( * )')
+      .eq('pedido_id', pedido.id)
+      .in('status', [...PAGAMENTO_PAGO, 'pendente', 'em_analise', 'estornado', 'estornado_parcial', 'em_disputa', 'estorno_em_andamento'])
+      .order('criado_em', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    const linha = pg?.pagamento_tomador as unknown as TomadorRegistro | TomadorRegistro[] | null | undefined;
+    tomador = (Array.isArray(linha) ? linha[0] : linha) ?? null;
+  }
 
   let exigirPagamento = false;
   let horasPrazoPagamento = 24;
@@ -389,6 +406,7 @@ export default async function ReservaDetalhePage({ params }: { params: Promise<{
             status={r.status}
             dataReserva={r.data_reserva}
             horarioSaida={r.roteiro?.horario_saida ?? null}
+            recolhivel
           />
         </div>
 
@@ -486,6 +504,19 @@ export default async function ReservaDetalhePage({ params }: { params: Promise<{
                   <span className="text-slate-500">Você recebe</span>
                   <span className="font-bold text-emerald-700">{formatCurrencyPrecise(Number(pedido.valor_itens))}</span>
                 </div>
+                {tomador && tomador.tipo !== 'proprio' && (
+                  <div className="mt-1 rounded-xl border border-slate-100 bg-slate-50/70 p-3 text-xs text-slate-600 space-y-0.5">
+                    <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                      Comprovante / nota fiscal em nome de {tomador.tipo === 'cnpj' ? '(empresa)' : '(outra pessoa)'}
+                    </p>
+                    <p className="text-sm font-semibold text-slate-700 break-words">{tomador.nome}</p>
+                    {tomador.nome_fantasia && <p>{tomador.nome_fantasia}</p>}
+                    <p>{tomador.tipo === 'cnpj' ? 'CNPJ' : 'CPF'} {documentoTomador(tomador.documento)}</p>
+                    {enderecoTomador(tomador) && <p className="break-words">{enderecoTomador(tomador)}</p>}
+                    {tomador.telefone && <p>Tel. {maskTelefoneBR(tomador.telefone)}</p>}
+                    {pedido.status === 'aguardando_pagamento' && <p className="text-slate-400">Cobrança em aberto — pode mudar até o pagamento.</p>}
+                  </div>
+                )}
                 {pedido.status === 'aguardando_pagamento' && pedido.expira_em && (
                   <p className="pt-2 text-xs text-slate-500">
                     O cliente tem até <strong>{formatarDataHoraBR(pedido.expira_em)}</strong> para pagar. A data fica reservada até lá.

@@ -96,7 +96,8 @@ export default function AcessoGestorForm({ abaInicial, usuario }: Props) {
       email,
       password,
       options: {
-        data: { full_name: name },
+        // Painel é sempre pt-BR — idioma do e-mail de confirmação (SPEC §98).
+        data: { full_name: name, idioma: 'pt-BR' },
         // Após confirmação do e-mail, redireciona para setup-role.
         emailRedirectTo: `${APP_URL}/painel/auth/callback`,
       },

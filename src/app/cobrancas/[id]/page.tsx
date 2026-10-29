@@ -17,6 +17,7 @@ import { registrarVisualizacao } from '@/lib/pagamentos/avulso';
 import { linhasAvulsoParaCliente } from '@/lib/pagamentos/valores';
 import type { FormaPagamentoCodigo, PedidoItemTipo, PedidoStatus } from '@/types/supabase';
 import CheckoutPagamento, { type FormaCheckout, type Pix } from '@/components/pagamento/CheckoutPagamento';
+import { documentoTomador, tomadorParaForm, type TomadorForm, type TomadorRegistro } from '@/lib/pagamentos/tomador';
 import { getFormatos } from '@/i18n/formatos-servidor';
 import EventoAnalytics from '@/components/analytics/EventoAnalytics';
 
@@ -121,11 +122,11 @@ export default async function CobrancaPage({
   const proprietario = c.gestor?.name?.trim() || t('proprietario');
 
   // Pagamento concluído (comprovante + cartão mascarado).
-  let pago: { comprovante: string | null; forma: FormaPagamentoCodigo; cartao: string | null } | null = null;
+  let pago: { comprovante: string | null; forma: FormaPagamentoCodigo; cartao: string | null; emNomeDe: string | null } | null = null;
   if (c.status !== 'aguardando_pagamento') {
     const { data: pg } = await supabaseAdmin
       .from('pagamento')
-      .select('forma_pagamento, comprovante_url, fatura_url, pagamento_cartao ( bandeira, ultimos_digitos )')
+      .select('forma_pagamento, comprovante_url, fatura_url, pagamento_cartao ( bandeira, ultimos_digitos ), pagamento_tomador ( tipo, nome, documento )')
       .eq('pedido_id', c.id)
       .in('status', [...PAGAMENTO_PAGO, 'estornado', 'estornado_parcial', 'em_disputa'])
       .order('criado_em', { ascending: false })
@@ -133,10 +134,13 @@ export default async function CobrancaPage({
       .maybeSingle();
     if (pg) {
       const cartao = Array.isArray(pg.pagamento_cartao) ? pg.pagamento_cartao[0] : pg.pagamento_cartao;
+      // Em nome de quem saiu (SPEC §97); sem linha = pagamento anterior, no nome do próprio cliente.
+      const tom = Array.isArray(pg.pagamento_tomador) ? pg.pagamento_tomador[0] : pg.pagamento_tomador;
       pago = {
         comprovante: pg.comprovante_url ?? pg.fatura_url,
         forma: pg.forma_pagamento,
         cartao: cartao ? tPag('cartaoFinal', { bandeira: cartao.bandeira, digitos: cartao.ultimos_digitos }) : null,
+        emNomeDe: tom && tom.tipo !== 'proprio' ? `${tom.nome} · ${documentoTomador(tom.documento)}` : null,
       };
     }
   }
@@ -144,15 +148,17 @@ export default async function CobrancaPage({
   // Checkout: formas liberadas pelo gestor ∩ formas ativas, CPF e Pix pendente para retomar.
   let formas: FormaCheckout[] = [];
   let precisaCpf = false;
+  let titular: { nome: string; documento: string | null } = { nome: '', documento: null };
+  let tomadorInicial: TomadorForm | null = null;
   let formaInicial: FormaPagamentoCodigo | null = null;
   let pixInicial: Pix | null = null;
   if (c.status === 'aguardando_pagamento') {
     const [todas, { data: usuario }, { data: pendente }] = await Promise.all([
       getFormasPagamento(),
-      supabaseAdmin.from('users').select('cpf_cnpj').eq('id', user.id).single(),
+      supabaseAdmin.from('users').select('name, cpf_cnpj').eq('id', user.id).single(),
       supabaseAdmin
         .from('pagamento')
-        .select('forma_pagamento')
+        .select('forma_pagamento, pagamento_tomador ( * )')
         .eq('pedido_id', c.id)
         .eq('status', 'pendente')
         .order('criado_em', { ascending: false })
@@ -162,6 +168,11 @@ export default async function CobrancaPage({
     formas = formasPermitidasDoPedido(todas, { valor_total: Number(c.valor_total), avulso })
       .map((forma) => ({ ...forma, nome: tPag(`formas.${forma.codigo}`) }));
     precisaCpf = !(usuario?.cpf_cnpj && isValidCPF(usuario.cpf_cnpj));
+    titular = { nome: usuario?.name ?? '', documento: usuario?.cpf_cnpj ?? null };
+    const tomadorPendente = pendente
+      ? ((Array.isArray(pendente.pagamento_tomador) ? pendente.pagamento_tomador[0] : pendente.pagamento_tomador) ?? null) as TomadorRegistro | null
+      : null;
+    tomadorInicial = tomadorParaForm(tomadorPendente);
     formaInicial = pendente && formas.some((forma) => forma.codigo === pendente.forma_pagamento) ? pendente.forma_pagamento : null;
     if (formaInicial === 'pix' && sp.retorno !== '1') pixInicial = await retomarPixPendente(c.id);
   }
@@ -243,6 +254,8 @@ export default async function CobrancaPage({
                   expiraEm={c.expira_em}
                   formas={formas}
                   precisaCpf={precisaCpf}
+                  titular={titular}
+                  tomadorInicial={tomadorInicial}
                   formaInicial={formaInicial}
                   pixInicial={pixInicial}
                   retornoCartao={sp.retorno === '1'}
@@ -282,6 +295,7 @@ export default async function CobrancaPage({
                 <div className="mt-4 space-y-1 text-sm text-slate-600">
                   {c.pago_em && <p>{tPag('pagoEm', { data: f.dataHora(c.pago_em) })}</p>}
                   {pago && <p>{pago.forma === 'pix' ? tPag('formas.pix') : `${tPag('formas.cartao_credito')}${pago.cartao ? ` · ${pago.cartao}` : ''}`}</p>}
+                  {pago?.emNomeDe && <p>{tPag('emNomeDe', { titular: pago.emNomeDe })}</p>}
                 </div>
                 <div className="mt-5 flex flex-wrap gap-3">
                   {pago?.comprovante && (

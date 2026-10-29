@@ -3,6 +3,7 @@
     "titulo": "Automatic communications",
     "subtitulo": "Emails and alerts Boatzy sent about this booking.",
     "vazio": "No communications sent yet.",
+    "contador": "{n, plural, =0 {No records} one {# record} other {# records}}",
     "previsto": "Scheduled for {data}",
     "paraVoce": "to you",
     "paraCliente": "to the guest",

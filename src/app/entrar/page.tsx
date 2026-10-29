@@ -2,8 +2,8 @@
 
 import { useState, useEffect, Suspense } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
-import { useTranslations } from 'next-intl';
-import { Mail, Lock, Eye, EyeOff, ArrowRight, Loader2, User, IdCard } from 'lucide-react';
+import { useLocale, useTranslations } from 'next-intl';
+import { Mail, Lock, Eye, EyeOff, ArrowRight, Loader2, User, IdCard, Check, X } from 'lucide-react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { createClient } from '@/lib/supabase/client';
@@ -18,6 +18,7 @@ function EntrarForm() {
   const supabase = createClient();
   const t = useTranslations('Auth');
   const tRaiz = useTranslations();
+  const locale = useLocale();
 
   // `redirect_to` preserva a página de origem (ex: /charters/xyz)
   const redirectTo = searchParams.get('redirect_to') ?? '/';
@@ -29,6 +30,8 @@ function EntrarForm() {
   const [phone, setPhone] = useState<PhoneValue>({ e164: '', valid: false });
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [attemptedSubmit, setAttemptedSubmit] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
@@ -49,6 +52,7 @@ function EntrarForm() {
     setCpf('');
     setPhone({ e164: '', valid: false });
     setPassword('');
+    setConfirmPassword('');
     setAttemptedSubmit(false);
     setSuccess(false);
   }
@@ -89,6 +93,10 @@ function EntrarForm() {
       setError(t('senhaFraca'));
       return;
     }
+    if (password !== confirmPassword) {
+      setError(t('senhasDiferentes'));
+      return;
+    }
 
     setLoading(true);
 
@@ -100,6 +108,8 @@ function EntrarForm() {
           full_name: name,
           cpf: onlyDigits(cpf),
           phone: phone.e164,
+          // Idioma do e-mail de confirmação (Send Email Hook — SPEC §98).
+          idioma: locale,
         },
         emailRedirectTo: `${baseUrl()}/auth/callback?next=${encodeURIComponent(
           `/api/auth/setup-cliente?redirect_to=${encodeURIComponent(redirectTo)}`
@@ -309,6 +319,59 @@ function EntrarForm() {
           </div>
           {mode === 'cadastro' && <PasswordRequirements password={password} />}
         </div>
+
+        {mode === 'cadastro' && (() => {
+          // Confere a digitação: avisa a diferença ao terminar de digitar (ou ao tentar enviar).
+          const iguais = confirmPassword.length > 0 && confirmPassword === password;
+          const diferentes = confirmPassword.length > 0 && confirmPassword !== password
+            && (attemptedSubmit || confirmPassword.length >= password.length);
+          return (
+            <div>
+              <label htmlFor="confirm-password" className="block mb-2 text-xs font-bold text-marinho tracking-wider uppercase">
+                {t('confirmarSenha')}
+              </label>
+              <div className="relative">
+                <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                <input
+                  id="confirm-password"
+                  type={showConfirmPassword ? 'text' : 'password'}
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  placeholder={t('confirmarSenhaPlaceholder')}
+                  autoComplete="new-password"
+                  required
+                  aria-invalid={diferentes}
+                  aria-describedby="confirm-password-status"
+                  className={`w-full pl-11 pr-12 py-3.5 rounded-xl border bg-slate-50/50 text-sm text-grafite placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-marinho/20 focus:border-marinho transition-all ${
+                    diferentes ? 'border-red-300' : 'border-slate-200'
+                  }`}
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                  aria-label={showConfirmPassword ? t('ocultarSenha') : t('mostrarSenha')}
+                  className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition-colors"
+                >
+                  {showConfirmPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                </button>
+              </div>
+              <p id="confirm-password-status" aria-live="polite">
+                {iguais && (
+                  <span className="mt-2 flex items-center gap-2 text-xs text-turquesa-escuro">
+                    <span className="flex h-4 w-4 items-center justify-center rounded-full bg-turquesa/15"><Check className="h-3 w-3" /></span>
+                    {t('senhasIguais')}
+                  </span>
+                )}
+                {diferentes && (
+                  <span className="mt-2 flex items-center gap-2 text-xs text-red-500">
+                    <span className="flex h-4 w-4 items-center justify-center rounded-full bg-red-50 text-red-400"><X className="h-3 w-3" /></span>
+                    {t('senhasDiferentes')}
+                  </span>
+                )}
+              </p>
+            </div>
+          );
+        })()}
 
         {error && (
           <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-xl text-sm">

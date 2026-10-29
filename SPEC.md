@@ -429,7 +429,8 @@ O formulário de **criar conta** (modo `cadastro`) coleta, além de nome/e-mail/
 - **Celular** — componente `src/components/auth/PhoneInput.tsx` (`'use client'`): seletor de país (DDI + bandeira emoji, com busca) + campo de número nacional com máscara por país. A lista de países fica em `src/lib/countries.ts` (Brasil é o padrão, `+55`, máscara `(##) #####-####`). O componente emite `{ e164, valid }` via `onChange`; `valid` exige a quantidade de dígitos da máscara do país (fallback genérico: 8–15 dígitos). O valor final é montado em **E.164** (`dial + dígitos`, ex.: `+5511912345678`).
 - **CPF** — `input` com máscara progressiva `000.000.000-00` (`maskCPF`) e validação de dígitos verificadores (`isValidCPF`), ambos em `src/lib/validators.ts`. Rejeita sequências repetidas. Persistido como **só dígitos** em `users.cpf_cnpj`.
 - **Senha forte** — `src/lib/validators.ts` exporta `PASSWORD_RULES` (≥8 caracteres, 1 maiúscula, 1 minúscula, 1 número, 1 caractere especial) e `isStrongPassword`. O componente `src/components/auth/PasswordRequirements.tsx` mostra a lista de requisitos abaixo do campo e marca cada regra com um check (verde) em tempo real conforme o usuário digita.
-- **Validação no submit:** `handleCadastro` bloqueia o envio (antes de chamar `signUp`) se CPF, celular ou senha forem inválidos, exibindo mensagens específicas; os erros de campo (CPF/celular) só destacam em vermelho após a primeira tentativa (`attemptedSubmit`).
+- **Confirmar senha** (29/10/2026) — campo `#confirm-password` logo abaixo dos requisitos (só no modo `cadastro`; estado `confirmPassword`, limpo em `resetForm`), com o próprio botão mostrar/ocultar e `autoComplete="new-password"`. Abaixo dele, `#confirm-password-status` (`aria-live="polite"`): ✓ `Auth.senhasIguais` quando iguais; ✗ `Auth.senhasDiferentes` (borda vermelha, `aria-invalid`) quando diferentes — só depois que a confirmação alcança o tamanho da senha ou após tentar enviar, para não acusar erro no meio da digitação. i18n: `Auth.confirmarSenha`, `confirmarSenhaPlaceholder`, `senhasIguais`, `senhasDiferentes` (pt-BR, en-US, es).
+- **Validação no submit:** `handleCadastro` bloqueia o envio (antes de chamar `signUp`) se CPF, celular ou senha forem inválidos ou se a confirmação não for igual à senha, exibindo mensagens específicas; os erros de campo (CPF/celular) só destacam em vermelho após a primeira tentativa (`attemptedSubmit`).
 - **Transporte até o banco:** os valores vão em `signUp({ options: { data: { full_name, cpf, phone } } })` → gravados no `user_metadata` do `auth.users` → lidos por `setup-cliente` (após a confirmação de e-mail) e persistidos em `public.users` (`cpf_cnpj`, `phone`) **apenas no insert** do registro.
 
 ### Recuperação de senha (site e painel)
@@ -454,7 +455,9 @@ O client dedicado usa `@supabase/supabase-js` puro (não `@supabase/ssr`) com `{
 
 Ambas as rotas de confirmação mantêm um fallback defensivo: se algum token chegar prefixado com `pkce_` (não deveria acontecer no fluxo atual), usam `exchangeCodeForSession(token_hash)` em vez de `verifyOtp` — mas nesse caso só funciona no mesmo navegador que originou o pedido.
 
-**Template de e-mail "Reset Password"** (Dashboard → Authentication → Emails → Templates), único e global, com o href:
+**Desde 29/10/2026 os e-mails da conta saem pelo Send Email Hook (§98)** — o link abaixo é montado em código
+(`linkRecuperacao`, `src/lib/emails/conta.ts`) com o mesmo formato; o template do Dashboard deixa de ser usado
+enquanto o hook estiver ligado. Formato (antes no template "Reset Password", Dashboard → Authentication → Emails → Templates):
 ```html
 {{ .RedirectTo }}?token_hash={{ .TokenHash }}&type=recovery&next=/redefinir-senha
 ```
@@ -5198,7 +5201,8 @@ referência antes de desistir. Registra movimento `criacao`. Se a cobrança não
 tentativa fica `cancelado` e ganha um movimento `falha_criacao` com a mensagem do Asaas no payload
 (visível em Admin → Pedidos); Pix recusado por falta de chave Pix na conta → mensagem ao cliente
 "Pix indisponível no momento, use o cartão". `retomarPixPendente(pedidoId)` devolve
-o QR do Pix pendente para a página já abrir com ele.
+o QR do Pix pendente para a página já abrir com ele. Desde 29/10/2026 aceita `tomador` (pagamento em nome
+de outra pessoa ou empresa, snapshot em `pagamento_tomador`) — §97.
 
 **Webhooks → `src/lib/pagamentos/webhook.ts`** (`tratarEventoCobranca`, registrado em
 `src/lib/asaas/eventos.ts` para todos os `PAYMENT_*` assinados)
@@ -8776,7 +8780,7 @@ sistema envia sobre a reserva, visível a cliente, gestor e admin; WhatsApp como
 | Campo | Valor |
 |---|---|
 | Título | `Boatzy — Lembretes do passeio` |
-| URL | `https://www.boatzy.app/api/cron/lembretes-passeio` (usar o domínio **com www** — o redirect do domínio sem www descarta o header `Authorization`) |
+| URL | `https://boatzy.app/api/cron/lembretes-passeio` (domínio **sem www** — `www.boatzy.app` responde 307 para ele e o cron-job.org não segue redirect) |
 | Agenda | a cada 15 minutos (`*/15 * * * *`), fuso `America/Sao_Paulo` |
 | Método | `GET` |
 | Header | `Authorization: Bearer <CRON_SECRET>` (o mesmo valor da env `CRON_SECRET` na Vercel) |
@@ -8789,7 +8793,7 @@ D-1 se o cron-job.org falhar). Rodar a mais é seguro (idempotente).
 
 ### 96.7 Linha do tempo — `ComunicacoesReserva` (`src/components/comunicacao/ComunicacoesReserva.tsx`)
 
-- Server Component `{ reservaId, visao: 'cliente'|'gestor'|'admin', status, dataReserva, horarioSaida }`; lê
+- Server Component `{ reservaId, visao: 'cliente'|'gestor'|'admin', status, dataReserva, horarioSaida, recolhivel? }`; lê
   com `supabaseAdmin` (quem chama já validou o acesso); textos de `Comunicacoes` (pt-BR no painel/admin).
 - Itens em ordem cronológica: ícone do canal, tipo (`tipos.<tipo>`, senão "Comunicação"), canal · "para
   você / para o cliente / para o proprietário" · destino, assunto, motivo do `dispensado`, data/hora e selo
@@ -8798,6 +8802,10 @@ D-1 se o cron-job.org falhar). Rodar a mais é seguro (idempotente).
 - Reserva `confirmada`: marcos sem item e com janela aberta aparecem como "Previsto para <início>".
 - Usada em `/minhas-reservas/[id]` (coluna principal, após avaliação), `/painel/agendamentos/[id]` (coluna
   principal, ao final; o select passou a trazer `roteiro.horario_saida`) e `/administrator/reservas/[id]`.
+- `recolhivel` (29/10/2026 — usado só em `/painel/agendamentos/[id]`): a seção vira `<details>` nativo, **fechado
+  por padrão**, com `<summary>` (título + contador + subtítulo + `ChevronDown` que gira com `group-open`); o
+  contador é o total de itens (registros + previstos), com `aria-label` `Comunicacoes.contador` (plural ICU,
+  pt-BR/en-US/es). Aberto, a lista é a mesma. Sem JS no cliente. Cliente e admin seguem abertos.
 
 ### 96.8 Admin — `/administrator/reservas`
 
@@ -8821,3 +8829,197 @@ e-mails renderizados numa rota temporária (já removida) com dados fictícios �
 "hoje" es e gestor D-1. Rotas novas respondem (job sem segredo → 401; admin → login). **Não exercitado:** a
 migration não foi aplicada a partir desta sessão; job, linha do tempo e telas logadas não testados contra o
 banco.
+
+---
+
+## 97. Pagamento em nome de outra pessoa ou empresa — comprovante e futura nota fiscal (29/10/2026)
+
+PRD §6.6 ("Comprovante (e futura nota fiscal) em nome de outra pessoa ou empresa"). No checkout o cliente
+escolhe o **tomador** do pagamento: ele mesmo (padrão), outra pessoa (CPF) ou empresa (CNPJ). A cobrança do
+Asaas vai para um customer com esses dados e o snapshot é exibido no comprovante, no painel do gestor e no
+admin.
+
+### 97.1 Banco — migration `20261029c_pagamento_tomador.sql`
+
+**`pagamento_tomador`** (1:1 com `pagamento`, `pagamento_id` PK FK CASCADE):
+
+```sql
+tipo text           -- 'proprio' | 'cpf' | 'cnpj'
+nome text           -- nome completo ou razão social (2–200)
+documento text      -- só dígitos: 11 (CPF) ou 14 (CNPJ), coerente com o tipo
+nome_fantasia, email text NULL
+telefone text NULL  -- ^[0-9]{10,11}$
+cep text NULL       -- ^[0-9]{8}$
+logradouro, numero, complemento, bairro, cidade text NULL | uf text NULL (^[A-Z]{2}$)
+criado_em timestamptz
+```
+
+CHECKs: terceiro (`cpf`/`cnpj`) exige CEP, logradouro, número, bairro, cidade e UF; `cpf` exige telefone.
+RLS + GRANTs da Data API; `service_role_all`; `participante_select` (cliente ou gestor do pedido). Escrita
+só pelo servidor. **Sem linha** = tentativa anterior à funcionalidade → o próprio cliente.
+
+Tipos TS: `PagamentoTomadorTipo` e a tabela em `src/types/supabase.ts`.
+
+### 97.2 Módulo puro — `src/lib/pagamentos/tomador.ts` (cliente e servidor)
+
+- `TomadorForm` (valores do formulário, com máscara), `Tomador` (normalizado = colunas da tabela),
+  `TomadorRegistro` (linha), `CampoTomador` (campos que podem ser recusados), `TOMADOR_VAZIO`, `UFS`.
+- `validarTomador(form) → { ok, tomador } | { ok: false, campo }` — CPF: `isValidCPF`, nome com 2+ palavras,
+  telefone 10–11 dígitos, endereço completo; CNPJ: `isValidCNPJ`, razão social, endereço completo,
+  telefone opcional. Robusto a payload malformado (campos ausentes viram `''`).
+- `mesmoTomador(gravado, desejado)` — decide se a cobrança pendente pode ser reaproveitada.
+- `tomadorParaForm(linha)` (reabre o checkout), `enderecoTomador`, `documentoTomador` (máscara completa),
+  `documentoMascarado` (miolo visível — movida de `DetalheReserva`), `maskTelefoneBR`.
+- `maskCNPJ` novo em `src/lib/validators.ts`.
+
+### 97.3 Consulta de CNPJ — `src/lib/cnpj.ts` (`server-only`)
+
+`consultarCnpj(cnpj) → { ok: true, dados: DadosCnpj } | { ok: false, motivo }` — `GET
+https://api.opencnpj.org/{14 dígitos}` (sem chave, timeout 8s, `no-store`). 404 → `nao_encontrado`, 429 →
+`limite`, falha/timeout → `indisponivel`, dígito verificador errado → `invalido` (sem chamar a API).
+Mapeamento: `razao_social`, `nome_fantasia`, `situacao_cadastral`, `tipo_logradouro + logradouro` (sem
+repetir o tipo), `numero` (`SN` → `S/N`), `complemento`, `bairro`, `cep`, `municipio`, `uf`, 1º telefone que
+não é fax. Server action `consultarCnpjTomador(cnpj)` em `src/lib/pagamentos/actions-cliente.ts` — só para
+usuário logado (não vira proxy público).
+
+### 97.4 Asaas — `garantirClienteAsaasTomador({ userId, tomador })` (`src/lib/asaas/clientes.ts`)
+
+Um customer por (cliente Boatzy, documento): `externalReference = "<userId>:<documento>"`. Busca por essa
+referência → `PUT /customers/{id}` com os dados atuais (nome/endereço podem ter mudado) ou `POST /customers`.
+Corpo: `name`, `cpfCnpj`, `company` (CNPJ: nome fantasia ou razão social), `phone` (10 dígitos) /
+`mobilePhone` (11), `postalCode`, `address`, `addressNumber`, `complement`, `province` (bairro),
+`notificationDisabled: true`. O vínculo do próprio cliente (`cliente_asaas`) não é tocado.
+
+### 97.5 Checkout — `iniciarPagamento({ …, tomador? })` (`src/lib/pagamentos/checkout.ts`)
+
+- `pagarPedido({ pedidoId, forma, parcelas, cpf?, tomador? })` repassa o `TomadorForm` (omitido/`null` = próprio).
+- Terceiro: revalida com `validarTomador` (erro → `{ ok: false, error, campo }`, mensagens em
+  `Pagamento.tomador.erros.*`); **não exige** o CPF do cliente; customer por `garantirClienteAsaasTomador`
+  (400 do Asaas → `Pagamento.erros.tomadorRecusado` com o motivo).
+- Próprio: fluxo anterior (CPF do cadastro ou informado) + snapshot `tipo='proprio'` (nome, CPF, e-mail,
+  celular do cadastro).
+- A cobrança pendente só é reaproveitada se forma, parcelas **e tomador** (`mesmoTomador`) forem iguais;
+  senão é removida no Asaas e refeita.
+- `pagamento_tomador` é gravado logo após o `pagamento` e **antes** da cobrança; se falhar, a tentativa vira
+  `cancelado` e o cliente vê `Pagamento.erros.iniciar` (o comprovante nunca sai em nome errado).
+- `pedido_evento('cobranca_gerada').dados` ganha `tomador_tipo`, `tomador_nome`, `tomador_documento`.
+
+### 97.6 Telas
+
+- **`CheckoutPagamento`** — props novas `titular: { nome, documento }` (cadastro) e `tomadorInicial:
+  TomadorForm | null` (tomador da cobrança pendente). Campo de CPF do cliente só com tomador próprio.
+  Validação local antes de chamar o servidor.
+- **`TomadorPagamento`** (`src/components/pagamento/TomadorPagamento.tsx`) — resumo "Em nome de …" +
+  **Alterar/Fechar**; seletor Meu nome / Outra pessoa (CPF) / Empresa (CNPJ). CNPJ: máscara, validação,
+  consulta automática ao completar 14 dígitos válidos (spinner, ignora resposta de CNPJ já trocado), campos
+  editáveis exibidos após a consulta (ou após falha, para preenchimento manual), aviso de situação ≠ "Ativa",
+  nome fantasia. CPF: nome completo, CPF, telefone e endereço (CEP, logradouro, número, complemento
+  opcional, bairro, cidade, UF em `<select>`). Campo recusado reabre o painel e fica destacado.
+  **CEP → endereço** (componente `Endereco`, CPF e CNPJ): com 8 dígitos, `GET https://viacep.com.br/ws/{cep}/json/`
+  direto do navegador (mesmo serviço de `MinhaContaForm`); preenche `logradouro`, `bairro`, `localidade` →
+  cidade e `uf` (só sobrescreve com valor não vazio; UF validada contra `UFS`), foca o número quando veio
+  logradouro, ignora resposta de CEP já trocado e não repete a consulta do mesmo CEP. `erro` → aviso
+  `Pagamento.tomador.cep.naoEncontrado`; falha de rede → `Pagamento.tomador.cep.erro`. O CEP preenchido pelo
+  OpenCNPJ não dispara o ViaCEP (só a digitação).
+- **`/reservas/[id]/pagar` e `/cobrancas/[id]`** — carregam `users.name` e `pagamento_tomador` da pendente;
+  no estado pago, "Em nome de {nome · documento}" (`Pagamento.emNomeDe`).
+- **`/minhas-reservas/[id]` (comprovante impresso)** — `pagamento_tomador ( * )` no select. Terceiro:
+  `comprovante.emNomeDe` / `emNomeDeEmpresa` (nome + CPF/CNPJ completos), `solicitadoPor` (cliente) e
+  `endereco`. Próprio: `pagador` com o snapshot (ou o cadastro, sem linha) e documento mascarado.
+- **Gestor — `/painel/agendamentos/[id]`** — `pedido.id` no select; busca o tomador do pagamento pago (ou
+  em aberto) e mostra nome, nome fantasia, documento completo, endereço e telefone no card **Pagamento**.
+  `CobrancaAvulsa.em_nome_de` (`src/lib/pagamentos/avulso.ts`, via `pedido → pagamento → pagamento_tomador`
+  do pagamento pago/estornado) aparece em **Cobranças adicionais**.
+- **Admin — `/administrator/pedidos/[id]`** — `PagamentoDetalhe.pagamento_tomador` (`carregarDetalhePedido`);
+  bloco "Comprovante / nota fiscal em nome de" em cada tentativa (tipo, nome/razão social, documento
+  copiável, nome fantasia, telefone, e-mail, endereço) e "Pago em nome de …" no card **Cliente**.
+- i18n (pt-BR, en-US, es): `Pagamento.emNomeDe`, `Pagamento.tomador.*` (inclui `cep.{naoEncontrado, erro}`), `Pagamento.erros.tomadorRecusado`,
+  `DetalheReserva.comprovante.{emNomeDe, emNomeDeEmpresa, solicitadoPor, endereco}`.
+
+### 97.7 Pendência — nota fiscal
+
+Emissão de NFS-e pelo Asaas (`/invoices`) ainda não implementada (depende de D2 — planejamento §12). O customer
+de terceiro já leva endereço completo; o snapshot em `pagamento_tomador` é a fonte para a emissão.
+
+### 97.8 Validação
+
+`tsc`, `eslint` e `npm run i18n:verificar` limpos. `validarTomador`/`mesmoTomador`/`enderecoTomador` e
+`consultarCnpj` exercitados por script (CPF válido/sem telefone/nome curto/inválido; CNPJ sem telefone;
+consulta real ao OpenCNPJ: encontrado, outro CNPJ e dígito inválido); ViaCEP conferido (CEP existente e
+inexistente → `"erro": "true"`). **Não exercitado:** a migration não foi
+aplicada a partir desta sessão; criação/atualização do customer no Asaas sandbox e o fluxo logado de ponta a
+ponta não foram testados. **Aplicar a migration antes de publicar** — o checkout e as telas leem
+`pagamento_tomador`.
+
+---
+
+## 98. E-mails da conta com o layout do Boatzy — Send Email Hook do Supabase Auth (29/10/2026)
+
+PRD §6.1. Os e-mails do Supabase Auth (confirmação de cadastro, recuperação de senha e os demais) saíam com
+o template padrão em inglês. Agora o Supabase chama um hook do Boatzy, que monta o e-mail com o layout
+transacional (logo, cores, botão, rodapé) no idioma do usuário e envia pelo Resend.
+
+### 98.1 Fluxo
+
+`signUp` / `resetPasswordForEmail` / … → Supabase Auth → **`POST /api/auth/email-hook`**
+(`src/app/api/auth/email-hook/route.ts`) → `verificarAssinaturaHook` → `enviosDoHook(payload)` →
+`sendEmail` (Resend, `EMAIL_FROM`). Com o hook ligado, o Supabase **não usa mais o SMTP nem os templates**
+do Dashboard.
+
+- Resposta: `200 {}` quando enviou. Erro → `{ error: { http_code, message } }` (401 assinatura, 400 payload,
+  500 sem `SEND_EMAIL_HOOK_SECRET` ou falha no Resend) — o Supabase devolve a falha a quem pediu, que pode
+  tentar de novo (melhor que "enviar" nada).
+- Rota fora da proteção do `proxy` (não é `/painel` nem `/administrator`).
+
+### 98.2 Assinatura — `src/lib/supabase/email-hook.ts` (`server-only`)
+
+Standard Webhooks sem dependência: headers `webhook-id`, `webhook-timestamp`, `webhook-signature`
+(`v1,<base64>`, várias separadas por espaço); HMAC-SHA256 de `<id>.<timestamp>.<corpo cru>` com o segredo
+(`v1,whsec_<base64>` → base64 decodificado); `timingSafeEqual`; tolerância de 5 min. Tipos
+`AcaoEmailAuth` (14 ações do Supabase) e `PayloadEmailHook`. Conferido contra a lib `standardwebhooks@1.0.0`
+(válida, várias assinaturas, corpo alterado, segredo errado, timestamp velho, sem headers).
+
+### 98.3 Conteúdo — `src/lib/emails/conta.ts` (`server-only`)
+
+`enviosDoHook(payload) → { para, assunto, html }[]`. Grupos de texto (`EmailConta.*` em `messages/*/auth.json`):
+
+| Ação | Grupo | Botão / link |
+|---|---|---|
+| `signup` | `cadastro` | "Confirmar meu e-mail" → `/auth/v1/verify?token=<token_hash>&type=signup&redirect_to=<emailRedirectTo>` |
+| `recovery` | `senha` | "Redefinir minha senha" → `<redirect_to>?token_hash=…&type=recovery&next=/redefinir-senha` (só se `redirect_to` terminar em `/auth/confirm`; senão `<site_url>/auth/confirm`) |
+| `magiclink`, `email` | `acesso` | "Entrar no Boatzy" → verify |
+| `invite` | `convite` | "Aceitar convite" → verify |
+| `email_change` | `trocaEmail` | verify; troca segura = 2 e-mails (`token_hash_new` → e-mail **atual**, `token_hash` → **novo** — nomes invertidos, doc do Supabase) |
+| `reauthentication` | `codigo` | sem link; bloco "Código" com `token` |
+| `*_notification` | `seguranca` | sem link; frase por evento (`seguranca.eventos.*`) |
+
+Todos: título "Olá, {primeiro nome}!" (ou "Olá!"), aviso de uso único (com link), aviso "se não foi você",
+link em texto para copiar e rodapé. `montarEmailHtml` ganhou `titulo?` (substitui a saudação).
+
+**Idioma**: `redirect_to` em `/painel/` → pt-BR; senão `user_metadata.idioma` → `users.idioma` → pt-BR. O
+cadastro do site grava `idioma: useLocale()` no `user_metadata` (`/entrar`); o do painel grava `'pt-BR'`
+(`AcessoGestorForm`). Nome: `user_metadata.full_name`/`name` → `users.name`.
+
+### 98.4 Logo nos e-mails
+
+`cabecalhoEmailHtml()` (`src/lib/emails/layout.ts`): cabeçalho navy com `<img>` de
+`${NEXT_PUBLIC_APP_URL}/images/logo_name.png` (versão branca, PNG 120×36 — clientes de e-mail não exibem SVG;
+`alt="Boatzy"` em branco se as imagens estiverem bloqueadas). Usado por `montarEmailHtml` (todos os e-mails
+transacionais) e pelo aviso de novas conversas (`src/lib/notificacoes-conversa.ts`).
+
+### 98.5 Configuração (uma vez, no Supabase)
+
+1. Dashboard → **Authentication → Hooks** → **Send Email** → tipo **HTTPS**, URL
+   `https://boatzy.app/api/auth/email-hook` (domínio sem `www` — o `www` responde 307) → **Generate secret**.
+2. Vercel → env **`SEND_EMAIL_HOOK_SECRET`** = o segredo gerado (`v1,whsec_…`) → redeploy.
+3. Ativar o hook **depois** do deploy com a env (antes disso a rota recusa e os e-mails da conta param).
+4. O `EMAIL_FROM` do Resend passa a ser o remetente desses e-mails (antes: SMTP do Supabase).
+
+Para voltar ao comportamento anterior, basta desativar o hook (SMTP + templates do Dashboard voltam a valer).
+
+### 98.6 Validação
+
+`tsc`, `eslint`, `npm run i18n:verificar` limpos. E-mails renderizados numa rota temporária (já removida) com
+dados fictícios: cadastro pt-BR e en-US, recuperação es, código pt-BR — logo, botão, link alternativo e
+rodapé corretos. Rota sem segredo → 500 `Hook de e-mail não configurado.` **Não exercitado:** hook ligado no
+Supabase e envio real pelo Resend.

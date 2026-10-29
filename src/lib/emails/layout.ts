@@ -18,6 +18,16 @@ export function baseUrl(): string {
   return (process.env.NEXT_PUBLIC_APP_URL ?? 'https://boatzy.app').trim().replace(/\/+$/, '');
 }
 
+/**
+ * Cabeçalho navy com a logo (versão branca, PNG — clientes de e-mail não exibem SVG). Com imagens
+ * bloqueadas, o `alt` aparece em branco no lugar, como o cabeçalho de texto de antes.
+ */
+export function cabecalhoEmailHtml(): string {
+  return `<tr><td style="background:#0E2F4F;padding:18px 24px;color:#ffffff;font-size:18px;font-weight:bold;">`
+    + `<img src="${esc(baseUrl())}/images/logo_name.png" width="120" height="36" alt="Boatzy" `
+    + `style="display:block;border:0;outline:none;height:36px;width:120px;color:#ffffff;font-size:18px;font-weight:bold;"></td></tr>`;
+}
+
 export type BlocoEmail = {
   titulo?: string;
   linhas: [string, string][]; // rótulo, valor (texto puro — escapado aqui)
@@ -37,10 +47,14 @@ export function montarEmailHtml(input: {
   saudacao?: (primeiroNome: string) => string;
   /** `lang` do HTML (padrão pt-BR). */
   lang?: string;
+  /** Título no lugar da saudação (texto puro) — ex.: e-mails da conta, que podem não ter nome. */
+  titulo?: string;
 }): string {
   const primeiroNomeTexto = (input.nome ?? '').split(' ')[0] || 'Olá';
   const primeiroNome = esc(primeiroNomeTexto);
-  const saudacao = input.saudacao ? esc(input.saudacao(primeiroNomeTexto)) : `Olá, ${primeiroNome}!`;
+  const saudacao = input.titulo
+    ? esc(input.titulo)
+    : input.saudacao ? esc(input.saudacao(primeiroNomeTexto)) : `Olá, ${primeiroNome}!`;
 
   const blocos = (input.blocos ?? [])
     .filter((b) => b.linhas.length > 0)
@@ -76,7 +90,7 @@ export function montarEmailHtml(input: {
   <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f1f5f9;padding:24px 0;">
     <tr><td align="center">
       <table role="presentation" width="480" cellpadding="0" cellspacing="0" style="background:#ffffff;border-radius:16px;overflow:hidden;border:1px solid #e2e8f0;">
-        <tr><td style="background:#0E2F4F;padding:20px 24px;color:#ffffff;font-size:18px;font-weight:bold;">Boatzy</td></tr>
+        ${cabecalhoEmailHtml()}
         <tr><td style="padding:24px;">
           <h1 style="margin:0 0 8px;color:#0E2F4F;font-size:18px;">${saudacao}</h1>
           ${input.paragrafos.map((p) => `<p style="margin:0 0 16px;color:#475569;font-size:14px;line-height:1.5;">${p}</p>`).join('')}

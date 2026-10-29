@@ -204,6 +204,7 @@
     "confirmadoTexto": "Sua reserva está confirmada. Enviamos os detalhes para o seu e-mail.",
     "alteradoTexto": "Este pedido teve alteração após o pagamento (reembolso ou contestação). Fale com o suporte em caso de dúvida.",
     "pagoEm": "Pago em {data}",
+    "emNomeDe": "Em nome de {titular}",
     "cartaoFinal": "{bandeira} final {digitos}",
     "verComprovante": "Ver comprovante",
     "prazoTerminou": "O prazo de pagamento terminou",
@@ -253,7 +254,64 @@
       "iniciar": "Não foi possível iniciar o pagamento.",
       "pixIndisponivel": "O pagamento por Pix está indisponível no momento. Use o cartão de crédito ou tente mais tarde.",
       "abrirPagina": "Não foi possível abrir a página de pagamento.",
-      "gerarCobranca": "Não foi possível gerar a cobrança agora. Tente novamente em instantes."
+      "gerarCobranca": "Não foi possível gerar a cobrança agora. Tente novamente em instantes.",
+      "tomadorRecusado": "Os dados do titular foram recusados pela operadora: {motivo}"
+    },
+    "tomador": {
+      "titulo": "Comprovante e nota fiscal",
+      "emNomeDe": "Em nome de",
+      "alterar": "Alterar",
+      "fechar": "Fechar",
+      "aPreencher": "dados a preencher",
+      "ajuda": "Precisa do comprovante em nome de outra pessoa ou de uma empresa? Escolha abaixo antes de pagar.",
+      "opcoes": {
+        "proprio": "Meu nome",
+        "cpf": "Outra pessoa (CPF)",
+        "cnpj": "Empresa (CNPJ)"
+      },
+      "proprioTexto": "O comprovante sai com o nome e o CPF do seu cadastro.",
+      "avisoCpf": "Todos os campos são obrigatórios, exceto o complemento.",
+      "buscando": "Buscando os dados da empresa…",
+      "encontrado": "Dados preenchidos a partir da Receita Federal. Confira antes de pagar.",
+      "situacao": "Atenção: a situação deste CNPJ na Receita Federal é \"{situacao}\".",
+      "nomeFantasia": "Nome fantasia: {nome}",
+      "consulta": {
+        "invalido": "CNPJ inválido. Confira os números digitados.",
+        "nao_encontrado": "Não encontramos este CNPJ. Preencha os dados abaixo.",
+        "limite": "Muitas consultas seguidas. Preencha os dados abaixo ou tente de novo em instantes.",
+        "indisponivel": "Não foi possível consultar o CNPJ agora. Preencha os dados abaixo."
+      },
+      "cep": {
+        "naoEncontrado": "CEP não encontrado. Verifique o número ou preencha o endereço manualmente.",
+        "erro": "Não foi possível consultar o CEP agora. Preencha o endereço manualmente."
+      },
+      "campos": {
+        "cnpj": "CNPJ",
+        "cpf": "CPF",
+        "razaoSocial": "Razão social",
+        "nomeCompleto": "Nome completo",
+        "telefone": "Telefone",
+        "telefoneOpcional": "Telefone (opcional)",
+        "cep": "CEP",
+        "logradouro": "Endereço (rua, avenida…)",
+        "numero": "Número",
+        "complemento": "Complemento (opcional)",
+        "bairro": "Bairro",
+        "cidade": "Cidade",
+        "uf": "UF"
+      },
+      "erros": {
+        "cpf": "Informe um CPF válido.",
+        "cnpj": "Informe um CNPJ válido.",
+        "nome": "Informe o nome completo (ou a razão social da empresa).",
+        "telefone": "Informe um telefone com DDD.",
+        "cep": "Informe um CEP válido.",
+        "logradouro": "Informe o endereço.",
+        "numero": "Informe o número do endereço (ou S/N).",
+        "bairro": "Informe o bairro.",
+        "cidade": "Informe a cidade.",
+        "uf": "Selecione o estado (UF)."
+      }
     }
   },
   "Cobranca": {

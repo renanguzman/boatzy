@@ -7,6 +7,7 @@ import type { PedidoStatus } from '@/types/supabase';
 import type { CobrancaAvulsa } from '@/lib/pagamentos/avulso';
 import { formatCurrencyPrecise } from '@/lib/utils';
 import { formatarDataHora } from '@/lib/datas';
+import { maskCpfCnpj } from '@/lib/validators';
 import { cancelarCobrancaAvulsaGestor, registrarCompartilhamentoCobranca } from '../../cobrancas-actions';
 import NovaCobrancaModal, { type ItemCatalogo, type OpcaoForma } from './NovaCobrancaModal';
 import { linkWhatsAppCobranca } from './compartilhar';
@@ -155,6 +156,7 @@ function CobrancaItem({ c, reservaId, baseUrl, clienteTelefone, itemNome }: Prop
 
       <p className="mt-2 text-[11px] text-slate-500">
         {c.status === 'pago' && c.pago_em && <>Paga em {formatarDataHora(c.pago_em)}.</>}
+        {c.em_nome_de && <> Em nome de {c.em_nome_de.nome} ({c.em_nome_de.tipo === 'cnpj' ? 'CNPJ' : 'CPF'} {maskCpfCnpj(c.em_nome_de.documento)}).</>}
         {c.status === 'aguardando_pagamento' && c.expira_em && <>Prazo: {formatarDataHora(c.expira_em)}.</>}
         {(c.status === 'cancelado' || c.status === 'expirado') && c.motivo_cancelamento && <>{c.motivo_cancelamento}.</>}
         {c.visualizado_em && c.status === 'aguardando_pagamento' && (

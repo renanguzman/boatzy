@@ -3,6 +3,7 @@
     "titulo": "Comunicaciones automáticas",
     "subtitulo": "Correos y avisos que Boatzy envió sobre esta reserva.",
     "vazio": "Todavía no se envió ninguna comunicación.",
+    "contador": "{n, plural, =0 {Ningún registro} one {# registro} other {# registros}}",
     "previsto": "Previsto para el {data}",
     "paraVoce": "para ti",
     "paraCliente": "para el cliente",

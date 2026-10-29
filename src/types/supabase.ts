@@ -79,6 +79,8 @@ export type PagamentoStatus =
 export type PagamentoParcelaStatus = 'pendente' | 'confirmado' | 'recebido' | 'cancelado' | 'estornado' | 'em_disputa';
 export type PagamentoEstornoOrigem = 'cliente' | 'gestor' | 'admin' | 'chargeback' | 'asaas';
 export type PagamentoEstornoStatus = 'solicitado' | 'em_andamento' | 'concluido' | 'cancelado';
+/** Em nome de quem sai o pagamento: o próprio cliente, outra pessoa (CPF) ou empresa (CNPJ) — SPEC §97. */
+export type PagamentoTomadorTipo = 'proprio' | 'cpf' | 'cnpj';
 
 export type Json = string | number | boolean | null | { [key: string]: Json | undefined } | Json[];
 
@@ -2581,6 +2583,69 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: 'pagamento_cartao_pagamento_id_fkey';
+            columns: ['pagamento_id'];
+            isOneToOne: true;
+            referencedRelation: 'pagamento';
+            referencedColumns: ['id'];
+          },
+        ];
+      };
+      // Em nome de quem a tentativa de pagamento foi emitida (comprovante / nota) — SPEC §97.
+      pagamento_tomador: {
+        Row: {
+          pagamento_id: string;
+          tipo: PagamentoTomadorTipo;
+          nome: string;
+          documento: string;
+          nome_fantasia: string | null;
+          email: string | null;
+          telefone: string | null;
+          cep: string | null;
+          logradouro: string | null;
+          numero: string | null;
+          complemento: string | null;
+          bairro: string | null;
+          cidade: string | null;
+          uf: string | null;
+          criado_em: string;
+        };
+        Insert: {
+          pagamento_id: string;
+          tipo: PagamentoTomadorTipo;
+          nome: string;
+          documento: string;
+          nome_fantasia?: string | null;
+          email?: string | null;
+          telefone?: string | null;
+          cep?: string | null;
+          logradouro?: string | null;
+          numero?: string | null;
+          complemento?: string | null;
+          bairro?: string | null;
+          cidade?: string | null;
+          uf?: string | null;
+          criado_em?: string;
+        };
+        Update: {
+          pagamento_id?: string;
+          tipo?: PagamentoTomadorTipo;
+          nome?: string;
+          documento?: string;
+          nome_fantasia?: string | null;
+          email?: string | null;
+          telefone?: string | null;
+          cep?: string | null;
+          logradouro?: string | null;
+          numero?: string | null;
+          complemento?: string | null;
+          bairro?: string | null;
+          cidade?: string | null;
+          uf?: string | null;
+          criado_em?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'pagamento_tomador_pagamento_id_fkey';
             columns: ['pagamento_id'];
             isOneToOne: true;
             referencedRelation: 'pagamento';

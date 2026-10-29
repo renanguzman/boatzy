@@ -31,6 +31,7 @@ import BotaoImprimir from './BotaoImprimir';
 import ConversarDonoReserva from '../../_components/ConversarDonoReserva';
 import CobrancasAdicionais from '../../_components/CobrancasAdicionais';
 import { listarCobrancasDaReserva } from '@/lib/pagamentos/avulso';
+import { documentoMascarado, documentoTomador, enderecoTomador, type TomadorRegistro } from '@/lib/pagamentos/tomador';
 import ComunicacoesReserva from '@/components/comunicacao/ComunicacoesReserva';
 
 /* ── Tipos do select ─────────────────────────────────────────────────────── */
@@ -118,6 +119,7 @@ type PagamentoDetalhe = {
   criado_em: string;
   pagamento_cartao: { bandeira: string; ultimos_digitos: string } | { bandeira: string; ultimos_digitos: string }[] | null;
   pagamento_estorno: { valor: number; status: PagamentoEstornoStatus; solicitado_em: string; concluido_em: string | null }[];
+  pagamento_tomador: TomadorRegistro | TomadorRegistro[] | null;
 };
 
 /* ── Helpers ─────────────────────────────────────────────────────────────── */
@@ -134,14 +136,6 @@ type TradutorDetalhe = Awaited<ReturnType<typeof getTranslations<'DetalheReserva
 
 /** Código curto da reserva, para citar no chat/suporte. */
 const codigoReserva = (id: string) => id.slice(0, 8).toUpperCase();
-
-/** CPF/CNPJ do pagador só com o miolo visível (***.456.789-** / **.345.678/****-**). */
-function documentoMascarado(doc: string | null): string | null {
-  const d = onlyDigits(doc ?? '');
-  if (d.length === 11) return `***.${d.slice(3, 6)}.${d.slice(6, 9)}-**`;
-  if (d.length === 14) return `**.${d.slice(2, 5)}.${d.slice(5, 8)}/****-**`;
-  return null;
-}
 
 function formatTelefone(digits: string | null): string | null {
   if (!digits) return null;
@@ -290,7 +284,8 @@ export default async function DetalheReserva({ reservaId: id, clienteId }: { res
             `id, forma_pagamento, numero_parcelas, valor, status, confirmado_em, recebido_em, numero_fatura,
              comprovante_url, fatura_url, asaas_payment_id, pix_transacao_id, criado_em,
              pagamento_cartao ( bandeira, ultimos_digitos ),
-             pagamento_estorno ( valor, status, solicitado_em, concluido_em )`,
+             pagamento_estorno ( valor, status, solicitado_em, concluido_em ),
+             pagamento_tomador ( * )`,
           )
           .eq('pedido_id', pedido.id)
           .order('criado_em', { ascending: false })
@@ -314,6 +309,9 @@ export default async function DetalheReserva({ reservaId: id, clienteId }: { res
   const pagamentos = (pagamentosData ?? []) as unknown as PagamentoDetalhe[];
   const pagamento = pagamentos.find((p) => PAGAMENTO_COM_COMPROVANTE.includes(p.status)) ?? null;
   const cartao = pagamento ? um(pagamento.pagamento_cartao) : null;
+  // Em nome de quem saiu o pagamento (SPEC §97). Sem linha = pagamento anterior, no nome do próprio cliente.
+  const tomador = pagamento ? um(pagamento.pagamento_tomador) : null;
+  const terceiro = tomador && tomador.tipo !== 'proprio' ? tomador : null;
   const estornos = (pagamento?.pagamento_estorno ?? []).filter((e) => e.status !== 'cancelado');
   // Recibo da transação no Asaas (ou a fatura, se o recibo ainda não veio pelo webhook).
   const urlOperadora = pagamento?.comprovante_url ?? pagamento?.fatura_url ?? null;
@@ -706,7 +704,24 @@ export default async function DetalheReserva({ reservaId: id, clienteId }: { res
                   }
                   icone={pagamento.forma_pagamento === 'pix' ? QrCode : CreditCard}
                 />
-                <LinhaRecibo rotulo={t('comprovante.pagador')} valor={[cliente?.name, documentoMascarado(cliente?.cpf_cnpj ?? null)].filter(Boolean).join(' · ') || '—'} />
+                {terceiro ? (
+                  <>
+                    {/* Outra pessoa/empresa: dados completos — é o que vale para reembolso e nota fiscal. */}
+                    <LinhaRecibo
+                      rotulo={terceiro.tipo === 'cnpj' ? t('comprovante.emNomeDeEmpresa') : t('comprovante.emNomeDe')}
+                      valor={`${terceiro.nome} · ${terceiro.tipo === 'cnpj' ? 'CNPJ' : 'CPF'} ${documentoTomador(terceiro.documento)}`}
+                    />
+                    <LinhaRecibo rotulo={t('comprovante.solicitadoPor')} valor={cliente?.name || '—'} />
+                    {enderecoTomador(terceiro) && (
+                      <div className="sm:col-span-2"><LinhaRecibo rotulo={t('comprovante.endereco')} valor={enderecoTomador(terceiro)!} /></div>
+                    )}
+                  </>
+                ) : (
+                  <LinhaRecibo
+                    rotulo={t('comprovante.pagador')}
+                    valor={[tomador?.nome ?? cliente?.name, documentoMascarado(tomador?.documento ?? cliente?.cpf_cnpj ?? null)].filter(Boolean).join(' · ') || '—'}
+                  />
+                )}
                 <LinhaRecibo rotulo={t('comprovante.recebedor')} valor={t('comprovante.recebedorValor')} />
                 {pagamento.asaas_payment_id && <LinhaRecibo rotulo={t('comprovante.idTransacao')} valor={pagamento.asaas_payment_id} mono />}
                 {pagamento.pix_transacao_id && <LinhaRecibo rotulo={t('comprovante.idPix')} valor={pagamento.pix_transacao_id} mono />}

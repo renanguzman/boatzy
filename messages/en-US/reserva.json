@@ -204,6 +204,7 @@
     "confirmadoTexto": "Your booking is confirmed. We've sent the details to your email.",
     "alteradoTexto": "This order changed after payment (refund or dispute). Contact support if you have questions.",
     "pagoEm": "Paid on {data}",
+    "emNomeDe": "Issued to {titular}",
     "cartaoFinal": "{bandeira} ending in {digitos}",
     "verComprovante": "View receipt",
     "prazoTerminou": "The payment deadline has passed",
@@ -253,7 +254,64 @@
       "iniciar": "We couldn't start the payment.",
       "pixIndisponivel": "Pix payment is unavailable right now. Use a credit card or try again later.",
       "abrirPagina": "We couldn't open the payment page.",
-      "gerarCobranca": "We couldn't generate the charge right now. Try again in a moment."
+      "gerarCobranca": "We couldn't generate the charge right now. Try again in a moment.",
+      "tomadorRecusado": "The payment provider rejected the billing details: {motivo}"
+    },
+    "tomador": {
+      "titulo": "Receipt and invoice",
+      "emNomeDe": "Issued to",
+      "alterar": "Change",
+      "fechar": "Close",
+      "aPreencher": "details to fill in",
+      "ajuda": "Need the receipt in someone else's name or a company's? Choose below before paying.",
+      "opcoes": {
+        "proprio": "My name",
+        "cpf": "Another person (CPF)",
+        "cnpj": "Company (CNPJ)"
+      },
+      "proprioTexto": "The receipt uses the name and CPF from your account.",
+      "avisoCpf": "All fields are required, except the address line 2.",
+      "buscando": "Looking up the company details…",
+      "encontrado": "Details filled in from the Brazilian Federal Revenue. Please check them before paying.",
+      "situacao": "Warning: this CNPJ's status at the Federal Revenue is \"{situacao}\".",
+      "nomeFantasia": "Trade name: {nome}",
+      "consulta": {
+        "invalido": "Invalid CNPJ. Please check the numbers.",
+        "nao_encontrado": "We couldn't find this CNPJ. Please fill in the details below.",
+        "limite": "Too many lookups in a row. Fill in the details below or try again shortly.",
+        "indisponivel": "We couldn't look up the CNPJ right now. Please fill in the details below."
+      },
+      "cep": {
+        "naoEncontrado": "ZIP code (CEP) not found. Check the number or fill in the address manually.",
+        "erro": "We couldn't look up the ZIP code (CEP) right now. Please fill in the address manually."
+      },
+      "campos": {
+        "cnpj": "CNPJ",
+        "cpf": "CPF",
+        "razaoSocial": "Legal name",
+        "nomeCompleto": "Full name",
+        "telefone": "Phone",
+        "telefoneOpcional": "Phone (optional)",
+        "cep": "ZIP code (CEP)",
+        "logradouro": "Street address",
+        "numero": "Number",
+        "complemento": "Address line 2 (optional)",
+        "bairro": "Neighborhood",
+        "cidade": "City",
+        "uf": "State"
+      },
+      "erros": {
+        "cpf": "Enter a valid CPF.",
+        "cnpj": "Enter a valid CNPJ.",
+        "nome": "Enter the full name (or the company's legal name).",
+        "telefone": "Enter a phone number with area code.",
+        "cep": "Enter a valid ZIP code (CEP).",
+        "logradouro": "Enter the street address.",
+        "numero": "Enter the address number (or S/N).",
+        "bairro": "Enter the neighborhood.",
+        "cidade": "Enter the city.",
+        "uf": "Select the state."
+      }
     }
   },
   "Cobranca": {
