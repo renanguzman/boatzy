@@ -2397,27 +2397,56 @@ revertida.
     de link "Fonte: Open-Meteo.com" (`https://open-meteo.com`, `target="_blank" rel="noopener
     noreferrer"`, ícone `ExternalLink`).
 
-### 20.4 Painel — `/painel/agendamentos` (calendário)
+### 20.4 Painel — `/painel/agendamentos` (Agendamentos/Reservas: calendário e lista)
 
-**Arquivos:** `src/app/painel/(gestao)/agendamentos/page.tsx` +
-`_components/AgendamentosCalendar.tsx` + `actions.ts`.
+**Arquivos:** `src/app/painel/(gestao)/agendamentos/page.tsx` + `_components/AgendamentosVisoes.tsx`
++ `_components/AgendamentosCalendar.tsx` + `_components/ReservasLista.tsx` + `_components/visao.ts`
++ `actions.ts`. Item do menu lateral: **AGENDAMENTOS/RESERVAS** (rota inalterada).
 
-Visão em **calendário** de todas as reservas dos roteiros/embarcações do gestor (`owner_id`).
+Todas as reservas dos roteiros/embarcações do gestor (`owner_id`) em duas visualizações (abas).
 
-- A página (Server Component) carrega os eventos: `id, tipo, data_reserva, status, item_nome,
-  quantidade_pessoas` + embed `cliente:users!reserva_cliente_id_fkey ( name )`, ordenados por
-  `data_reserva`. Contador de pendentes no cabeçalho.
-- `AgendamentosCalendar` (`'use client'`, tipo `ReservaEvento`):
+- A página (Server Component) carrega os eventos: `id, tipo, data_reserva, data_fim_reserva,
+  quantidade_diarias, status, item_nome, quantidade_pessoas, modalidade_preco, total_estimado,
+  pagamento_exigido` + embeds `cliente:users!reserva_cliente_id_fkey ( name )`,
+  `roteiro ( horario_saida )` e `pedido ( status, valor_total )` (pedido principal, 1:1), ordenados
+  por `data_reserva`; soma `avulsas_abertas` por reserva via `resumoAvulsasPorReserva` (§34.16).
+  Contador de pendentes e de cobranças adicionais em aberto no cabeçalho.
+- **Abas** (`AgendamentosVisoes`, `'use client'`): **Calendário** | **Lista de reservas**. A última
+  aba escolhida fica no cookie `painel_agendamentos_visao` (`calendario`|`lista`, `path=/painel`,
+  1 ano), gravado por `salvarVisao()` e lido no servidor por `parseVisao()` (`visao.ts`) — a página
+  já abre na última visão, sem piscar. Sem cookie/valor inválido → `calendario`.
+- `AgendamentosCalendar` (`'use client'`, tipo `ReservaEvento`; exporta `STATUS`, `TIPO`, `WEEKDAYS`,
+  `MESES` reutilizados pela lista):
   - **Views:** mês (default) e semana, via segmented control; navegação anterior/hoje/próximo.
   - **Cores por status:** Pendente = âmbar/laranja, Confirmada = verde, Recusada = vermelho,
     Cancelada pelo cliente = cinza, Concluída = azul (sky). **Ícone por tipo:** roteiro = `MapPin`,
     embarcação = `Ship`. Legenda no rodapé (derivada do mapa `STATUS`).
   - Cada reserva é um *chip* clicável agrupado por `data_reserva`; no mês mostra até 3 + "+N mais".
     O chip leva a `/painel/agendamentos/[id]`.
-- **Painel lateral de pendentes** (`_components/PendentesList.tsx`): quando há reservas `pendente`, a
-  página divide o espaço em **70% calendário / 30% lista** (`grid xl:grid-cols-10` → `col-span-7` +
-  `col-span-3`), exibindo ao lado apenas as pendentes (cliente, tipo, roteiro, data, pessoas; link
-  para o detalhe; sticky + scroll). Sem pendentes, o calendário ocupa a largura inteira.
+- **Painel lateral de pendentes** (`_components/PendentesList.tsx`, só na aba Calendário): quando há
+  reservas `pendente`, divide o espaço em **70% calendário / 30% lista** (`grid xl:grid-cols-10` →
+  `col-span-7` + `col-span-3`), exibindo ao lado apenas as pendentes (cliente, tipo, roteiro, data,
+  pessoas; link para o detalhe; sticky + scroll). Sem pendentes, o calendário ocupa a largura inteira.
+- **Lista de reservas** (`ReservasLista`, `'use client'`): linha do tempo vertical, agrupada por mês,
+  com o marcador **Hoje** (dia de `hojeISO()`, Brasília). Três níveis de destaque:
+  1. **Próxima reserva** — card em gradiente marinho com as reservas *ativas* (`pendente`,
+     `aguardando_pagamento`, `confirmada`) do dia mais próximo ≥ hoje (mais de uma se caírem no mesmo
+     dia), com contagem relativa ("Hoje", "Amanhã", "Em N dias") e botão "Ver detalhes".
+  2. **Por vir** — demais reservas de hoje em diante, em cards brancos com ponto colorido do status;
+     futuras recusadas/canceladas/expiradas aparecem esmaecidas.
+  3. **Já passaram** — reservas com data < hoje, esmaecidas; mostra as 3 mais recentes e o botão
+     "Ver N reservas anteriores" expande o restante.
+  - Cada item: dia da semana/dia/mês, horário (`roteiro.horario_saida` HH:MM; embarcação sem horário
+    → "Dia inteiro"; roteiro sem horário → "Horário a combinar"), período e nº de diárias quando
+    `data_fim_reserva` ≠ `data_reserva`, cliente, item, pessoas, valor (`pedido.valor_total` ou
+    `total_estimado`), badge de **status** da reserva, badge de **pagamento** e badge de cobranças
+    adicionais em aberto. Ordenação: `data_reserva`, depois `horario_saida`.
+  - **Pagamento** (`pagamentoDe`): com pedido → status do pedido (Pago, Aguardando pagamento,
+    Pagamento expirado/cancelado, Reembolsado [parcialmente], Pagamento em disputa); sem pedido →
+    `pendente` = "Cobrança após o aceite", `confirmada`/`concluida` = "Pagamento direto com o cliente",
+    demais = "Sem cobrança".
+  - Clique em qualquer item → `/painel/agendamentos/[id]` (todos os detalhes). Cabeçalho com contagem
+    "por vir" / "já passaram"; estado vazio quando não há reservas.
 
 ### 20.5 Painel — detalhe da reserva `/painel/agendamentos/[id]`
 
@@ -8458,9 +8487,10 @@ TO service_role e `owner_*` com `owner_id = auth.uid()`):
 | `embarcacao_id` | uuid → embarcacao ON DELETE CASCADE | obrigatório no escopo embarcação |
 | `equipe_membro_id` | uuid → equipe_membro ON DELETE CASCADE | obrigatório no escopo condutor |
 | `titulo` | text | obrigatório no tipo `outro` (CHECK) |
-| `numero`, `titular`, `embarcacao_nome`, `categoria` | text | `categoria`: `motonauta`/`veleiro`/`arrais`/`mestre`/`capitao` |
+| `numero`, `titular`, `embarcacao_nome`, `categoria` | text | `categoria`: lista separada por vírgula na ordem `arrais`\|`mestre`\|`capitao` (no máx. uma), `motonauta`, `veleiro` — ex.: `mestre,motonauta` (`normalizarCategorias`) |
+| `titular_cpf` | text CHECK `^[0-9]{11}$` | CPF do titular da habilitação (só escopo condutor, só se válido) — migration `20261029d_documento_titular_cpf.sql` |
 | `data_emissao`, `data_validade` | date | validade NULL = não vence |
-| `dados` | jsonb `{}` | `tipo_embarcacao`, `area_navegacao`, `atividade`, `qtd_passageiros`, `qtd_tripulantes` |
+| `dados` | jsonb `{}` | embarcação: `tipo_embarcacao`, `area_navegacao`, `atividade`, `qtd_passageiros`, `qtd_tripulantes`; condutor: `limites_navegacao` (≤ 120), `orgao_emissor` (≤ 80) |
 | `arquivo_key`, `arquivo_nome`, `arquivo_tipo`, `arquivo_tamanho` | | objeto no bucket privado |
 | `origem` | text `pdf`/`ocr`/`manual` | como os campos foram preenchidos |
 | `arquivado_em` | timestamptz | não nulo = histórico (renovado) |
@@ -8499,8 +8529,11 @@ CHECK `notificacao_tipo_valido`.
 
 - `src/lib/documentos/tipos.ts` (neutro): `TIPOS_DOCUMENTO: Record<DocumentoTipo, TipoDocumentoInfo>`
   (`sigla`, `nome`, `descricao`, `validadeAnos`, `renovacao`, rótulos, `temCategoria`, `temTitulo`),
-  `TIPOS_POR_ESCOPO`, `TIPOS_INSCRICAO` (`tie`,`tiem`,`prpm`), `CATEGORIAS_CHA`, `FUNCOES_EQUIPE`,
-  `nomeCurtoDocumento`, `DadosDocumento`. Tipo novo = entrada aqui + valor no CHECK.
+  `TIPOS_POR_ESCOPO`, `TIPOS_INSCRICAO` (`tie`,`tiem`,`prpm`), `CATEGORIAS_CHA` (`{ valor, rotulo, amador }`),
+  `normalizarCategorias` (ordem canônica, só uma categoria `amador`), `rotuloCategoria` ("Mestre-Amador e
+  Motonauta"), `FUNCOES_EQUIPE`, `nomeCurtoDocumento`, `DadosDocumento`, `extrasDocumento(dados)` (extras
+  exibidos nas listas do painel e do admin, junto com `CPF 000.000.000-00`). Tipo novo = entrada aqui + valor
+  no CHECK.
 - `src/lib/documentos/validade.ts`: `situacaoValidade(validade, hoje?)` → `vencido` (< 0 dia) |
   `vence_em_breve` (≤ `DIAS_ALERTA` = 60) | `em_dia` | `sem_validade`; `diasParaVencer`, `textoPrazo`,
   `marcoAviso` (`MARCOS_AVISO` = 60, 30, 7, 0 → o mais urgente alcançado), `DIAS_FAIXA_TOPO` = 30,
@@ -8513,17 +8546,30 @@ CHECK `notificacao_tipo_valido`.
   onProgresso })` → `{ origem: 'pdf'|'ocr', campos: CamposLidos, confianca }`. Import dinâmico de
   `pdfjs-dist@5.7.284` (worker pelo jsDelivr na mesma versão) e `tesseract.js@7.0.0` (motor + `por` pelo
   jsDelivr, em cache no navegador após a 1ª vez).
-  1. PDF com texto (≥ 40 caracteres e `pontuarTexto ≥ 2`): texto da 1ª página → `lerCampos`.
+  1. PDF com texto (≥ 40 caracteres e `pontuarTexto ≥ 2`) **e** `lerCampos` achou número e validade:
+     resultado direto (`origem: 'pdf'`).
+  1b. Senão (29/10/2026 — CHA do gov.br: o texto do PDF é só o envelope e a carteira é imagem):
+     `imagensDoPdf` — `getOperatorList()` da 1ª página, `paintImageXObject` → `page.objs`/`commonObjs.get`
+     (ImageBitmap ou `data` RGB/RGBA; `kind` 1 = máscara, ignorado); fica com imagens de lado ≥ 200 px e
+     ≥ 120 mil px, as 3 maiores, na ordem do documento; descarta QR Code (`pareceQrCode`: ~quadrada e > 90%
+     dos pixels quase pretos/brancos). Resolução original (lado maior ≥ `LADO_MINIMO_PDF` = 800, ≤ 2000) —
+     medido: a CHA de 800 px leu todos os campos em 1×, e perdeu categoria/emissão ampliada 2×–3× ou na
+     página renderizada. Sem imagem útil → página renderizada (como antes). OCR das imagens (`origem:
+     'ocr'`), completado pelos campos do texto do PDF.
   2. Foto/PDF escaneado: canvas com orientação EXIF, lado maior 1600–2000 px, tons de cinza + contraste
      esticado (percentis 1–99). Tesseract `PSM.SPARSE_TEXT` (11) — o modo que leu os campos nas molduras
      do TIE (comparado com PSM 3 e 6). Rotações 0°, 270°, 90°, 180°, até `pontuarTexto ≥ 6` e confiança ≥ 55
-     (nota = pontos×10 + confiança/10). Se faltar validade ou número, passadas extras na melhor rotação —
+     ou `pontuarTexto ≥ 3` e confiança ≥ 80 (o verso da CHA tem poucas palavras-chave)
+     (nota = pontos×10 + confiança/10). Várias imagens (frente e verso): cada uma na sua melhor rotação —
+     o verso começa pela da frente — e os textos são concatenados antes de `lerCampos`. Se faltar validade ou número, passadas extras na melhor rotação —
      binarizada (limiar 150) e, se ainda faltar, nitidez reforçada (máscara 3×3) —, completando só os
      campos vazios.
   - `anosValidade` (do tipo escolhido: TIE/TIEM 5, CHA 10, DPEM 1) vai para `lerCampos`.
 - `src/lib/documentos/leitura.ts` (puro) — `lerCampos(texto, { embarcacoesConhecidas, pessoasConhecidas,
   anoAtual })` → `CamposLidos { tipoDetectado, numero, titular, embarcacaoNome, categoria, cpf, dataEmissao,
-  dataValidade, tipoEmbarcacao, areaNavegacao, atividade }`:
+  dataValidade, tipoEmbarcacao, areaNavegacao, atividade, limitesNavegacao, orgaoEmissor }`:
+  - linhas do envelope digital (`RE_LINHA_ENVELOPE`: "Compartilhado…", "Assinado…", "Gerado em", validar.iti)
+    não fornecem datas — a data de compartilhamento do gov.br era lida como validade;
   - validade: maior data plausível — até `ano + anosValidade` do tipo (sem tipo: +11) e no máximo 6 anos
     atrás. Descarta erros de OCR como "2037" num TIE (vale 5 anos) ou "2087", e a data de inscrição; a
     leitura fica vazia e as passadas extras tentam de novo. Preferência pelas 6 linhas após
@@ -8531,13 +8577,26 @@ CHECK `notificacao_tipo_valido`.
   - número: `\d{3}[A-Z]\d{8,11}` (ex.: 441M2016005268) ou 9–11 dígitos (ex.: 3810498173), excluindo CPF
     válido, com bônus perto de "INSCRIÇÃO/NÚMERO/APÓLICE/REGISTRO";
   - nome da embarcação/titular: nome conhecido do gestor achado no texto (`encontrarNomeNoTexto`) ou linha
-    em maiúsculas após o rótulo; CPF com dígito verificador (só para o cadastro do condutor);
+    em maiúsculas após o rótulo; CPF com dígito verificador (gravado em `titular_cpf` na habilitação);
+  - categorias: nas 4 linhas a partir do rótulo "CATEGORIA" (sem rótulo: texto todo, só formas
+    inequívocas) — Capitão > Mestre > Arrais (uma) + Motonauta + Veleiro → `normalizarCategorias`;
+  - limites da navegação: 1ª linha em maiúsculas após "LIMITES DA NAVEGAÇÃO", parte antes do " / " (pula a
+    tradução em inglês, que às vezes vem antes), em frase ("Costeira. Quando pilotando moto aquática,
+    interior"); órgão emissor: linha "CAPITANIA/DELEGACIA/AGÊNCIA DOS|DA|DE…" de preferência após "ÓRGÃO DE
+    EMISSÃO", com `nomeApresentavel`;
   - tipo: "MIÚDA" → tiem, "HABILITAÇÃO DE AMADOR" → cha, "CADERNETA" → cir, "PROPRIEDADE MARÍTIMA" → prpm,
-    "DPEM", "TÍTULO DE INSCRI…" → tie.
+    "TÍTULO DE INSCRI…" → tie, "DPEM" (depois do título do TIE — o TIE cita o DPEM no texto).
 - **Validação:** navegador (Chromium headless, página temporária já removida) com as amostras reais do
   gestor — TIE de frente (4,3 s), foto girada 90° com TIE+TIEM (3,2 s) e PDF digital (0,26 s): número
   3810498173, embarcação DANIFER e validade 14/09/2027 corretos nos três. CHA: só texto simulado (amostra
   real pendente). TIEM recortado da foto de baixa resolução não teve o número lido.
+- **Validação CHA (29/10/2026):** Chromium headless (página temporária já removida) com o PDF real da CHA
+  compartilhada pelo gov.br: número 441A2004004024, nome, CPF, categorias `mestre,motonauta`, emissão
+  08/04/2025, validade 08/04/2035, limites e órgão emissor corretos — 1,3 s (5,9 s com o carregamento do
+  Tesseract), confiança 88. Regressão: TIE de frente e TIE girado continuam com número, embarcação e
+  validade corretos (e o girado agora detectado como `tie`, não `dpem`). Antes, o mesmo PDF só devolvia
+  "validade" = 29/10/2026 (data do compartilhamento). O QR Code do VIO é binário assinado (ECDSA), sem
+  formato público — não é usado.
 
 ### 95.5 Vínculo do condutor com a equipe — `src/lib/documentos/nomes.ts` + `server.ts`
 
@@ -8546,8 +8605,10 @@ CHECK `notificacao_tipo_valido`.
 - `analisarCondutor(ownerId, nome, cpf)` → `exato` (mesmo CPF ou nome) | `similar` (até 3 candidatos) |
   `novo`. Action `analisarCondutorDocumento(nome, cpf)` (chamada com debounce no passo 3).
 - `criarDocumento` com `condutor: { modo: 'existente', membroId } | { modo: 'novo', nome, cpf, funcao }`:
-  novo → `equipe_membro` (`nomeApresentavel`, CPF se válido, `telefone NULL`, `funcao`); mesmo CPF já na
-  equipe → reutiliza. Vincula às `embarcacoesDoCondutorIds` (uma ou várias, só as do gestor) em
+  novo → `equipe_membro` (`nomeApresentavel`, CPF se válido — senão o `cpf` do documento —, `telefone NULL`,
+  `funcao`); mesmo CPF já na equipe → reutiliza. Existente sem CPF (não gestor) → `completarCpfMembro`
+  grava o CPF do documento, se nenhum outro membro do gestor o tiver (respeita
+  `equipe_membro_owner_cpf_uniq`; nunca sobrescreve). Vincula às `embarcacoesDoCondutorIds` (uma ou várias, só as do gestor) em
   `equipe_membro_embarcacao` (upsert, só acrescenta — os vínculos que a pessoa já tinha continuam).
   Devolve `membroCriado` → tela "Completar cadastro".
 
@@ -8557,8 +8618,10 @@ CHECK `notificacao_tipo_valido`.
   `listarEmbarcacoesDoGestor`, `listarCondutores` (gestor primeiro; `incompleto` = sem CPF ou telefone),
   `getResumoDocumentos(ownerId)` (vencidos, venceEmBreve, emDia+semValidade, pendentes = embarcações sem
   `TIPOS_INSCRICAO` ativo, urgentes = vencidos + ≤ 30 dias), `proximosVencimentos(ownerId, n)`.
-- **Actions** (`documentos/actions.ts`): `criarDocumento` (valida tipo × escopo, datas, validade ≥ emissão,
-  key na pasta do documento; arquiva o ativo do mesmo alvo/tipo e desfaz se o insert falhar),
+- **Actions** (`documentos/actions.ts`): `DocumentoPayload` tem `cpf` (com ou sem máscara) e `categoria`
+  em lista; `criarDocumento` (valida tipo × escopo, datas, validade ≥ emissão, categorias conhecidas, CPF
+  válido quando informado no escopo condutor → `titular_cpf`; `dadosLimpos(dados, escopo)` aceita só os
+  extras do escopo; key na pasta do documento; arquiva o ativo do mesmo alvo/tipo e desfaz se o insert falhar),
   `atualizarDocumento` (tipo e alvo fixos; troca de arquivo apaga o anterior), `excluirDocumento`.
   Revalidam `/painel/documentos` e o layout `/painel`.
 - `/painel/documentos` (`page.tsx` + `PainelDocumentos`): `ResumoValidadeCards` (filtram; `?situacao=` e
@@ -8568,7 +8631,11 @@ CHECK `notificacao_tipo_valido`.
 - `/painel/documentos/novo` (`DocumentoWizard`): passos O que é → Arquivo → Conferir e salvar; atalhos por
   query (`escopo`, `tipo`, `embarcacao`, `membro`, validados no servidor); aviso de substituição; campos
   com selo "lido do documento"; proprietário sugerido com o nome do gestor; "Usar emissão + N anos";
-  `SecaoCondutor`. `/painel/documentos/[id]/editar`: mesmo componente com `documento`.
+  `SecaoCondutor` (só a função no cadastro novo — o CPF fica nos campos do documento). Habilitação:
+  "CPF do condutor" (máscara; a busca na equipe só usa CPF válido), categorias como botões marcáveis
+  (`alternarCategoria`), "Limites da navegação" e "Órgão emissor" (em `dados`). `SituacaoDaValidade` sob a
+  validade: `situacaoValidade`/`textoPrazo` (vencido vermelho, vence em breve âmbar, em dia verde com a data),
+  CHA vencida > 5 anos → refazer a prova, validade > emissão + `validadeAnos` → "confira a data". `/painel/documentos/[id]/editar`: mesmo componente com `documento`.
 - Compartilhados (`src/components/painel/documentos/`): `SeloValidade` (`validade` ou `situacao`),
   `PrazoValidade`, `ResumoValidadeCards` (`onSelecionar` ou `hrefBase`), `AlertaDocumentos`.
 - Layout `(gestao)`: `getResumoDocumentos` junto dos badges → `Sidebar documentos={{ alerta, vencidos }}`
@@ -8802,10 +8869,10 @@ D-1 se o cron-job.org falhar). Rodar a mais é seguro (idempotente).
 - Reserva `confirmada`: marcos sem item e com janela aberta aparecem como "Previsto para <início>".
 - Usada em `/minhas-reservas/[id]` (coluna principal, após avaliação), `/painel/agendamentos/[id]` (coluna
   principal, ao final; o select passou a trazer `roteiro.horario_saida`) e `/administrator/reservas/[id]`.
-- `recolhivel` (29/10/2026 — usado só em `/painel/agendamentos/[id]`): a seção vira `<details>` nativo, **fechado
+- `recolhivel` (29/10/2026 — usado em `/painel/agendamentos/[id]` e `/minhas-reservas/[id]`): a seção vira `<details>` nativo, **fechado
   por padrão**, com `<summary>` (título + contador + subtítulo + `ChevronDown` que gira com `group-open`); o
   contador é o total de itens (registros + previstos), com `aria-label` `Comunicacoes.contador` (plural ICU,
-  pt-BR/en-US/es). Aberto, a lista é a mesma. Sem JS no cliente. Cliente e admin seguem abertos.
+  pt-BR/en-US/es). Aberto, a lista é a mesma. Sem JS no cliente. O admin segue aberto.
 
 ### 96.8 Admin — `/administrator/reservas`
 

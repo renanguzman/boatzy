@@ -18,6 +18,8 @@ export type DocumentoItem = {
   titulo: string | null;
   numero: string | null;
   titular: string | null;
+  /** CPF do titular da habilitação (só dígitos). */
+  titular_cpf: string | null;
   embarcacao_nome: string | null;
   categoria: string | null;
   data_emissao: string | null;
@@ -41,7 +43,7 @@ export type MembroCondutor = {
 };
 
 const COLUNAS_DOCUMENTO =
-  'id, escopo, tipo, embarcacao_id, equipe_membro_id, titulo, numero, titular, embarcacao_nome, categoria, data_emissao, data_validade, dados, arquivo_key, arquivo_tipo, origem, arquivado_em, created_at';
+  'id, escopo, tipo, embarcacao_id, equipe_membro_id, titulo, numero, titular, titular_cpf, embarcacao_nome, categoria, data_emissao, data_validade, dados, arquivo_key, arquivo_tipo, origem, arquivado_em, created_at';
 
 type LinhaDocumento = Omit<DocumentoItem, 'tem_arquivo' | 'dados'> & { arquivo_key: string | null; dados: unknown };
 

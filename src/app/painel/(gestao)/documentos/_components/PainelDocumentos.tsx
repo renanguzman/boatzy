@@ -8,9 +8,10 @@ import {
 } from 'lucide-react';
 import ResumoValidadeCards, { type FiltroSituacao } from '@/components/painel/documentos/ResumoValidadeCards';
 import { PrazoValidade, SeloValidade } from '@/components/painel/documentos/SeloValidade';
+import { maskCPF } from '@/lib/validators';
 import { formatarData } from '@/lib/datas';
 import {
-  TIPOS_DOCUMENTO, TIPOS_INSCRICAO, TIPOS_POR_ESCOPO, nomeCurtoDocumento, rotuloCategoria, rotuloFuncao,
+  TIPOS_DOCUMENTO, TIPOS_INSCRICAO, TIPOS_POR_ESCOPO, nomeCurtoDocumento, rotuloCategoria, rotuloFuncao, extrasDocumento,
 } from '@/lib/documentos/tipos';
 import { situacaoValidade, type ResumoValidade, type SituacaoValidade } from '@/lib/documentos/validade';
 import type { DocumentoItem, MembroCondutor } from '@/lib/documentos/server';
@@ -320,7 +321,7 @@ function CartaoAlvo({
 
 function LinhaDocumento({ d }: { d: DocumentoItem }) {
   const info = TIPOS_DOCUMENTO[d.tipo];
-  const extras = [rotuloCategoria(d.categoria), d.dados.tipo_embarcacao, d.dados.area_navegacao, d.dados.atividade].filter(Boolean);
+  const extras = [d.titular_cpf ? `CPF ${maskCPF(d.titular_cpf)}` : null, rotuloCategoria(d.categoria), ...extrasDocumento(d.dados)].filter(Boolean);
   const alvo = d.escopo === 'embarcacao' ? `embarcacao=${d.embarcacao_id}` : `membro=${d.equipe_membro_id}`;
   return (
     <li className="flex flex-col gap-3 px-4 py-3.5 sm:flex-row sm:items-center sm:px-5">
@@ -335,7 +336,7 @@ function LinhaDocumento({ d }: { d: DocumentoItem }) {
           </p>
           <PrazoValidade validade={d.data_validade} />
           {(extras.length > 0 || d.titular) && (
-            <p className="mt-0.5 truncate text-xs text-slate-400">
+            <p className="mt-0.5 text-xs text-slate-400 [overflow-wrap:anywhere]">
               {[d.titular, ...extras].filter(Boolean).join(' · ')}
             </p>
           )}

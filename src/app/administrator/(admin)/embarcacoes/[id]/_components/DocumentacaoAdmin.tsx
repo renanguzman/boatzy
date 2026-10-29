@@ -6,7 +6,7 @@ import { SeloValidade } from '@/components/painel/documentos/SeloValidade';
 import { SecaoRevisao } from '@/components/publicacao/RevisaoAdmin';
 import type { DocumentoItem } from '@/lib/documentos/server';
 import type { MembroComHabilitacoes } from '@/lib/documentos/admin';
-import { TIPOS_DOCUMENTO, TIPOS_INSCRICAO, nomeCurtoDocumento, rotuloCategoria, rotuloFuncao } from '@/lib/documentos/tipos';
+import { TIPOS_DOCUMENTO, TIPOS_INSCRICAO, nomeCurtoDocumento, rotuloCategoria, rotuloFuncao, extrasDocumento } from '@/lib/documentos/tipos';
 import { situacaoValidade, textoPrazo } from '@/lib/documentos/validade';
 
 /**
@@ -49,7 +49,7 @@ function VerArquivo({ id, compacto = false }: { id: string; compacto?: boolean }
 
 function LinhaDoc({ d }: { d: DocumentoItem }) {
   const info = TIPOS_DOCUMENTO[d.tipo];
-  const extras = [rotuloCategoria(d.categoria), d.dados.tipo_embarcacao, d.dados.area_navegacao, d.dados.atividade].filter(Boolean);
+  const extras = [d.titular_cpf ? `CPF ${maskCPF(d.titular_cpf)}` : null, rotuloCategoria(d.categoria), ...extrasDocumento(d.dados)].filter(Boolean);
   return (
     <li className="flex flex-col gap-2 py-3 sm:flex-row sm:items-center">
       <div className="flex min-w-0 flex-1 items-start gap-3">

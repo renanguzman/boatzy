@@ -1807,6 +1807,7 @@ export type Database = {
           titulo: string | null;
           numero: string | null;
           titular: string | null;
+          titular_cpf: string | null;
           embarcacao_nome: string | null;
           categoria: string | null;
           data_emissao: string | null;
@@ -1831,6 +1832,7 @@ export type Database = {
           titulo?: string | null;
           numero?: string | null;
           titular?: string | null;
+          titular_cpf?: string | null;
           embarcacao_nome?: string | null;
           categoria?: string | null;
           data_emissao?: string | null;
@@ -1855,6 +1857,7 @@ export type Database = {
           titulo?: string | null;
           numero?: string | null;
           titular?: string | null;
+          titular_cpf?: string | null;
           embarcacao_nome?: string | null;
           categoria?: string | null;
           data_emissao?: string | null;

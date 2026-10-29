@@ -1,14 +1,16 @@
 import type { DocumentoTipo } from '@/types/supabase';
-import { encontrarNomeNoTexto, normalizarNome } from './nomes';
+import { encontrarNomeNoTexto, nomeApresentavel, normalizarNome } from './nomes';
+import { normalizarCategorias } from './tipos';
 
 /**
  * Interpretação do texto lido de um documento (OCR da foto ou texto do PDF) —
  * SPEC §95.4. Função pura: recebe o texto e devolve os campos que conseguiu
  * reconhecer. O gestor sempre confere antes de salvar.
  *
- * Calibrado com TIE/TIEM reais (Capitania dos Portos de SC). O OCR em modo
- * "texto esparso" devolve cada rótulo e cada valor numa linha, na ordem do
- * documento: os valores são procurados nas linhas logo depois do rótulo.
+ * Calibrado com TIE/TIEM reais (Capitania dos Portos de SC) e com a CHA
+ * digital compartilhada pelo gov.br (frente + verso). O OCR em modo "texto
+ * esparso" devolve cada rótulo e cada valor numa linha, na ordem do documento:
+ * os valores são procurados nas linhas logo depois do rótulo.
  */
 
 export type CamposLidos = {
@@ -17,14 +19,19 @@ export type CamposLidos = {
   numero: string | null;
   titular: string | null;
   embarcacaoNome: string | null;
+  /** Categorias da habilitação separadas por vírgula ("mestre,motonauta"). */
   categoria: string | null;
-  /** Só para o cadastro do condutor na equipe — nunca gravado no documento. */
+  /** CPF do titular da habilitação (gravado em `documento.titular_cpf`). */
   cpf: string | null;
   dataEmissao: string | null;
   dataValidade: string | null;
   tipoEmbarcacao: string | null;
   areaNavegacao: string | null;
   atividade: string | null;
+  /** Habilitação: "Limites da navegação" (só a parte em português). */
+  limitesNavegacao: string | null;
+  /** Órgão que emitiu (ex.: "Capitania dos Portos de Santa Catarina"). */
+  orgaoEmissor: string | null;
 };
 
 /** Quanto o texto "parece" um documento náutico — escolhe a melhor rotação da foto. */
@@ -56,9 +63,17 @@ type DataLida = { iso: string; linha: number };
 
 const RE_DATA = /(?<!\d)(\d{2})\s?[/.-]?\s?(\d{2})\s?[/.-]?\s?(\d{4})(?!\d)/g;
 
+/**
+ * Linhas do "envelope" do documento digital, não do documento: "Compartilhado pelo
+ * aplicativo gov.br em 29/10/2026", "Assinado digitalmente…". A data delas não é
+ * emissão nem validade (a CHA do gov.br tinha a data do compartilhamento lida como validade).
+ */
+const RE_LINHA_ENVELOPE = /COMPARTILHAD|ASSINAD|GERADOEM|IMPRESSOEM|CONSULTADOEM|VALIDARITI/;
+
 function datas(ls: Linha[]): DataLida[] {
   const out: DataLida[] = [];
   ls.forEach((l, i) => {
+    if (RE_LINHA_ENVELOPE.test(l.junto)) return;
     for (const m of l.original.matchAll(RE_DATA)) {
       const [dia, mes, ano] = [Number(m[1]), Number(m[2]), Number(m[3])];
       if (dia < 1 || dia > 31 || mes < 1 || mes > 12 || ano < 1950 || ano > 2099) continue;
@@ -159,20 +174,65 @@ function tipoDetectado(t: string): DocumentoTipo | null {
   if (j.includes('HABILITACAODEAMADOR') || (j.includes('AMADOR') && j.includes('CATEGORIA'))) return 'cha';
   if (j.includes('CADERNETADEINSCRICAO')) return 'cir';
   if (j.includes('PROPRIEDADEMARITIMA')) return 'prpm';
-  if (j.includes('DPEM')) return 'dpem';
   // O título costuma quebrar em duas linhas no OCR ("TÍTULO DE INSCRIÇ" / "ÃO DE EMBARCAÇÃO").
+  // Vem antes do DPEM: o TIE cita o seguro DPEM no texto (a foto do TIE era lida como "DPEM").
   if (j.includes('TITULODEINSCRI') || j.includes('INSCRICAODEEMBARCA')) return 'tie';
+  if (j.includes('DPEM')) return 'dpem';
   if (j.includes('CAPITANIA') && j.includes('EMBARCACAO')) return 'tie';
   return null;
 }
 
-function categoria(t: string): string | null {
-  if (/CAPITAO ?AMADOR/.test(t)) return 'capitao';
-  if (/MESTRE ?AMADOR/.test(t)) return 'mestre';
-  if (/ARRAIS/.test(t)) return 'arrais';
-  if (/MOTONAUTA/.test(t)) return 'motonauta';
-  if (/VELEIRO ?AMADOR|CATEGORIA VELEIRO/.test(t)) return 'veleiro';
+/**
+ * Categorias da habilitação — a CHA pode somar uma categoria de amador (Arrais, Mestre ou
+ * Capitão) com Motonauta e/ou Veleiro ("MESTRE AMADOR E MOTONAUTA"). Procura nas linhas
+ * logo após o rótulo "CATEGORIA" e, sem rótulo, no texto todo (só as formas inequívocas).
+ */
+function categorias(ls: Linha[], tudo: string): string | null {
+  const i = ls.findIndex((l) => /^CATEGORIA\b/.test(l.norm));
+  const trecho = i >= 0 ? ls.slice(i, i + 4).map((l) => l.norm).join(' ') : null;
+  const t = trecho ?? tudo;
+  const achadas: string[] = [];
+  if (/CAPITAO ?AMADOR/.test(t)) achadas.push('capitao');
+  else if (/MESTRE ?AMADOR/.test(t)) achadas.push('mestre');
+  else if (/ARRAIS/.test(t)) achadas.push('arrais');
+  if (/MOTONAUTA/.test(t)) achadas.push('motonauta');
+  if (trecho ? /VELEIRO/.test(t) : /VELEIRO ?AMADOR|CATEGORIA VELEIRO/.test(t)) achadas.push('veleiro');
+  return normalizarCategorias(achadas.join(','));
+}
+
+/** "Limites da navegação" da habilitação: a linha após o rótulo, sem a tradução em inglês. */
+function limitesNavegacao(ls: Linha[]): string | null {
+  const i = ls.findIndex((l) => l.junto.includes('LIMITESDANAVEGA') || l.junto.includes('LIMITEDENAVEGA'));
+  if (i < 0) return null;
+  for (let j = i + 1; j <= i + 3 && j < ls.length; j++) {
+    const pt = ls[j].original.split(/\s\/\s?|\s?\/\s/)[0].replace(/[\s./]+$/, '').trim();
+    const letras = pt.replace(/[^A-Za-zÀ-ÿ]/g, '');
+    if (letras.length < 5 || letras !== letras.toUpperCase()) continue;
+    if (/REQUISITOS|EMISSAO|NAVIGATION/.test(ls[j].norm)) break;
+    // A tradução em inglês às vezes vem antes na leitura ("WHEN PILOTTING…, INLAND WATERS").
+    if (/\b(WHEN|WATERS?|PILOTT?ING|COASTAL|INLAND|OCEANIC|ONLY)\b/.test(normalizarNome(pt))) continue;
+    return fraseApresentavel(pt).slice(0, 120);
+  }
   return null;
+}
+
+/** Órgão emissor: Capitania, Delegacia ou Agência (de preferência logo após "Órgão de emissão"). */
+function orgaoEmissor(ls: Linha[]): string | null {
+  const re = /^(CAPITANIA|DELEGACIA|AGENCIA) (DOS|DA|DE|DO|FLUVIAL|FLUVIAIS)\b/;
+  const i = ls.findIndex((l) => l.junto.includes('ORGAODEEMISSAO') || l.junto.includes('ORGAOEMISSOR'));
+  const perto = i >= 0 ? ls.slice(i, i + 5).find((l) => re.test(l.norm)) : undefined;
+  const linha = perto ?? ls.find((l) => re.test(l.norm));
+  if (!linha) return null;
+  const valor = linha.original.replace(/[^A-Za-zÀ-ÿ' -]+/g, ' ').replace(/\s+/g, ' ').trim();
+  return nomeApresentavel(valor).slice(0, 80);
+}
+
+/** "COSTEIRA. QUANDO PILOTANDO MOTO AQUÁTICA, INTERIOR" → "Costeira. Quando pilotando moto aquática, interior". */
+function fraseApresentavel(valor: string): string {
+  return valor
+    .toLowerCase()
+    .replace(/\s+/g, ' ')
+    .replace(/(^|[.!?]\s+)(\p{L})/gu, (_, antes: string, letra: string) => antes + letra.toUpperCase());
 }
 
 const TIPOS_EMBARCACAO: [RegExp, string][] = [
@@ -253,12 +313,14 @@ export function lerCampos(
     numero: numero(ls),
     titular,
     embarcacaoNome,
-    categoria: categoria(tudo),
+    categoria: categorias(ls, tudo),
     cpf: cpfMatch ?? null,
     dataEmissao: emissao && emissao !== validade ? emissao : null,
     dataValidade: validade,
     tipoEmbarcacao: tipoEmbarcacao(tudo),
     areaNavegacao: areaNavegacao(tudo),
     atividade: tudo.includes('ESPORTE E RECREIO') ? 'Esporte e recreio' : null,
+    limitesNavegacao: limitesNavegacao(ls),
+    orgaoEmissor: orgaoEmissor(ls),
   };
 }

@@ -29,7 +29,7 @@ import { EVENTO_AVISO_GESTOR } from './NotificacoesBell';
 
 const navItems = [
   { href: '/painel', label: 'DASHBOARD', icon: LayoutDashboard, exact: true, tour: 'nav-dashboard' },
-  { href: '/painel/agendamentos', label: 'AGENDAMENTOS', icon: CalendarDays, exact: false, tour: 'nav-agendamentos' },
+  { href: '/painel/agendamentos', label: 'AGENDAMENTOS/RESERVAS', icon: CalendarDays, exact: false, tour: 'nav-agendamentos' },
   { href: '/painel/embarcacoes', label: 'EMBARCAÇÕES', icon: Ship, exact: false, tour: 'nav-embarcacoes' },
   { href: '/painel/documentos', label: 'DOCUMENTOS', icon: FileCheck2, exact: false, tour: 'nav-documentos' },
   { href: '/painel/roteiros', label: 'ROTEIROS / PREÇOS', icon: MapPin, exact: false, tour: 'nav-roteiros' },

@@ -573,6 +573,7 @@ export default async function DetalheReserva({ reservaId: id, clienteId }: { res
               status={r.status}
               dataReserva={r.data_reserva}
               horarioSaida={r.roteiro?.horario_saida ?? null}
+              recolhivel
             />
           </div>
 

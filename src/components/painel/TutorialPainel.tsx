@@ -44,7 +44,7 @@ const PASSOS: Passo[] = [
   },
   {
     alvo: '[data-tour="nav-agendamentos"]',
-    titulo: 'Agendamentos',
+    titulo: 'Agendamentos/Reservas',
     descricao:
       'Todas as solicitações de reserva chegam aqui. Você confirma, recusa e acompanha as viagens já concluídas.',
   },

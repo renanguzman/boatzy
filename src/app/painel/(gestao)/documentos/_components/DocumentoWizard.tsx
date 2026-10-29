@@ -10,8 +10,11 @@ import {
 import { formatarData } from '@/lib/datas';
 import { maskCPF, onlyDigits } from '@/lib/validators';
 import {
-  CATEGORIAS_CHA, FUNCOES_EQUIPE, TIPOS_DOCUMENTO, TIPOS_POR_ESCOPO, rotuloFuncao, type DadosDocumento,
+  CATEGORIAS_CHA, FUNCOES_EQUIPE, TIPOS_DOCUMENTO, TIPOS_POR_ESCOPO, normalizarCategorias, rotuloFuncao,
+  type DadosDocumento,
 } from '@/lib/documentos/tipos';
+import { diasParaVencer, situacaoValidade, textoPrazo } from '@/lib/documentos/validade';
+import { isValidCPF } from '@/lib/validators';
 import { normalizarNome, similaridadeNomes, nomeApresentavel } from '@/lib/documentos/nomes';
 import { enviarArquivoDocumento, validarArquivoDocumento, type ArquivoEnviado } from '@/lib/documentos/envio';
 import type { ProgressoLeitura } from '@/lib/documentos/ocr';
@@ -47,15 +50,22 @@ type Campos = {
   titulo: string;
   numero: string;
   titular: string;
+  /** CPF do titular da habilitação (com máscara). */
+  cpf: string;
   embarcacaoNome: string;
+  /** Categorias da habilitação separadas por vírgula ("mestre,motonauta"). */
   categoria: string;
   dataEmissao: string;
   dataValidade: string;
 };
 
-type CampoLido = keyof Campos;
+/** Extras da habilitação editáveis na conferência (gravados em `documento.dados`). */
+type ExtraCondutor = 'limites_navegacao' | 'orgao_emissor';
+type CampoLido = keyof Campos | ExtraCondutor;
 
-const CAMPOS_VAZIOS: Campos = { titulo: '', numero: '', titular: '', embarcacaoNome: '', categoria: '', dataEmissao: '', dataValidade: '' };
+const CAMPOS_VAZIOS: Campos = {
+  titulo: '', numero: '', titular: '', cpf: '', embarcacaoNome: '', categoria: '', dataEmissao: '', dataValidade: '',
+};
 
 const PASSOS = ['O que é', 'Arquivo', 'Conferir e salvar'];
 
@@ -104,6 +114,7 @@ export default function DocumentoWizard({ embarcacoes, condutores, ativos, inici
           titulo: documento.titulo ?? '',
           numero: documento.numero ?? '',
           titular: documento.titular ?? '',
+          cpf: documento.titular_cpf ? maskCPF(documento.titular_cpf) : '',
           embarcacaoNome: documento.embarcacao_nome ?? '',
           categoria: documento.categoria ?? '',
           dataEmissao: documento.data_emissao ?? '',
@@ -116,7 +127,6 @@ export default function DocumentoWizard({ embarcacoes, condutores, ativos, inici
   const [origem, setOrigem] = useState<DocumentoOrigem>(documento?.origem ?? 'manual');
   const [avisoLeitura, setAvisoLeitura] = useState<string | null>(null);
   const [tipoSugerido, setTipoSugerido] = useState<DocumentoTipo | null>(null);
-  const [cpfLido, setCpfLido] = useState('');
 
   // Condutor
   const [analise, setAnalise] = useState<AnaliseCondutor | null>(null);
@@ -157,14 +167,35 @@ export default function DocumentoWizard({ embarcacoes, condutores, ativos, inici
     };
   }, [previa]);
 
-  function atualizarCampo<K extends keyof Campos>(k: K, v: Campos[K]) {
-    setCampos((c) => ({ ...c, [k]: v }));
+  function esquecerLido(k: CampoLido) {
     setLidos((s) => {
       if (!s.has(k)) return s;
       const n = new Set(s);
       n.delete(k);
       return n;
     });
+  }
+
+  function atualizarCampo<K extends keyof Campos>(k: K, v: Campos[K]) {
+    setCampos((c) => ({ ...c, [k]: v }));
+    esquecerLido(k);
+  }
+
+  function atualizarExtra(k: ExtraCondutor, v: string) {
+    setDados((d) => ({ ...d, [k]: v }));
+    esquecerLido(k);
+  }
+
+  function alternarCategoria(valor: string) {
+    const atuais = new Set(campos.categoria.split(',').filter(Boolean));
+    const cat = CATEGORIAS_CHA.find((c) => c.valor === valor);
+    if (atuais.has(valor)) atuais.delete(valor);
+    else {
+      // Arrais, Mestre e Capitão-Amador são excludentes; Motonauta e Veleiro somam.
+      if (cat?.amador) CATEGORIAS_CHA.filter((c) => c.amador).forEach((c) => atuais.delete(c.valor));
+      atuais.add(valor);
+    }
+    atualizarCampo('categoria', normalizarCategorias([...atuais].join(',')) ?? '');
   }
 
   // ── Leitura do arquivo ──────────────────────────────────────────────────────
@@ -232,19 +263,23 @@ export default function DocumentoWizard({ embarcacoes, condutores, ativos, inici
     if (c.titular) novos.titular = info?.escopo === 'condutor' ? nomeApresentavel(c.titular) : c.titular;
     if (c.embarcacaoNome && escopo === 'embarcacao') novos.embarcacaoNome = c.embarcacaoNome;
     if (c.categoria && info?.temCategoria) novos.categoria = c.categoria;
+    if (c.cpf && escopo === 'condutor') novos.cpf = maskCPF(c.cpf);
+
+    const extrasLidos: ExtraCondutor[] = [];
+    if (escopo === 'condutor') {
+      setDados({ limites_navegacao: c.limitesNavegacao, orgao_emissor: c.orgaoEmissor });
+      if (c.limitesNavegacao) extrasLidos.push('limites_navegacao');
+      if (c.orgaoEmissor) extrasLidos.push('orgao_emissor');
+    } else {
+      setDados({ tipo_embarcacao: c.tipoEmbarcacao, area_navegacao: c.areaNavegacao, atividade: c.atividade });
+    }
 
     setCampos((atual) => ({ ...atual, ...novos }));
-    setLidos(new Set(Object.keys(novos) as CampoLido[]));
+    setLidos(new Set([...(Object.keys(novos) as CampoLido[]), ...extrasLidos]));
     if (!novos.titular) sugerirProprietario();
-    setDados({
-      tipo_embarcacao: c.tipoEmbarcacao,
-      area_navegacao: c.areaNavegacao,
-      atividade: c.atividade,
-    });
-    if (c.cpf) setCpfLido(maskCPF(c.cpf));
     setTipoSugerido(c.tipoDetectado && c.tipoDetectado !== tipo && TIPOS_POR_ESCOPO[escopo].includes(c.tipoDetectado) ? c.tipoDetectado : null);
 
-    const n = Object.keys(novos).length;
+    const n = Object.keys(novos).length + extrasLidos.length;
     setOrigem(n > 0 ? origemLeitura : 'manual');
     setAvisoLeitura(
       n > 0
@@ -264,16 +299,18 @@ export default function DocumentoWizard({ embarcacoes, condutores, ativos, inici
   // ── Condutor: quem da equipe é a pessoa da habilitação ──────────────────────
 
   const nomeParaAnalise = campos.titular.trim();
+  // Só CPF completo e válido entra na busca (evita consultar a cada dígito digitado).
+  const cpfParaAnalise = isValidCPF(campos.cpf) ? campos.cpf : '';
   useEffect(() => {
     if (edicao || escopo !== 'condutor' || passo !== 2 || membroFixoId) return;
-    if (nomeParaAnalise.length < 3 && !onlyDigits(cpfLido)) {
+    if (nomeParaAnalise.length < 3 && !cpfParaAnalise) {
       setAnalise(null);
       return;
     }
     let cancelado = false;
     const t = setTimeout(async () => {
       setAnalisando(true);
-      const r = await analisarCondutorDocumento(nomeParaAnalise, cpfLido);
+      const r = await analisarCondutorDocumento(nomeParaAnalise, cpfParaAnalise);
       if (cancelado) return;
       setAnalise(r);
       setAnalisando(false);
@@ -283,7 +320,7 @@ export default function DocumentoWizard({ embarcacoes, condutores, ativos, inici
       cancelado = true;
       clearTimeout(t);
     };
-  }, [edicao, escopo, passo, membroFixoId, nomeParaAnalise, cpfLido]);
+  }, [edicao, escopo, passo, membroFixoId, nomeParaAnalise, cpfParaAnalise]);
 
   // ── Avisos da conferência ───────────────────────────────────────────────────
 
@@ -300,7 +337,7 @@ export default function DocumentoWizard({ embarcacoes, condutores, ativos, inici
     if (escopo !== 'condutor') return null;
     if (membroFixoId) return { modo: 'existente', membroId: membroFixoId };
     if (escolhaCondutor && escolhaCondutor !== 'novo') return { modo: 'existente', membroId: escolhaCondutor };
-    if (escolhaCondutor === 'novo') return { modo: 'novo', nome: campos.titular, cpf: cpfLido, funcao: funcaoNovo };
+    if (escolhaCondutor === 'novo') return { modo: 'novo', nome: campos.titular, cpf: campos.cpf, funcao: funcaoNovo };
     return null;
   }
 
@@ -319,6 +356,10 @@ export default function DocumentoWizard({ embarcacoes, condutores, ativos, inici
     }
     if (info?.validadeAnos != null && !campos.dataValidade) {
       setErro(`Informe a validade do ${info.sigla} — é ela que gera os avisos de vencimento.`);
+      return;
+    }
+    if (escopo === 'condutor' && onlyDigits(campos.cpf) && !isValidCPF(campos.cpf)) {
+      setErro('CPF do condutor inválido — confira os números ou deixe em branco.');
       return;
     }
 
@@ -760,19 +801,51 @@ export default function DocumentoWizard({ embarcacoes, condutores, ativos, inici
               <Campo rotulo={info.rotuloTitular} lido={lidos.has('titular')}>
                 <input className={inputCls} value={campos.titular} onChange={(e) => atualizarCampo('titular', e.target.value)} />
               </Campo>
+              {escopo === 'condutor' && (
+                <Campo
+                  rotulo="CPF do condutor"
+                  lido={lidos.has('cpf')}
+                  ajuda={onlyDigits(campos.cpf).length === 11 && !isValidCPF(campos.cpf) ? 'CPF inválido — confira os números.' : undefined}
+                >
+                  <input
+                    className={inputCls}
+                    value={campos.cpf}
+                    onChange={(e) => atualizarCampo('cpf', maskCPF(e.target.value))}
+                    placeholder="000.000.000-00"
+                    inputMode="numeric"
+                  />
+                </Campo>
+              )}
               {escopo === 'embarcacao' && (
                 <Campo rotulo="Nome da embarcação no documento" lido={lidos.has('embarcacaoNome')}>
                   <input className={inputCls} value={campos.embarcacaoNome} onChange={(e) => atualizarCampo('embarcacaoNome', e.target.value)} placeholder={embarcacao?.nome} />
                 </Campo>
               )}
               {info.temCategoria && (
-                <Campo rotulo="Categoria" lido={lidos.has('categoria')}>
-                  <select className={inputCls} value={campos.categoria} onChange={(e) => atualizarCampo('categoria', e.target.value)}>
-                    <option value="">Selecione…</option>
-                    {CATEGORIAS_CHA.map((c) => (
-                      <option key={c.valor} value={c.valor}>{c.rotulo}</option>
-                    ))}
-                  </select>
+                <Campo
+                  rotulo="Categoria"
+                  lido={lidos.has('categoria')}
+                  className="md:col-span-2"
+                  ajuda="Marque todas as da carteira — ex.: Mestre-Amador e Motonauta."
+                >
+                  <div className="flex flex-wrap gap-2">
+                    {CATEGORIAS_CHA.map((c) => {
+                      const marcada = campos.categoria.split(',').includes(c.valor);
+                      return (
+                        <button
+                          key={c.valor}
+                          type="button"
+                          aria-pressed={marcada}
+                          onClick={() => alternarCategoria(c.valor)}
+                          className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-sm transition-colors ${
+                            marcada ? 'border-teal-400 bg-teal-50 font-semibold text-teal-800' : 'border-slate-200 text-slate-600 hover:bg-slate-50'
+                          }`}
+                        >
+                          {marcada && <Check className="h-3.5 w-3.5" />} {c.rotulo}
+                        </button>
+                      );
+                    })}
+                  </div>
                 </Campo>
               )}
               <Campo rotulo="Data de emissão" lido={lidos.has('dataEmissao')}>
@@ -785,6 +858,7 @@ export default function DocumentoWizard({ embarcacoes, condutores, ativos, inici
                 ajuda={info.validadeAnos ? `O ${info.sigla} costuma valer ${info.validadeAnos} ${info.validadeAnos === 1 ? 'ano' : 'anos'}.` : 'Opcional — sem validade, não geramos avisos.'}
               >
                 <input type="date" className={inputCls} value={campos.dataValidade} onChange={(e) => atualizarCampo('dataValidade', e.target.value)} />
+                <SituacaoDaValidade validade={campos.dataValidade} emissao={campos.dataEmissao} anos={info.validadeAnos} sigla={info.sigla} />
                 {!campos.dataValidade && campos.dataEmissao && info.validadeAnos && (
                   <button
                     type="button"
@@ -796,6 +870,29 @@ export default function DocumentoWizard({ embarcacoes, condutores, ativos, inici
                 )}
               </Campo>
             </div>
+
+            {escopo === 'condutor' && (
+              <div className="grid gap-4 md:grid-cols-2">
+                <Campo rotulo="Limites da navegação" lido={lidos.has('limites_navegacao')} ajuda="Opcional — como está no verso da carteira.">
+                  <input
+                    className={inputCls}
+                    value={dados.limites_navegacao ?? ''}
+                    onChange={(e) => atualizarExtra('limites_navegacao', e.target.value)}
+                    placeholder="Ex.: Costeira"
+                    maxLength={120}
+                  />
+                </Campo>
+                <Campo rotulo="Órgão emissor" lido={lidos.has('orgao_emissor')} ajuda="Opcional.">
+                  <input
+                    className={inputCls}
+                    value={dados.orgao_emissor ?? ''}
+                    onChange={(e) => atualizarExtra('orgao_emissor', e.target.value)}
+                    placeholder="Ex.: Capitania dos Portos de Santa Catarina"
+                    maxLength={80}
+                  />
+                </Campo>
+              </div>
+            )}
 
             {escopo === 'embarcacao' && (dados.tipo_embarcacao || dados.area_navegacao || dados.atividade) && (
               <p className="text-xs text-slate-500">
@@ -815,8 +912,6 @@ export default function DocumentoWizard({ embarcacoes, condutores, ativos, inici
                 escolha={escolhaCondutor}
                 onEscolha={setEscolhaCondutor}
                 nome={campos.titular}
-                cpf={cpfLido}
-                onCpf={setCpfLido}
                 funcao={funcaoNovo}
                 onFuncao={setFuncaoNovo}
                 onTrocarFixo={() => setMembroFixoId(null)}
@@ -998,6 +1093,54 @@ function Campo({
   );
 }
 
+/**
+ * Situação da validade digitada/lida, com as mesmas regras do painel (SPEC §95.3): vencido,
+ * vence em breve (≤ 60 dias) ou em dia. Confere também validade × emissão: além do prazo
+ * usual do tipo, a data provavelmente foi mal lida.
+ */
+function SituacaoDaValidade({
+  validade, emissao, anos, sigla,
+}: { validade: string; emissao: string; anos: number | null; sigla: string }) {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(validade)) return null;
+  const situacao = situacaoValidade(validade);
+  const prazo = textoPrazo(validade);
+  const alemDoPrazo = !!anos && /^\d{4}-\d{2}-\d{2}$/.test(emissao) && validade > somarAnos(emissao, anos);
+
+  return (
+    <div className="mt-1.5 space-y-1.5">
+      {situacao === 'vencido' ? (
+        <p className="flex items-start gap-1.5 rounded-lg border border-red-200 bg-red-50 px-2.5 py-1.5 text-xs text-red-700">
+          <AlertCircle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+          <span>
+            <strong>Vencido</strong> — {prazo}. Você pode salvar para acompanhar, mas ele aparecerá como vencido no painel até ser
+            renovado.
+            {sigla === 'CHA' && diasParaVencer(validade) < -5 * 365 && (
+              <> Vencida há mais de 5 anos, a renovação exige refazer a prova na Capitania.</>
+            )}
+          </span>
+        </p>
+      ) : situacao === 'vence_em_breve' ? (
+        <p className="flex items-start gap-1.5 rounded-lg border border-amber-200 bg-amber-50 px-2.5 py-1.5 text-xs text-amber-800">
+          <Info className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+          <span>
+            <strong>Vence em breve</strong> — {prazo}. Já vale pedir a renovação.
+          </span>
+        </p>
+      ) : (
+        <p className="flex items-center gap-1.5 text-xs text-emerald-700">
+          <CheckCircle2 className="h-3.5 w-3.5 shrink-0" /> Em dia — válido até {formatarData(validade)}.
+        </p>
+      )}
+      {alemDoPrazo && (
+        <p className="text-xs text-amber-700">
+          Confira a data: o {sigla} costuma valer {anos} {anos === 1 ? 'ano' : 'anos'} a partir da emissão (até{' '}
+          {formatarData(somarAnos(emissao, anos!))}).
+        </p>
+      )}
+    </div>
+  );
+}
+
 function MensagemErro({ texto }: { texto: string }) {
   return (
     <p className="flex items-start gap-2 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
@@ -1007,7 +1150,7 @@ function MensagemErro({ texto }: { texto: string }) {
 }
 
 function SecaoCondutor({
-  membroFixo, condutores, analise, analisando, escolha, onEscolha, nome, cpf, onCpf, funcao, onFuncao, onTrocarFixo,
+  membroFixo, condutores, analise, analisando, escolha, onEscolha, nome, funcao, onFuncao, onTrocarFixo,
 }: {
   membroFixo: MembroCondutor | null;
   condutores: MembroCondutor[];
@@ -1016,8 +1159,6 @@ function SecaoCondutor({
   escolha: string | 'novo' | null;
   onEscolha: (v: string | 'novo') => void;
   nome: string;
-  cpf: string;
-  onCpf: (v: string) => void;
   funcao: EquipeFuncao;
   onFuncao: (f: EquipeFuncao) => void;
   onTrocarFixo: () => void;
@@ -1095,22 +1236,16 @@ function SecaoCondutor({
       {escolha === 'novo' && (
         <div className="space-y-3 rounded-lg bg-slate-50 p-3">
           <p className="text-xs text-slate-600">
-            <strong>{nome.trim() ? nomeApresentavel(nome) : 'O condutor'}</strong> será adicionado à sua equipe. O telefone fica pendente
-            para você completar depois, na Equipe.
+            <strong>{nome.trim() ? nomeApresentavel(nome) : 'O condutor'}</strong> será adicionado à sua equipe com o nome e o CPF
+            acima. O telefone fica pendente para você completar depois, na Equipe.
           </p>
-          <div className="grid gap-3 sm:grid-cols-2">
-            <div>
-              <label className="mb-1.5 block text-xs font-medium text-slate-600">Função</label>
-              <select className={inputCls} value={funcao} onChange={(e) => onFuncao(e.target.value as EquipeFuncao)}>
-                {FUNCOES_EQUIPE.map((f) => (
-                  <option key={f.valor} value={f.valor}>{f.rotulo}</option>
-                ))}
-              </select>
-            </div>
-            <div>
-              <label className="mb-1.5 block text-xs font-medium text-slate-600">CPF {cpf && <span className="text-teal-600">(lido do documento)</span>}</label>
-              <input className={inputCls} value={cpf} onChange={(e) => onCpf(maskCPF(e.target.value))} placeholder="000.000.000-00 (opcional)" inputMode="numeric" />
-            </div>
+          <div className="sm:max-w-xs">
+            <label className="mb-1.5 block text-xs font-medium text-slate-600">Função</label>
+            <select className={inputCls} value={funcao} onChange={(e) => onFuncao(e.target.value as EquipeFuncao)}>
+              {FUNCOES_EQUIPE.map((f) => (
+                <option key={f.valor} value={f.valor}>{f.rotulo}</option>
+              ))}
+            </select>
           </div>
         </div>
       )}

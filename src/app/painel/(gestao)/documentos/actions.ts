@@ -9,7 +9,7 @@ import { ehUuid } from '@/lib/upload-imagem-server';
 import { ensureGestorEquipeMembro } from '@/lib/equipe';
 import { analisarCondutor, type AnaliseCondutor } from '@/lib/documentos/server';
 import { apagarArquivoDocumento, pastaDocumento } from '@/lib/documentos/arquivo-server';
-import { CATEGORIAS_CHA, TIPOS_DOCUMENTO, TIPOS_POR_ESCOPO, type DadosDocumento } from '@/lib/documentos/tipos';
+import { CATEGORIAS_CHA, TIPOS_DOCUMENTO, TIPOS_POR_ESCOPO, normalizarCategorias, type DadosDocumento } from '@/lib/documentos/tipos';
 import { nomeApresentavel } from '@/lib/documentos/nomes';
 import type { DocumentoEscopo, DocumentoOrigem, DocumentoTipo, EquipeFuncao, Json } from '@/types/supabase';
 import type { ArquivoEnviado } from '@/lib/documentos/envio';
@@ -35,7 +35,10 @@ export type DocumentoPayload = {
   titulo: string;
   numero: string;
   titular: string;
+  /** CPF do titular da habilitação (com ou sem máscara; vazio = não informado). */
+  cpf: string;
   embarcacaoNome: string;
+  /** Categorias da habilitação separadas por vírgula ("mestre,motonauta"). */
   categoria: string;
   dataEmissao: string;
   dataValidade: string;
@@ -84,19 +87,34 @@ function validarCampos(p: DocumentoPayload): string | null {
   const emissao = dataOuNull(p.dataEmissao);
   const validade = dataOuNull(p.dataValidade);
   if (emissao && validade && validade < emissao) return 'A validade não pode ser anterior à emissão.';
-  if (p.categoria && !CATEGORIAS_CHA.some((c) => c.valor === p.categoria)) return 'Categoria inválida.';
+  const cats = p.categoria.split(',').map((c) => c.trim()).filter(Boolean);
+  if (cats.some((c) => !CATEGORIAS_CHA.some((x) => x.valor === c))) return 'Categoria inválida.';
+  if (p.escopo === 'condutor' && onlyDigits(p.cpf ?? '') && !isValidCPF(p.cpf)) return 'CPF do condutor inválido — confira os números.';
   return null;
 }
 
-function dadosLimpos(d: DadosDocumento): Json {
+/** CPF do titular, só na habilitação e só se válido. */
+function cpfTitular(p: Pick<DocumentoPayload, 'escopo' | 'cpf'>): string | null {
+  return p.escopo === 'condutor' && isValidCPF(p.cpf ?? '') ? onlyDigits(p.cpf) : null;
+}
+
+/** Extras aceitos por escopo e o tamanho máximo de cada texto. */
+const EXTRAS_TEXTO: Record<DocumentoEscopo, [keyof DadosDocumento, number][]> = {
+  embarcacao: [['tipo_embarcacao', 60], ['area_navegacao', 60], ['atividade', 60]],
+  condutor: [['limites_navegacao', 120], ['orgao_emissor', 80]],
+};
+
+function dadosLimpos(d: DadosDocumento, escopo: DocumentoEscopo): Json {
   const out: Record<string, string | number> = {};
-  for (const chave of ['tipo_embarcacao', 'area_navegacao', 'atividade'] as const) {
+  for (const [chave, max] of EXTRAS_TEXTO[escopo]) {
     const v = d[chave];
-    if (typeof v === 'string' && v.trim()) out[chave] = v.trim().slice(0, 60);
+    if (typeof v === 'string' && v.trim()) out[chave] = v.trim().replace(/\s+/g, ' ').slice(0, max);
   }
-  for (const chave of ['qtd_passageiros', 'qtd_tripulantes'] as const) {
-    const v = d[chave];
-    if (typeof v === 'number' && Number.isInteger(v) && v >= 0 && v < 10000) out[chave] = v;
+  if (escopo === 'embarcacao') {
+    for (const chave of ['qtd_passageiros', 'qtd_tripulantes'] as const) {
+      const v = d[chave];
+      if (typeof v === 'number' && Number.isInteger(v) && v >= 0 && v < 10000) out[chave] = v;
+    }
   }
   return out;
 }
@@ -130,6 +148,23 @@ async function vincularMembroEmbarcacoes(membroId: string, embarcacaoIds: string
 }
 
 /**
+ * Membro da equipe sem CPF recebe o da habilitação (completa o cadastro), se
+ * ninguém mais da equipe tiver esse CPF. Nunca sobrescreve um CPF já informado.
+ */
+async function completarCpfMembro(ownerId: string, membroId: string, cpf: string | null) {
+  if (!cpf) return;
+  const { data: outro } = await supabaseAdmin
+    .from('equipe_membro')
+    .select('id')
+    .eq('owner_id', ownerId)
+    .eq('cpf', cpf)
+    .neq('id', membroId)
+    .maybeSingle();
+  if (outro) return;
+  await supabaseAdmin.from('equipe_membro').update({ cpf }).eq('id', membroId).eq('owner_id', ownerId).is('cpf', null);
+}
+
+/**
  * Resolve o condutor: membro existente (do próprio gestor) ou cadastro novo
  * na equipe — sem telefone (pendente) e com o CPF lido do documento, se válido.
  */
@@ -137,6 +172,7 @@ async function resolverCondutor(
   ownerId: string,
   c: CondutorPayload | null,
   embarcacaoIds: string[],
+  cpfDocumento: string | null,
 ): Promise<{ ok: true; membroId: string; criado: { id: string; nome: string } | null } | { ok: false; error: string }> {
   if (!c) return { ok: false, error: 'Indique quem é o condutor.' };
 
@@ -149,14 +185,17 @@ async function resolverCondutor(
       .eq('owner_id', ownerId)
       .maybeSingle();
     if (!data) return { ok: false, error: 'Condutor não encontrado na sua equipe.' };
-    if (!data.is_gestor) await vincularMembroEmbarcacoes(data.id, embarcacaoIds);
+    if (!data.is_gestor) {
+      await vincularMembroEmbarcacoes(data.id, embarcacaoIds);
+      await completarCpfMembro(ownerId, data.id, cpfDocumento);
+    }
     return { ok: true, membroId: data.id, criado: null };
   }
 
   const nome = nomeApresentavel(c.nome);
   if (nome.length < 3) return { ok: false, error: 'Informe o nome do condutor.' };
   if (!['marinheiro', 'capitao', 'auxiliar'].includes(c.funcao)) return { ok: false, error: 'Função inválida.' };
-  const cpf = isValidCPF(c.cpf) ? onlyDigits(c.cpf) : null;
+  const cpf = isValidCPF(c.cpf) ? onlyDigits(c.cpf) : cpfDocumento;
 
   // Mesmo CPF já na equipe: usa a pessoa existente em vez de duplicar.
   if (cpf) {
@@ -226,7 +265,7 @@ export async function criarDocumento(p: DocumentoPayload): Promise<SalvarDocumen
     embarcacaoId = p.embarcacaoId;
   } else {
     const barcosCondutor = await embarcacoesDoGestor(user.id, p.embarcacoesDoCondutorIds ?? []);
-    const r = await resolverCondutor(user.id, p.condutor, barcosCondutor);
+    const r = await resolverCondutor(user.id, p.condutor, barcosCondutor, cpfTitular(p));
     if (!r.ok) return { ok: false, error: r.error };
     membroId = r.membroId;
     membroCriado = r.criado;
@@ -256,11 +295,12 @@ export async function criarDocumento(p: DocumentoPayload): Promise<SalvarDocumen
     titulo: info.temTitulo ? texto(p.titulo, 80) : null,
     numero: texto(p.numero, 40),
     titular: texto(p.titular),
+    titular_cpf: cpfTitular(p),
     embarcacao_nome: p.escopo === 'embarcacao' ? texto(p.embarcacaoNome, 80) : null,
-    categoria: info.temCategoria ? p.categoria || null : null,
+    categoria: info.temCategoria ? normalizarCategorias(p.categoria) : null,
     data_emissao: dataOuNull(p.dataEmissao),
     data_validade: dataOuNull(p.dataValidade),
-    dados: p.escopo === 'embarcacao' ? dadosLimpos(p.dados) : {},
+    dados: dadosLimpos(p.dados, p.escopo),
     arquivo_key: p.arquivo.key,
     arquivo_nome: p.arquivo.nome.slice(-120),
     arquivo_tipo: p.arquivo.tipo,
@@ -311,11 +351,12 @@ export async function atualizarDocumento(p: DocumentoPayload): Promise<SalvarDoc
       titulo: info.temTitulo ? texto(p.titulo, 80) : null,
       numero: texto(p.numero, 40),
       titular: texto(p.titular),
+      titular_cpf: cpfTitular(payload),
       embarcacao_nome: atual.escopo === 'embarcacao' ? texto(p.embarcacaoNome, 80) : null,
-      categoria: info.temCategoria ? p.categoria || null : null,
+      categoria: info.temCategoria ? normalizarCategorias(p.categoria) : null,
       data_emissao: dataOuNull(p.dataEmissao),
       data_validade: dataOuNull(p.dataValidade),
-      dados: atual.escopo === 'embarcacao' ? dadosLimpos(p.dados) : {},
+      dados: dadosLimpos(p.dados, atual.escopo),
       ...(p.arquivo
         ? {
             arquivo_key: p.arquivo.key,

@@ -253,7 +253,7 @@ export default async function ReservaDetalhePage({ params }: { params: Promise<{
         className="inline-flex items-center gap-1.5 text-sm text-slate-500 hover:text-[#0B2447] transition-colors"
       >
         <ArrowLeft className="h-4 w-4" />
-        Voltar ao calendário
+        Voltar aos agendamentos
       </Link>
 
       {/* Header */}

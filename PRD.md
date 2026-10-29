@@ -379,16 +379,24 @@ Fluxo de **solicitação** (sem pagamento nesta etapa). Detalhes técnicos: SPEC
 - Painel: calendário e detalhe exibem os 5 status (Pendente = laranja, Confirmada = verde, Recusada = vermelho, Cancelada pelo cliente = cinza, Concluída = azul), com legenda atualizada.
 - Política formal de cancelamento (prazos/reembolso) fica para quando houver pagamento.
 
-#### ✅ Implementado — Calendário de agendamentos no painel (gestor)
+#### ✅ Implementado — Agendamentos/Reservas no painel (gestor): calendário e lista
 
-`/painel/agendamentos` exibe um **calendário** com todas as reservas das embarcações/roteiros do
-gestor. Detalhes técnicos: SPEC §20.4–20.5.
+`/painel/agendamentos` (menu **Agendamentos/Reservas**) exibe todas as reservas das
+embarcações/roteiros do gestor em duas abas: **Calendário** e **Lista de reservas**. Detalhes
+técnicos: SPEC §20.4–20.5.
 
-- Visualização **Mês** (default) e **Semana**, com navegação anterior/hoje/próximo.
-- Dias com reserva são sinalizados por **cores de status**: Pendente = laranja, Confirmada = verde,
-  Cancelada = vermelho. **Diferenciação por tipo** (roteiro vs embarcação) com ícone próprio. Legenda.
-- Clicar em uma reserva abre `/painel/agendamentos/[id]` com **todos os dados do cliente e do
-  pedido**, valores e a opção de **Confirmar** ou **Cancelar**, com observação ao cliente.
+- A **última aba vista fica salva** (cookie, 1 ano): ao voltar ao menu, o gestor cai direto nela.
+- **Calendário:** visualização **Mês** (default) e **Semana**, com navegação anterior/hoje/próximo.
+  Dias com reserva são sinalizados por **cores de status**: Pendente = laranja, Confirmada = verde,
+  Cancelada = vermelho. **Diferenciação por tipo** (roteiro vs embarcação) com ícone próprio.
+  Legenda. Pendentes ficam numa lista lateral.
+- **Lista de reservas (29/10/2026):** o mesmo conteúdo do calendário em forma de **linha do tempo**,
+  com o marcador "Hoje". A **próxima reserva** ganha destaque máximo (card em destaque com "Hoje",
+  "Amanhã" ou "Em N dias"); as **que estão por vir** têm destaque secundário; as **que já passaram**
+  aparecem esmaecidas (as 3 mais recentes, com opção de ver as anteriores). Cada reserva mostra dia,
+  horário, status, status do pagamento, cliente, roteiro/embarcação, pessoas e valor.
+- Clicar em uma reserva (em qualquer aba) abre `/painel/agendamentos/[id]` com **todos os dados do
+  cliente e do pedido**, valores e a opção de **Confirmar** ou **Cancelar**, com observação ao cliente.
 - Coluna `reserva.tipo` (`roteiro`|`embarcacao`, migration 022) prepara o calendário para reservas
   de embarcação.
 
@@ -1443,16 +1451,33 @@ e oferece a câmera do próprio aparelho ou um arquivo.
 
 **Leitura automática (sem IA):** no passo 2 o documento é lido **no próprio aparelho do gestor** — sem
 custo de servidor e sem o texto sair do aparelho. PDF digital: texto extraído direto do PDF (instantâneo).
+PDF em que o documento é uma **imagem** — caso da **CHA digital compartilhada pelo app gov.br** (29/10/2026),
+cujo texto é só o "envelope" (título, QR Code, assinatura) — : o painel lê as imagens da carteira (frente e
+verso) dentro do PDF, na resolução original, e ignora o QR Code. A data "Compartilhado em …" do gov.br não é
+confundida com a validade (antes era a única coisa "lida" — e errada).
 Foto: OCR em português, que acerta a posição da foto sozinho (de lado ou de cabeça para baixo). O passo 3
 vem preenchido, com o selo "lido do documento" em cada campo, e o gestor **sempre confere** antes de
 salvar. Testado com TIE real (foto de frente, foto girada com dois documentos e PDF): número de inscrição,
-nome da embarcação e validade lidos corretamente em ~3–5 s por foto. Se a leitura falhar, o gestor digita.
-- O que é gravado: número, titular (proprietário/condutor), nome da embarcação no documento, categoria da
-  CHA, emissão, validade e extras não sensíveis (tipo da embarcação, área de navegação, atividade).
-  **Não** gravamos CPF, nascimento ou filiação no documento.
+nome da embarcação e validade lidos corretamente em ~3–5 s por foto. Testado com CHA real (PDF do gov.br,
+29/10/2026): todos os campos abaixo lidos corretamente em ~1,5 s (≈6 s na 1ª vez, ao carregar o leitor).
+Se a leitura falhar, o gestor digita.
+- O que é gravado — **embarcação:** número, proprietário, nome da embarcação no documento, emissão, validade
+  e extras (tipo da embarcação, área de navegação, atividade). **Habilitação (CHA/CIR, 29/10/2026):** nome
+  completo, **CPF**, número de inscrição, **categorias** (a carteira pode combinar — ex.: Mestre-Amador **e**
+  Motonauta; na conferência são botões marcáveis, e Arrais/Mestre/Capitão são excludentes), data de emissão,
+  validade, **limites da navegação** (só a parte em português) e **órgão emissor**. **Não** gravamos data de
+  nascimento nem filiação.
+- CPF da habilitação: além de ficar no documento, completa o cadastro da pessoa na Equipe quando ela ainda
+  não tem CPF (nunca sobrescreve um CPF já informado nem duplica o de outro membro).
+- **Validade na conferência:** logo abaixo da data, a situação com as mesmas regras do painel — "Em dia —
+  válido até…", "Vence em breve — vence em N dias. Já vale pedir a renovação" (≤ 60 dias) ou "Vencido —
+  venceu há N dias" (pode salvar para acompanhar; fica vencido no painel até renovar). CHA vencida há mais de
+  5 anos avisa que a renovação exige refazer a prova. Se a validade passa do prazo usual a partir da emissão
+  (CHA 10 anos, TIE 5…), pede para conferir a data.
 - A frente do TIE não traz o proprietário: o campo vem com o nome do gestor, editável.
 - Avisos na conferência: arquivo que parece de outro tipo ("parece ser um TIEM — trocar") ou de outra
-  embarcação do gestor ("salvar nela").
+  embarcação do gestor ("salvar nela"). Corrigido (29/10/2026): a foto do TIE que cita o seguro DPEM no texto
+  era sugerida como "DPEM".
 
 **Habilitação vinculada à equipe:** ao enviar CHA/CIR, o nome (e o CPF, se lido) é procurado na Equipe:
 - mesmo CPF ou mesmo nome → vinculado automaticamente (inclusive à ficha "Você (gestor)");
@@ -1504,7 +1529,8 @@ migration `20261028b_documentacao_admin.sql`** antes de publicar:
 
 **Pendências para entrar no ar:** aplicar a migration; configurar a variável `R2_DOCUMENTOS_BUCKET_NAME` e o
 CORS do bucket `boatzy-documentos` (ver `SPEC.md` §95.2); garantir que o token do R2 acessa o bucket novo.
-Amostra de CHA ainda não recebida — a leitura da CHA foi calibrada com um texto simulado.
+Aplicar também a migration `20261029d_documento_titular_cpf.sql` (CPF do titular da habilitação). Leitura da
+CHA calibrada com amostra real (PDF do gov.br); falta testar foto da carteira física/impressa.
 
 Detalhes técnicos: `SPEC.md` §95.
 
@@ -1548,7 +1574,7 @@ cancelamento, pagamento pendente/aprovado/recusado/expirado, reembolso, cobranç
 mostra canal (e-mail / aviso no site / WhatsApp), para quem foi, quando e a situação (Enviado, Não
 entregue, Não enviado, Agendado, Aguardando integração). Os próximos lembretes aparecem como **"Previsto
 para…"**. Cliente e gestor veem o destino mascarado (a•••@gmail.com); o admin vê o destino completo, o erro
-técnico, o id do Resend e as tentativas. No **painel do gestor** a seção é um accordion que começa
+técnico, o id do Resend e as tentativas. No **painel do gestor** e na **reserva do cliente** (`/minhas-reservas/[id]`) a seção é um accordion que começa
 **fechado**, com o número de registros ao lado do título; ao clicar, abre a lista completa (29/10/2026).
 Avisos antigos do sino entraram na linha do tempo pela migration;
 e-mails enviados antes de 28/10/2026 não aparecem (não eram registrados).

@@ -12,7 +12,7 @@ import type { ComunicacaoCanal, ComunicacaoPapel, ComunicacaoStatus, Database, R
  * - cliente/gestor: destino mascarado; itens de WhatsApp (pendentes de integração) ficam ocultos;
  * - admin: destino completo, erro técnico, id do Resend e tentativas.
  * Reserva confirmada mostra também os lembretes que ainda vão sair ("Previsto para…").
- * `recolhivel`: começa fechada (accordion) com o total de registros no título — usado no painel do gestor.
+ * `recolhivel`: começa fechada (accordion) com o total de registros no título — usado no painel do gestor e na reserva do cliente.
  */
 
 type Visao = 'cliente' | 'gestor' | 'admin';

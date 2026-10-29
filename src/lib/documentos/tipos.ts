@@ -130,18 +130,40 @@ export const TIPOS_POR_ESCOPO: Record<DocumentoEscopo, DocumentoTipo[]> = {
 /** Documentos de inscrição: toda embarcação precisa de um deles ativo (senão fica "pendente"). */
 export const TIPOS_INSCRICAO: DocumentoTipo[] = ['tie', 'tiem', 'prpm'];
 
-/** Categorias da CHA (valor gravado em `documento.categoria`). */
+/**
+ * Categorias da CHA. A carteira pode somar uma categoria de amador (Arrais, Mestre ou
+ * Capitão) com Motonauta e/ou Veleiro: `documento.categoria` guarda a lista separada por
+ * vírgula, nesta ordem ("mestre,motonauta").
+ */
 export const CATEGORIAS_CHA = [
-  { valor: 'motonauta', rotulo: 'Motonauta' },
-  { valor: 'veleiro', rotulo: 'Veleiro' },
-  { valor: 'arrais', rotulo: 'Arrais-Amador' },
-  { valor: 'mestre', rotulo: 'Mestre-Amador' },
-  { valor: 'capitao', rotulo: 'Capitão-Amador' },
+  { valor: 'arrais', rotulo: 'Arrais-Amador', amador: true },
+  { valor: 'mestre', rotulo: 'Mestre-Amador', amador: true },
+  { valor: 'capitao', rotulo: 'Capitão-Amador', amador: true },
+  { valor: 'motonauta', rotulo: 'Motonauta', amador: false },
+  { valor: 'veleiro', rotulo: 'Veleiro', amador: false },
 ] as const;
 
+/**
+ * Lista de categorias válida e na ordem de `CATEGORIAS_CHA` ("motonauta, mestre" →
+ * "mestre,motonauta"); só uma de Arrais/Mestre/Capitão (fica a maior). null se vazia.
+ */
+export function normalizarCategorias(valor: string | null | undefined): string | null {
+  const escolhidas = new Set((valor ?? '').split(',').map((v) => v.trim()));
+  const amador = CATEGORIAS_CHA.filter((c) => c.amador && escolhidas.has(c.valor)).at(-1);
+  const lista = CATEGORIAS_CHA.filter((c) => escolhidas.has(c.valor) && (!c.amador || c === amador)).map((c) => c.valor);
+  return lista.length > 0 ? lista.join(',') : null;
+}
+
+/** "mestre,motonauta" → "Mestre-Amador e Motonauta". */
 export function rotuloCategoria(valor: string | null | undefined): string | null {
   if (!valor) return null;
-  return CATEGORIAS_CHA.find((c) => c.valor === valor)?.rotulo ?? valor;
+  const rotulos = valor
+    .split(',')
+    .map((v) => v.trim())
+    .filter(Boolean)
+    .map((v) => CATEGORIAS_CHA.find((c) => c.valor === v)?.rotulo ?? v);
+  if (rotulos.length <= 1) return rotulos[0] ?? null;
+  return `${rotulos.slice(0, -1).join(', ')} e ${rotulos.at(-1)}`;
 }
 
 export const FUNCOES_EQUIPE: { valor: EquipeFuncao; rotulo: string }[] = [
@@ -160,14 +182,24 @@ export function nomeCurtoDocumento(tipo: DocumentoTipo, titulo?: string | null):
   return tipo === 'outro' ? (titulo?.trim() || 'Outro documento') : TIPOS_DOCUMENTO[tipo].sigla;
 }
 
-/** Extras não sensíveis guardados em `documento.dados`. */
+/** Extras guardados em `documento.dados` (embarcação: os 5 primeiros; habilitação: os 2 últimos). */
 export type DadosDocumento = {
   qtd_passageiros?: number | null;
   qtd_tripulantes?: number | null;
   tipo_embarcacao?: string | null;
   area_navegacao?: string | null;
   atividade?: string | null;
+  /** Habilitação: "Limites da navegação" (ex.: "Costeira. Quando pilotando moto aquática, interior"). */
+  limites_navegacao?: string | null;
+  /** Órgão emissor (ex.: "Capitania dos Portos de Santa Catarina"). */
+  orgao_emissor?: string | null;
 };
+
+/** Extras a exibir na linha do documento ("Também lemos…"), na ordem. */
+export function extrasDocumento(d: DadosDocumento): string[] {
+  return [d.tipo_embarcacao, d.area_navegacao, d.atividade, d.limites_navegacao, d.orgao_emissor]
+    .filter((v): v is string => !!v);
+}
 
 /** Arquivos aceitos no envio (fotos e PDF). */
 export const TIPOS_ARQUIVO_DOCUMENTO = ['image/jpeg', 'image/png', 'image/webp', 'application/pdf'] as const;
