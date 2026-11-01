@@ -3,6 +3,8 @@ import { createClient } from '@/lib/supabase/server';
 import { supabaseAdmin } from '@/lib/supabase';
 import { checkRoleInDb } from '@/lib/roles';
 import { listarTimeline, ultimaDecisaoAdmin } from '@/lib/publicacao/server';
+import { documentosAtivosDe } from '@/lib/documentos/server';
+import { escolherInscricao, pendenciaInscricao } from '@/lib/documentos/aprovacao';
 import AvisoStatusPublicacao from '@/components/publicacao/AvisoStatusPublicacao';
 import TimelinePublicacao from '@/components/publicacao/TimelinePublicacao';
 import EditarEmbarcacaoForm from './_components/EditarEmbarcacaoForm';
@@ -34,6 +36,8 @@ export default async function EditarEmbarcacaoPage({
     timeline,
     ultimaDecisao,
     isAdmin,
+    documentosAtivos,
+    { data: perfil },
   ] = await Promise.all([
     supabaseAdmin
       .from('embarcacao')
@@ -59,9 +63,16 @@ export default async function EditarEmbarcacaoPage({
     listarTimeline('embarcacao', id, { incluirInterna: false }),
     ultimaDecisaoAdmin('embarcacao', id),
     checkRoleInDb(user.id, ['admin']),
+    documentosAtivosDe(user.id, { embarcacaoId: id }),
+    supabaseAdmin.from('users').select('name').eq('id', user.id).maybeSingle(),
   ]);
 
   if (!emb) notFound();
+
+  // Etapa Documentos: inscrição que vale (em dia, TIE > TIEM > PRPM) e DPEM ativos; o resto fica no menu Documentos.
+  const inscricao = escolherInscricao(documentosAtivos);
+  const dpem = documentosAtivos.find(d => d.tipo === 'dpem') ?? null;
+  const outrosDocumentos = documentosAtivos.filter(d => d !== inscricao && d !== dpem).length;
 
   let estadoId: number | null = null;
   let municipios: { id: number; nome: string }[] = [];
@@ -99,6 +110,7 @@ export default async function EditarEmbarcacaoPage({
           entidade="embarcacao" id={emb.id} nome={emb.nome} status={emb.status}
           enviadoAnaliseEm={emb.enviado_analise_em} ultimaDecisao={ultimaDecisao}
           roteirosVinculados={(roteiros ?? []).map(r => r.nome)}
+          pendenciaDocumento={isAdmin ? null : pendenciaInscricao(inscricao)}
         />
       </div>
 
@@ -119,6 +131,10 @@ export default async function EditarEmbarcacaoPage({
         acessoriosIniciais={(acessoriosVinculados ?? []).map(a => a.acessorio_id)}
         avisarNovaAnalise={emb.status === 'ativo' && !isAdmin}
         embarcacoesParaCopiar={outrasEmbarcacoes ?? []}
+        documentacao={{
+          atuais: { inscricao, dpem, outros: outrosDocumentos },
+          proprietarioSugerido: perfil?.name?.trim() ?? '',
+        }}
       />
 
       <div className="mt-6 max-w-4xl">

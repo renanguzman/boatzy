@@ -1,4 +1,5 @@
-import { AlertTriangle, Clock, MessageSquareWarning } from 'lucide-react';
+import { AlertTriangle, Clock, FileWarning, MessageSquareWarning } from 'lucide-react';
+import type { PendenciaInscricao } from '@/lib/documentos/aprovacao';
 import { formatarDataHora } from '@/lib/datas';
 import {
   STATUS_INFO, type PublicacaoEntidade, type StatusPublicacaoQualquer, type TipoEventoPublicacao,
@@ -30,7 +31,7 @@ const AVISO_EDICAO: Record<PublicacaoEntidade, { campos: string; direto: string;
  * permitidas ao dono.
  */
 export default function AvisoStatusPublicacao({
-  entidade, id, nome, status, enviadoAnaliseEm, ultimaDecisao, roteirosVinculados, ehAdmin = false,
+  entidade, id, nome, status, enviadoAnaliseEm, ultimaDecisao, roteirosVinculados, ehAdmin = false, pendenciaDocumento = null,
 }: {
   entidade: PublicacaoEntidade;
   id: string;
@@ -41,6 +42,8 @@ export default function AvisoStatusPublicacao({
   roteirosVinculados?: string[];
   /** Admin edita sem voltar para análise: o aviso muda de tom. */
   ehAdmin?: boolean;
+  /** Embarcação sem o documento de inscrição em dia (SPEC §95.11) — sem ele não há aprovação. */
+  pendenciaDocumento?: PendenciaInscricao;
 }) {
   const info = STATUS_INFO[status];
   const mostrarObservacao =
@@ -76,6 +79,26 @@ export default function AvisoStatusPublicacao({
             roteirosVinculados={roteirosVinculados} modo="pagina" />
         </div>
       </div>
+
+      {pendenciaDocumento && status !== 'inativo' && (
+        <div className="mt-4 flex flex-col gap-3 rounded-xl border border-red-200 bg-red-50 p-4 sm:flex-row sm:items-center">
+          <FileWarning className="h-5 w-5 flex-shrink-0 text-red-500" />
+          <div className="flex-1 text-sm text-red-900">
+            <p className="font-semibold">
+              {pendenciaDocumento === 'vencido' ? 'O documento da embarcação está vencido' : 'Falta o documento da embarcação'}
+            </p>
+            <p className="mt-0.5 text-red-800/90">
+              {status === 'ativo'
+                ? 'O TIE (ou TIEM) é obrigatório. Envie para manter a embarcação regularizada — ele é conferido na próxima análise.'
+                : 'A equipe Boatzy só aprova a embarcação depois de conferir o TIE (ou TIEM). Envie a foto ou o PDF.'}
+            </p>
+          </div>
+          <a href="#documentacao"
+            className="inline-flex shrink-0 items-center justify-center rounded-xl bg-red-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-red-700">
+            {pendenciaDocumento === 'vencido' ? 'Enviar o documento novo' : 'Enviar documento'}
+          </a>
+        </div>
+      )}
 
       {status === 'ativo' && (
         <div className={`mt-4 flex gap-2.5 rounded-xl border p-4 ${ehAdmin ? 'border-slate-200 bg-slate-50' : 'border-amber-200 bg-amber-50'}`}>

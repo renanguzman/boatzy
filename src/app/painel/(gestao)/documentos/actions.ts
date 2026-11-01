@@ -8,44 +8,17 @@ import { isValidCPF, onlyDigits } from '@/lib/validators';
 import { ehUuid } from '@/lib/upload-imagem-server';
 import { ensureGestorEquipeMembro } from '@/lib/equipe';
 import { analisarCondutor, type AnaliseCondutor } from '@/lib/documentos/server';
-import { apagarArquivoDocumento, pastaDocumento } from '@/lib/documentos/arquivo-server';
-import { CATEGORIAS_CHA, TIPOS_DOCUMENTO, TIPOS_POR_ESCOPO, normalizarCategorias, type DadosDocumento } from '@/lib/documentos/tipos';
+import { apagarArquivoDocumento } from '@/lib/documentos/arquivo-server';
+import {
+  arquivoDoDocumento, cpfTitular, dadosLimpos, dataOuNull, inserirDocumento, texto, validarCamposDocumento,
+} from '@/lib/documentos/registro';
+import { TIPOS_DOCUMENTO, normalizarCategorias } from '@/lib/documentos/tipos';
 import { nomeApresentavel } from '@/lib/documentos/nomes';
-import type { DocumentoEscopo, DocumentoOrigem, DocumentoTipo, EquipeFuncao, Json } from '@/types/supabase';
-import type { ArquivoEnviado } from '@/lib/documentos/envio';
+import type { CondutorPayload, DocumentoPayload } from '@/lib/documentos/rascunho';
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Tipos
+// Tipos (os payloads ficam em `@/lib/documentos/rascunho` — arquivo 'use server' não reexporta)
 // ─────────────────────────────────────────────────────────────────────────────
-
-/** Quem é o condutor da habilitação: alguém da equipe ou um cadastro novo. */
-export type CondutorPayload =
-  | { modo: 'existente'; membroId: string }
-  | { modo: 'novo'; nome: string; cpf: string; funcao: EquipeFuncao };
-
-export type DocumentoPayload = {
-  /** Gerado no navegador (o arquivo sobe para a pasta dele antes do registro existir). */
-  id: string;
-  escopo: DocumentoEscopo;
-  tipo: DocumentoTipo;
-  embarcacaoId: string | null;
-  condutor: CondutorPayload | null;
-  /** Embarcações em que o condutor trabalha (vínculo na equipe) — uma ou várias. */
-  embarcacoesDoCondutorIds: string[];
-  titulo: string;
-  numero: string;
-  titular: string;
-  /** CPF do titular da habilitação (com ou sem máscara; vazio = não informado). */
-  cpf: string;
-  embarcacaoNome: string;
-  /** Categorias da habilitação separadas por vírgula ("mestre,motonauta"). */
-  categoria: string;
-  dataEmissao: string;
-  dataValidade: string;
-  dados: DadosDocumento;
-  origem: DocumentoOrigem;
-  arquivo: ArquivoEnviado | null;
-};
 
 export type SalvarDocumentoResult =
   | { ok: true; documentoId: string; membroCriado: { id: string; nome: string } | null }
@@ -64,59 +37,6 @@ async function authGestor() {
   const ok = await checkRoleInDb(user.id, ['gestor', 'admin']);
   if (!ok) return { user: null, error: 'Acesso não autorizado.' };
   return { user, error: null };
-}
-
-const RE_DATA = /^\d{4}-\d{2}-\d{2}$/;
-
-function dataOuNull(v: string): string | null {
-  const s = v.trim();
-  return RE_DATA.test(s) ? s : null;
-}
-
-const texto = (v: string, max = 160) => v.trim().replace(/\s+/g, ' ').slice(0, max) || null;
-
-function validarCampos(p: DocumentoPayload): string | null {
-  const info = TIPOS_DOCUMENTO[p.tipo];
-  if (!info || !TIPOS_POR_ESCOPO[p.escopo]?.includes(p.tipo)) return 'Tipo de documento inválido.';
-  if (info.temTitulo && !p.titulo.trim()) return 'Informe o nome do documento.';
-  if (p.dataEmissao.trim() && !dataOuNull(p.dataEmissao)) return 'Data de emissão inválida.';
-  if (p.dataValidade.trim() && !dataOuNull(p.dataValidade)) return 'Data de validade inválida.';
-  if (info.validadeAnos != null && !dataOuNull(p.dataValidade)) {
-    return `Informe a validade do ${info.sigla} — é ela que gera os avisos de vencimento.`;
-  }
-  const emissao = dataOuNull(p.dataEmissao);
-  const validade = dataOuNull(p.dataValidade);
-  if (emissao && validade && validade < emissao) return 'A validade não pode ser anterior à emissão.';
-  const cats = p.categoria.split(',').map((c) => c.trim()).filter(Boolean);
-  if (cats.some((c) => !CATEGORIAS_CHA.some((x) => x.valor === c))) return 'Categoria inválida.';
-  if (p.escopo === 'condutor' && onlyDigits(p.cpf ?? '') && !isValidCPF(p.cpf)) return 'CPF do condutor inválido — confira os números.';
-  return null;
-}
-
-/** CPF do titular, só na habilitação e só se válido. */
-function cpfTitular(p: Pick<DocumentoPayload, 'escopo' | 'cpf'>): string | null {
-  return p.escopo === 'condutor' && isValidCPF(p.cpf ?? '') ? onlyDigits(p.cpf) : null;
-}
-
-/** Extras aceitos por escopo e o tamanho máximo de cada texto. */
-const EXTRAS_TEXTO: Record<DocumentoEscopo, [keyof DadosDocumento, number][]> = {
-  embarcacao: [['tipo_embarcacao', 60], ['area_navegacao', 60], ['atividade', 60]],
-  condutor: [['limites_navegacao', 120], ['orgao_emissor', 80]],
-};
-
-function dadosLimpos(d: DadosDocumento, escopo: DocumentoEscopo): Json {
-  const out: Record<string, string | number> = {};
-  for (const [chave, max] of EXTRAS_TEXTO[escopo]) {
-    const v = d[chave];
-    if (typeof v === 'string' && v.trim()) out[chave] = v.trim().replace(/\s+/g, ' ').slice(0, max);
-  }
-  if (escopo === 'embarcacao') {
-    for (const chave of ['qtd_passageiros', 'qtd_tripulantes'] as const) {
-      const v = d[chave];
-      if (typeof v === 'number' && Number.isInteger(v) && v >= 0 && v < 10000) out[chave] = v;
-    }
-  }
-  return out;
 }
 
 async function embarcacaoDoGestor(ownerId: string, id: string | null): Promise<boolean> {
@@ -248,13 +168,11 @@ export async function criarDocumento(p: DocumentoPayload): Promise<SalvarDocumen
   if (!user) return { ok: false, error: error! };
   if (!ehUuid(p.id)) return { ok: false, error: 'Envio inválido. Recarregue a página e tente de novo.' };
 
-  const erroCampos = validarCampos(p);
+  const erroCampos = validarCamposDocumento(p);
   if (erroCampos) return { ok: false, error: erroCampos };
 
   if (!p.arquivo) return { ok: false, error: 'Envie a foto ou o PDF do documento.' };
-  if (!p.arquivo.key.startsWith(pastaDocumento(user.id, p.id)) || p.arquivo.key.includes('..')) {
-    return { ok: false, error: 'Arquivo inválido. Envie o documento novamente.' };
-  }
+  if (!arquivoDoDocumento(p.arquivo, user.id, p.id)) return { ok: false, error: 'Arquivo inválido. Envie o documento novamente.' };
 
   let embarcacaoId: string | null = null;
   let membroId: string | null = null;
@@ -271,51 +189,8 @@ export async function criarDocumento(p: DocumentoPayload): Promise<SalvarDocumen
     membroCriado = r.criado;
   }
 
-  // Renovação: arquiva o ativo do mesmo tipo e alvo ('outro' pode ter vários).
-  let arquivados: string[] = [];
-  if (p.tipo !== 'outro') {
-    const filtro = supabaseAdmin
-      .from('documento')
-      .update({ arquivado_em: new Date().toISOString() })
-      .eq('owner_id', user.id)
-      .eq('tipo', p.tipo)
-      .is('arquivado_em', null);
-    const { data } = await (embarcacaoId ? filtro.eq('embarcacao_id', embarcacaoId) : filtro.eq('equipe_membro_id', membroId!)).select('id');
-    arquivados = (data ?? []).map((d) => d.id);
-  }
-
-  const info = TIPOS_DOCUMENTO[p.tipo];
-  const { error: insErr } = await supabaseAdmin.from('documento').insert({
-    id: p.id,
-    owner_id: user.id,
-    escopo: p.escopo,
-    tipo: p.tipo,
-    embarcacao_id: embarcacaoId,
-    equipe_membro_id: membroId,
-    titulo: info.temTitulo ? texto(p.titulo, 80) : null,
-    numero: texto(p.numero, 40),
-    titular: texto(p.titular),
-    titular_cpf: cpfTitular(p),
-    embarcacao_nome: p.escopo === 'embarcacao' ? texto(p.embarcacaoNome, 80) : null,
-    categoria: info.temCategoria ? normalizarCategorias(p.categoria) : null,
-    data_emissao: dataOuNull(p.dataEmissao),
-    data_validade: dataOuNull(p.dataValidade),
-    dados: dadosLimpos(p.dados, p.escopo),
-    arquivo_key: p.arquivo.key,
-    arquivo_nome: p.arquivo.nome.slice(-120),
-    arquivo_tipo: p.arquivo.tipo,
-    arquivo_tamanho: p.arquivo.tamanho,
-    origem: p.origem,
-  });
-
-  if (insErr) {
-    // Desfaz o arquivamento para não deixar a embarcação/condutor sem documento ativo.
-    if (arquivados.length > 0) {
-      await supabaseAdmin.from('documento').update({ arquivado_em: null }).in('id', arquivados);
-    }
-    if (insErr.code === '23505') return { ok: false, error: 'Este documento já foi salvo. Atualize a página.' };
-    return { ok: false, error: insErr.message };
-  }
+  const r = await inserirDocumento(user.id, { ...p, arquivo: p.arquivo }, embarcacaoId ? { embarcacaoId } : { membroId: membroId! });
+  if (!r.ok) return r;
 
   revalidar();
   if (membroCriado) revalidatePath('/painel/equipe');
@@ -337,10 +212,10 @@ export async function atualizarDocumento(p: DocumentoPayload): Promise<SalvarDoc
   if (!atual) return { ok: false, error: 'Documento não encontrado.' };
 
   const payload = { ...p, tipo: atual.tipo, escopo: atual.escopo };
-  const erroCampos = validarCampos(payload);
+  const erroCampos = validarCamposDocumento(payload);
   if (erroCampos) return { ok: false, error: erroCampos };
 
-  if (p.arquivo && (!p.arquivo.key.startsWith(pastaDocumento(user.id, p.id)) || p.arquivo.key.includes('..'))) {
+  if (p.arquivo && !arquivoDoDocumento(p.arquivo, user.id, p.id)) {
     return { ok: false, error: 'Arquivo inválido. Envie o documento novamente.' };
   }
 

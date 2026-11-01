@@ -1,10 +1,11 @@
 'use client';
 
 import { useState, useTransition, useRef } from 'react';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import {
   Info, ClipboardCheck, Ruler, MapPin, ImageIcon, Sparkles,
-  Loader2, AlertCircle, CheckCircle, ShieldCheck, Waves, ScrollText,
+  Loader2, AlertCircle, CheckCircle, ShieldCheck, Waves, ScrollText, FileCheck2,
 } from 'lucide-react';
 import GaleriaImagensEditor, { itensDeImagensSalvas, type GaleriaItem } from '@/components/painel/GaleriaImagensEditor';
 import { enviarFotosNovas, mensagemFalhaEnvio, MENSAGEM_SEM_FOTOS } from '@/lib/galeria-upload';
@@ -37,8 +38,14 @@ import RodapeEtapas from '@/components/painel/etapas/RodapeEtapas';
 import RevisaoChecklist from '@/components/painel/etapas/RevisaoChecklist';
 import { useEtapas } from '@/components/painel/etapas/useEtapas';
 import EmbarcacaoCard from '@/components/ui/EmbarcacaoCard';
-import { ETAPAS_EMBARCACAO, ETAPA_EMB, revisaoEmbarcacao } from '../../../_components/etapasEmbarcacao';
+import { ETAPAS_EMBARCACAO, ETAPA_EMB, docRevisao, revisaoEmbarcacao } from '../../../_components/etapasEmbarcacao';
 import CopiarDadosEmbarcacao, { type EmbarcacaoCopiavel } from '../../../_components/CopiarDadosEmbarcacao';
+import EtapaDocumentacao, {
+  RASCUNHOS_VAZIOS, type DocumentosEmbarcacaoAtuais, type RascunhosEmbarcacao,
+} from '../../../_components/EtapaDocumentacao';
+import { enviarArquivosDosRascunhos, erroDosRascunhos, registrarRascunhos } from '../../../../documentos/_lib/rascunhos';
+import AssistenteDescricao from '@/components/painel/descricao/AssistenteDescricao';
+import { avisoDescricaoEmbarcacao, fatosEmbarcacao } from '../../../_components/descricaoEmbarcacao';
 
 // ─── Tipos locais ─────────────────────────────────────────────────────────────
 
@@ -87,6 +94,12 @@ type Props = {
   avisarNovaAnalise?: boolean;
   /** Outras embarcações do gestor (sem esta) — origem do "copiar de outra embarcação" nas etapas Detalhes/Localização. */
   embarcacoesParaCopiar?: EmbarcacaoCopiavel[];
+  /**
+   * Etapa Documentos (só o gestor dono): documentos ativos e dados para a leitura.
+   * Ausente na edição pelo admin — a etapa mostra onde ver a documentação (`hrefDocumentacao`).
+   */
+  documentacao?: { atuais: DocumentosEmbarcacaoAtuais; proprietarioSugerido: string };
+  hrefDocumentacao?: string;
 };
 
 // ─── Helpers de UI ────────────────────────────────────────────────────────────
@@ -137,6 +150,8 @@ export default function EditarEmbarcacaoForm({
   voltarHref = '/painel/embarcacoes',
   avisarNovaAnalise = false,
   embarcacoesParaCopiar = [],
+  documentacao,
+  hrefDocumentacao,
 }: Props) {
   const router = useRouter();
   const [, startTransition] = useTransition();
@@ -208,6 +223,9 @@ export default function EditarEmbarcacaoForm({
     () => itensDeImagensSalvas(embarcacao.embarcacao_imagens),
   );
 
+  // ── Documentos da embarcação (novos/renovados — gravados ao salvar) ─────────
+  const [documentos, setDocumentos] = useState<RascunhosEmbarcacao>(RASCUNHOS_VAZIOS);
+
   // ── Feedback ───────────────────────────────────────────────────────────────
   const [feedback,   setFeedback]   = useState<{ type: 'error' | 'success'; msg: string } | null>(null);
   const [submitting, setSubmitting] = useState(false);
@@ -220,6 +238,12 @@ export default function EditarEmbarcacaoForm({
   const etapas = useEtapas(ETAPAS_EMBARCACAO.length, { todasVisitadas: true, ids: ETAPAS_EMBARCACAO.map(e => e.id) });
   const revisao = revisaoEmbarcacao({
     form, tipos, estados, municipios, comodidadesSelecionadas, imagens,
+    documentacao: documentacao
+      ? {
+          inscricao: docRevisao(documentos.inscricao, documentacao.atuais.inscricao),
+          dpem: docRevisao(documentos.dpem, documentacao.atuais.dpem),
+        }
+      : null,
     ir: etapas.ir,
   });
 
@@ -409,6 +433,13 @@ export default function EditarEmbarcacaoForm({
       etapas.ir(ETAPA_EMB.fotos);
       return;
     }
+    const docsNovos = [documentos.inscricao, documentos.dpem];
+    const erroDocs = erroDosRascunhos(docsNovos);
+    if (erroDocs) {
+      setFeedback({ type: 'error', msg: erroDocs });
+      etapas.ir(ETAPA_EMB.documentacao);
+      return;
+    }
     setSubmitting(true);
 
     // 0. Envia as fotos novas antes de tudo: se alguma falhar, nada é salvo.
@@ -419,6 +450,15 @@ export default function EditarEmbarcacaoForm({
     if (envio.falhas > 0) {
       setFeedback({ type: 'error', msg: mensagemFalhaEnvio(envio.falhas) });
       etapas.ir(ETAPA_EMB.fotos);
+      setSubmitting(false);
+      return;
+    }
+
+    // 0b. Arquivos dos documentos novos também sobem antes (bucket privado).
+    const falhaArquivoDoc = await enviarArquivosDosRascunhos(docsNovos);
+    if (falhaArquivoDoc) {
+      setFeedback({ type: 'error', msg: falhaArquivoDoc });
+      etapas.ir(ETAPA_EMB.documentacao);
       setSubmitting(false);
       return;
     }
@@ -487,6 +527,21 @@ export default function EditarEmbarcacaoForm({
       return;
     }
 
+    // 6. Documentos novos/renovados (arquivos já enviados no passo 0b)
+    const docs = await registrarRascunhos(docsNovos, { embarcacaoId: embarcacao.id });
+    if (docs.falhas.length > 0) {
+      // Os gravados saem do formulário (nova tentativa não repete) e o resumo da etapa é recarregado.
+      setDocumentos(d => ({
+        inscricao: d.inscricao && docs.salvos.includes(d.inscricao.id) ? null : d.inscricao,
+        dpem: d.dpem && docs.salvos.includes(d.dpem.id) ? null : d.dpem,
+      }));
+      router.refresh();
+      setFeedback({ type: 'error', msg: `Os dados foram salvos, mas o documento não (${docs.falhas.join('; ')}). Confira na etapa Documentos e salve de novo.` });
+      etapas.ir(ETAPA_EMB.documentacao);
+      setSubmitting(false);
+      return;
+    }
+
     setFeedback({
       type: 'success',
       msg: enviandoParaAnalise
@@ -518,9 +573,21 @@ export default function EditarEmbarcacaoForm({
           </div>
           <div className="md:col-span-2">
             <Field label="Descrição">
-              <textarea className={`${inputCls} resize-none`} rows={3}
-                placeholder="Descreva sua embarcação, diferenciais, comodidades..."
+              <textarea className={`${inputCls} resize-y`} rows={4}
+                placeholder="Para quem ela é ideal, o que tem de especial, como é o conforto a bordo…"
                 value={form.descricao} onChange={e => setField('descricao', e.target.value)} />
+              <AssistenteDescricao
+                alvo="embarcacao"
+                valorAtual={form.descricao}
+                fatos={fatosEmbarcacao({
+                  form, tipos, estados, municipios,
+                  comodidades, comodidadesSelecionadas,
+                  equipamentos: equipamentosSeguranca, equipamentosSelecionados,
+                  acessorios, acessoriosSelecionados, regras,
+                })}
+                aviso={avisoDescricaoEmbarcacao(form, comodidadesSelecionadas)}
+                onAplicar={texto => setField('descricao', texto)}
+              />
             </Field>
           </div>
           <Field label="Tipo">
@@ -785,7 +852,34 @@ export default function EditarEmbarcacaoForm({
 
       </div>
 
-      {/* ── 7. Revisão ───────────────────────────────────────────────────── */}
+      {/* ── 7. Documentos da embarcação ───────────────────────────────────── */}
+      <div hidden={etapas.atual !== ETAPA_EMB.documentacao} className="space-y-6">
+        {documentacao ? (
+          <EtapaDocumentacao
+            rascunhos={documentos}
+            onChange={setDocumentos}
+            atuais={documentacao.atuais}
+            nomeEmbarcacao={form.nome}
+            embarcacoesConhecidas={[form.nome, ...embarcacoesParaCopiar.map(e => e.nome)].filter(n => n.trim())}
+            proprietarioSugerido={documentacao.proprietarioSugerido}
+            onUsarNome={nome => setField('nome', nome)}
+            desabilitado={submitting}
+          />
+        ) : (
+          <SectionCard icon={FileCheck2} title="Documentos">
+            <p className="text-sm text-slate-600">
+              Os documentos da embarcação (TIE, seguro DPEM…) são enviados pelo gestor, no cadastro da embarcação ou no menu Documentos do painel.
+            </p>
+            {hrefDocumentacao && (
+              <Link href={hrefDocumentacao} className="mt-3 inline-block text-sm font-semibold text-teal-700 hover:underline">
+                Ver a documentação desta embarcação
+              </Link>
+            )}
+          </SectionCard>
+        )}
+      </div>
+
+      {/* ── 8. Revisão ───────────────────────────────────────────────────── */}
       <div hidden={etapas.atual !== ETAPA_EMB.revisao} className="space-y-6">
         <SectionCard icon={ClipboardCheck} title="Revisão">
           <div className="grid grid-cols-1 lg:grid-cols-5 gap-4 sm:gap-6">

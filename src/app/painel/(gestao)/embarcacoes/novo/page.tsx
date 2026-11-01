@@ -15,6 +15,7 @@ export default async function NovaEmbarcacaoPage() {
     { data: equipamentosSeguranca },
     { data: acessorios },
     { data: outrasEmbarcacoes },
+    { data: perfil },
   ] = await Promise.all([
     supabaseAdmin.from('embarcacao_tipo').select('id, nome').order('nome'),
     supabaseAdmin.from('estados').select('id, uf, nome').order('nome'),
@@ -22,6 +23,7 @@ export default async function NovaEmbarcacaoPage() {
     supabaseAdmin.from('equipamentos_seguranca').select('id, nome').order('nome'),
     supabaseAdmin.from('acessorios').select('id, nome').order('nome'),
     supabaseAdmin.from('embarcacao').select('id, nome').eq('owner_id', user.id).order('nome'),
+    supabaseAdmin.from('users').select('name').eq('id', user.id).maybeSingle(),
   ]);
 
   return (
@@ -40,6 +42,7 @@ export default async function NovaEmbarcacaoPage() {
         equipamentosSeguranca={equipamentosSeguranca ?? []}
         acessorios={acessorios ?? []}
         embarcacoesParaCopiar={outrasEmbarcacoes ?? []}
+        proprietarioSugerido={perfil?.name?.trim() ?? ''}
       />
     </div>
   );

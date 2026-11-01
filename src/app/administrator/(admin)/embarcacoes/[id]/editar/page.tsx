@@ -111,6 +111,7 @@ export default async function AdminEditarEmbarcacaoPage({
         acessorios={acessorios ?? []}
         acessoriosIniciais={(acessoriosVinculados ?? []).map(a => a.acessorio_id)}
         voltarHref="/administrator/embarcacoes"
+        hrefDocumentacao={`/administrator/embarcacoes/${emb.id}#documentacao`}
       />
     </div>
   );

@@ -18,6 +18,8 @@ type DadosPedido = {
   municipio: string;
   qtdEmbarcacoes: number;
   criadoEm: string;
+  /** Quem conduz nos passeios (SPEC §95.10). */
+  conducao: 'proprio' | 'equipe';
 };
 
 export async function notificarAdminsNovaSolicitacao(pedido: DadosPedido): Promise<void> {
@@ -40,6 +42,7 @@ export async function notificarAdminsNovaSolicitacao(pedido: DadosPedido): Promi
           ['E-mail', pedido.email],
           ['Cidade', pedido.municipio],
           ['Embarcações', String(pedido.qtdEmbarcacoes)],
+          ['Condução', pedido.conducao === 'proprio' ? 'O próprio gestor (enviou a habilitação)' : 'Marinheiro ou capitão da equipe dele'],
           ['Enviado em', formatarDataHora(pedido.criadoEm)],
         ],
       }],

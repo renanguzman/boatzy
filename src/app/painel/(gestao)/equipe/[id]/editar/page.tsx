@@ -3,6 +3,7 @@ import Link from 'next/link';
 import { ArrowLeft } from 'lucide-react';
 import { createClient } from '@/lib/supabase/server';
 import { supabaseAdmin } from '@/lib/supabase';
+import { habilitacaoDoMembro } from '@/lib/documentos/server';
 import MembroForm, { type MembroFormData } from '../../_components/MembroForm';
 import type { EquipeFuncao } from '@/types/supabase';
 
@@ -43,11 +44,14 @@ export default async function EditarMembroPage({ params }: { params: Promise<{ i
   const m = data as unknown as MembroRow;
   if (m.is_gestor) redirect('/painel/equipe');
 
-  const { data: embarcacoesData } = await supabaseAdmin
-    .from('embarcacao')
-    .select('id, nome')
-    .eq('owner_id', user.id)
-    .order('nome', { ascending: true });
+  const [{ data: embarcacoesData }, habilitacao] = await Promise.all([
+    supabaseAdmin
+      .from('embarcacao')
+      .select('id, nome')
+      .eq('owner_id', user.id)
+      .order('nome', { ascending: true }),
+    habilitacaoDoMembro(user.id, m.id),
+  ]);
 
   const membro: MembroFormData = {
     id: m.id,
@@ -83,7 +87,11 @@ export default async function EditarMembroPage({ params }: { params: Promise<{ i
       )}
 
       <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-4 sm:p-6">
-        <MembroForm embarcacoes={(embarcacoesData ?? []) as { id: string; nome: string }[]} membro={membro} />
+        <MembroForm
+          embarcacoes={(embarcacoesData ?? []) as { id: string; nome: string }[]}
+          membro={membro}
+          habilitacaoAtual={habilitacao}
+        />
       </div>
     </div>
   );

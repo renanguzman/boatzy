@@ -8,7 +8,7 @@ import type { RealtimeChannel } from '@supabase/supabase-js';
 import { createClient } from '@/lib/supabase/client';
 import { authorizeRealtime } from '@/lib/supabase/realtime';
 import {
-  LayoutDashboard,
+  House,
   Ship,
   CalendarDays,
   DollarSign,
@@ -27,17 +27,40 @@ import clsx from 'clsx';
 import { useMenuMobile } from './MenuMobile';
 import { EVENTO_AVISO_GESTOR } from './NotificacoesBell';
 
-const navItems = [
-  { href: '/painel', label: 'DASHBOARD', icon: LayoutDashboard, exact: true, tour: 'nav-dashboard' },
-  { href: '/painel/agendamentos', label: 'AGENDAMENTOS/RESERVAS', icon: CalendarDays, exact: false, tour: 'nav-agendamentos' },
-  { href: '/painel/embarcacoes', label: 'EMBARCAÇÕES', icon: Ship, exact: false, tour: 'nav-embarcacoes' },
-  { href: '/painel/documentos', label: 'DOCUMENTOS', icon: FileCheck2, exact: false, tour: 'nav-documentos' },
-  { href: '/painel/roteiros', label: 'ROTEIROS / PREÇOS', icon: MapPin, exact: false, tour: 'nav-roteiros' },
-  { href: '/painel/vendas', label: 'VENDAS', icon: Tag, exact: false, tour: 'nav-vendas' },
-  { href: '/painel/catalogo', label: 'CATÁLOGO', icon: BookOpen, exact: false, tour: 'nav-catalogo' },
-  { href: '/painel/clientes', label: 'CLIENTES', icon: Users, exact: false, tour: 'nav-clientes' },
-  { href: '/painel/equipe', label: 'EQUIPE', icon: UsersRound, exact: false, tour: 'nav-equipe' },
-  { href: '/painel/receitas', label: 'RECEITAS', icon: DollarSign, exact: false, tour: 'nav-receitas' },
+type ItemMenu = { href: string; label: string; icon: typeof House; exact: boolean; tour: string };
+
+/**
+ * Menu agrupado por frequência de uso (SPEC §97): o dia a dia no topo, os cadastros
+ * na ordem da jornada (embarcação → documentos → roteiro) e as demais ferramentas no fim.
+ */
+const GRUPOS_MENU: { titulo: string | null; tour?: string; itens: ItemMenu[] }[] = [
+  {
+    titulo: null,
+    itens: [
+      { href: '/painel', label: 'INÍCIO', icon: House, exact: true, tour: 'nav-dashboard' },
+      { href: '/painel/agendamentos', label: 'RESERVAS', icon: CalendarDays, exact: false, tour: 'nav-agendamentos' },
+      { href: '/painel/clientes', label: 'CLIENTES', icon: Users, exact: false, tour: 'nav-clientes' },
+    ],
+  },
+  {
+    titulo: 'Seus cadastros',
+    tour: 'nav-grupo-cadastros',
+    itens: [
+      { href: '/painel/embarcacoes', label: 'EMBARCAÇÕES', icon: Ship, exact: false, tour: 'nav-embarcacoes' },
+      { href: '/painel/documentos', label: 'DOCUMENTOS', icon: FileCheck2, exact: false, tour: 'nav-documentos' },
+      { href: '/painel/roteiros', label: 'ROTEIROS E PREÇOS', icon: MapPin, exact: false, tour: 'nav-roteiros' },
+    ],
+  },
+  {
+    titulo: 'Mais ferramentas',
+    tour: 'nav-grupo-ferramentas',
+    itens: [
+      { href: '/painel/catalogo', label: 'CATÁLOGO DE EXTRAS', icon: BookOpen, exact: false, tour: 'nav-catalogo' },
+      { href: '/painel/equipe', label: 'EQUIPE', icon: UsersRound, exact: false, tour: 'nav-equipe' },
+      { href: '/painel/receitas', label: 'RECEITAS', icon: DollarSign, exact: false, tour: 'nav-receitas' },
+      { href: '/painel/vendas', label: 'VENDA DE EMBARCAÇÕES', icon: Tag, exact: false, tour: 'nav-vendas' },
+    ],
+  },
 ];
 
 export default function Sidebar({
@@ -148,7 +171,7 @@ export default function Sidebar({
           <Link href="/painel" className="block">
             <Image src="/images/logo-horizontal-header-site.svg" alt="Boatzy" width={459} height={130} className="h-9 lg:h-10 w-auto mb-1.5" priority />
             <span className="text-[10px] text-slate-400 font-medium tracking-wider uppercase ml-1 block">
-              Admin Portal
+              Painel do proprietário
             </span>
           </Link>
           <button
@@ -161,8 +184,13 @@ export default function Sidebar({
           </button>
         </div>
 
-        <nav className="flex-1 min-h-0 overflow-y-auto overscroll-contain px-4 pb-2 space-y-0.5">
-          {navItems.map(({ href, label, icon: Icon, exact, tour }) => {
+        <nav className="flex-1 min-h-0 overflow-y-auto overscroll-contain px-4 pb-2">
+          {GRUPOS_MENU.map((grupo) => (
+          <div key={grupo.titulo ?? 'principal'} data-tour={grupo.tour} className={clsx('space-y-0.5', grupo.titulo && 'mt-4')}>
+          {grupo.titulo && (
+            <p className="px-3 pb-1 text-[10px] font-bold uppercase tracking-wider text-slate-400">{grupo.titulo}</p>
+          )}
+          {grupo.itens.map(({ href, label, icon: Icon, exact, tour }) => {
             const active = exact ? pathname === href : pathname.startsWith(href);
             // Clientes: mensagens não lidas. Agendamentos: solicitações aguardando resposta.
             // Documentos: vencidos (vermelho) ou só vencendo em breve (âmbar).
@@ -202,6 +230,8 @@ export default function Sidebar({
               </Link>
             );
           })}
+          </div>
+          ))}
 
           <div className="pt-4">
             <Link
@@ -217,11 +247,13 @@ export default function Sidebar({
 
         <div className="px-4 pt-2 pb-[max(1.5rem,env(safe-area-inset-bottom))] space-y-0.5 border-t border-slate-100 lg:border-0">
           <Link
-            href="/painel/suporte"
+            href="/help"
+            target="_blank"
+            rel="noopener noreferrer"
             className="flex items-center gap-3 px-3 py-3 lg:py-2.5 rounded-lg text-xs font-semibold tracking-wide text-slate-500 hover:bg-slate-50 hover:text-[#0B2447] transition-all duration-150"
           >
             <HelpCircle className="w-4 h-4" />
-            SUPPORT
+            AJUDA
           </Link>
 
           <button
@@ -229,7 +261,7 @@ export default function Sidebar({
             className="flex items-center gap-3 px-3 py-3 lg:py-2.5 w-full rounded-lg text-xs font-semibold tracking-wide text-slate-500 hover:bg-red-50 hover:text-red-600 transition-all duration-150"
           >
             <LogOut className="w-4 h-4" />
-            SIGN OUT
+            SAIR
           </button>
         </div>
       </aside>

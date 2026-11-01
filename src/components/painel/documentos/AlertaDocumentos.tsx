@@ -29,7 +29,8 @@ export default function AlertaDocumentos({ vencidos, urgentes }: { vencidos: num
     setFechado(salvo === assinatura);
   }, [assinatura]);
 
-  if (urgentes === 0 || fechado || pathname.startsWith('/painel/documentos')) return null;
+  // No Início os documentos já aparecem em "Para fazer agora"; em Documentos, na própria tela.
+  if (urgentes === 0 || fechado || pathname === '/painel' || pathname.startsWith('/painel/documentos')) return null;
 
   function fechar() {
     setFechado(true);

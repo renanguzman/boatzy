@@ -789,7 +789,95 @@ Todo o painel do gestor (`/painel/*`) foi adaptado para uso no celular, mantendo
 - **Formulários e modais:** espaçamentos menores, botões de ação ocupando a largura, modais com rolagem interna; campos com fonte de 16px no celular para o Safari do iOS não dar zoom ao digitar. Respeita a área segura (notch/barra inferior) do iPhone.
 - Escopo: só o painel do gestor; o site público e o painel admin não mudaram. Detalhes técnicos em `SPEC.md` §12 ("Layout responsivo").
 
-#### ✅ Implementado — Dashboard com dados reais (`/painel`)
+#### ✅ Implementado — Início: primeiros passos e o que fazer agora (01/11/2026)
+
+O antigo "Dashboard" virou **Início**, pensado para o dono de embarcação que não tem familiaridade com
+tecnologia: uma pergunta por bloco, frases curtas e nenhum bloco vazio para quem está começando.
+
+- **Saudação** ("Olá, Renan!") com uma linha que diz o que importa agora: "Siga os passos abaixo…" (quem está
+  começando), "Você tem N assuntos para resolver" ou "Tudo em dia por aqui".
+- **Primeiros passos** (até a primeira embarcação **e** o primeiro roteiro serem aprovados): 5 passos numerados,
+  com barra de progresso, o **Próximo passo** destacado com um botão e o que depende da equipe Boatzy marcado
+  como "aguardando":
+  1. **Cadastre sua embarcação** — fotos, local e detalhes;
+  2. **Envie o documento da embarcação** — TIE (ou TIEM); sem ele a embarcação não é aprovada;
+  3. **Aguarde a aprovação da embarcação** — a equipe confere dados e documento (vira "Ajuste o cadastro da
+     embarcação" quando devolvida, com "Ver o que ajustar");
+  4. **Crie um roteiro** — trajeto, duração e preço; já pode ser feito com a embarcação em análise;
+  5. **Aguarde a aprovação do roteiro** — aprovado, aparece no site (e só aparece com a embarcação aprovada).
+  Uma linha explica a regra: "a equipe Boatzy aprova cada embarcação e cada roteiro antes de irem para o site; a
+  embarcação só é aprovada com o documento (TIE)". Pode ser **ocultado** (fica uma barra "Primeiros passos · 2 de
+  5 · Mostrar") — útil para quem só anuncia barco à venda. Depois do primeiro cadastro de embarcação/roteiro, o
+  painel volta ao Início, onde aparece o passo seguinte.
+- **Para fazer agora** — um só bloco com tudo que pede ação, cada item com o botão da ação: pedidos de reserva
+  para responder (os 3 mais antigos, "Responder"), cadastros devolvidos ("Ajustar"), embarcação sem TIE
+  ("Enviar") e documentos vencidos ou vencendo em até 30 dias ("Renovar"). No rodapé, "Aguardando outras
+  pessoas": cadastros em análise e reservas esperando o pagamento do cliente. Sem pendências: "Tudo em dia".
+  Substitui as 4 faixas coloridas e o quadro "Documentação" (a faixa de documentos do topo não aparece no Início).
+- **Resumo** em 4 cartões, um assunto por cartão: **Reservas** (passeios marcados · pedidos para responder),
+  **No site** (roteiros no site · embarcações aprovadas), **Documentos** (em dia / vencidos / vencendo / sem TIE)
+  e **Clientes**; **Venda de barcos** (anúncios · interessados) só para quem tem anúncio.
+- **Próximos passeios** — os 5 próximos passeios confirmados ("Hoje", "Amanhã", dia da semana), com cliente,
+  pessoas e valor. Substitui a tabela "Últimas solicitações" (pedidos pendentes já estão em "Para fazer agora";
+  o histórico completo, em Reservas).
+- **Pedidos de reserva por mês** — o gráfico dos últimos 6 meses, com "Mais procurado" numa linha (substitui o
+  cartão "Destaque do período"). Só aparece para quem já recebeu reservas.
+- Resumo, próximos passeios e gráfico só aparecem depois do primeiro passeio no site (ou da primeira reserva).
+
+**Menu e topo (01/11/2026):** menu em português e agrupado — **Início, Reservas, Clientes**; "Seus cadastros":
+**Embarcações, Documentos, Roteiros e preços**; "Mais ferramentas": **Catálogo de extras, Equipe, Receitas, Venda
+de embarcações**. "Admin Portal" → "Painel do proprietário"; "SUPPORT" (levava a uma página inexistente) →
+**Ajuda** (central de ajuda do site, em nova aba); "SIGN OUT" → **Sair**. O topo mostra o nome da seção
+(antes, "Overview" em todas). Status "Retorno" passou a se chamar **Devolvido**.
+
+Detalhes técnicos: `SPEC.md` §97.
+
+#### ✅ Escrever com ajuda — descrição da embarcação e do passeio (01/11/2026)
+
+A descrição é um texto longo, e a maioria dos donos preenche pelo celular: o campo ficava vazio ou com uma
+frase solta. Agora, abaixo dos campos **Descrição** da embarcação e do roteiro, o botão **"Escrever com ajuda"**
+("Melhorar com ajuda" quando já há texto) abre um assistente em 2 etapas, com o mínimo de esforço:
+
+1. **Conte e toque** — o dono **fala** (botão "Toque para falar": ditado em português pelo próprio navegador) ou
+   digita do jeito dele, sem se preocupar com erros, guiado por 4 "ideias do que contar"; e **toca** nas opções que
+   combinam (embarcação: para famílias, festas, casais, pesca, área com sombra…; passeio: pôr do sol, água
+   cristalina, snorkel, parada para almoço, ideal para casais…), com o aviso "marque só o que é verdade". O
+   assistente mostra os dados do cadastro que também vai usar (tipo, capacidade, comodidades, local; no passeio,
+   embarque, paradas na ordem, chegada, duração, horário, embarcação e opcionais).
+2. **Confira e aprove** — o texto vem pronto e **editável**; nada vai para o campo sem tocar em **"Usar este
+   texto"** (avisa quando vai substituir o texto atual). Dá para pedir **outra versão** e há até 3 perguntas
+   "para ficar ainda melhor" (ex.: "Tem área com sombra?") — tocar numa delas volta para a etapa 1 com a pergunta
+   no relato, pronta para responder falando.
+
+- **Contextos diferentes:** a embarcação ganha um texto **claro e confiável** (o que é, para quem é ideal,
+  conforto, o que tem a bordo); o passeio, um texto **cativante que vende** (abre com o momento mais marcante,
+  conta o percurso na ordem, para quem é ideal, convite para reservar).
+- **Nada genérico, nada inventado:** o texto usa somente o cadastro, o que o dono contou e o que marcou — sem
+  itens, lugares, animais, horários ou números que não foram informados, sem preço e sem contato fora da
+  plataforma. Corrige erros e vícios de fala do ditado. No passeio, a Descrição passou para **depois do
+  itinerário** (os fatos vêm antes do texto); sem itinerário, o assistente avisa que o texto ficaria genérico.
+- **Sem IA disponível** (chave não configurada ou instabilidade): oferece "Montar um rascunho simples" com os dados
+  do cadastro, também para revisar antes de usar.
+- **Ditado:** funciona no Chrome (Android e computador), Edge e Safari (iPhone e Mac); onde não há, a tela sugere o
+  microfone do teclado do celular. Limite de 15 textos a cada 10 minutos por pessoa.
+- **Pesquisa sobre os lugares (passeio, 01/11/2026):** com o itinerário preenchido, a opção **"Pesquisar sobre os
+  lugares do roteiro"** (ligada por padrão) busca na internet o que torna as praias e ilhas especiais e usa 1 ou 2
+  informações reais no texto — nunca para afirmar algo sobre o serviço (horários, o que está incluso, animais
+  garantidos). Na revisão aparecem as **páginas consultadas**, com links, para o dono conferir. Até 2 buscas por texto.
+
+**Outras opções avaliadas:** só o microfone do teclado (já existe, mas não corrige nem organiza o texto); modelos
+prontos para preencher lacunas (rígidos e genéricos — viraram o "rascunho simples", plano B); gerar só com os dados
+do cadastro (fica genérico, principalmente no passeio — por isso o relato/opções); gravar o áudio e transcrever no
+servidor (exigiria outro fornecedor de transcrição; o ditado do navegador resolve sem custo). Próximos passos
+possíveis: o mesmo assistente no anúncio de venda e no nome do roteiro; sugerir paradas a partir do relato.
+
+**IA (01/11/2026):** OpenAI, API Responses, modelo **`gpt-6-luna`** (o mais barato que tem busca na web e saída
+estruturada: US$ 0,10 / 0,50 por milhão de tokens de entrada/saída; busca US$ 10 por mil buscas). Estimativa: menos de
+US$ 0,001 por descrição de embarcação e cerca de US$ 0,01–0,03 por descrição de passeio com pesquisa. Se o texto não
+agradar nos testes, trocar só a variável `OPENAI_MODEL_DESCRICAO` para `gpt-6.1-terra` (US$ 1 / 5, escrita mais
+natural). **Para entrar no ar:** configurar `OPENAI_API_KEY` (local e Vercel). Detalhes técnicos: `SPEC.md` §98.
+
+#### ~~Dashboard com dados reais (`/painel`)~~ (substituído pelo Início em 01/11/2026)
 
 Todos os números são do **gestor logado** (`owner_id`):
 
@@ -943,6 +1031,13 @@ Problema: ao clicar numa data do calendário de preços, o painel para definir o
 - **Embarcação:** a disponibilidade também é refletida no calendário público (`EmbarcacaoBookingCard`, mesmo comportamento do roteiro). Detalhes técnicos em `SPEC.md` §15-B.
 
 #### ✅ Implementado — Tutorial guiado do painel
+
+> **Revisto em 01/11/2026:** **9 passos**, um por área, na ordem do novo menu e sem repetições — boas-vindas →
+> Início → Reservas → Clientes → Embarcações (com o TIE e a aprovação) → Documentos → Roteiros e preços →
+> Mais ferramentas (catálogo, equipe, receitas e venda de barcos, num passo só) → "Pronto! Siga os Primeiros
+> passos" (botão "Ver os primeiros passos"). Saíram os passos repetidos (Dashboard 2×, Roteiros 2×) e textos
+> que citavam o que não existe ("receita estimada", "próximas saídas"). Quem já tinha visto a versão anterior
+> vê a nova uma vez. O texto abaixo descreve a versão original.
 
 - Na **primeira entrada** do gestor em `/painel`, um tutorial guiado abre automaticamente em overlay
   escurecido, destacando um elemento por vez (spotlight).
@@ -1402,6 +1497,13 @@ confirmada — mais segurança e previsibilidade para quem contratou.
   a se tornar um gestor de embarcação (apenas identidade; não concede acesso).
 - Função (opcional, 28/10/2026): Marinheiro, Capitão ou Auxiliar.
 
+**Habilitação no cadastro do membro (01/11/2026):** o formulário do membro (novo e edição) tem a seção
+**Habilitação náutica** (CHA ou CIR — recomendada para Marinheiro/Capitão, opcional para Auxiliar): foto
+ou PDF, leitura automática e conferência, gravada junto com o membro. A carteira lida **preenche nome e CPF
+ainda em branco** e avisa quando o nome ou o CPF da carteira diferem dos informados. Na edição, a
+habilitação atual aparece com situação, "Ver arquivo" e "Substituir"/"Renovar". Ver §6.14 "Documentos nas
+jornadas de cadastro".
+
 **Cadastro automático pela habilitação (28/10/2026):** ao enviar a CHA/CIR de alguém que não está na
 equipe, a pessoa é cadastrada como membro (função escolhida no envio, padrão Marinheiro), com o CPF lido
 do documento e **sem telefone**. O card mostra "Cadastro incompleto — falta telefone" até o gestor
@@ -1526,6 +1628,60 @@ migration `20261028b_documentacao_admin.sql`** antes de publicar:
 - **Dashboard do admin:** quadro "N embarcações com documentação vencida" (vermelho quando há), com o total de
   habilitações vencidas da equipe em segundo plano e atalhos para a lista filtrada (Vencida e Vence em até 60
   dias).
+
+#### ✅ Documentos nas jornadas de cadastro (01/11/2026)
+
+O menu **Documentos** continua sendo o lugar de controle (validade, prazos, renovação, histórico). Além dele,
+cada documento passou a ser pedido **no momento natural da jornada**, com a mesma experiência (câmera do
+painel ou arquivo, leitura automática no aparelho, conferência dos campos com o selo "lido do documento"):
+
+| Documento | Onde entra | Regra |
+|---|---|---|
+| Inscrição da embarcação (TIE, TIEM ou PRPM) e seguro DPEM | Nova etapa **Documentos** no cadastro e na edição da embarcação (antes da Revisão) | Inscrição **obrigatória para a aprovação** (01/11/2026 — dá para salvar sem e enviar depois); DPEM recomendado |
+| Habilitação (CHA/CIR) de quem trabalha na embarcação | Seção **Habilitação náutica** no cadastro/edição do membro da **Equipe** | Opcional (recomendada para Marinheiro/Capitão) |
+| Habilitação (CHA/CIR) do próprio gestor | **Pedido de acesso de gestor**, nova etapa **Condução** | Obrigatória só quando ele responde "Eu mesmo conduzo" |
+| Outros documentos (vistorias, licenças…) | Só no menu Documentos | — |
+
+- **Embarcação — etapa Documentos:** dois blocos, "Inscrição na Capitania" (escolhe TIE, TIEM ou PRPM) e
+  "Seguro DPEM". Só documentos da embarcação — a habilitação de quem conduz **não** entra aqui. No cadastro
+  novo, os arquivos sobem antes de criar a embarcação (se falhar, nada é salvo) e os documentos são gravados
+  logo depois dela. Na edição, os documentos ativos aparecem resumidos (número, validade, situação, "Ver
+  arquivo") com **Substituir** — ou **Renovar**, em destaque, quando vencido ou vencendo; o anterior vai para o
+  histórico. Lido o nome da embarcação no TIE: com o cadastro ainda sem nome, oferece "Usar como nome do
+  cadastro"; com nome diferente, avisa para conferir. O proprietário vem sugerido com o nome do gestor. A
+  **Revisão** ganhou o item "Documentos" (TIE a salvar / em dia / vencido; sem TIE = aviso, que não bloqueia;
+  documento com validade faltando = pendência que bloqueia). Na edição pelo admin, a etapa só aponta para a
+  documentação da embarcação no administrator (o envio é do gestor).
+- **Equipe:** ver §6.13. Também na página **Equipe**, o cartão **"Você (gestor) também conduz?"** (com ≥ 1
+  embarcação) mostra a habilitação do gestor (situação e validade) ou convida a enviá-la — para os gestores já
+  aprovados, que não passam pelo pedido de acesso.
+- **Gestor — pedido de acesso:** o formulário ficou em 2 etapas: **Seus dados** → **Condução** ("Quem vai
+  conduzir a embarcação nos passeios?"). "Eu mesmo conduzo" exige a CHA/CIR (com aviso se o nome/CPF da
+  carteira diferir dos dados do pedido); "Um marinheiro ou capitão" orienta a cadastrar a pessoa na Equipe
+  depois da aprovação. A habilitação fica na ficha "Você (gestor)" e já nasce acompanhada pelos avisos de
+  validade. A equipe Boatzy vê a habilitação na fila de pedidos (sigla, número, categorias, validade,
+  situação e "Ver arquivo") e o e-mail de pedido novo informa a condução. Pedido recusado e refeito
+  reaproveita a habilitação já enviada (com "Substituir").
+- Não muda: o menu Documentos (envio avulso, renovação, histórico, avisos), a visão do admin e a privacidade
+  (arquivos no bucket privado; nada aparece no site).
+
+#### ✅ Embarcação só é aprovada com o documento (01/11/2026)
+
+- **Regra:** a equipe Boatzy só aprova (publica) uma embarcação com o **documento de inscrição** — TIE, TIEM ou
+  PRPM — enviado e **em dia**. O seguro DPEM continua recomendado, sem bloquear. O roteiro tem aprovação própria
+  e só aparece no site quando ele **e** a embarcação estão aprovados (regra que já existia).
+- **Admin:** no painel de decisão da embarcação aparece o documento (sigla, número, situação, "Ver arquivo").
+  Sem documento em dia, **"Aprovar" fica bloqueado** e, ao escolher "Devolver", o recado ao gestor já vem
+  sugerido ("envie a foto ou o PDF do documento de inscrição…"). Com documento, aprovar exige marcar **"Conferi o
+  documento"** — a conferência (sigla, número e validade) fica registrada no histórico, na observação interna.
+  O servidor também recusa a aprovação sem documento em dia.
+- **Gestor:** no cadastro, o bloco "Inscrição na Capitania" passou a "Obrigatório" com o texto "necessário para
+  a aprovação"; a Revisão avisa "Sem TIE — a embarcação só é aprovada depois que você enviar"; ao salvar sem o
+  documento, a mensagem diz que falta o TIE. Na lista de embarcações, selo vermelho **"Falta o TIE"/"TIE
+  vencido"** (leva à etapa Documentos); na edição, faixa "Falta o documento da embarcação" com **"Enviar
+  documento"**. No Início, é o passo 2 dos Primeiros passos (ou um item de "Para fazer agora").
+- **Já aprovadas sem documento** continuam no site; o Início pede o envio, e a próxima análise (ex.: depois de
+  uma edição sensível) exige o documento. Renovar o TIE não manda a embarcação para nova análise.
 
 **Pendências para entrar no ar:** aplicar a migration; configurar a variável `R2_DOCUMENTOS_BUCKET_NAME` e o
 CORS do bucket `boatzy-documentos` (ver `SPEC.md` §95.2); garantir que o token do R2 acessa o bucket novo.
@@ -1729,6 +1885,7 @@ equipe_membro_id
 
 ## 8. Regras de Negócio
 
+- Embarcação só é aprovada (publicada) com o documento de inscrição (TIE, TIEM ou PRPM) em dia, conferido pelo admin; roteiro só aparece no site com ele e a embarcação aprovados (01/11/2026 — §6.14)
 - Apenas usuários com reserva concluída podem avaliar
 - Cancelamentos devem respeitar política definida
 - Um usuário pode ter múltiplas reservas
@@ -1761,11 +1918,13 @@ A taxa padrão configurada inicialmente é **10%**. Admins podem alterá-la a qu
 
 ### Fluxo de Cadastro de Barco
 
-1. Owner acessa dashboard  
+1. Owner acessa o Início do painel (Primeiros passos)  
 2. Preenche dados  
 3. Faz upload de imagens  
-4. Envia para análise (o cadastro nasce **Em análise**)  
-5. Admin aprova (publica) ou devolve com observação (**Retorno** → owner ajusta e reenvia)  
+4. Envia o documento de inscrição (TIE/TIEM/PRPM) — etapa Documentos  
+5. Envia para análise (o cadastro nasce **Em análise**)  
+6. Admin confere o documento e aprova (publica) ou devolve com observação (**Devolvido** → owner ajusta e reenvia); sem documento em dia não há aprovação  
+7. Owner cria o roteiro (pode ser durante a análise da embarcação) → aprovação do roteiro → passeio no site  
 
 > Vale também para roteiros e anúncios de venda — ver "Pipeline de aprovação de publicações".
 
@@ -1852,7 +2011,8 @@ A taxa padrão configurada inicialmente é **10%**. Admins podem alterá-la a qu
   em **7 etapas**, com indicador de progresso clicável e navegação livre (dá para ir e voltar a
   qualquer etapa sem perder o que foi preenchido).
   - Embarcação: Informações → Detalhes (especificações + comodidades) → Localização → Fotos →
-    Revisão (**5 etapas** desde 12/10/2026 — Preço e Disponibilidade saíram; ver "Embarcação sem
+    **Documentos** → Revisão (**6 etapas** desde 01/11/2026 — a etapa Documentos recebe TIE/TIEM/PRPM e
+    DPEM, ver §6.14; eram 5 desde 12/10/2026, quando Preço e Disponibilidade saíram — ver "Embarcação sem
     preço e disponibilidade próprios").
   - Roteiro: Informações → Localização → Fotos → Preço → Disponibilidade → Adicionais → Revisão.
 - **Rodapé fixo** com progresso, Voltar, Pré-visualizar e "Próximo: <etapa>". No cadastro novo,
@@ -2597,6 +2757,9 @@ libera o acesso ao painel. Antes, qualquer conta virava gestor em um clique.
   uma conta de cliente), a pessoa vê o formulário **"Peça acesso ao painel de gestor"**: nome,
   celular, CPF ou CNPJ, estado e cidade da embarcação, quantas embarcações tem e uma mensagem
   opcional. Depois de enviar, vê **"Pedido em análise"** até a decisão.
+  *(01/11/2026: o formulário ganhou a etapa **Condução** — quem conduz a própria embarcação envia a CHA/CIR
+  junto com o pedido; a equipe Boatzy a vê na fila de pedidos. Ver §6.14 "Documentos nas jornadas de
+  cadastro".)*
 - **Equipe Boatzy:** novo menu **Usuários** no administrator, com a aba **Pedidos de gestor**
   (Pendentes, Aprovados, Recusados, com contador no menu e no card de fila do dashboard). Cada pedido
   mostra os dados informados; o admin **aprova** (observação opcional) ou **recusa** (motivo

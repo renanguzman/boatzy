@@ -5,7 +5,10 @@ import { revalidatePath } from 'next/cache';
 import { createClient } from '@/lib/supabase/server';
 import { supabaseAdmin } from '@/lib/supabase';
 import { checkRoleInDb } from '@/lib/roles';
-import { hojeISO } from '@/lib/datas';
+import { formatarData, hojeISO } from '@/lib/datas';
+import { inscricaoDaEmbarcacao } from '@/lib/documentos/server';
+import { pendenciaInscricao } from '@/lib/documentos/aprovacao';
+import { TIPOS_DOCUMENTO } from '@/lib/documentos/tipos';
 import { notificarGestorDecisaoPublicacao } from '@/lib/emails/publicacao-decisao';
 import { transicionarPublicacao } from './server';
 import type { PublicacaoEntidade, StatusPublicacaoQualquer } from './config';
@@ -80,6 +83,9 @@ export type DecisaoAdmin = 'aprovar' | 'devolver' | 'moderar';
  * observação obrigatória) e moderar (tira do ar com observação: Inativo
  * para embarcação/roteiro, Pausado para anúncio). A observação vai para o
  * gestor (timeline + e-mail); a interna fica só para o admin.
+ *
+ * Embarcação só é aprovada com o documento de inscrição (TIE/TIEM/PRPM) em dia e
+ * conferido pelo admin (SPEC §95.11) — a conferência fica na observação interna.
  */
 export async function decidirPublicacaoAdmin(input: {
   entidade: PublicacaoEntidade;
@@ -87,10 +93,28 @@ export async function decidirPublicacaoAdmin(input: {
   decisao: DecisaoAdmin;
   observacao?: string;
   observacaoInterna?: string;
+  /** Embarcação: o admin confirmou que conferiu o documento de inscrição. */
+  documentoConferido?: boolean;
 }): Promise<ActionResult> {
   if (!ENTIDADES.includes(input.entidade)) return { ok: false, error: 'Registro inválido.' };
   const auth = await usuarioComPapel(['admin']);
   if ('error' in auth) return { ok: false, error: auth.error };
+
+  let observacaoInterna = input.observacaoInterna;
+  if (input.entidade === 'embarcacao' && input.decisao === 'aprovar') {
+    const doc = await inscricaoDaEmbarcacao(input.id);
+    const pendencia = pendenciaInscricao(doc);
+    if (pendencia === 'nao_enviado') {
+      return { ok: false, error: 'Falta o documento de inscrição (TIE, TIEM ou PRPM). Devolva a embarcação pedindo o envio.' };
+    }
+    if (pendencia === 'vencido' || !doc) {
+      return { ok: false, error: 'O documento de inscrição está vencido. Devolva a embarcação pedindo o documento renovado.' };
+    }
+    if (!input.documentoConferido) return { ok: false, error: 'Confirme que conferiu o documento da embarcação.' };
+    const nota = `Documento conferido na aprovação: ${TIPOS_DOCUMENTO[doc.tipo].sigla}${doc.numero ? ` nº ${doc.numero}` : ''}`
+      + `${doc.data_validade ? `, válido até ${formatarData(doc.data_validade)}` : ''}.`;
+    observacaoInterna = [nota, input.observacaoInterna?.trim()].filter(Boolean).join('\n');
+  }
 
   const para: StatusPublicacaoQualquer =
     input.decisao === 'aprovar' ? 'ativo'
@@ -100,7 +124,7 @@ export async function decidirPublicacaoAdmin(input: {
   const r = await transicionarPublicacao({
     entidade: input.entidade, id: input.id, para,
     atorId: auth.userId, papel: 'admin',
-    observacao: input.observacao, observacaoInterna: input.observacaoInterna,
+    observacao: input.observacao, observacaoInterna,
   });
   if (!r.ok) return r;
 

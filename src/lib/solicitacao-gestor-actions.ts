@@ -6,7 +6,15 @@ import { createClient } from '@/lib/supabase/server';
 import { supabaseAdmin } from '@/lib/supabase';
 import { getRolesFromDb } from '@/lib/roles';
 import { isValidCpfOuCnpj, onlyDigits } from '@/lib/validators';
+import { ensureGestorEquipeMembro } from '@/lib/equipe';
+import { habilitacaoDoGestor } from '@/lib/documentos/server';
+import { arquivoDoDocumento, inserirDocumento, validarCamposDocumento } from '@/lib/documentos/registro';
+import { ehUuid } from '@/lib/upload-imagem-server';
+import type { DocumentoPayload } from '@/lib/documentos/rascunho';
 import { notificarAdminsNovaSolicitacao } from '@/lib/emails/solicitacao-gestor';
+
+/** Quem conduz a embarcação nos passeios: o próprio gestor (envia a habilitação) ou a equipe dele. */
+export type ConducaoSolicitacao = 'proprio' | 'equipe';
 
 export type SolicitarAcessoGestorInput = {
   nome: string;
@@ -16,6 +24,12 @@ export type SolicitarAcessoGestorInput = {
   municipioId: number;
   qtdEmbarcacoes: number;
   mensagem: string;
+  conducao: ConducaoSolicitacao;
+  /**
+   * Habilitação do próprio gestor (CHA/CIR), com o arquivo já no bucket privado. Obrigatória
+   * quando ele conduz — salvo se já tiver uma ativa (pedido recusado e refeito).
+   */
+  habilitacao: DocumentoPayload | null;
 };
 
 export type SolicitarAcessoGestorResult = { ok: true } | { ok: false; error: string };
@@ -52,6 +66,24 @@ export async function solicitarAcessoGestor(
 
   const mensagem = input.mensagem.trim();
   if (mensagem.length > 1000) return { ok: false, error: 'A mensagem pode ter no máximo 1000 caracteres.' };
+
+  // Condução (SPEC §95.10): quem conduz envia a própria habilitação junto com o pedido.
+  if (input.conducao !== 'proprio' && input.conducao !== 'equipe') {
+    return { ok: false, error: 'Conte quem vai conduzir a embarcação nos passeios.' };
+  }
+  const habilitacao = input.conducao === 'proprio' ? input.habilitacao : null;
+  if (habilitacao) {
+    if (!ehUuid(habilitacao.id) || habilitacao.escopo !== 'condutor' || !['cha', 'cir'].includes(habilitacao.tipo)) {
+      return { ok: false, error: 'Habilitação inválida. Envie a CHA ou a CIR.' };
+    }
+    const erroHabilitacao = validarCamposDocumento(habilitacao);
+    if (erroHabilitacao) return { ok: false, error: erroHabilitacao };
+    if (!arquivoDoDocumento(habilitacao.arquivo, user.id, habilitacao.id)) {
+      return { ok: false, error: 'Envie a foto ou o PDF da sua habilitação novamente.' };
+    }
+  } else if (input.conducao === 'proprio' && !(await habilitacaoDoGestor(user.id)).documento) {
+    return { ok: false, error: 'Envie a foto ou o PDF da sua habilitação náutica.' };
+  }
 
   // O município precisa pertencer ao estado escolhido.
   const { data: municipio } = await supabaseAdmin
@@ -101,6 +133,19 @@ export async function solicitarAcessoGestor(
       .eq('id', user.id);
   }
 
+  // Habilitação do gestor: vai para a ficha "Você (gestor)" da equipe — criada só agora,
+  // depois do celular/CPF no perfil, porque ela os herda (o cliente vê o celular de quem atende).
+  if (habilitacao?.arquivo) {
+    const membroId = await ensureGestorEquipeMembro(user.id);
+    if (membroId) {
+      await supabaseAdmin.from('equipe_membro').update({ telefone }).eq('id', membroId).is('telefone', null);
+      const r = await inserirDocumento(user.id, { ...habilitacao, arquivo: habilitacao.arquivo }, { membroId });
+      if (!r.ok) console.error('[solicitacao-gestor] habilitação não salva:', r.error);
+    } else {
+      console.error('[solicitacao-gestor] sem ficha do gestor para a habilitação:', user.id);
+    }
+  }
+
   const uf = (municipio.estados as unknown as { uf: string } | null)?.uf ?? '';
   after(() =>
     notificarAdminsNovaSolicitacao({
@@ -110,6 +155,7 @@ export async function solicitarAcessoGestor(
       municipio: uf ? `${municipio.nome}/${uf}` : municipio.nome,
       qtdEmbarcacoes: qtd,
       criadoEm: criada.created_at,
+      conducao: input.conducao,
     }),
   );
 

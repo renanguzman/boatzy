@@ -1,8 +1,14 @@
 import { redirect } from 'next/navigation';
-import { UsersRound, UserPlus } from 'lucide-react';
+import Link from 'next/link';
+import { UsersRound, UserPlus, IdCard } from 'lucide-react';
 import { createClient } from '@/lib/supabase/server';
 import { supabaseAdmin } from '@/lib/supabase';
 import { ensureGestorEquipeMembro } from '@/lib/equipe';
+import { habilitacaoDoGestor } from '@/lib/documentos/server';
+import { TIPOS_DOCUMENTO, rotuloCategoria } from '@/lib/documentos/tipos';
+import { situacaoValidade } from '@/lib/documentos/validade';
+import type { DocumentoAtual } from '@/lib/documentos/rascunho';
+import { PrazoValidade, SeloValidade } from '@/components/painel/documentos/SeloValidade';
 import NovoMembroForm from './_components/NovoMembroForm';
 import EquipeGrid, { type MembroListItem } from './_components/EquipeGrid';
 import type { EquipeFuncao } from '@/types/supabase';
@@ -29,7 +35,7 @@ export default async function EquipePage() {
   // Garante a ficha "Você (gestor)" — opção de atendente na confirmação.
   await ensureGestorEquipeMembro(user.id);
 
-  const [{ data: membrosData }, { data: embarcacoesData }] = await Promise.all([
+  const [{ data: membrosData }, { data: embarcacoesData }, gestorCondutor] = await Promise.all([
     supabaseAdmin
       .from('equipe_membro')
       .select(
@@ -44,6 +50,7 @@ export default async function EquipePage() {
       .select('id, nome')
       .eq('owner_id', user.id)
       .order('nome', { ascending: true }),
+    habilitacaoDoGestor(user.id),
   ]);
 
   const membros = (membrosData ?? []) as unknown as MembroRow[];
@@ -96,6 +103,10 @@ export default async function EquipePage() {
         </div>
       </div>
 
+      {embarcacoes.length > 0 && gestorCondutor.membroId && (
+        <CartaoGestorCondutor membroId={gestorCondutor.membroId} documento={gestorCondutor.documento} />
+      )}
+
       <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-4 sm:p-6 mb-6 sm:mb-8">
         <div className="flex items-center gap-2 mb-4 sm:mb-6">
           <UserPlus className="w-4 h-4 text-slate-500" />
@@ -111,6 +122,53 @@ export default async function EquipePage() {
       </div>
 
       <EquipeGrid membros={lista} />
+    </div>
+  );
+}
+
+/**
+ * "Você (gestor)" como condutor (SPEC §95.10): a ficha do gestor não é editável na
+ * Equipe, mas a habilitação dele mora aqui também — envio/renovação pelo menu Documentos.
+ */
+function CartaoGestorCondutor({ membroId, documento }: { membroId: string; documento: DocumentoAtual | null }) {
+  const situacao = documento ? situacaoValidade(documento.data_validade) : null;
+  const renovar = situacao === 'vencido' || situacao === 'vence_em_breve';
+  const href = documento && !renovar
+    ? '/painel/documentos?aba=condutores'
+    : `/painel/documentos/novo?escopo=condutor&tipo=${documento?.tipo ?? 'cha'}&membro=${membroId}`;
+
+  return (
+    <div className="mb-6 flex flex-col gap-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:flex-row sm:items-center sm:p-5">
+      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#0B2447]/5">
+        <IdCard className="h-5 w-5 text-[#0B2447]" />
+      </div>
+      <div className="min-w-0 flex-1">
+        <p className="text-sm font-semibold text-[#0B2447]">Você (gestor) também conduz?</p>
+        {documento ? (
+          <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1">
+            <span className="text-xs font-semibold text-slate-700">
+              Sua {TIPOS_DOCUMENTO[documento.tipo].sigla}
+              {rotuloCategoria(documento.categoria) ? ` · ${rotuloCategoria(documento.categoria)}` : ''}
+            </span>
+            <SeloValidade validade={documento.data_validade} />
+            <PrazoValidade validade={documento.data_validade} />
+          </div>
+        ) : (
+          <p className="mt-0.5 text-xs text-slate-500">
+            Se você mesmo pilota suas embarcações, guarde sua habilitação (CHA) aqui — acompanhamos a validade e avisamos antes de vencer.
+          </p>
+        )}
+      </div>
+      <Link
+        href={href}
+        className={`shrink-0 rounded-xl px-4 py-2.5 text-center text-sm font-semibold transition-colors ${
+          documento && !renovar
+            ? 'border border-slate-200 text-slate-600 hover:bg-slate-50'
+            : 'bg-[#0B2447] text-white hover:bg-[#0B3D91]'
+        }`}
+      >
+        {!documento ? 'Enviar minha habilitação' : renovar ? 'Renovar habilitação' : 'Ver em Documentos'}
+      </Link>
     </div>
   );
 }

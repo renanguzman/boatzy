@@ -31,14 +31,23 @@ export function useEtapas(
       topoRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }));
   }, [total]);
 
-  // Abre a etapa indicada no hash da URL (ex.: atalho "Definir preço" da listagem).
+  // Abre a etapa indicada no hash da URL (ex.: atalho "Definir preço" da listagem) — ao abrir a
+  // página e também quando um link da própria página muda o hash (ex.: "Enviar documento" do aviso).
   const idsChave = ids.join('|');
   useEffect(() => {
-    const hash = window.location.hash.replace('#', '');
-    const i = idsChave ? idsChave.split('|').indexOf(hash) : -1;
-    if (i <= 0) return;
-    const raf = requestAnimationFrame(() => ir(i));
-    return () => cancelAnimationFrame(raf);
+    if (!idsChave) return;
+    const lista = idsChave.split('|');
+    const abrirDoHash = (inicio: boolean) => {
+      const i = lista.indexOf(window.location.hash.replace('#', ''));
+      if (i > 0 || (!inicio && i === 0)) ir(i);
+    };
+    const raf = requestAnimationFrame(() => abrirDoHash(true));
+    const aoMudar = () => abrirDoHash(false);
+    window.addEventListener('hashchange', aoMudar);
+    return () => {
+      cancelAnimationFrame(raf);
+      window.removeEventListener('hashchange', aoMudar);
+    };
   }, [idsChave, ir]);
 
   return {

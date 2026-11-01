@@ -4,6 +4,7 @@ import { Users } from 'lucide-react';
 import { createClient } from '@/lib/supabase/server';
 import { supabaseAdmin } from '@/lib/supabase';
 import type { SolicitacaoGestorStatus } from '@/types/supabase';
+import { habilitacoesDosGestores } from '@/lib/documentos/server';
 import UsuariosAbas from '../_components/UsuariosAbas';
 import SolicitacoesLista, { type SolicitacaoItem } from '../_components/SolicitacoesLista';
 
@@ -56,6 +57,8 @@ export default async function AdminSolicitacoesGestorPage({ searchParams }: { se
   ]);
 
   const itens = (data ?? []) as unknown as SolicitacaoItem[];
+  // Habilitação náutica que o solicitante enviou com o pedido (quando ele mesmo conduz — SPEC §95.10).
+  const habilitacoes = await habilitacoesDosGestores(itens.flatMap((i) => (i.usuario ? [i.usuario.id] : [])));
   const total = count ?? 0;
   const totalPaginas = Math.max(1, Math.ceil(total / POR_PAGINA));
   const href = (st: SolicitacaoGestorStatus, p = 1) =>
@@ -98,7 +101,7 @@ export default async function AdminSolicitacoesGestorPage({ searchParams }: { se
         ))}
       </div>
 
-      <SolicitacoesLista itens={itens} status={status} />
+      <SolicitacoesLista itens={itens} status={status} habilitacoes={Object.fromEntries(habilitacoes)} />
 
       {totalPaginas > 1 && (
         <div className="mt-5 flex items-center justify-between text-xs text-slate-400">

@@ -6,10 +6,14 @@ import { useRouter } from 'next/navigation';
 import {
   User, Upload, X, Loader2, AlertCircle, CheckCircle, Search, BadgeCheck, Ship,
 } from 'lucide-react';
-import { maskCPF, onlyDigits, applyPhoneMask } from '@/lib/validators';
+import { maskCPF, onlyDigits, applyPhoneMask, isValidCPF } from '@/lib/validators';
 import { MAX_IMAGE_SIZE_BYTES, MAX_IMAGE_SIZE_ERROR } from '@/lib/upload';
 import { FUNCOES_EQUIPE } from '@/lib/documentos/tipos';
+import { SIMILARIDADE_SUGESTAO, similaridadeNomes } from '@/lib/documentos/nomes';
+import type { DocumentoAtual, RascunhoDocumento } from '@/lib/documentos/rascunho';
+import DocumentoEmbutido from '@/components/painel/documentos/DocumentoEmbutido';
 import type { EquipeFuncao } from '@/types/supabase';
+import { enviarArquivosDosRascunhos, erroDosRascunhos, registrarRascunhos } from '../../documentos/_lib/rascunhos';
 import {
   criarMembro,
   atualizarMembro,
@@ -39,6 +43,8 @@ export type MembroFormData = {
 type Props = {
   embarcacoes: { id: string; nome: string }[];
   membro?: MembroFormData;
+  /** Habilitação ativa do membro (edição) — resumo com "Substituir"/"Renovar". */
+  habilitacaoAtual?: DocumentoAtual | null;
 };
 
 function phoneMask(digits: string): string {
@@ -46,7 +52,7 @@ function phoneMask(digits: string): string {
   return applyPhoneMask(d, d.length > 10 ? '(##) #####-####' : '(##) ####-####');
 }
 
-export default function MembroForm({ embarcacoes, membro }: Props) {
+export default function MembroForm({ embarcacoes, membro, habilitacaoAtual = null }: Props) {
   const router = useRouter();
   const editMode = !!membro;
   const fileRef = useRef<HTMLInputElement>(null);
@@ -70,8 +76,24 @@ export default function MembroForm({ embarcacoes, membro }: Props) {
   const [resultados, setResultados] = useState<UsuarioVinculavel[]>([]);
   const [buscando, startBusca] = useTransition();
 
+  // Habilitação náutica (CHA/CIR) — gravada junto com o membro (SPEC §95.10)
+  const [habilitacao, setHabilitacao] = useState<RascunhoDocumento | null>(null);
+
   const [feedback, setFeedback] = useState<{ type: 'error' | 'success'; msg: string } | null>(null);
   const [submitting, setSubmitting] = useState(false);
+
+  /** A carteira lida completa nome e CPF ainda em branco (nunca sobrescreve o digitado). */
+  function completarComHabilitacao(r: RascunhoDocumento) {
+    const titular = r.campos.titular.trim();
+    if (titular) setNome((n) => (n.trim() ? n : titular));
+    if (isValidCPF(r.campos.cpf)) setCpf((c) => (onlyDigits(c) ? c : r.campos.cpf));
+  }
+
+  const nomeNaCarteira = habilitacao?.campos.titular.trim() ?? '';
+  const cpfNaCarteira = habilitacao?.campos.cpf ?? '';
+  const nomeDiverge =
+    nomeNaCarteira.length >= 3 && nome.trim().length >= 3 && similaridadeNomes(nomeNaCarteira, nome) < SIMILARIDADE_SUGESTAO;
+  const cpfDiverge = isValidCPF(cpfNaCarteira) && isValidCPF(cpf) && onlyDigits(cpfNaCarteira) !== onlyDigits(cpf);
 
   function toggleEmb(id: string) {
     setSelEmb((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
@@ -128,7 +150,20 @@ export default function MembroForm({ embarcacoes, membro }: Props) {
     e.preventDefault();
     if (submitting) return;
     setFeedback(null);
+    const erroHabilitacao = erroDosRascunhos([habilitacao]);
+    if (erroHabilitacao) {
+      setFeedback({ type: 'error', msg: erroHabilitacao });
+      return;
+    }
     setSubmitting(true);
+
+    // O arquivo da habilitação sobe antes (bucket privado): se falhar, nada é salvo.
+    const falhaArquivo = await enviarArquivosDosRascunhos([habilitacao]);
+    if (falhaArquivo) {
+      setFeedback({ type: 'error', msg: falhaArquivo });
+      setSubmitting(false);
+      return;
+    }
 
     const payload: MembroFormPayload = {
       nome_completo: nome,
@@ -155,6 +190,12 @@ export default function MembroForm({ embarcacoes, membro }: Props) {
         } else if (!fotoUrl && membro.foto_url) {
           await removerFotoMembro(membro.id);
         }
+        const docs = await registrarRascunhos([habilitacao], { membroId: membro.id });
+        if (docs.falhas.length > 0) {
+          setFeedback({ type: 'error', msg: `Os dados foram salvos, mas a habilitação não (${docs.falhas.join('; ')}). Confira e salve de novo.` });
+          setSubmitting(false);
+          return;
+        }
         setFeedback({ type: 'success', msg: 'Membro atualizado.' });
         setSubmitting(false);
         setTimeout(() => router.push('/painel/equipe'), 900);
@@ -170,6 +211,14 @@ export default function MembroForm({ embarcacoes, membro }: Props) {
       if (fotoFile) {
         const url = await uploadFoto(res.membroId);
         if (url) await salvarFotoMembro(res.membroId, url);
+      }
+      const docs = await registrarRascunhos([habilitacao], { membroId: res.membroId });
+      if (docs.falhas.length > 0) {
+        // O membro já existe: segue para a edição dele, onde a habilitação pode ser enviada de novo.
+        setFeedback({ type: 'error', msg: `Membro cadastrado, mas a habilitação não foi salva (${docs.falhas.join('; ')}). Abrindo o cadastro para você enviar de novo…` });
+        setSubmitting(false);
+        setTimeout(() => router.push(`/painel/equipe/${res.membroId}/editar`), 3500);
+        return;
       }
       setFeedback({ type: 'success', msg: `Membro "${nome.trim()}" cadastrado.` });
       setSubmitting(false);
@@ -306,6 +355,34 @@ export default function MembroForm({ embarcacoes, membro }: Props) {
           />
         </div>
       </div>
+
+      {/* Habilitação náutica (CHA/CIR) */}
+      <DocumentoEmbutido
+        escopo="condutor"
+        tipos={['cha', 'cir']}
+        titulo="Habilitação náutica"
+        descricao="CHA (Arrais, Mestre, Capitão-Amador…) ou CIR de quem conduz. Lemos a carteira e, se nome e CPF estiverem em branco, preenchemos para você. Avisamos antes de vencer."
+        selo={funcao === 'auxiliar' ? 'opcional' : 'recomendado'}
+        atual={habilitacaoAtual}
+        valor={habilitacao}
+        onChange={setHabilitacao}
+        pessoasConhecidas={nome.trim() ? [nome.trim()] : []}
+        onLeitura={completarComHabilitacao}
+        desabilitado={submitting}
+        avisos={(nomeDiverge || cpfDiverge) && (
+          <p className="flex items-start gap-2 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2.5 text-sm text-amber-900">
+            <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
+            <span>
+              {nomeDiverge && cpfDiverge
+                ? 'O nome e o CPF da carteira são diferentes dos informados acima.'
+                : nomeDiverge
+                  ? `O nome na carteira (${nomeNaCarteira}) é diferente do informado acima.`
+                  : `O CPF da carteira (${cpfNaCarteira}) é diferente do informado acima.`}{' '}
+              Confira se a habilitação é desta pessoa.
+            </span>
+          </p>
+        )}
+      />
 
       {/* Embarcações */}
       <div>

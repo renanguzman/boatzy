@@ -46,6 +46,20 @@ function conteudoValido(buf: Buffer): boolean {
 }
 
 /**
+ * Gestor/admin, ou quem está pedindo acesso de gestor — envia a própria habilitação junto
+ * com o pedido (SPEC §95.10). Com o pedido já em análise, não envia mais nada.
+ */
+async function podeEnviarDocumentos(userId: string): Promise<boolean> {
+  if (await checkRoleInDb(userId, ['gestor', 'admin'])) return true;
+  const { count } = await supabaseAdmin
+    .from('solicitacao_gestor')
+    .select('id', { count: 'exact', head: true })
+    .eq('user_id', userId)
+    .eq('status', 'pendente');
+  return (count ?? 0) === 0;
+}
+
+/**
  * POST /api/painel/documentos/upload
  *   { acao: 'preparar', documentoId, nome, tipo, tamanho } → { uploadUrl, key }
  *   { acao: 'confirmar', documentoId, key }               → { key }
@@ -56,7 +70,7 @@ export async function processarUploadDocumento(req: NextRequest): Promise<NextRe
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return erro('sua sessão expirou. Entre novamente no painel e tente de novo.', 401);
-  if (!(await checkRoleInDb(user.id, ['gestor', 'admin']))) {
+  if (!(await podeEnviarDocumentos(user.id))) {
     return erro('sua conta não tem permissão para enviar documentos.', 403);
   }
 

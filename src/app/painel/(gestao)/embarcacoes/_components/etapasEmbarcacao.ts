@@ -4,6 +4,9 @@ import type { GaleriaItem } from '@/components/painel/GaleriaImagensEditor';
 import type { EmbarcacaoCardData } from '@/components/ui/EmbarcacaoCard';
 import { formatarComprimento } from '@/lib/comprimento';
 import { FOTOS_RECOMENDADAS } from '@/lib/upload';
+import { TIPOS_DOCUMENTO } from '@/lib/documentos/tipos';
+import { situacaoValidade, type SituacaoValidade } from '@/lib/documentos/validade';
+import { erroConferencia, type DocumentoAtual, type RascunhoDocumento } from '@/lib/documentos/rascunho';
 
 /**
  * Etapas do cadastro/edição de embarcação (`NovaEmbarcacaoForm` e
@@ -15,12 +18,36 @@ export const ETAPAS_EMBARCACAO: EtapaDef[] = [
   { id: 'detalhes',        label: 'Detalhes',        desc: 'Especificações e comodidades' },
   { id: 'localizacao',     label: 'Localização',     desc: 'Onde ela fica' },
   { id: 'fotos',           label: 'Fotos',           desc: 'Galeria e títulos' },
+  { id: 'documentacao',    label: 'Documentos',      desc: 'TIE e seguro DPEM' },
   { id: 'revisao',         label: 'Revisão',         desc: 'Conferir e salvar' },
 ];
 
 export const ETAPA_EMB = {
-  informacoes: 0, detalhes: 1, localizacao: 2, fotos: 3, revisao: 4,
+  informacoes: 0, detalhes: 1, localizacao: 2, fotos: 3, documentacao: 4, revisao: 5,
 } as const;
+
+/** Documento da etapa Documentos como a Revisão o resume: a enviar (rascunho) ou o ativo salvo. */
+export type DocRevisao = { sigla: string; estado: 'novo' | SituacaoValidade; erro: string | null };
+
+export function docRevisao(rascunho: RascunhoDocumento | null, atual: DocumentoAtual | null | undefined): DocRevisao | null {
+  if (rascunho) {
+    const sigla = TIPOS_DOCUMENTO[rascunho.tipo].sigla;
+    const erro = erroConferencia(rascunho.tipo, rascunho.escopo, rascunho.campos);
+    return { sigla, estado: 'novo', erro: erro ? `${sigla}: ${erro}` : null };
+  }
+  if (atual) return { sigla: TIPOS_DOCUMENTO[atual.tipo].sigla, estado: situacaoValidade(atual.data_validade), erro: null };
+  return null;
+}
+
+function textoDoc(d: DocRevisao): string {
+  switch (d.estado) {
+    case 'novo': return `${d.sigla} a salvar`;
+    case 'vencido': return `${d.sigla} vencido`;
+    case 'vence_em_breve': return `${d.sigla} vence em breve`;
+    case 'em_dia': return `${d.sigla} em dia`;
+    default: return `${d.sigla} enviado`;
+  }
+}
 
 
 function plural(n: number, um: string, varios: string) {
@@ -40,6 +67,8 @@ export function revisaoEmbarcacao(args: {
   municipios: { id: number; nome: string }[];
   comodidadesSelecionadas: string[];
   imagens: GaleriaItem[];
+  /** Etapa Documentos; null/ausente = não se aplica (edição pelo admin). */
+  documentacao?: { inscricao: DocRevisao | null; dpem: DocRevisao | null } | null;
   ir: (etapa: number) => void;
 }): { itens: ItemRevisao[]; card: EmbarcacaoCardData } {
   const { form, ir } = args;
@@ -91,6 +120,20 @@ export function revisaoEmbarcacao(args: {
       onEditar: () => ir(ETAPA_EMB.fotos),
     },
   ];
+
+  if (args.documentacao) {
+    const { inscricao, dpem } = args.documentacao;
+    const erro = inscricao?.erro ?? dpem?.erro ?? null;
+    itens.push({
+      label: 'Documentos',
+      status: erro ? 'erro' : !inscricao || inscricao.estado === 'vencido' || dpem?.estado === 'vencido' ? 'aviso' : 'ok',
+      resumo: erro ?? [
+        inscricao ? textoDoc(inscricao) : 'Sem TIE — a embarcação só é aprovada depois que você enviar',
+        dpem ? textoDoc(dpem) : 'sem seguro DPEM',
+      ].join(' · '),
+      onEditar: () => ir(ETAPA_EMB.documentacao),
+    });
+  }
 
   const card: EmbarcacaoCardData = {
     id: 'preview',

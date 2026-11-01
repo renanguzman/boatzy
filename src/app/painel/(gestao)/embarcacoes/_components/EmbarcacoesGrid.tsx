@@ -8,6 +8,7 @@ import {
   ChevronUp,
   ChevronDown,
   MapPinPlus,
+  FileWarning,
   Pencil,
   Trash2,
   Ship,
@@ -18,6 +19,7 @@ import {
 } from 'lucide-react';
 import type { PublicacaoStatus } from '@/types/supabase';
 import AcoesStatusGestor from '@/components/publicacao/AcoesStatusGestor';
+import { rotuloPendenciaInscricao, type PendenciaInscricao } from '@/lib/documentos/aprovacao';
 
 const PAGE_SIZE = 10;
 
@@ -45,6 +47,21 @@ function Dica({ texto, children }: { texto: string; children: ReactNode }) {
 
 export type EmbarcacaoStatus = PublicacaoStatus;
 
+/** "Falta o TIE" / "TIE vencido" — leva direto à etapa Documentos da embarcação. */
+function SeloDocumento({ id, status, pendencia }: { id: string; status: EmbarcacaoStatus; pendencia: PendenciaInscricao }) {
+  const rotulo = rotuloPendenciaInscricao(pendencia);
+  if (!rotulo || status === 'inativo') return null;
+  return (
+    <Link
+      href={`/painel/embarcacoes/${id}/editar#documentacao`}
+      title="Sem o documento em dia, a equipe Boatzy não aprova a embarcação"
+      className="inline-flex items-center gap-1 rounded-full bg-red-50 px-2 py-0.5 text-[11px] font-semibold text-red-700 ring-1 ring-red-200 hover:bg-red-100"
+    >
+      <FileWarning className="h-3 w-3" /> {rotulo}
+    </Link>
+  );
+}
+
 export type EmbarcacaoListItem = {
   id: string;
   nome: string;
@@ -55,6 +72,8 @@ export type EmbarcacaoListItem = {
   municipios: { nome: string; estados: { uf: string } | null } | null;
   embarcacao_imagens: { url_imagem: string; principal: boolean }[];
   roteiro: { id: string; nome: string }[];
+  /** Documento de inscrição faltando/vencido — sem ele a embarcação não é aprovada. */
+  pendenciaDocumento: PendenciaInscricao;
 };
 
 type SortKey = 'nome' | 'tipo' | 'status' | 'localidade' | 'capacidade' | 'roteiros' | 'created_at';
@@ -225,10 +244,13 @@ export default function EmbarcacoesGrid({ embarcacoes }: { embarcacoes: Embarcac
                     </div>
                   </div>
                   <div className="mt-3 flex items-center justify-between gap-2">
-                    <AcoesStatusGestor
-                      entidade="embarcacao" id={e.id} nome={e.nome} status={e.status}
-                      roteirosVinculados={e.roteiro.map((r) => r.nome)}
-                    />
+                    <div className="flex flex-col items-start gap-1.5">
+                      <AcoesStatusGestor
+                        entidade="embarcacao" id={e.id} nome={e.nome} status={e.status}
+                        roteirosVinculados={e.roteiro.map((r) => r.nome)}
+                      />
+                      <SeloDocumento id={e.id} status={e.status} pendencia={e.pendenciaDocumento} />
+                    </div>
                     <div className="flex items-center gap-1 shrink-0">
                       {e.status !== 'inativo' && (
                         <Link
@@ -319,10 +341,13 @@ export default function EmbarcacoesGrid({ embarcacoes }: { embarcacoes: Embarcac
 
                       {/* Status da publicação + ações do dono */}
                       <td className="py-4 px-4">
-                        <AcoesStatusGestor
-                          entidade="embarcacao" id={e.id} nome={e.nome} status={e.status}
-                          roteirosVinculados={e.roteiro.map((r) => r.nome)}
-                        />
+                        <div className="flex flex-col items-start gap-1.5">
+                          <AcoesStatusGestor
+                            entidade="embarcacao" id={e.id} nome={e.nome} status={e.status}
+                            roteirosVinculados={e.roteiro.map((r) => r.nome)}
+                          />
+                          <SeloDocumento id={e.id} status={e.status} pendencia={e.pendenciaDocumento} />
+                        </div>
                       </td>
 
                       {/* Localização */}

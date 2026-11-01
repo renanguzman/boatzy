@@ -284,7 +284,7 @@ Módulo independente do hotsite, acessível apenas por usuários cuja lista de r
 |------|-----------|------|
 | `/painel/login` | Landing do proprietário + cadastro/login de gestores (§93) | Pública |
 | `/painel/cadastro` | Redireciona para `/painel/login?aba=cadastro` (§93) | Pública |
-| `/painel` | Dashboard com dados reais do gestor (ver "Dashboard" abaixo) | gestor/admin |
+| `/painel` | Início: primeiros passos, para fazer agora, resumo, agenda (§97) | gestor/admin |
 | `/painel/agendamentos` | Listagem/gestão de reservas (Confirmar/Recusar) — ver §20 | gestor/admin |
 | `/painel/embarcacoes` | CRUD de embarcações | gestor/admin |
 | `/painel/clientes` | Clientes com reserva no gestor + chat (ver §21) | gestor/admin |
@@ -346,6 +346,8 @@ Breakpoints Tailwind padrão; o painel é "desktop a partir de `lg` (1024px)".
 - Alvos de toque de ícones de ação: 40px (`w-10 h-10`) nos cards mobile.
 
 ### Dashboard (`/painel`)
+
+> **Substituído em 01/11/2026 pelo Início — ver §97.** O texto abaixo descreve a versão anterior.
 
 `src/app/painel/(gestao)/page.tsx` — Server Component (era template mock `'use client'`; reescrito
 com dados reais). Valida sessão (`redirect /painel/login`), chama `concluirReservasVencidas()` e
@@ -685,8 +687,8 @@ gradiente. Cards/listagens continuam usando a **principal** como capa.
 ### Cadastro em etapas (wizard) — embarcação e roteiro
 
 Os quatro formulários (`NovaEmbarcacaoForm`, `EditarEmbarcacaoForm`, `NovoRoteiroForm`,
-`EditarRoteiroForm`; o admin reutiliza os de edição) são divididos em etapas — **5 na embarcação**
-(Preço e Disponibilidade saíram em 12/10/2026, §39) e **7 no roteiro**. Continua sendo
+`EditarRoteiroForm`; o admin reutiliza os de edição) são divididos em etapas — **6 na embarcação**
+(Preço e Disponibilidade saíram em 12/10/2026, §39; Documentos entrou em 01/11/2026, §95.10) e **7 no roteiro**. Continua sendo
 **um único `<form>`** com um único estado: cada grupo de seções fica num
 `<div hidden={etapas.atual !== N}>`, então nada é desmontado ao trocar de etapa (mapa, calendário,
 galeria e dados permanecem).
@@ -697,8 +699,8 @@ galeria e dados permanecem).
 | 2 | Detalhes (especificações + comodidades) | Localização de partida |
 | 3 | Localização | Fotos |
 | 4 | Fotos | Preço (modelos de cobrança) |
-| 5 | Revisão | Disponibilidade |
-| 6 | — | Adicionais (catálogo) |
+| 5 | Documentos (TIE/TIEM/PRPM e DPEM — §95.10) | Disponibilidade |
+| 6 | Revisão | Adicionais (catálogo) |
 | 7 | — | Revisão |
 
 Definições e montagem da revisão: `embarcacoes/_components/etapasEmbarcacao.ts`
@@ -4048,6 +4050,9 @@ Validado no navegador (roteiro e embarcação com capacidade 12, chegando com 14
 
 ## 28. Tutorial guiado do painel (`/painel`)
 
+> **Revisto em 01/11/2026 (§97.5):** 9 passos, chave `boatzy:tutorial-painel:v2`, novos alvos
+> `nav-documentos` e `nav-grupo-ferramentas`; os passos 28.3 abaixo são da versão anterior.
+
 Onboarding em overlay que apresenta o dashboard, o menu lateral e induz o gestor a cadastrar uma
 embarcação e depois criar um roteiro.
 
@@ -4693,6 +4698,16 @@ CASCADE). FK único para `equipe_membro` — a opção "Você (gestor)" também 
   `reserva_atendente` — só desativar), `buscarUsuarioParaVincular(termo)` (nome/e-mail/CPF, ≥ 3
   chars). Validação: `isValidCPF`, telefone 10–11 dígitos, e-mail opcional, embarcações do próprio
   gestor. CPF duplicado → erro amigável (23505).
+- **Habilitação no formulário (01/11/2026, §95.10):** `MembroForm` tem a seção `DocumentoEmbutido`
+  (CHA/CIR; selo "Opcional" para Auxiliar, senão "Recomendado") + prop `habilitacaoAtual` (a edição carrega
+  `habilitacaoDoMembro`). A leitura completa nome/CPF vazios (`completarComHabilitacao`, updates funcionais)
+  e há aviso quando nome (`similaridadeNomes < SIMILARIDADE_SUGESTAO`) ou CPF divergem. Ao salvar: confere
+  (`erroDosRascunhos`) → sobe o arquivo (`enviarArquivosDosRascunhos`) → `criarMembro`/`atualizarMembro` →
+  `registrarRascunhos(…, { membroId })`. Falha só no documento: cadastro novo segue para a edição do membro;
+  edição mantém o rascunho para nova tentativa.
+- `/painel/equipe` mostra o cartão **"Você (gestor) também conduz?"** (`CartaoGestorCondutor`, com ≥ 1
+  embarcação): habilitação do gestor (`habilitacaoDoGestor`) com selo e prazo → "Ver em Documentos" /
+  "Renovar habilitação", ou "Enviar minha habilitação" → `/painel/documentos/novo?escopo=condutor&tipo=cha&membro=<ficha>`.
 
 ### 32.5 Confirmação da reserva — indicação de atendente(s)
 
@@ -6005,6 +6020,9 @@ ordem, antes do deploy do código.**
 | `roteiro.status` (nova) | `publicacao_status` | idem |
 | `anuncio_venda.status` | `anuncio_venda_status` | `em_analise`, `retorno`, `ativo`, `pausado`, `vendido`, `cancelado` |
 
+Rótulo do `retorno` na interface: **"Devolvido"** desde 01/11/2026 (`STATUS_INFO`; o valor no banco não mudou).
+Aprovação de embarcação exige o documento de inscrição em dia e conferido — §95.11.
+
 Default das três: `em_analise`. TS: `PublicacaoStatus` (`EmbarcacaoStatus` é alias) e `AnuncioVendaStatus`
 em `src/types/supabase.ts`.
 
@@ -6878,6 +6896,10 @@ usuários com o papel vindo do formulário — inclusive `admin`.
   (`isValidCpfOuCnpj`), município do estado escolhido, quantidade (1–999) e mensagem; insere o
   pedido (23505 → "Você já tem um pedido em análise"); completa `users.phone`/`cpf_cnpj` só se
   vazios; `after()` → e-mail a todos os admins.
+- **Etapa Condução (01/11/2026, §95.10):** `SolicitacaoGestor` em 2 etapas (`passo` 0 = dados, 1 =
+  condução; `hidden` mantém os campos montados; o submit do passo 0 valida e avança). `SolicitarAcessoGestorInput`
+  ganhou `conducao: 'proprio' | 'equipe'` e `habilitacao: DocumentoPayload | null`; prop `habilitacao` (atual,
+  do layout via `habilitacaoDoGestor`) para pedido refeito e para o "Pedido em análise".
 - `/painel/cadastro`: o aviso pós-cadastro diz que o acesso passa pela aprovação da equipe. *(Desde
   26/10/2026 o cadastro é a aba "Criar conta" de `/painel/login`, que mantém o aviso — §93.)*
 
@@ -8517,6 +8539,8 @@ CHECK `notificacao_tipo_valido`.
   `TIPOS_ARQUIVO_DOCUMENTO`, máx. 20 MB. Documento existente: só o dono. Nunca devolve URL pública.
 - `GET /api/painel/documentos/[id]/arquivo` → confere dono e redireciona para URL assinada de 5 min
   (`urlAssinadaDocumento`, `inline`). `apagarArquivoDocumento(key)` na troca de arquivo e na exclusão.
+- Quem envia (`podeEnviarDocumentos`, 01/11/2026): `gestor`/`admin` **ou** usuário sem esses papéis e **sem
+  pedido de acesso `pendente`** — o solicitante sobe a própria habilitação antes de enviar o pedido (§95.10).
 - Navegador: `src/lib/documentos/envio.ts` — `validarArquivoDocumento`, `enviarArquivoDocumento(file, id,
   onProgresso)` → `ArquivoEnviado { key, nome, tipo, tamanho }`.
 - **Pré-requisito — CORS do bucket `boatzy-documentos`** (mesma regra do `boatzy-prod`): origens
@@ -8628,7 +8652,7 @@ CHECK `notificacao_tipo_valido`.
   `?aba=condutores` iniciais), abas Embarcações/Condutores, `CartaoAlvo` (pior situação, "+ Documento",
   Histórico), `LinhaDocumento` (ver arquivo, Renovar → `novo?escopo&alvo&tipo`, editar, excluir),
   `LinhaPendente` (TIE/TIEM faltando em destaque; DPEM recomendado; "Enviar CHA").
-- `/painel/documentos/novo` (`DocumentoWizard`): passos O que é → Arquivo → Conferir e salvar; atalhos por
+- `/painel/documentos/novo` (`DocumentoWizard`, que desde 01/11/2026 usa as peças compartilhadas da §95.10): passos O que é → Arquivo → Conferir e salvar; atalhos por
   query (`escopo`, `tipo`, `embarcacao`, `membro`, validados no servidor); aviso de substituição; campos
   com selo "lido do documento"; proprietário sugerido com o nome do gestor; "Usar emissão + N anos";
   `SecaoCondutor` (só a função no cadastro novo — o CPF fica nos campos do documento). Habilitação:
@@ -8662,7 +8686,7 @@ privado (CORS/credenciais), actions e cron contra o banco, telas logadas como ge
 O "Tirar foto" com `<input capture="environment">` só abre a câmera no celular; no notebook abria o
 explorador de arquivos. Agora o painel tem câmera própria.
 
-- `documentos/_components/CameraDocumento.tsx` (portal em `document.body`, tela cheia, `z-[80]`):
+- `src/components/painel/documentos/CameraDocumento.tsx` (movido de `documentos/_components/` em 01/11/2026 — §95.10; portal em `document.body`, tela cheia, `z-[80]`):
   - `getUserMedia({ video: { facingMode: { ideal: 'environment' }, width 1920, height 1080 } })`; troca
     de câmera (`enumerateDevices`, `deviceId`) quando há mais de uma; trava a rolagem; Esc fecha; desliga
     as faixas ao fechar.
@@ -8759,6 +8783,107 @@ filtro explícito. Requisitos: PRD §6.14 "Visão do admin". Somente leitura.
   temporária (já removida) com casos fictícios: vencida + equipe, sem documentos, só DPEM, em dia vencendo em
   20 dias, membro inativo/incompleto. Não exercitado logado como admin no navegador.
 
+### 95.10 Documentos nas jornadas de cadastro (01/11/2026)
+
+PRD §6.14 "Documentos nas jornadas de cadastro". Cada documento entra no cadastro correlato, com a mesma
+leitura/conferência do menu Documentos; o menu segue como central de validade.
+
+**Peças compartilhadas** (refatoradas a partir do `DocumentoWizard`, que passou a usá-las — comportamento igual):
+- `src/lib/documentos/rascunho.ts` (neutro): `CamposDocumento`, `CampoLido`, `ExtraCondutor`, `CAMPOS_VAZIOS`,
+  `somarAnos`, `aplicarLeitura(campos lidos, tipo, escopo) → { campos, dados, lidos, tipoSugerido }`,
+  `AVISO_LEITURA_VAZIA/FALHOU`, `erroConferencia(tipo, escopo, campos)` (validade obrigatória, validade ≥
+  emissão, título no "outro", CPF válido), `RascunhoDocumento` (`id` gerado no navegador, `arquivo: File`,
+  campos, dados, origem, lidos, qualidade, avisoLeitura, tipoSugerido), `DocumentoAtual` (resumo do ativo:
+  id, tipo, titulo, numero, titular, categoria, data_validade, tem_arquivo), `DocumentoPayload` e
+  `CondutorPayload` (movidos das actions — arquivo `'use server'` **não pode reexportar tipos**: o compilador
+  trata `export type { … }` como export de runtime e quebra o módulo), `payloadDoRascunho(r, arquivo, alvo)`.
+- `src/lib/documentos/envio.ts`: `enviarArquivoRascunho(r, onProgresso)` — `WeakMap<File>` evita subir de
+  novo o mesmo arquivo/documento numa nova tentativa de salvar.
+- `src/lib/documentos/registro.ts` (server-only): `validarCamposDocumento`, `cpfTitular`, `dadosLimpos`,
+  `texto`, `dataOuNull`, `arquivoDoDocumento(arquivo, ownerId, docId)` e `inserirDocumento(ownerId, payload,
+  { embarcacaoId } | { membroId })` (arquiva o ativo do mesmo tipo/alvo, insere, desfaz o arquivamento se o
+  insert falhar; 23505 → "já foi salvo"). Usados por `documentos/actions.ts` e pelo pedido de acesso.
+- `src/lib/documentos/server.ts`: `documentosAtivosDe(ownerId, alvo)`, `habilitacaoDoMembro`,
+  `habilitacaoDoGestor(ownerId) → { membroId, documento }` (não cria a ficha), `habilitacoesDosGestores(ids)
+  → Map<ownerId, DocumentoAtual>` (`membro:equipe_membro_id!inner(is_gestor)` + `.eq('membro.is_gestor',
+  true)`; CHA preferida à CIR).
+- `src/components/painel/documentos/`: `CameraDocumento.tsx` (movido de `documentos/_components/`),
+  `useSeletorArquivo({ formato, sigla, onArquivo })` (entradas ocultas + câmera em portal + validação +
+  avaliação da foto da galeria; devolve `{ abrirCamera, abrirArquivos, erro, elementos }`),
+  `ConferenciaDocumento.tsx` (`Campo`, `MensagemErro`, `AvisoSubstituicao`, `SituacaoDaValidade`,
+  `CamposConferencia` — grade por container query `@min-[30rem]:grid-cols-2`, 2 colunas no wizard/cadastros e
+  1 no cartão do pedido e no celular) e **`DocumentoEmbutido`** (controlado: `valor`/`onChange` com
+  `RascunhoDocumento | null`; props `escopo`, `tipos` (chips quando > 1), `titulo`, `descricao`, `selo`
+  (recomendado/obrigatório/opcional), `icone`, `atual` (resumo + "Ver arquivo" + "Substituir"/"Renovar"),
+  `embarcacoesConhecidas`, `pessoasConhecidas`, `titularSugerido`, `placeholderEmbarcacao`, `onLeitura`,
+  `avisos`, `desabilitado` (`<fieldset disabled>`)). Estados: resumo do atual → zona de envio → leitura
+  (progresso + "Pular a leitura") → conferência (miniatura, "Tirar outra"/"Trocar arquivo", avisos de
+  leitura/qualidade, "parece ser um …", `CamposConferencia`, aviso de substituição só quando o tipo é o mesmo
+  do atual). Nova foto num rascunho existente mescla a leitura nos campos (como o wizard).
+- `src/app/painel/(gestao)/documentos/_lib/rascunhos.ts` (cliente): `erroDosRascunhos`,
+  `enviarArquivosDosRascunhos(rs, onProgresso) → erro | null`, `registrarRascunhos(rs, alvo) → { falhas,
+  salvos }` (`criarDocumento` com `condutor: { modo: 'existente' }` ou `embarcacaoId`).
+
+**Embarcação** — `ETAPAS_EMBARCACAO` ganhou `documentacao` (índice 4; `revisao` = 5; link `#documentacao`).
+`embarcacoes/_components/EtapaDocumentacao.tsx`: `RascunhosEmbarcacao { inscricao, dpem }`,
+`DocumentosEmbarcacaoAtuais { inscricao, dpem, outros }`; blocos TIE/TIEM/PRPM e DPEM; aviso de nome
+(`onUsarNome` com o cadastro vazio; `similaridadeNomes < 0,6` com nome diferente). `docRevisao(rascunho, atual)` +
+`revisaoEmbarcacao({ documentacao })` → item "Documentos" (`erro` se o rascunho não passa em
+`erroConferencia`; `aviso` sem inscrição ou com inscrição/DPEM vencido).
+- `NovaEmbarcacaoForm` (+ prop `proprietarioSugerido` = `users.name`, da página): valida → fotos → arquivos dos
+  documentos → `criarEmbarcacao` → catálogos → `registrarRascunhos({ embarcacaoId })`; falha só no documento →
+  mensagem e redireciona para `/painel/embarcacoes/[id]/editar#documentacao`.
+- `EditarEmbarcacaoForm`: prop `documentacao?: { atuais, proprietarioSugerido }` (página do gestor:
+  `documentosAtivosDe` — inscrição na ordem TIE > TIEM > PRPM, DPEM e a contagem do resto) e `hrefDocumentacao`
+  (admin: a etapa mostra só o link para `/administrator/embarcacoes/[id]#documentacao`). Documentos são gravados
+  ao "Salvar alterações" (não são campo sensível da publicação); falha parcial tira os gravados do formulário e
+  faz `router.refresh()`.
+
+**Pedido de acesso** — `solicitarAcessoGestor`: `conducao` obrigatória; `proprio` exige `habilitacao` válida
+(escopo condutor, CHA/CIR, `validarCamposDocumento`, arquivo na pasta do usuário) **ou** habilitação ativa já
+existente. Depois do insert do pedido e de completar `users.phone/cpf_cnpj`: `ensureGestorEquipeMembro` (criada
+só agora, porque herda o celular — exibido ao cliente como atendente), `telefone` da ficha completado se nulo e
+`inserirDocumento(…, { membroId: ficha })`; falha aqui só é logada (o pedido já foi enviado). E-mail aos admins
+com a linha "Condução". Admin: `usuarios/solicitacoes/page.tsx` → `habilitacoesDosGestores` → `SolicitacoesLista`
+(`habilitacoes: Record<userId, DocumentoAtual>`, bloco "Habilitação náutica" com selo e "Ver arquivo" — a rota
+do arquivo já aceita admin). A resposta de condução **não** é gravada no pedido (sem coluna nova): sem
+habilitação a fila mostra "Não enviada".
+
+**Validação (01/11/2026):** `tsc`/`eslint` limpos. Navegador headless numa página temporária (já removida) com
+dados fictícios e imagens sintéticas de TIE e CHA: etapa Documentos nova (leitura do TIE em ~6 s — número,
+nome, emissão, validade; proprietário sugerido; "Usar como nome do cadastro"; revisão "TIE a salvar") e de
+edição (resumo do TIE em dia e DPEM vencido com "Renovar"; substituição com aviso; nome divergente; validade
+apagada → pendência na revisão); membro (todos os campos da CHA, nome/CPF preenchidos, aviso de CPF divergente,
+selo "Opcional" para Auxiliar); pedido de acesso (etapa 2, validações, aviso de nome, upload sem sessão →
+"Sua sessão expirou"); regressão do `DocumentoWizard` (TIE e CHA, "Quem é o condutor?"); celular 390 px sem
+estouro. Consultas novas executadas no banco (somente leitura) sem erro. Encontrado e corrigido: reexportação
+de tipos no `documentos/actions.ts` derrubava o módulo de actions em runtime. **Não exercitado:** gravação real
+(sessão de gestor, bucket privado e inserts), envio do pedido com habilitação e a fila do admin com dados.
+### 95.11 Regra de aprovação da embarcação — documento de inscrição (01/11/2026)
+
+PRD §6.14 "Embarcação só é aprovada com o documento". Sem migration.
+
+- `src/lib/documentos/aprovacao.ts` (neutro): `escolherInscricao(docs)` (entre TIE/TIEM/PRPM ativos, o em dia na
+  ordem TIE > TIEM > PRPM; senão o primeiro), `pendenciaInscricao(doc) → 'nao_enviado' | 'vencido' | null`
+  (PRPM sem validade = em dia), `rotuloPendenciaInscricao` ("Falta o TIE" / "TIE vencido"). DPEM fora da regra.
+- `src/lib/documentos/server.ts`: `inscricoesDoGestor(ownerId) → Map<embarcacaoId, DocumentoAtual>` e
+  `inscricaoDaEmbarcacao(embarcacaoId)` (qualquer dono, para o admin).
+- **Servidor:** `decidirPublicacaoAdmin` ganhou `documentoConferido?: boolean`. Embarcação + `aprovar`: sem
+  inscrição → erro "Falta o documento de inscrição…"; vencida → erro; sem `documentoConferido` → erro. Aprovando,
+  prefixa a observação interna do evento com "Documento conferido na aprovação: TIE nº …, válido até …".
+- **Admin:** `PainelDecisaoAdmin` ganhou `inscricao?: DocumentoAtual | null` (só embarcação;
+  `/administrator/embarcacoes/[id]` passa `inscricaoDaEmbarcacao`). Mostra o documento (sigla, nº,
+  `SeloValidade`, "Ver arquivo") ou o alerta vermelho; "Aprovar e publicar" desabilitado com pendência; ao
+  escolher "Devolver" com pendência e observação vazia, preenche `PEDIDO_DOCUMENTO`; aprovar exige o checkbox
+  "Conferi o documento da embarcação".
+- **Gestor:** `AvisoStatusPublicacao` ganhou `pendenciaDocumento` (a edição da embarcação passa
+  `pendenciaInscricao(escolherInscricao(documentosAtivos))`; admin `null`) → faixa vermelha com link
+  `#documentacao`. `useEtapas` passou a ouvir `hashchange` (o link da mesma página abre a etapa).
+  `EmbarcacoesGrid` recebe `pendenciaDocumento` por item (`embarcacoes/page.tsx` via `inscricoesDoGestor`) →
+  `SeloDocumento` (exceto inativa). `EtapaDocumentacao`: inscrição com selo "obrigatorio" e textos da regra;
+  revisão "Sem TIE — a embarcação só é aprovada depois que você enviar". `NovaEmbarcacaoForm`: mensagem conforme
+  houver TIE; **primeira embarcação** redireciona ao Início (`/painel`); `NovoRoteiroForm` idem para o primeiro roteiro.
+- Embarcações já aprovadas sem documento continuam no ar; a regra vale na próxima aprovação.
 
 ## 96. Comunicações da reserva — lembretes do passeio e linha do tempo (28/10/2026)
 
@@ -9090,3 +9215,176 @@ Para voltar ao comportamento anterior, basta desativar o hook (SMTP + templates 
 dados fictícios: cadastro pt-BR e en-US, recuperação es, código pt-BR — logo, botão, link alternativo e
 rodapé corretos. Rota sem segredo → 500 `Hook de e-mail não configurado.` **Não exercitado:** hook ligado no
 Supabase e envio real pelo Resend.
+
+## 97. Início do painel, menu e tutorial — foco no dono que está começando (01/11/2026)
+
+PRD §6.8 "Início: primeiros passos e o que fazer agora". O antigo dashboard (§12 "Dashboard") foi refeito.
+
+### 97.1 Arquivos
+
+| Arquivo | Papel |
+|---|---|
+| `src/app/painel/(gestao)/page.tsx` | Server Component: carrega e monta os blocos |
+| `src/app/painel/(gestao)/_components/inicio/passos.ts` | Puro: `montarPrimeirosPassos({ embarcacoes, roteiros, inscricoes })` |
+| `src/app/painel/(gestao)/_components/inicio/PrimeirosPassosCard.tsx` | Client: lista de passos + ocultar (`localStorage`) |
+| `src/app/painel/(gestao)/_components/inicio/BlocosInicio.tsx` | `ParaFazerAgora`, `Resumo`, `ProximosPasseios`, `Desempenho` (sem estado) |
+
+### 97.2 Dados (`Promise.all`, `supabaseAdmin`, `owner_id = user.id`)
+
+`embarcacao (id, nome, status, primeira_aprovacao_em, enviado_analise_em)`, `roteiro (id, nome, status, ativo,
+embarcacao_id, primeira_aprovacao_em, enviado_analise_em)`, `reserva` (como antes), `anuncio_venda`, RPC
+`vendas_funil`, `getResumoDocumentos`, `proximosVencimentos(6)`, `inscricoesDoGestor`, `users.name`.
+`concluirReservasVencidas()` antes de tudo.
+
+### 97.3 Primeiros passos (`montarPrimeirosPassos`)
+
+- Embarcação acompanhada = a de maior prioridade (`ativo` > `retorno` > `em_analise` > `em_manutencao` >
+  `inativo`); roteiro = o de maior prioridade dessa embarcação (senão qualquer um).
+- `Passo { id, titulo, descricao, estado: 'feito'|'fazer'|'aguardando'|'depois', situacao?, alerta?, acao? }`:
+  1. `embarcacao` — feito se existe; senão "Cadastrar embarcação" → `/painel/embarcacoes/novo`;
+  2. `documento` — `pendenciaInscricao`; ação → `/painel/embarcacoes/[id]/editar#documentacao`;
+  3. `aprovacao_embarcacao` — `ativo` feito; `retorno` → "Ajuste o cadastro da embarcação" (alerta, ação editar);
+     `em_analise` → aguardando "Em análise desde …" (ou "depois" enquanto falta documento); inativa/manutenção →
+     "Embarcação fora do site" + "Pedir para voltar ao site";
+  4. `roteiro` — liberado com qualquer embarcação; ação → `/painel/roteiros/novo?embarcacao=[id]`;
+  5. `aprovacao_roteiro` — `ativo` (visível) feito; `status='ativo'` sem a embarcação aprovada → aguardando
+     "entra no site quando a embarcação for aprovada"; `retorno`/inativo como no passo 3.
+- `completo` = alguma embarcação **e** algum roteiro com `primeira_aprovacao_em` → o cartão some (estável: pausar
+  tudo depois não o traz de volta). `embarcacaoId`/`roteiroId` voltam para não repetir esses itens nas pendências.
+- `PrimeirosPassosCard`: barra de progresso (`concluidos`/5), linha da regra de aprovação, o primeiro `fazer` é o
+  "Próximo passo" (caixa destacada + botão principal; laranja se `alerta`); os demais `fazer` têm botão
+  secundário. Ocultar: `localStorage['boatzy:inicio:primeiros-passos-oculto']`, lido com `useSyncExternalStore`
+  (evento `boatzy:primeiros-passos`), vira uma barra com "Mostrar".
+
+### 97.4 Demais blocos
+
+- `ParaFazerAgora({ tarefas, aguardando })` — `Tarefa { id, icone, titulo, detalhe?, tom, itens[{ titulo, sub?,
+  href, acao }], mais? }`. Montadas na página, nesta ordem: pedidos pendentes (mais antigos primeiro, 3 itens +
+  "Ver todos"), devolvidos (embarcação/roteiro fora dos passos + anúncios), embarcações sem inscrição
+  (`nao_enviado`, não inativas, fora dos passos), documentos vencidos ou vencendo em ≤ `DIAS_FAIXA_TOPO` dias
+  (exclui a inscrição da embarcação dos passos). `aguardando`: em análise (fora dos passos) e
+  `aguardando_pagamento`. Renderizado se há tarefa/aguardando ou se a parte de negócio aparece ("Tudo em dia").
+- Parte de negócio só com `completo || reservas.length > 0`: `Resumo` (cartões Reservas — confirmadas a partir de
+  hoje + pedidos; No site — `roteiro.ativo` + embarcações `ativo`; Documentos — vencidos > vencendo > sem TIE >
+  "Em dia"; Clientes; Venda de barcos só com anúncio), `ProximosPasseios` (5 confirmadas `data_reserva >=
+  hojeISO()`, "Hoje"/"Amanhã"/dia da semana via `diasParaVencer`) e `Desempenho` (6 meses + mais procurado; só
+  com reservas). Removidos: tabela "Últimas solicitações", cartão "Destaque", as 4 faixas e o quadro Documentação.
+- `AlertaDocumentos` (faixa do topo) não aparece em `/painel`.
+
+### 97.5 Menu, topo e tutorial
+
+- `Sidebar`: `GRUPOS_MENU` — sem título (Início `House`, Reservas, Clientes), "Seus cadastros"
+  (`data-tour="nav-grupo-cadastros"`: Embarcações, Documentos, Roteiros e preços), "Mais ferramentas"
+  (`nav-grupo-ferramentas`: Catálogo de extras, Equipe, Receitas, Venda de embarcações). "Painel do proprietário",
+  **Ajuda** → `/help` (nova aba; `/painel/suporte` não existia), **Sair**. `data-tour` dos itens mantidos.
+- `Header`: `title` opcional; sem ele, `tituloDaSecao(pathname)` (Início, Reservas…; padrão "Painel do proprietário").
+- `TutorialPainel`: `STORAGE_KEY = 'boatzy:tutorial-painel:v2'`; 9 passos — boas-vindas (sem alvo), `nav-dashboard`,
+  `nav-agendamentos`, `nav-clientes`, `nav-embarcacoes`, `nav-documentos`, `nav-roteiros`, `nav-grupo-ferramentas`,
+  `btn-tutorial` (ação "Ver os primeiros passos" → `/painel`). Contador "X de 9" (sem "Passo", para não confundir
+  com os Primeiros passos). `ALVOS_DO_MENU` já cobre `nav-grupo-*` (abre a gaveta no celular).
+
+### 97.6 Validação
+
+`tsc`/`eslint` limpos. Página temporária (já removida) com dados fictícios, navegador headless: Início em 6
+estados (sem embarcação, sem documento, em análise, devolvida, roteiro em análise, operando) — passos, próximo
+passo e ações corretos; menu agrupado, tutorial de ponta a ponta (9 passos) no computador e no celular (gaveta
+abre no passo do menu); 390 px sem estouro; `PainelDecisaoAdmin` sem documento (Aprovar desabilitado, recado
+sugerido) e com documento (exige "Conferi"); faixa da edição com documento faltando. Consultas novas executadas
+no banco (somente leitura). **Não exercitado:** Início logado com dados reais, aprovação real pelo admin.
+
+## 98. Assistente de descrição — embarcação e passeio (01/11/2026)
+
+PRD §6.8 "Escrever com ajuda". Botão abaixo do campo Descrição de `NovaEmbarcacaoForm`, `EditarEmbarcacaoForm`
+(também no admin), `NovoRoteiroForm` e `EditarRoteiroForm`; o texto só é aplicado com aprovação.
+
+### 98.1 Arquivos
+
+| Arquivo | Papel |
+|---|---|
+| `src/lib/descricao/assistente.ts` | Neutro: `AlvoDescricao`, `FatoDescricao`, `PedidoDescricao`, `RespostaDescricao`, `LIMITES_DESCRICAO`, `DESTAQUES[alvo]`, `IDEIAS[alvo]`, `podeGerar`, `rascunhoSimples` |
+| `src/lib/descricao/gerar.ts` | Server-only: prompt por alvo + chamada à OpenAI (`gerarDescricao(pedido, fatos)`) |
+| `src/app/api/painel/descricao/route.ts` | `POST`: auth gestor/admin, validação, limite, fatos da embarcação do roteiro, `maxDuration = 60` |
+| `src/components/painel/descricao/useDitado.ts` | Ditado (Web Speech API, `pt-BR`) |
+| `src/components/painel/descricao/AssistenteDescricao.tsx` | Botão + diálogo (gaveta no celular) em 2 etapas |
+| `src/app/painel/(gestao)/embarcacoes/_components/descricaoEmbarcacao.ts` | `fatosEmbarcacao(...)`, `avisoDescricaoEmbarcacao` |
+| `src/app/painel/(gestao)/roteiros/_components/descricaoRoteiro.ts` | `fatosRoteiro(...)`, `avisoDescricaoRoteiro` |
+
+Dependência: `openai` (^7.47.0) — substituiu `@anthropic-ai/sdk` em 01/11/2026. Variáveis (em `.env.example`):
+`OPENAI_API_KEY` (obrigatória para a IA) e `OPENAI_MODEL_DESCRICAO` (opcional, padrão `gpt-6-luna`).
+
+### 98.2 Contrato
+
+```ts
+type FatoDescricao = { rotulo: string; valor: string };
+type PedidoDescricao = {
+  alvo: 'embarcacao' | 'roteiro'; fatos: FatoDescricao[]; relato: string; destaques: string[];
+  textoAtual: string; embarcacaoId?: string | null; versaoAnterior?: string | null;
+  pesquisar?: boolean; // só roteiro — busca na web sobre os lugares do itinerário
+};
+type FonteDescricao = { titulo: string; url: string };
+type RespostaDescricao =
+  | { ok: true; texto: string; sugestoes: string[]; fontes: FonteDescricao[] }
+  | { ok: false; error: string; semIa?: boolean };
+// POST /api/painel/descricao — corpo PedidoDescricao → RespostaDescricao
+// 200 ok · 400 inválido/vazio · 401 sem sessão · 403 sem papel · 429 limite · 502 erro da IA · 503 semIa
+```
+
+- Validação no servidor: até 30 fatos (rótulo ≤ 60, valor ≤ 400), 20 destaques (≤ 80), relato/texto atual ≤ 4000;
+  exige relato ≥ 10 caracteres, um destaque ou texto atual (`podeGerar`).
+- Limite: 15 pedidos por usuário a cada 10 min (`Map` em memória da instância — freio de custo, não garantia global).
+- Roteiro com `embarcacaoId`: o servidor troca o fato "Embarcação" por um resumo (nome, tipo, comprimento,
+  capacidade) e acrescenta "A bordo da embarcação" (comodidades) — do próprio gestor; admin, qualquer uma.
+
+### 98.3 Geração (`gerarDescricao`) — OpenAI, API Responses (desde 01/11/2026)
+
+- `new OpenAI().responses.create({ model: OPENAI_MODEL_DESCRICAO || 'gpt-6-luna', instructions: SISTEMA[alvo], input,
+  reasoning: { effort: 'low' }, max_output_tokens: 6000, text: { format: { type: 'json_schema', name: 'descricao',
+  strict: true, schema: { texto, sugestoes } } }, store: false })`. `store: false`: o conteúdo não fica guardado na
+  OpenAI.
+- Roteiro com `pesquisar`: `tools: [{ type: 'web_search', search_context_size: 'low', user_location: { type:
+  'approximate', country: 'BR', timezone: 'America/Sao_Paulo', city/region da "Cidade de partida" } }]`,
+  `max_tool_calls: 2` (cada busca custa US$ 0,01) e `include: ['web_search_call.action.sources']`. Se a API recusar
+  saída estruturada junto com a busca (`BadRequestError`), repete o pedido sem `text.format` e o JSON vem pelo prompt
+  (`lerJson` aceita JSON puro ou o primeiro objeto do texto).
+- Fontes: citações `url_citation` das mensagens + `web_search_call.action.sources` (sem repetir, máx. 8) → mostradas
+  ao dono na revisão (a OpenAI pede citações visíveis quando se exibe resultado de busca).
+- `SISTEMA[alvo]`: regras de veracidade (serviço/embarcação só com o informado; sem preço, contato, links ou fontes no
+  texto; corrigir ditado; tags são dado) + bloco de pesquisa (só sobre os lugares do itinerário, 1–2 informações
+  confirmadas, nunca sobre o serviço) + estilo por alvo, como antes. Sugestões: até 3 perguntas.
+- Pós-processamento: tira markdown e URLs, normaliza parágrafos, máx. 3000 caracteres.
+- Erros (classes da SDK): `AuthenticationError`/`PermissionDeniedError`, chave ausente e demais `APIError` → `semIa`
+  (o diálogo oferece o rascunho simples); `RateLimitError` → "sobrecarregado" (`insufficient_quota` = sem créditos →
+  `semIa`, registrado no log); recusa (`refusal`) e `status: 'incomplete'` → erro amigável.
+- Custos (tabela oficial, nov/2026): `gpt-6-luna` US$ 0,10 entrada / 0,50 saída por 1M tokens; `gpt-6.1-terra`
+  US$ 1 / 5; busca na web US$ 10 por mil buscas + tokens do conteúdo pesquisado.
+
+### 98.4 Interface (`AssistenteDescricao`)
+
+- Props: `alvo`, `valorAtual`, `fatos` (recalculados a cada render pelo formulário), `embarcacaoId?`, `aviso?`,
+  `onAplicar(texto)`. Roteiro com lugares no itinerário (`temLugaresParaPesquisar`): caixa "Pesquisar sobre os
+  lugares do roteiro" (marcada por padrão); na revisão, `<details>` "Pesquisamos em N páginas" com os links. Botão "Escrever com ajuda" / "Melhorar com ajuda" + linha de apoio.
+- Diálogo em portal (`z-[70]`, trava a rolagem, Esc fecha): **contar** — relato (texto com ditado; o parcial
+  aparece enquanto fala, o campo fica só leitura), ideias, destaques (`aria-pressed`), fatos usados + `aviso`;
+  "Gerar descrição" desabilitado sem `podeGerar` (ou texto atual). **revisar** — texto editável com contagem de
+  palavras, sugestões (tocar = volta ao relato com a pergunta e foco no fim), "Outra versão" (`versaoAnterior`),
+  "Usar este texto" (aplica e fecha), "Voltar". Erro `semIa` → "Montar um rascunho simples" (`rascunhoSimples`).
+- `useDitado(aoReconhecer)`: `SpeechRecognition`/`webkitSpeechRecognition`, `continuous: false` +
+  `interimResults` com reinício a cada pausa (evita repetição do modo contínuo no Android), limite de 3 min, erros
+  `not-allowed`/`network` com orientação; `suportado` via `useSyncExternalStore` (sem suporte → dica do microfone
+  do teclado).
+- Formulários de roteiro: o campo Descrição foi para **depois do Itinerário** na etapa Informações (placeholder novo,
+  `rows=5`, `resize-y`); embarcação: `rows=4`, placeholder orientativo. `aviso`: embarcação sem capacidade e sem
+  comodidades → "preencha a etapa Detalhes"; roteiro sem itinerário → "preencha o itinerário".
+
+### 98.5 Validação
+
+`tsc`/`eslint` limpos. Rota temporária (já removida): sem credencial, `gerarDescricao` devolve `semIa` sem
+exceção; `POST /api/painel/descricao` sem sessão → 401. Página temporária (já removida), navegador headless, com a
+API simulada: botão de falar disponível no Chromium, "Gerar" desabilitado sem conteúdo, corpo do pedido (relato,
+destaques, 6 fatos), carregando → revisão, sugestão volta ao relato, "Usar este texto" aplica e o botão vira
+"Melhorar com ajuda"; celular (390 px) com 503 `semIa` → rascunho simples, "Outra versão" oculta.
+Após a troca para a OpenAI: sem `OPENAI_API_KEY`, `gerarDescricao` (com pesquisa) devolve `semIa` sem exceção;
+caixa de pesquisa visível e marcada, `pesquisar: true` no pedido, fontes listadas com links em nova aba (API simulada).
+**Não exercitado:** geração real (sem `OPENAI_API_KEY` neste ambiente) — inclusive se `text.format` + `web_search` são
+aceitos juntos (há a repetição sem formato) — e ditado com microfone em aparelho real (iPhone/Android).
+

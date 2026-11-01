@@ -51,6 +51,8 @@ import { useEtapas } from '@/components/painel/etapas/useEtapas';
 import RoteiroCard from '@/app/buscar/_components/RoteiroCard';
 import { ETAPAS_ROTEIRO, ETAPA_ROT, revisaoRoteiro } from '../../../_components/etapasRoteiro';
 import CopiarDadosRoteiro, { type RoteiroCopiavel } from '../../../_components/CopiarDadosRoteiro';
+import AssistenteDescricao from '@/components/painel/descricao/AssistenteDescricao';
+import { avisoDescricaoRoteiro, fatosRoteiro } from '../../../_components/descricaoRoteiro';
 
 // ─── Tipos ────────────────────────────────────────────────────────────────────
 
@@ -715,13 +717,6 @@ export default function EditarRoteiroForm({ roteiro, estados, municipiosIniciais
                 value={form.nome} onChange={e => setField('nome', e.target.value)} />
             </Field>
           </div>
-          <div className="md:col-span-2">
-            <Field label="Descrição" required>
-              <textarea className={`${inputCls} resize-none`} rows={3}
-                placeholder="Descreva o roteiro, pontos turísticos, atrações e destaques..."
-                value={form.descricao} onChange={e => setField('descricao', e.target.value)} />
-            </Field>
-          </div>
           <Field label="Embarcação vinculada" hint="Opcional — associe este roteiro a uma de suas embarcações.">
             <select className={selectCls} value={form.embarcacao_id}
               onChange={e => setEmbarcacao(e.target.value)}>
@@ -828,6 +823,23 @@ export default function EditarRoteiroForm({ roteiro, estados, municipiosIniciais
                   value={form.destino} onChange={e => setField('destino', e.target.value)} />
               </div>
             </div>
+          </div>
+
+          {/* Descrição depois do itinerário: os fatos vêm antes do texto de venda (e alimentam o assistente). */}
+          <div className="md:col-span-2">
+            <Field label="Descrição" required>
+              <textarea className={`${inputCls} resize-y`} rows={5}
+                placeholder="O que o cliente vai ver e fazer, o momento mais bonito, para quem o passeio é perfeito…"
+                value={form.descricao} onChange={e => setField('descricao', e.target.value)} />
+              <AssistenteDescricao
+                alvo="roteiro"
+                valorAtual={form.descricao}
+                fatos={fatosRoteiro({ form, embarcacoes, paradas, estados, municipios, catalogo, itensCatalogo })}
+                embarcacaoId={form.embarcacao_id || null}
+                aviso={avisoDescricaoRoteiro(form, paradas)}
+                onAplicar={texto => setField('descricao', texto)}
+              />
+            </Field>
           </div>
         </div>
       </SectionCard>

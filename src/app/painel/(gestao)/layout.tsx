@@ -3,7 +3,7 @@ import Header from '@/components/painel/Header';
 import AtualizarAoVivo from '@/components/painel/AtualizarAoVivo';
 import SolicitacaoGestor from '@/components/painel/SolicitacaoGestor';
 import AlertaDocumentos from '@/components/painel/documentos/AlertaDocumentos';
-import { getResumoDocumentos } from '@/lib/documentos/server';
+import { getResumoDocumentos, habilitacaoDoGestor } from '@/lib/documentos/server';
 import { TutorialProvider } from '@/components/painel/TutorialPainel';
 import { MenuMobileProvider } from '@/components/painel/MenuMobile';
 import { createClient } from '@/lib/supabase/server';
@@ -54,10 +54,12 @@ export default async function GestaoLayout({ children }: { children: React.React
     if (!user) redirect('/painel/login');
 
     const ultima = await ultimaSolicitacaoGestor(user.id);
-    const [{ data: estados }, { data: perfil }, municipiosIniciais] = await Promise.all([
+    const [{ data: estados }, { data: perfil }, municipiosIniciais, gestorCondutor] = await Promise.all([
       supabaseAdmin.from('estados').select('id, uf, nome').order('nome'),
       supabaseAdmin.from('users').select('name, phone, cpf_cnpj').eq('id', user.id).maybeSingle(),
       ultima?.status === 'recusada' ? getMunicipiosByEstado(ultima.estadoId) : Promise.resolve([]),
+      // Habilitação enviada num pedido anterior (SPEC §95.10).
+      ultima ? habilitacaoDoGestor(user.id) : Promise.resolve({ documento: null }),
     ]);
 
     return (
@@ -66,6 +68,7 @@ export default async function GestaoLayout({ children }: { children: React.React
         municipiosIniciais={municipiosIniciais}
         perfil={{ nome: perfil?.name ?? '', telefone: perfil?.phone ?? null, documento: perfil?.cpf_cnpj ?? null }}
         ultima={ultima}
+        habilitacao={gestorCondutor.documento}
       />
     );
   }

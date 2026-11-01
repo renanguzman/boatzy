@@ -2,11 +2,14 @@
 
 import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
-import { Check, X, Loader2, UserCheck, MapPin, Ship, Phone, IdCard, Mail } from 'lucide-react';
+import { Check, X, Loader2, UserCheck, MapPin, Ship, Phone, IdCard, Mail, Anchor, ExternalLink } from 'lucide-react';
 import { decidirSolicitacaoGestor } from '../actions';
 import { maskCpfCnpj } from '@/lib/validators';
 import { formatarTelefoneE164 } from '@/lib/countries';
 import { formatarData, formatarDataHora } from '@/lib/datas';
+import { TIPOS_DOCUMENTO, rotuloCategoria } from '@/lib/documentos/tipos';
+import type { DocumentoAtual } from '@/lib/documentos/rascunho';
+import { SeloValidade } from '@/components/painel/documentos/SeloValidade';
 import type { SolicitacaoGestorStatus } from '@/types/supabase';
 
 export type SolicitacaoItem = {
@@ -33,7 +36,14 @@ const textarea =
   'w-full px-3.5 py-2.5 rounded-xl border border-slate-200 bg-white text-sm text-slate-700 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-[#0B2447]/20 focus:border-[#0B2447]/40 transition';
 
 /** Cartões da fila de pedidos de gestor com aprovar / recusar (SPEC §62). */
-export default function SolicitacoesLista({ itens, status }: { itens: SolicitacaoItem[]; status: SolicitacaoGestorStatus }) {
+export default function SolicitacoesLista({
+  itens, status, habilitacoes,
+}: {
+  itens: SolicitacaoItem[];
+  status: SolicitacaoGestorStatus;
+  /** Habilitação enviada pelo solicitante, por id do usuário (SPEC §95.10). */
+  habilitacoes: Record<string, DocumentoAtual>;
+}) {
   const [decisao, setDecisao] = useState<Decisao | null>(null);
 
   if (itens.length === 0) {
@@ -90,6 +100,7 @@ export default function SolicitacoesLista({ itens, status }: { itens: Solicitaca
               <Dado icon={MapPin} rotulo="Cidade da embarcação"
                 valor={`${s.municipios?.nome ?? '—'}${s.estados?.uf ? `/${s.estados.uf}` : ''}`} />
               <Dado icon={Ship} rotulo="Embarcações" valor={String(s.qtd_embarcacoes)} />
+              <Habilitacao documento={s.usuario ? habilitacoes[s.usuario.id] ?? null : null} />
             </dl>
 
             {s.mensagem && (
@@ -125,6 +136,46 @@ function Dado({ icon: Icon, rotulo, valor }: { icon: typeof Mail; rotulo: string
       <div className="min-w-0">
         <dt className="text-[10px] font-bold uppercase tracking-wider text-slate-400">{rotulo}</dt>
         <dd className="text-slate-700 break-words tabular-nums">{valor}</dd>
+      </div>
+    </div>
+  );
+}
+
+/** Habilitação náutica do solicitante (quando ele mesmo conduz), com o arquivo para conferir. */
+function Habilitacao({ documento }: { documento: DocumentoAtual | null }) {
+  return (
+    <div className="flex items-start gap-2 min-w-0">
+      <Anchor className="w-4 h-4 text-slate-300 mt-0.5 flex-shrink-0" />
+      <div className="min-w-0">
+        <dt className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Habilitação náutica</dt>
+        {documento ? (
+          <dd className="text-slate-700 space-y-1">
+            <span className="flex flex-wrap items-center gap-2">
+              <span className="font-semibold">{TIPOS_DOCUMENTO[documento.tipo].sigla}</span>
+              {documento.numero && <span className="tabular-nums text-slate-500">nº {documento.numero}</span>}
+              <SeloValidade validade={documento.data_validade} />
+            </span>
+            {(rotuloCategoria(documento.categoria) || documento.data_validade) && (
+              <span className="block text-xs text-slate-500">
+                {[rotuloCategoria(documento.categoria), documento.data_validade && `válida até ${formatarData(documento.data_validade)}`]
+                  .filter(Boolean)
+                  .join(' · ')}
+              </span>
+            )}
+            {documento.tem_arquivo && (
+              <a
+                href={`/api/painel/documentos/${documento.id}/arquivo`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1 text-xs font-semibold text-teal-700 hover:underline"
+              >
+                <ExternalLink className="w-3 h-3" /> Ver arquivo
+              </a>
+            )}
+          </dd>
+        ) : (
+          <dd className="text-slate-400">Não enviada</dd>
+        )}
       </div>
     </div>
   );

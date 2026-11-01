@@ -3,6 +3,8 @@ import Link from 'next/link';
 import { Plus } from 'lucide-react';
 import { createClient } from '@/lib/supabase/server';
 import { supabaseAdmin } from '@/lib/supabase';
+import { inscricoesDoGestor } from '@/lib/documentos/server';
+import { pendenciaInscricao } from '@/lib/documentos/aprovacao';
 import EmbarcacoesGrid, { type EmbarcacaoListItem } from './_components/EmbarcacoesGrid';
 
 export default async function EmbarcacoesPage() {
@@ -10,7 +12,7 @@ export default async function EmbarcacoesPage() {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect('/painel/login');
 
-  const { data } = await supabaseAdmin
+  const [{ data }, inscricoes] = await Promise.all([supabaseAdmin
     .from('embarcacao')
     .select(`
       id,
@@ -24,9 +26,15 @@ export default async function EmbarcacoesPage() {
       roteiro ( id, nome )
     `)
     .eq('owner_id', user.id)
-    .order('created_at', { ascending: false });
+    .order('created_at', { ascending: false }),
+    inscricoesDoGestor(user.id),
+  ]);
 
-  const embarcacoes = (data ?? []) as unknown as EmbarcacaoListItem[];
+  // Sem o documento de inscrição em dia a embarcação não é aprovada (SPEC §95.11).
+  const embarcacoes = ((data ?? []) as unknown as Omit<EmbarcacaoListItem, 'pendenciaDocumento'>[]).map((e) => ({
+    ...e,
+    pendenciaDocumento: pendenciaInscricao(inscricoes.get(e.id)),
+  }));
 
   return (
     <div className="p-4 sm:p-6 lg:p-8">

@@ -47,8 +47,8 @@ export const STATUS_INFO: Record<StatusPublicacaoQualquer, StatusInfo> = {
     descricao: 'Aguardando a análise da equipe Boatzy. Ainda não aparece no site.',
   },
   retorno: {
-    label: 'Retorno', badge: 'bg-orange-50 text-orange-700 ring-orange-200', dot: 'bg-orange-500',
-    descricao: 'Devolvido pela equipe Boatzy para ajustes. Corrija e reenvie para análise.',
+    label: 'Devolvido', badge: 'bg-orange-50 text-orange-700 ring-orange-200', dot: 'bg-orange-500',
+    descricao: 'A equipe Boatzy pediu ajustes. Veja o recado, corrija e reenvie para análise.',
   },
   ativo: {
     label: 'Ativo', badge: 'bg-emerald-50 text-emerald-700 ring-emerald-200', dot: 'bg-emerald-500',

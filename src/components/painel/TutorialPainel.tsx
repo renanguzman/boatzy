@@ -13,7 +13,8 @@ import { usePathname, useRouter } from 'next/navigation';
 import { GraduationCap, X } from 'lucide-react';
 import { useMenuMobile } from './MenuMobile';
 
-const STORAGE_KEY = 'boatzy:tutorial-painel:v1';
+/** v2 (01/11/2026): menu reorganizado e novos itens — quem viu a versão anterior vê esta uma vez. */
+const STORAGE_KEY = 'boatzy:tutorial-painel:v2';
 
 type Passo = {
   /** Seletor do elemento destacado. `null` exibe o passo centralizado, sem spotlight. */
@@ -24,85 +25,56 @@ type Passo = {
   acao?: { label: string; href: string };
 };
 
+/** Um passo por área, na ordem do menu (SPEC §97). Frases curtas, sem termos técnicos. */
 const PASSOS: Passo[] = [
   {
     alvo: null,
-    titulo: 'Bem-vindo ao painel Boatzy',
+    titulo: 'Bem-vindo ao seu painel',
     descricao:
-      'Em menos de um minuto você conhece as áreas do painel e sai com o caminho pronto para publicar sua primeira embarcação.',
-  },
-  {
-    alvo: '[data-tour="dashboard-content"]',
-    titulo: 'Seu Dashboard',
-    descricao:
-      'Aqui ficam os números do seu negócio: reservas pendentes e confirmadas, receita estimada, desempenho da frota e as próximas saídas. É a primeira tela que você vê ao entrar.',
+      'Aqui você cadastra seu barco, cria os passeios e responde às reservas. Em menos de 1 minuto mostramos onde fica cada coisa.',
   },
   {
     alvo: '[data-tour="nav-dashboard"]',
-    titulo: 'Dashboard',
-    descricao: 'Volte a qualquer momento para a visão geral com indicadores e reservas recentes.',
+    titulo: 'Início',
+    descricao: 'Sua tela principal. Mostra o próximo passo e o que precisa da sua resposta.',
   },
   {
     alvo: '[data-tour="nav-agendamentos"]',
-    titulo: 'Agendamentos/Reservas',
+    titulo: 'Reservas',
     descricao:
-      'Todas as solicitações de reserva chegam aqui. Você confirma, recusa e acompanha as viagens já concluídas.',
-  },
-  {
-    alvo: '[data-tour="nav-embarcacoes"]',
-    titulo: 'Embarcações',
-    descricao:
-      'Cadastre e gerencie sua frota: fotos, capacidade, preços e disponibilidade de cada barco.',
-  },
-  {
-    alvo: '[data-tour="nav-roteiros"]',
-    titulo: 'Roteiros / Preços',
-    descricao:
-      'Monte passeios prontos para venda — destino, duração, o que está incluso e a embarcação usada.',
-  },
-  {
-    alvo: '[data-tour="nav-vendas"]',
-    titulo: 'Vendas',
-    descricao:
-      'Anuncie embarcações para venda no site e acompanhe visualizações e interessados em cada anúncio.',
-  },
-  {
-    alvo: '[data-tour="nav-catalogo"]',
-    titulo: 'Catálogo',
-    descricao:
-      'Itens e serviços opcionais (bebidas, petiscos, equipamentos) que você pode incluir nos roteiros.',
+      'Os pedidos dos clientes chegam aqui. Você aceita ou recusa e vê a agenda dos passeios. O número vermelho mostra quantos esperam resposta.',
   },
   {
     alvo: '[data-tour="nav-clientes"]',
     titulo: 'Clientes',
-    descricao:
-      'Consulte quem já reservou com você e converse pelo chat. O badge vermelho indica mensagens não lidas.',
+    descricao: 'Quem já reservou com você. Converse pelo chat — o número vermelho mostra mensagens novas.',
   },
   {
-    alvo: '[data-tour="nav-receitas"]',
-    titulo: 'Receitas',
-    descricao:
-      'Acompanhe o faturamento por período, exporte relatórios e entenda de onde vem o seu resultado.',
+    alvo: '[data-tour="nav-embarcacoes"]',
+    titulo: 'Embarcações',
+    descricao: 'Cadastre seu barco com fotos, local e o documento (TIE). A equipe Boatzy aprova antes de ele ir para o site.',
   },
   {
-    alvo: '[data-tour="nova-embarcacao"]',
-    titulo: 'Passo 1: cadastre uma embarcação',
-    descricao:
-      'Comece por aqui. Sem uma embarcação cadastrada não é possível criar roteiros nem receber reservas.',
-    acao: { label: 'Cadastrar embarcação', href: '/painel/embarcacoes/novo' },
+    alvo: '[data-tour="nav-documentos"]',
+    titulo: 'Documentos',
+    descricao: 'Guarda o TIE, o seguro e a habilitação de quem conduz. Avisamos antes de vencer.',
   },
   {
     alvo: '[data-tour="nav-roteiros"]',
-    titulo: 'Passo 2: crie um roteiro',
+    titulo: 'Roteiros e preços',
+    descricao: 'O passeio que o cliente reserva: trajeto, duração e preço. Também passa pela aprovação da equipe Boatzy.',
+  },
+  {
+    alvo: '[data-tour="nav-grupo-ferramentas"]',
+    titulo: 'Mais ferramentas',
     descricao:
-      'Com a embarcação pronta, publique um roteiro em Roteiros → Novo roteiro. É ele que aparece para os clientes no site.',
-    acao: { label: 'Criar roteiro', href: '/painel/roteiros/novo' },
+      'Para quando precisar: extras para vender junto (bebidas, petiscos), sua equipe, quanto você recebeu e anúncios de barcos à venda.',
   },
   {
     alvo: '[data-tour="btn-tutorial"]',
-    titulo: 'Rever o tutorial',
-    descricao:
-      'Clique neste ícone sempre que quiser assistir a este guia novamente. Boas vendas!',
+    titulo: 'Pronto!',
+    descricao: 'Para começar, siga os Primeiros passos na tela de Início. Quer ver este guia de novo? É só clicar aqui.',
+    acao: { label: 'Ver os primeiros passos', href: '/painel' },
   },
 ];
 
@@ -306,7 +278,7 @@ function TutorialOverlay({
         </button>
 
         <p className="text-[10px] font-bold tracking-wider uppercase text-[#0B3D91] mb-1.5">
-          Passo {indice + 1} de {total}
+          {indice + 1} de {total}
         </p>
         <h3 className="text-base font-bold text-[#0B2447] pr-6">{passo.titulo}</h3>
         <p className="mt-2 text-sm leading-relaxed text-slate-500">{passo.descricao}</p>

@@ -1,34 +1,21 @@
 import { redirect } from 'next/navigation';
-import Link from 'next/link';
-import {
-  Ship,
-  Clock,
-  BarChart3,
-  ChevronRight,
-  AlertTriangle,
-  ExternalLink,
-  Map as MapIcon,
-  Users,
-  MapPin,
-  Tag,
-  Inbox,
-  CreditCard,
-  FileCheck2,
-  Upload,
-} from 'lucide-react';
+import { CalendarDays, Ship, FileCheck2, Users, Tag, Inbox, Undo2, FileWarning, FileClock } from 'lucide-react';
 import { createClient } from '@/lib/supabase/server';
 import { supabaseAdmin } from '@/lib/supabase';
 import { concluirReservasVencidas } from '@/lib/reservas';
-import { formatCurrency } from '@/lib/utils';
 import type { ReservaStatus, ReservaTipo } from '@/types/supabase';
-import { FUSO_HORARIO, formatarData, partesNoFuso } from '@/lib/datas';
-import { getResumoDocumentos, proximosVencimentos } from '@/lib/documentos/server';
-import { nomeCurtoDocumento } from '@/lib/documentos/tipos';
-import { textoPrazo } from '@/lib/documentos/validade';
-import ResumoValidadeCards from '@/components/painel/documentos/ResumoValidadeCards';
-import { SeloValidade } from '@/components/painel/documentos/SeloValidade';
+import { formatarData, hojeISO, partesNoFuso } from '@/lib/datas';
+import { getResumoDocumentos, inscricoesDoGestor, proximosVencimentos } from '@/lib/documentos/server';
+import { pendenciaInscricao } from '@/lib/documentos/aprovacao';
+import { TIPOS_INSCRICAO, nomeCurtoDocumento } from '@/lib/documentos/tipos';
+import { DIAS_FAIXA_TOPO, diasParaVencer, textoPrazo } from '@/lib/documentos/validade';
+import { montarPrimeirosPassos, type EmbarcacaoInicio, type RoteiroInicio } from './_components/inicio/passos';
+import PrimeirosPassosCard from './_components/inicio/PrimeirosPassosCard';
+import {
+  Desempenho, ParaFazerAgora, ProximosPasseios, Resumo, type CartaoResumo, type PasseioAgenda, type Tarefa,
+} from './_components/inicio/BlocosInicio';
 
-type ReservaDashboard = {
+type ReservaInicio = {
   id: string;
   tipo: ReservaTipo;
   status: ReservaStatus;
@@ -43,29 +30,18 @@ type ReservaDashboard = {
   cliente: { name: string } | null;
 };
 
-const STATUS_BADGE: Record<ReservaStatus, { label: string; class: string }> = {
-  pendente: { label: 'Pendente', class: 'text-amber-600' },
-  aguardando_pagamento: { label: 'Aguardando pagamento', class: 'text-violet-600' },
-  confirmada: { label: 'Confirmada', class: 'text-emerald-600' },
-  recusada: { label: 'Recusada', class: 'text-red-500' },
-  cancelada: { label: 'Cancelada pelo cliente', class: 'text-slate-500' },
-  concluida: { label: 'Concluída', class: 'text-sky-600' },
-  expirada: { label: 'Pagamento expirado', class: 'text-slate-400' },
-};
-
 const MESES_CURTOS = ['JAN', 'FEV', 'MAR', 'ABR', 'MAI', 'JUN', 'JUL', 'AGO', 'SET', 'OUT', 'NOV', 'DEZ'];
 
-function formatDataCurta(iso: string): string {
-  return new Date(iso.length === 10 ? iso + 'T12:00:00' : iso).toLocaleDateString('pt-BR', { timeZone: FUSO_HORARIO, 
-    day: '2-digit', month: '2-digit', year: 'numeric',
-  });
-}
+const plural = (n: number, um: string, varios: string) => `${n} ${n === 1 ? um : varios}`;
 
-export default async function PainelDashboardPage() {
+/**
+ * Início do painel (SPEC §97). Para quem está começando: os primeiros passos até o
+ * primeiro passeio no site. Para quem já opera: o que fazer agora, números agrupados,
+ * a agenda e o desempenho — sem blocos vazios para quem ainda não tem reservas.
+ */
+export default async function PainelInicioPage() {
   const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect('/painel/login');
 
   // Transição lazy confirmada → concluída antes de contar/exibir status.
@@ -73,529 +49,226 @@ export default async function PainelDashboardPage() {
 
   const [
     { data: embarcacoesData }, { data: roteirosData }, { data: reservasData }, { data: anunciosData }, { data: funilData },
-    resumoDocs, vencimentos,
-  ] =
-    await Promise.all([
-      supabaseAdmin.from('embarcacao').select('id, nome, status').eq('owner_id', user.id),
-      supabaseAdmin.from('roteiro').select('id, nome, status, ativo').eq('owner_id', user.id),
-      supabaseAdmin
-        .from('reserva')
-        .select(
-          `id, tipo, status, item_nome, data_reserva, quantidade_pessoas, total_estimado,
-           solicitado_em, cliente_id, roteiro_id, embarcacao_id,
-           cliente:users!reserva_cliente_id_fkey ( name )`,
-        )
-        .eq('owner_id', user.id)
-        .order('solicitado_em', { ascending: false }),
-      supabaseAdmin.from('anuncio_venda').select('id, status, embarcacao ( nome )').eq('owner_id', user.id),
-      // Leads dos anúncios de venda (1 linha por lead↔anúncio) — RPC vendas_funil.
-      supabaseAdmin.rpc('vendas_funil', { p_gestor: user.id }),
-      // Painel de validade dos documentos (SPEC §95.6).
-      getResumoDocumentos(user.id),
-      proximosVencimentos(user.id, 3),
-    ]);
+    resumoDocs, vencimentos, inscricoes, { data: perfil },
+  ] = await Promise.all([
+    supabaseAdmin.from('embarcacao').select('id, nome, status, primeira_aprovacao_em, enviado_analise_em').eq('owner_id', user.id),
+    supabaseAdmin.from('roteiro').select('id, nome, status, ativo, embarcacao_id, primeira_aprovacao_em, enviado_analise_em').eq('owner_id', user.id),
+    supabaseAdmin
+      .from('reserva')
+      .select(
+        `id, tipo, status, item_nome, data_reserva, quantidade_pessoas, total_estimado,
+         solicitado_em, cliente_id, roteiro_id, embarcacao_id,
+         cliente:users!reserva_cliente_id_fkey ( name )`,
+      )
+      .eq('owner_id', user.id)
+      .order('solicitado_em', { ascending: false }),
+    supabaseAdmin.from('anuncio_venda').select('id, status, embarcacao ( nome )').eq('owner_id', user.id),
+    // Interessados nos anúncios de venda (1 linha por lead↔anúncio) — RPC vendas_funil.
+    supabaseAdmin.rpc('vendas_funil', { p_gestor: user.id }),
+    getResumoDocumentos(user.id),
+    proximosVencimentos(user.id, 6),
+    inscricoesDoGestor(user.id),
+    supabaseAdmin.from('users').select('name').eq('id', user.id).maybeSingle(),
+  ]);
 
-  const embarcacoes = embarcacoesData ?? [];
-  const roteiros = roteirosData ?? [];
-  const reservas = (reservasData ?? []) as unknown as ReservaDashboard[];
-  const anunciosVenda = anunciosData ?? [];
-  const leadsFunil = (funilData ?? []).length;
+  const embarcacoes = (embarcacoesData ?? []) as EmbarcacaoInicio[];
+  const roteiros = (roteirosData ?? []) as RoteiroInicio[];
+  const reservas = (reservasData ?? []) as unknown as ReservaInicio[];
+  const anuncios = anunciosData ?? [];
+  const interessados = (funilData ?? []).length;
+  const hoje = hojeISO();
 
-  /* ── Cards ── */
-  const pendentes = reservas.filter((r) => r.status === 'pendente').length;
-  // Aviso no topo: solicitações esperando resposta (mais antigas primeiro) e pagamentos em aberto.
-  const solicitacoesPendentes = reservas
+  // ── Primeiros passos ──
+  const passos = montarPrimeirosPassos({ embarcacoes, roteiros, inscricoes });
+  const comPassos = !passos.completo;
+  // Embarcação/roteiro acompanhados nos passos não se repetem em "Para fazer agora".
+  const noPasso = (id: string) => comPassos && (id === passos.embarcacaoId || id === passos.roteiroId);
+
+  // ── Para fazer agora ──
+  const tarefas: Tarefa[] = [];
+
+  const pedidos = reservas
     .filter((r) => r.status === 'pendente')
     .sort((a, b) => a.solicitado_em.localeCompare(b.solicitado_em));
-  const aguardandoPagamento = reservas.filter((r) => r.status === 'aguardando_pagamento').length;
-  const embarcacoesAtivas = embarcacoes.filter((e) => e.status === 'ativo').length;
-  const roteirosAtivos = roteiros.filter((r) => r.ativo).length;
-  const totalClientes = new Set(reservas.map((r) => r.cliente_id)).size;
-  const anunciosAtivos = anunciosVenda.filter((a) => a.status === 'ativo').length;
+  if (pedidos.length > 0) {
+    tarefas.push({
+      id: 'pedidos', icone: Inbox, tom: 'urgente',
+      titulo: pedidos.length === 1 ? '1 pedido de reserva aguardando sua resposta' : `${pedidos.length} pedidos de reserva aguardando sua resposta`,
+      detalhe: 'O cliente está esperando. Aceite ou recuse o quanto antes.',
+      itens: pedidos.slice(0, 3).map((r) => ({
+        id: r.id, titulo: r.item_nome, href: `/painel/agendamentos/${r.id}`, acao: 'Responder',
+        sub: `${r.cliente?.name ?? 'Cliente'} · ${formatarData(r.data_reserva)} · ${plural(r.quantidade_pessoas, 'pessoa', 'pessoas')}`,
+      })),
+      mais: pedidos.length > 3 ? { label: `Ver todos os ${pedidos.length} pedidos`, href: '/painel/agendamentos' } : undefined,
+    });
+  }
 
-  /* ── Pipeline de aprovação: devolvidos (pedem ação) e em análise ── */
-  const publicacoes = [
-    ...embarcacoes.map((e) => ({ id: e.id, nome: e.nome, status: e.status as string, href: `/painel/embarcacoes/${e.id}/editar`, tipo: 'Embarcação' })),
-    ...roteiros.map((r) => ({ id: r.id, nome: r.nome, status: r.status as string, href: `/painel/roteiros/${r.id}/editar`, tipo: 'Roteiro' })),
-    ...anunciosVenda.map((a) => ({
-      id: a.id, nome: (a.embarcacao as unknown as { nome: string } | null)?.nome ?? 'Anúncio',
-      status: a.status as string, href: `/painel/vendas/${a.id}/editar`, tipo: 'Anúncio',
+  const devolvidos = [
+    ...embarcacoes.filter((e) => e.status === 'retorno' && !noPasso(e.id))
+      .map((e) => ({ id: e.id, titulo: e.nome, sub: 'Embarcação', href: `/painel/embarcacoes/${e.id}/editar` })),
+    ...roteiros.filter((r) => r.status === 'retorno' && !noPasso(r.id))
+      .map((r) => ({ id: r.id, titulo: r.nome, sub: 'Roteiro', href: `/painel/roteiros/${r.id}/editar` })),
+    ...anuncios.filter((a) => a.status === 'retorno').map((a) => ({
+      id: a.id, titulo: (a.embarcacao as unknown as { nome: string } | null)?.nome ?? 'Anúncio', sub: 'Anúncio de venda',
+      href: `/painel/vendas/${a.id}/editar`,
     })),
   ];
-  const devolvidos = publicacoes.filter((p) => p.status === 'retorno');
-  const emAnalise = publicacoes.filter((p) => p.status === 'em_analise').length;
+  if (devolvidos.length > 0) {
+    tarefas.push({
+      id: 'devolvidos', icone: Undo2, tom: 'alerta',
+      titulo: devolvidos.length === 1 ? '1 cadastro devolvido para ajustes' : `${devolvidos.length} cadastros devolvidos para ajustes`,
+      detalhe: 'A equipe Boatzy deixou um recado dizendo o que mudar. Ajuste e reenvie.',
+      itens: devolvidos.map((d) => ({ ...d, acao: 'Ajustar' })),
+    });
+  }
 
-  const stats = [
+  const semDocumento = embarcacoes.filter(
+    (e) => e.status !== 'inativo' && !noPasso(e.id) && pendenciaInscricao(inscricoes.get(e.id)) === 'nao_enviado',
+  );
+  if (semDocumento.length > 0) {
+    tarefas.push({
+      id: 'sem-documento', icone: FileWarning, tom: 'alerta',
+      titulo: semDocumento.length === 1 ? 'Envie o documento (TIE) da embarcação' : `Envie o documento (TIE) de ${semDocumento.length} embarcações`,
+      detalhe: 'Sem ele, a equipe Boatzy não aprova a embarcação.',
+      itens: semDocumento.map((e) => ({ id: e.id, titulo: e.nome, href: `/painel/embarcacoes/${e.id}/editar#documentacao`, acao: 'Enviar' })),
+    });
+  }
+
+  const nomeNoPasso = comPassos ? embarcacoes.find((e) => e.id === passos.embarcacaoId)?.nome : undefined;
+  const docsUrgentes = vencimentos.filter(
+    (v) => diasParaVencer(v.data_validade, hoje) <= DIAS_FAIXA_TOPO && !(TIPOS_INSCRICAO.includes(v.tipo) && v.alvo === nomeNoPasso),
+  );
+  if (docsUrgentes.length > 0) {
+    tarefas.push({
+      id: 'documentos', icone: FileClock, tom: 'urgente',
+      titulo: docsUrgentes.length === 1 ? '1 documento vencido ou perto de vencer' : `${docsUrgentes.length} documentos vencidos ou perto de vencer`,
+      detalhe: 'Renove para manter suas embarcações e sua equipe regularizadas.',
+      itens: docsUrgentes.slice(0, 3).map((v) => ({
+        id: v.id, titulo: `${nomeCurtoDocumento(v.tipo, v.titulo)} · ${v.alvo}`, sub: textoPrazo(v.data_validade, hoje),
+        href: '/painel/documentos', acao: 'Renovar',
+      })),
+      mais: docsUrgentes.length > 3 ? { label: 'Ver todos os documentos', href: '/painel/documentos' } : undefined,
+    });
+  }
+
+  const emAnalise = [...embarcacoes, ...roteiros].filter((p) => p.status === 'em_analise' && !noPasso(p.id)).length
+    + anuncios.filter((a) => a.status === 'em_analise').length;
+  const aguardandoPagamento = reservas.filter((r) => r.status === 'aguardando_pagamento').length;
+  const aguardando = [
+    emAnalise > 0 ? `${plural(emAnalise, 'cadastro', 'cadastros')} em análise pela equipe Boatzy` : null,
+    aguardandoPagamento > 0
+      ? `${plural(aguardandoPagamento, 'reserva aceita', 'reservas aceitas')} esperando o pagamento do cliente`
+      : null,
+  ].filter((t): t is string => !!t);
+
+  // ── Negócio: só depois do primeiro passeio no site (ou da primeira reserva) ──
+  const mostrarNegocio = passos.completo || reservas.length > 0;
+
+  const passeios: PasseioAgenda[] = reservas
+    .filter((r) => r.status === 'confirmada' && r.data_reserva >= hoje)
+    .sort((a, b) => a.data_reserva.localeCompare(b.data_reserva))
+    .slice(0, 5)
+    .map((r) => ({
+      id: r.id, item_nome: r.item_nome, data_reserva: r.data_reserva, quantidade_pessoas: r.quantidade_pessoas,
+      total_estimado: r.total_estimado, cliente: r.cliente?.name ?? 'Cliente',
+    }));
+  const totalProximos = reservas.filter((r) => r.status === 'confirmada' && r.data_reserva >= hoje).length;
+
+  const roteirosNoSite = roteiros.filter((r) => r.ativo).length;
+  const embarcacoesAprovadas = embarcacoes.filter((e) => e.status === 'ativo').length;
+  const clientes = new Set(reservas.map((r) => r.cliente_id)).size;
+  const anunciosNoSite = anuncios.filter((a) => a.status === 'ativo').length;
+
+  const docsStatus: Pick<CartaoResumo, 'valor' | 'unidade' | 'linha' | 'tomLinha'> =
+    resumoDocs.vencidos > 0
+      ? { valor: String(resumoDocs.vencidos), unidade: resumoDocs.vencidos === 1 ? 'vencido' : 'vencidos', linha: 'Renove para regularizar', tomLinha: 'perigo' }
+      : resumoDocs.venceEmBreve > 0
+        ? { valor: String(resumoDocs.venceEmBreve), unidade: 'vencem em breve', linha: vencimentos[0] ? `O próximo: ${formatarData(vencimentos[0].data_validade)}` : undefined, tomLinha: 'alerta' }
+        : resumoDocs.pendentes > 0
+          ? { valor: String(resumoDocs.pendentes), unidade: resumoDocs.pendentes === 1 ? 'embarcação sem TIE' : 'embarcações sem TIE', linha: 'Envie para aprovar', tomLinha: 'alerta' }
+          : { valor: 'Em dia', unidade: '', linha: vencimentos[0] ? `Próximo vencimento: ${formatarData(vencimentos[0].data_validade)}` : 'Nenhum documento vencendo', tomLinha: 'ok' };
+
+  const cartoes: CartaoResumo[] = [
     {
-      label: 'Agendamentos pendentes',
-      value: String(pendentes),
-      sub: `${reservas.length} agendamento${reservas.length !== 1 ? 's' : ''} no total`,
-      subAlert: pendentes > 0,
-      icon: Clock,
-      iconBg: 'bg-amber-50',
-      iconColor: 'text-amber-600',
-      href: '/painel/agendamentos',
+      id: 'reservas', titulo: 'Reservas', icone: CalendarDays, href: '/painel/agendamentos',
+      valor: String(totalProximos), unidade: totalProximos === 1 ? 'passeio marcado' : 'passeios marcados',
+      ...(pedidos.length > 0
+        ? { linha: `${plural(pedidos.length, 'pedido', 'pedidos')} para responder`, tomLinha: 'alerta' as const }
+        : { linha: 'Nenhum pedido para responder' }),
     },
     {
-      label: 'Embarcações',
-      value: String(embarcacoes.length),
-      sub: `${embarcacoesAtivas} ativa${embarcacoesAtivas !== 1 ? 's' : ''}`,
-      subDot: embarcacoesAtivas > 0,
-      icon: Ship,
-      iconBg: 'bg-blue-50',
-      iconColor: 'text-blue-600',
-      href: '/painel/embarcacoes',
+      id: 'site', titulo: 'No site', icone: Ship, href: '/painel/roteiros',
+      valor: String(roteirosNoSite), unidade: roteirosNoSite === 1 ? 'roteiro' : 'roteiros',
+      linha: `${embarcacoesAprovadas} de ${plural(embarcacoes.length, 'embarcação aprovada', 'embarcações aprovadas')}`,
     },
+    { id: 'documentos', titulo: 'Documentos', icone: FileCheck2, href: '/painel/documentos', ...docsStatus },
     {
-      label: 'Roteiros',
-      value: String(roteiros.length),
-      sub: `${roteirosAtivos} ativo${roteirosAtivos !== 1 ? 's' : ''}`,
-      subDot: roteirosAtivos > 0,
-      icon: MapIcon,
-      iconBg: 'bg-indigo-50',
-      iconColor: 'text-indigo-600',
-      href: '/painel/roteiros',
+      id: 'clientes', titulo: 'Clientes', icone: Users, href: '/painel/clientes',
+      valor: String(clientes), unidade: clientes === 1 ? 'cliente' : 'clientes', linha: 'Já reservaram com você',
     },
-    {
-      label: 'Clientes',
-      value: String(totalClientes),
-      sub: 'com pelo menos 1 reserva',
-      icon: Users,
-      iconBg: 'bg-emerald-50',
-      iconColor: 'text-emerald-600',
-      href: '/painel/clientes',
-    },
-    {
-      label: 'Anúncios de venda',
-      value: String(anunciosAtivos),
-      sub: `${leadsFunil} lead${leadsFunil !== 1 ? 's' : ''} no funil`,
-      subDot: leadsFunil > 0,
-      icon: Tag,
-      iconBg: 'bg-violet-50',
-      iconColor: 'text-violet-600',
-      href: '/painel/vendas/funil',
-    },
+    ...(anuncios.length > 0
+      ? [{
+          id: 'vendas', titulo: 'Venda de barcos', icone: Tag, href: '/painel/vendas/funil',
+          valor: String(anunciosNoSite), unidade: anunciosNoSite === 1 ? 'anúncio no site' : 'anúncios no site',
+          linha: plural(interessados, 'interessado', 'interessados'),
+        }]
+      : []),
   ];
 
-  /* ── Gráfico: reservas solicitadas nos últimos 6 meses ── */
-  // Meses no horário de Brasília (o servidor roda em UTC).
+  // Pedidos por mês (últimos 6, no horário de Brasília) e o mais procurado.
   const agora = partesNoFuso(new Date());
   const meses = Array.from({ length: 6 }, (_, i) => {
     const d = new Date(Date.UTC(agora.ano, agora.mes - (5 - i), 1));
-    return { ano: d.getUTCFullYear(), mes: d.getUTCMonth(), label: MESES_CURTOS[d.getUTCMonth()], total: 0 };
+    return { ano: d.getUTCFullYear(), mes: d.getUTCMonth(), chave: `${d.getUTCFullYear()}-${d.getUTCMonth()}`, label: MESES_CURTOS[d.getUTCMonth()], total: 0 };
   });
+  const porItem = new Map<string, { nome: string; total: number }>();
+  let naJanela = 0;
   for (const r of reservas) {
     const { ano, mes } = partesNoFuso(new Date(r.solicitado_em));
     const bucket = meses.find((m) => m.ano === ano && m.mes === mes);
-    if (bucket) bucket.total += 1;
-  }
-  const inicioJanela = new Date(
-    `${meses[0].ano}-${String(meses[0].mes + 1).padStart(2, '0')}-01T00:00:00-03:00`,
-  );
-  const maxMes = Math.max(1, ...meses.map((m) => m.total));
-
-  /* ── Destaque: item com mais reservas na janela de 6 meses ── */
-  const porItem = new Map<string, { nome: string; tipo: ReservaTipo; roteiroId: string | null; total: number }>();
-  let reservasJanela = 0;
-  for (const r of reservas) {
-    if (new Date(r.solicitado_em) < inicioJanela) continue;
-    reservasJanela += 1;
-    const key = `${r.tipo}:${r.roteiro_id ?? r.embarcacao_id ?? r.item_nome}`;
-    const atual = porItem.get(key) ?? { nome: r.item_nome, tipo: r.tipo, roteiroId: r.roteiro_id, total: 0 };
+    if (!bucket) continue;
+    bucket.total += 1;
+    naJanela += 1;
+    const chave = `${r.tipo}:${r.roteiro_id ?? r.embarcacao_id ?? r.item_nome}`;
+    const atual = porItem.get(chave) ?? { nome: r.item_nome, total: 0 };
     atual.total += 1;
-    porItem.set(key, atual);
+    porItem.set(chave, atual);
   }
-  const destaque = [...porItem.values()].sort((a, b) => b.total - a.total)[0] ?? null;
-  const destaquePercent = destaque && reservasJanela > 0
-    ? Math.round((destaque.total / reservasJanela) * 100)
-    : 0;
+  const maisProcurado = [...porItem.values()].sort((a, b) => b.total - a.total)[0];
+  const destaque = maisProcurado && naJanela > 0
+    ? { nome: maisProcurado.nome, total: maisProcurado.total, percentual: Math.round((maisProcurado.total / naJanela) * 100) }
+    : null;
 
-  /* ── Últimas solicitações ── */
-  const recentes = reservas.slice(0, 6);
+  // ── Cabeçalho ──
+  const primeiroNome = perfil?.name?.trim().split(/\s+/)[0];
+  const subtitulo = comPassos && !mostrarNegocio
+    ? 'Siga os passos abaixo para colocar seu primeiro passeio no site.'
+    : tarefas.length > 0
+      ? `Você tem ${plural(tarefas.length, 'assunto', 'assuntos')} para resolver.`
+      : 'Tudo em dia por aqui.';
 
   return (
-    <div className="p-4 sm:p-6 lg:p-8">
-      {/* Solicitações de reserva esperando resposta do gestor — atualizado ao vivo (AtualizarAoVivo) */}
-      {solicitacoesPendentes.length > 0 && (
-        <div className="mb-6 rounded-2xl border border-amber-200 bg-amber-50/70 p-4 sm:p-5">
-          <div className="flex flex-wrap items-center justify-between gap-2">
-            <p className="flex items-center gap-2 text-sm font-bold text-amber-900">
-              <span className="relative flex h-2.5 w-2.5">
-                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-amber-400 opacity-75" />
-                <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-amber-500" />
-              </span>
-              <Inbox className="h-4 w-4" />
-              {solicitacoesPendentes.length === 1
-                ? '1 solicitação de reserva aguarda sua resposta'
-                : `${solicitacoesPendentes.length} solicitações de reserva aguardam sua resposta`}
-            </p>
-            <Link href="/painel/agendamentos" className="text-xs font-semibold text-amber-800 hover:text-amber-950 inline-flex items-center gap-0.5">
-              Ver agendamentos <ChevronRight className="h-3.5 w-3.5" />
-            </Link>
-          </div>
-          <ul className="mt-3 grid gap-2 sm:grid-cols-2">
-            {solicitacoesPendentes.slice(0, 4).map((r) => (
-              <li key={r.id}>
-                <Link
-                  href={`/painel/agendamentos/${r.id}`}
-                  className="flex items-center gap-3 rounded-xl border border-amber-200 bg-white px-3 py-2.5 hover:border-amber-300 transition-colors"
-                >
-                  <div className="min-w-0 flex-1">
-                    <p className="text-sm font-semibold text-[#0B2447] truncate">{r.item_nome}</p>
-                    <p className="text-xs text-slate-500 truncate">
-                      {r.cliente?.name ?? 'Cliente'} · {formatDataCurta(r.data_reserva)} · {r.quantidade_pessoas}{' '}
-                      {r.quantidade_pessoas === 1 ? 'pessoa' : 'pessoas'}
-                    </p>
-                  </div>
-                  <span className="shrink-0 rounded-lg bg-[#0B2447] px-2.5 py-1 text-[11px] font-semibold text-white">Responder</span>
-                </Link>
-              </li>
-            ))}
-          </ul>
-          {solicitacoesPendentes.length > 4 && (
-            <p className="mt-2 text-xs text-amber-800">
-              e mais {solicitacoesPendentes.length - 4} em Agendamentos.
-            </p>
-          )}
-        </div>
-      )}
-      {aguardandoPagamento > 0 && (
-        <p className="mb-6 flex items-center gap-2 rounded-xl border border-violet-200 bg-violet-50/50 px-4 py-2.5 text-sm text-violet-800">
-          <CreditCard className="h-4 w-4 shrink-0" />
-          {aguardandoPagamento === 1
-            ? '1 reserva aceita aguarda o pagamento do cliente — você é avisado assim que ele pagar.'
-            : `${aguardandoPagamento} reservas aceitas aguardam o pagamento do cliente — você é avisado assim que cada uma for paga.`}
-        </p>
+    <div className="mx-auto max-w-6xl space-y-5 p-4 sm:space-y-6 sm:p-6 lg:p-8">
+      <header>
+        <h1 className="text-xl font-bold text-[#0B2447] sm:text-2xl">{primeiroNome ? `Olá, ${primeiroNome}!` : 'Olá!'}</h1>
+        <p className="mt-0.5 text-sm text-slate-500">{subtitulo}</p>
+      </header>
+
+      {comPassos && <PrimeirosPassosCard dados={passos} />}
+
+      {(tarefas.length > 0 || aguardando.length > 0 || mostrarNegocio) && (
+        <ParaFazerAgora tarefas={tarefas} aguardando={aguardando} />
       )}
 
-      {/* Pipeline de aprovação */}
-      {devolvidos.length > 0 && (
-        <div className="mb-6 rounded-2xl border border-orange-200 bg-orange-50/60 p-5">
-          <p className="flex items-center gap-2 text-sm font-bold text-orange-800">
-            <AlertTriangle className="h-4 w-4" />
-            {devolvidos.length === 1 ? '1 cadastro foi devolvido' : `${devolvidos.length} cadastros foram devolvidos`} pela equipe Boatzy para ajustes
-          </p>
-          <ul className="mt-3 flex flex-wrap gap-2">
-            {devolvidos.map((d) => (
-              <li key={d.id}>
-                <Link href={d.href}
-                  className="inline-flex items-center gap-1.5 rounded-xl border border-orange-200 bg-white px-3 py-1.5 text-sm font-medium text-slate-700 hover:border-orange-300">
-                  <span className="text-xs text-slate-400">{d.tipo}</span> {d.nome}
-                  <ChevronRight className="h-3.5 w-3.5 text-slate-400" />
-                </Link>
-              </li>
-            ))}
-          </ul>
-        </div>
+      {mostrarNegocio && (
+        <>
+          <Resumo cartoes={cartoes} />
+          <div className="grid grid-cols-1 gap-5 sm:gap-6 lg:grid-cols-5">
+            <ProximosPasseios passeios={passeios} className={reservas.length > 0 ? 'lg:col-span-3' : 'lg:col-span-5'} />
+            {reservas.length > 0 && <Desempenho meses={meses} destaque={destaque} className="lg:col-span-2" />}
+          </div>
+        </>
       )}
-      {emAnalise > 0 && (
-        <p className="mb-6 flex items-center gap-2 rounded-xl border border-amber-200 bg-amber-50/50 px-4 py-2.5 text-sm text-amber-800">
-          <Clock className="h-4 w-4" />
-          {emAnalise === 1 ? '1 cadastro aguarda' : `${emAnalise} cadastros aguardam`} a análise da equipe Boatzy — ele{emAnalise === 1 ? '' : 's'} aparece{emAnalise === 1 ? '' : 'm'} no site assim que for{emAnalise === 1 ? '' : 'em'} aprovado{emAnalise === 1 ? '' : 's'}.
-        </p>
-      )}
-
-      {/* Documentação — validade dos documentos da embarcação e das habilitações (SPEC §95.6) */}
-      {embarcacoes.length > 0 && (
-        <section className="mb-6 sm:mb-8 rounded-2xl border border-slate-100 bg-white p-4 sm:p-6 shadow-sm">
-          <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
-            <div className="flex items-start gap-3">
-              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-teal-50">
-                <FileCheck2 className="h-4 w-4 text-teal-600" />
-              </span>
-              <div>
-                <h3 className="text-base font-bold text-[#0B2447]">Documentação</h3>
-                <p className="text-xs text-slate-400 mt-0.5">TIE, seguro e habilitação náutica — avisamos antes de cada vencimento</p>
-              </div>
-            </div>
-            <Link href="/painel/documentos" className="inline-flex items-center gap-0.5 text-xs font-semibold text-[#0B3D91] hover:text-[#0B2447]">
-              Ver documentos <ChevronRight className="h-3.5 w-3.5" />
-            </Link>
-          </div>
-          {resumoDocs.total === 0 ? (
-            <div className="flex flex-col items-start gap-3 rounded-xl border border-dashed border-slate-200 bg-slate-50/60 p-4 sm:flex-row sm:items-center sm:justify-between">
-              <p className="text-sm text-slate-600">
-                Envie o <strong>TIE</strong> das suas embarcações e a <strong>habilitação</strong> de quem conduz. É só tirar uma foto —
-                nós lemos os dados e avisamos você antes de vencer.
-              </p>
-              <Link
-                href="/painel/documentos/novo"
-                className="inline-flex shrink-0 items-center gap-2 rounded-xl bg-[#0B2447] px-4 py-2.5 text-xs font-semibold text-white hover:bg-[#0B3D91]"
-              >
-                <Upload className="h-3.5 w-3.5" /> Enviar primeiro documento
-              </Link>
-            </div>
-          ) : (
-            <>
-              <ResumoValidadeCards resumo={resumoDocs} hrefBase="/painel/documentos" />
-              {vencimentos.length > 0 && (
-                <ul className="mt-4 divide-y divide-slate-100 rounded-xl border border-slate-100">
-                  {vencimentos.map((v) => (
-                    <li key={v.id}>
-                      <Link href="/painel/documentos" className="flex flex-wrap items-center gap-x-3 gap-y-1 px-3 py-2.5 hover:bg-slate-50">
-                        <span className="w-12 shrink-0 text-xs font-bold text-[#0B2447]">{nomeCurtoDocumento(v.tipo, v.titulo)}</span>
-                        <span className="min-w-0 flex-1 truncate text-sm text-slate-700">{v.alvo}</span>
-                        <span className="text-xs text-slate-500">
-                          {formatarData(v.data_validade)} · {textoPrazo(v.data_validade)}
-                        </span>
-                        <SeloValidade validade={v.data_validade} />
-                      </Link>
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </>
-          )}
-        </section>
-      )}
-
-      {/* Stats Grid */}
-      <div className="grid grid-cols-2 xl:grid-cols-5 gap-3 sm:gap-5 mb-6 sm:mb-8">
-        {stats.map((stat) => (
-          <Link
-            key={stat.label}
-            href={stat.href}
-            className="bg-white rounded-2xl border border-slate-100 p-4 sm:p-5 shadow-sm hover:shadow-md transition-shadow duration-200 last:col-span-2 xl:last:col-span-1 min-w-0"
-          >
-            <div className="flex items-start justify-between gap-2 mb-3">
-              <p className="text-[10px] font-bold text-slate-400 tracking-wider uppercase leading-snug">
-                {stat.label}
-              </p>
-              <div className={`w-8 h-8 sm:w-9 sm:h-9 shrink-0 rounded-xl ${stat.iconBg} flex items-center justify-center`}>
-                <stat.icon className={`w-4 h-4 ${stat.iconColor}`} />
-              </div>
-            </div>
-            <p className="text-2xl font-bold text-[#0B2447] mb-1">{stat.value}</p>
-            <p className="text-xs text-slate-400 flex items-center gap-1 min-w-0">
-              {stat.subDot && <span className="w-2 h-2 shrink-0 bg-green-400 rounded-full animate-pulse" />}
-              {stat.subAlert && <AlertTriangle className="w-3 h-3 shrink-0 text-amber-500" />}
-              <span className={`truncate ${stat.subAlert ? 'text-amber-600 font-medium' : ''}`}>{stat.sub}</span>
-            </p>
-          </Link>
-        ))}
-      </div>
-
-      {/* Gráfico + Destaque */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6 mb-6 sm:mb-8">
-        {/* Reservas solicitadas nos últimos 6 meses */}
-        <div className="lg:col-span-2 bg-white rounded-2xl border border-slate-100 p-4 sm:p-6 shadow-sm min-w-0">
-          <div className="flex flex-wrap items-start justify-between gap-2 mb-1">
-            <div>
-              <h3 className="text-base font-bold text-[#0B2447]">Reservas solicitadas</h3>
-              <p className="text-xs text-slate-400 mt-0.5">
-                Solicitações recebidas por mês (roteiros e embarcações)
-              </p>
-            </div>
-            <span className="px-3 py-1.5 rounded-md bg-slate-100 text-slate-500 text-xs font-semibold">
-              Últimos 6 meses
-            </span>
-          </div>
-
-          {/* Bar Chart */}
-          <div className="mt-6 flex items-end justify-between gap-2 sm:gap-4 h-48 sm:px-2">
-            {meses.map((m) => (
-              <div key={`${m.ano}-${m.mes}`} className="flex-1 flex flex-col items-center gap-2">
-                <span className="text-[11px] font-bold text-slate-500 tabular-nums">
-                  {m.total > 0 ? m.total : ''}
-                </span>
-                <div className="w-full flex justify-center">
-                  <div
-                    className="w-full max-w-10 rounded-t-lg transition-all duration-500 hover:opacity-80"
-                    style={{
-                      height: `${Math.max(m.total > 0 ? 8 : 2, (m.total / maxMes) * 150)}px`,
-                      backgroundColor:
-                        m.total === maxMes && m.total > 0 ? '#0B2447' : '#CBD5E1',
-                    }}
-                  />
-                </div>
-                <span className="text-[10px] font-bold text-slate-400 tracking-wider">
-                  {m.label}
-                </span>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* Destaque dos últimos 6 meses */}
-        <div className="bg-[#0B2447] rounded-2xl p-5 sm:p-6 text-white shadow-lg relative overflow-hidden">
-          <div className="absolute top-0 right-0 w-32 h-32 bg-white/5 rounded-full -translate-y-1/2 translate-x-1/2" />
-          <div className="absolute bottom-0 left-0 w-24 h-24 bg-white/5 rounded-full translate-y-1/2 -translate-x-1/2" />
-
-          <div className="relative z-10">
-            <div className="flex items-center justify-between mb-4">
-              <span className="text-[10px] font-bold tracking-wider uppercase text-cyan-400">
-                Destaque do período
-              </span>
-              <BarChart3 className="w-5 h-5 text-white/40" />
-            </div>
-
-            {destaque ? (
-              <>
-                <h4 className="text-lg font-bold mb-2">{destaque.nome}</h4>
-                <p className="text-sm text-white/60 leading-relaxed mb-6">
-                  {destaquePercent}% das solicitações dos últimos 6 meses
-                  ({destaque.total} reserva{destaque.total !== 1 ? 's' : ''}).
-                </p>
-
-                <div className="flex items-center justify-between mb-4">
-                  <span className="text-xs font-bold text-white/50 uppercase tracking-wider">
-                    Tipo
-                  </span>
-                  <span className="text-xs font-bold text-cyan-400 uppercase tracking-wider">
-                    {destaque.tipo === 'embarcacao' ? 'Embarcação' : 'Roteiro'}
-                  </span>
-                </div>
-
-                <Link
-                  href="/painel/agendamentos"
-                  className="w-full bg-white/10 hover:bg-white/20 backdrop-blur-sm text-white font-semibold text-sm py-3 rounded-xl transition-all duration-200 flex items-center justify-center gap-2"
-                >
-                  Ver agendamentos
-                  <ExternalLink className="w-3.5 h-3.5" />
-                </Link>
-              </>
-            ) : (
-              <>
-                <h4 className="text-lg font-bold mb-2">Sem reservas no período</h4>
-                <p className="text-sm text-white/60 leading-relaxed mb-6">
-                  Quando você receber solicitações, o roteiro ou embarcação mais procurado aparece aqui.
-                </p>
-                <Link
-                  href="/painel/roteiros"
-                  className="w-full bg-white/10 hover:bg-white/20 backdrop-blur-sm text-white font-semibold text-sm py-3 rounded-xl transition-all duration-200 flex items-center justify-center gap-2"
-                >
-                  Gerenciar roteiros
-                  <ExternalLink className="w-3.5 h-3.5" />
-                </Link>
-              </>
-            )}
-          </div>
-        </div>
-      </div>
-
-      {/* Últimas solicitações de reserva */}
-      <div className="bg-white rounded-2xl border border-slate-100 p-4 sm:p-6 shadow-sm">
-        <div className="flex items-start justify-between gap-3 mb-5">
-          <div>
-            <h3 className="text-base font-bold text-[#0B2447]">Últimas solicitações de reserva</h3>
-            <p className="text-xs text-slate-400 mt-0.5">
-              As solicitações mais recentes dos seus roteiros e embarcações
-            </p>
-          </div>
-          <Link
-            href="/painel/agendamentos"
-            className="flex items-center gap-1 shrink-0 py-1 text-xs font-semibold text-[#0B3D91] hover:text-[#0B2447] transition-colors"
-          >
-            Ver todas
-            <ChevronRight className="w-3.5 h-3.5" />
-          </Link>
-        </div>
-
-        {recentes.length === 0 ? (
-          <div className="rounded-xl border border-dashed border-slate-200 p-10 text-center">
-            <p className="text-sm text-slate-400 font-medium">Você ainda não recebeu solicitações de reserva.</p>
-          </div>
-        ) : (
-          <>
-          {/* Mobile: cards empilhados no lugar da tabela. */}
-          <ul className="md:hidden divide-y divide-slate-100 -mx-4 sm:-mx-6">
-            {recentes.map((r) => {
-              const s = STATUS_BADGE[r.status];
-              const TipoIcon = r.tipo === 'embarcacao' ? Ship : MapPin;
-              return (
-                <li key={r.id}>
-                  <Link
-                    href={`/painel/agendamentos/${r.id}`}
-                    className="flex items-start gap-3 px-4 sm:px-6 py-3.5 active:bg-slate-50 transition-colors"
-                  >
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-start justify-between gap-2">
-                        <p className="text-sm font-semibold text-[#0B2447] line-clamp-2">{r.item_nome}</p>
-                        <span className="text-sm font-semibold text-[#0B2447] shrink-0 tabular-nums">
-                          {r.total_estimado != null ? formatCurrency(r.total_estimado) : '—'}
-                        </span>
-                      </div>
-                      <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1">
-                        <span
-                          className={`inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full ${
-                            r.tipo === 'embarcacao' ? 'bg-blue-50 text-blue-700' : 'bg-cyan-50 text-cyan-700'
-                          }`}
-                        >
-                          <TipoIcon className="w-2.5 h-2.5" />
-                          {r.tipo === 'embarcacao' ? 'Embarcação' : 'Roteiro'}
-                        </span>
-                        <span className={`text-[10px] font-bold uppercase tracking-wider ${s.class}`}>{s.label}</span>
-                      </div>
-                      <p className="mt-1.5 text-xs text-slate-500">
-                        {r.cliente?.name ?? '—'} · {formatDataCurta(r.data_reserva)} · {r.quantidade_pessoas} pessoa{r.quantidade_pessoas !== 1 ? 's' : ''}
-                      </p>
-                    </div>
-                    <ChevronRight className="w-4 h-4 text-slate-300 shrink-0 mt-0.5" />
-                  </Link>
-                </li>
-              );
-            })}
-          </ul>
-
-          <div className="hidden md:block overflow-x-auto">
-            <table className="w-full text-left">
-              <thead>
-                <tr className="border-b border-slate-100">
-                  <th className="pb-3 text-[10px] font-bold text-slate-400 tracking-wider uppercase">Item</th>
-                  <th className="pb-3 text-[10px] font-bold text-slate-400 tracking-wider uppercase">Cliente</th>
-                  <th className="pb-3 text-[10px] font-bold text-slate-400 tracking-wider uppercase">Data do passeio</th>
-                  <th className="pb-3 text-[10px] font-bold text-slate-400 tracking-wider uppercase">Pessoas</th>
-                  <th className="pb-3 text-[10px] font-bold text-slate-400 tracking-wider uppercase">Total / Status</th>
-                  <th className="pb-3 text-[10px] font-bold text-slate-400 tracking-wider uppercase">Solicitada em</th>
-                  <th className="pb-3 text-[10px] font-bold text-slate-400 tracking-wider uppercase">Ações</th>
-                </tr>
-              </thead>
-              <tbody>
-                {recentes.map((r) => {
-                  const s = STATUS_BADGE[r.status];
-                  const TipoIcon = r.tipo === 'embarcacao' ? Ship : MapPin;
-                  return (
-                    <tr key={r.id} className="border-b border-slate-50 last:border-0 hover:bg-slate-50/50 transition-colors">
-                      <td className="py-3.5 pr-4">
-                        <div className="text-sm font-medium text-[#0B2447]">{r.item_nome}</div>
-                        <span
-                          className={`inline-flex items-center gap-1 mt-0.5 text-[10px] font-semibold px-2 py-0.5 rounded-full ${
-                            r.tipo === 'embarcacao' ? 'bg-blue-50 text-blue-700' : 'bg-cyan-50 text-cyan-700'
-                          }`}
-                        >
-                          <TipoIcon className="w-2.5 h-2.5" />
-                          {r.tipo === 'embarcacao' ? 'Embarcação' : 'Roteiro'}
-                        </span>
-                      </td>
-                      <td className="py-3.5 pr-4 text-sm text-slate-600">{r.cliente?.name ?? '—'}</td>
-                      <td className="py-3.5 pr-4 text-sm text-slate-600">{formatDataCurta(r.data_reserva)}</td>
-                      <td className="py-3.5 pr-4 text-sm text-slate-600">{r.quantidade_pessoas}</td>
-                      <td className="py-3.5 pr-4">
-                        <div className="text-sm font-semibold text-[#0B2447]">
-                          {r.total_estimado != null ? formatCurrency(r.total_estimado) : '—'}
-                        </div>
-                        <span className={`text-[10px] font-bold uppercase tracking-wider ${s.class}`}>
-                          {s.label}
-                        </span>
-                      </td>
-                      <td className="py-3.5 pr-4 text-sm text-slate-500">{formatDataCurta(r.solicitado_em)}</td>
-                      <td className="py-3.5">
-                        <Link
-                          href={`/painel/agendamentos/${r.id}`}
-                          className="text-xs font-semibold text-[#0B3D91] hover:text-[#0B2447] transition-colors"
-                        >
-                          Detalhes
-                        </Link>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-          </>
-        )}
-      </div>
     </div>
   );
 }

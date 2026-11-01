@@ -80,3 +80,21 @@ export async function enviarArquivoDocumento(
   if (!confirmacao.ok) return confirmacao;
   return { ok: true, arquivo: { key: confirmacao.json.key, nome: file.name, tipo: file.type, tamanho: file.size } };
 }
+
+/** Arquivos já enviados nesta página: uma nova tentativa de salvar o cadastro não sobe de novo. */
+const enviados = new WeakMap<File, { documentoId: string; arquivo: ArquivoEnviado }>();
+
+/**
+ * Envia o arquivo de um documento embutido num cadastro (SPEC §95.10) — uma vez só por
+ * arquivo e documento, mesmo que o cadastro precise ser salvo de novo.
+ */
+export async function enviarArquivoRascunho(
+  r: { id: string; arquivo: File },
+  onProgresso: (pct: number) => void = () => {},
+): Promise<{ ok: true; arquivo: ArquivoEnviado } | { ok: false; erro: string }> {
+  const anterior = enviados.get(r.arquivo);
+  if (anterior?.documentoId === r.id) return { ok: true, arquivo: anterior.arquivo };
+  const res = await enviarArquivoDocumento(r.arquivo, r.id, onProgresso);
+  if (res.ok) enviados.set(r.arquivo, { documentoId: r.id, arquivo: res.arquivo });
+  return res;
+}

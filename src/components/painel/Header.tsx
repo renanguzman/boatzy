@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
+import { usePathname } from 'next/navigation';
 import { Menu } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import type { User } from '@supabase/supabase-js';
@@ -14,7 +15,26 @@ interface HeaderProps {
   title?: string;
 }
 
-export default function Header({ title = 'Overview' }: HeaderProps) {
+/** Nome da seção no topo (desktop), pelo início do caminho — mesmos nomes do menu. */
+const TITULOS: [string, string][] = [
+  ['/painel/agendamentos', 'Reservas'],
+  ['/painel/clientes', 'Clientes'],
+  ['/painel/embarcacoes', 'Embarcações'],
+  ['/painel/documentos', 'Documentos'],
+  ['/painel/roteiros', 'Roteiros e preços'],
+  ['/painel/catalogo', 'Catálogo de extras'],
+  ['/painel/equipe', 'Equipe'],
+  ['/painel/receitas', 'Receitas'],
+  ['/painel/vendas', 'Venda de embarcações'],
+];
+
+function tituloDaSecao(pathname: string): string {
+  if (pathname === '/painel') return 'Início';
+  return TITULOS.find(([prefixo]) => pathname.startsWith(prefixo))?.[1] ?? 'Painel do proprietário';
+}
+
+export default function Header({ title }: HeaderProps) {
+  const pathname = usePathname();
   const [user, setUser] = useState<User | null>(null);
   const supabase = createClient();
   const { aberto, abrir } = useMenuMobile();
@@ -41,10 +61,10 @@ export default function Header({ title = 'Overview' }: HeaderProps) {
         >
           <Menu className="w-5 h-5" />
         </button>
-        <Link href="/painel" className="lg:hidden shrink-0" aria-label="Boatzy — Dashboard">
+        <Link href="/painel" className="lg:hidden shrink-0" aria-label="Boatzy — Início">
           <Image src="/images/logo-vertical.svg" alt="Boatzy" width={282} height={290} className="h-10 w-auto" />
         </Link>
-        <h2 className="hidden lg:block text-sm font-semibold text-[#0B2447] truncate">{title}</h2>
+        <h2 className="hidden lg:block text-sm font-semibold text-[#0B2447] truncate">{title ?? tituloDaSecao(pathname)}</h2>
       </div>
 
       <div className="flex items-center gap-1 sm:gap-4">
