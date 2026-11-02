@@ -69,6 +69,9 @@ export async function criarEmbarcacao(
   if (!payload.nome.trim()) {
     return { ok: false, error: 'O nome da embarcação é obrigatório.' };
   }
+  if (!payload.descricao.trim()) {
+    return { ok: false, error: 'A descrição da embarcação é obrigatória.' };
+  }
 
   if (!ehUuid(payload.id)) return { ok: false, error: 'Cadastro inválido. Recarregue a página e tente novamente.' };
   const imagens = prepararImagensNovas(payload.imagens);
@@ -83,7 +86,7 @@ export async function criarEmbarcacao(
       id: payload.id,
       owner_id: user.id,
       nome: payload.nome.trim(),
-      descricao: payload.descricao.trim() || null,
+      descricao: payload.descricao.trim(),
       embarcacao_tipo_id: payload.embarcacao_tipo_id || null,
       modalidade_capitao: payload.modalidade_capitao,
       capacidade: payload.capacidade ? parseInt(payload.capacidade, 10) : null,

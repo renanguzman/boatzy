@@ -856,6 +856,13 @@ frase solta. Agora, abaixo dos campos **Descrição** da embarcação e do rotei
   itens, lugares, animais, horários ou números que não foram informados, sem preço e sem contato fora da
   plataforma. Corrige erros e vícios de fala do ditado. No passeio, a Descrição passou para **depois do
   itinerário** (os fatos vêm antes do texto); sem itinerário, o assistente avisa que o texto ficaria genérico.
+- **Embarcação — descrição depois dos Detalhes e obrigatória (01/11/2026):** no cadastro e na edição da embarcação, a
+  Descrição saiu da etapa Informações e virou o último cartão da etapa **Detalhes** (depois de especificações, regras,
+  equipamentos, acessórios e comodidades) — assim, num cadastro novo, o assistente já conhece tudo o que a embarcação
+  tem. O preenchimento passou a ser **obrigatório**: sem descrição não dá para enviar o cadastro nem salvar a edição
+  (o aviso sugere "Escrever com ajuda" e leva à etapa Detalhes), e a Revisão mostra o item "Descrição" em vermelho
+  enquanto estiver vazia. Embarcações antigas sem descrição continuam no ar; o texto passa a ser exigido na próxima
+  edição.
 - **Sem IA disponível** (chave não configurada ou instabilidade): oferece "Montar um rascunho simples" com os dados
   do cadastro, também para revisar antes de usar.
 - **Ditado:** funciona no Chrome (Android e computador), Edge e Safari (iPhone e Mac); onde não há, a tela sugere o
@@ -2010,7 +2017,8 @@ A taxa padrão configurada inicialmente é **10%**. Admins podem alterá-la a qu
 - Os cadastros e edições de **embarcação** e de **roteiro** (painel e admin) passaram a ser feitos
   em **7 etapas**, com indicador de progresso clicável e navegação livre (dá para ir e voltar a
   qualquer etapa sem perder o que foi preenchido).
-  - Embarcação: Informações → Detalhes (especificações + comodidades) → Localização → Fotos →
+  - Embarcação: Informações → Detalhes (especificações + comodidades + descrição obrigatória, desde
+    01/11/2026) → Localização → Fotos →
     **Documentos** → Revisão (**6 etapas** desde 01/11/2026 — a etapa Documentos recebe TIE/TIEM/PRPM e
     DPEM, ver §6.14; eram 5 desde 12/10/2026, quando Preço e Disponibilidade saíram — ver "Embarcação sem
     preço e disponibilidade próprios").

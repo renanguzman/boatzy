@@ -15,7 +15,7 @@ import { erroConferencia, type DocumentoAtual, type RascunhoDocumento } from '@/
  */
 export const ETAPAS_EMBARCACAO: EtapaDef[] = [
   { id: 'informacoes',     label: 'Informações',     desc: 'Nome, tipo e capitão' },
-  { id: 'detalhes',        label: 'Detalhes',        desc: 'Especificações e comodidades' },
+  { id: 'detalhes',        label: 'Detalhes',        desc: 'Comodidades e descrição' },
   { id: 'localizacao',     label: 'Localização',     desc: 'Onde ela fica' },
   { id: 'fotos',           label: 'Fotos',           desc: 'Galeria e títulos' },
   { id: 'documentacao',    label: 'Documentos',      desc: 'TIE e seguro DPEM' },
@@ -57,7 +57,7 @@ function plural(n: number, um: string, varios: string) {
 /** Checklist da etapa Revisão + dados do card de busca, a partir do estado do form. */
 export function revisaoEmbarcacao(args: {
   form: {
-    nome: string; embarcacao_tipo_id: string; modalidade_capitao: string;
+    nome: string; descricao: string; embarcacao_tipo_id: string; modalidade_capitao: string;
     capacidade: string; comprimento: string; comprimento_unidade: string;
     estado_id: string; municipio_id: string;
     latitude: string; longitude: string; bairro: string;
@@ -81,6 +81,7 @@ export function revisaoEmbarcacao(args: {
   const capitao = { com_capitao: 'Com capitão', sem_capitao: 'Sem capitão', opcional: 'Capitão opcional' }[form.modalidade_capitao] ?? '';
   const nFotos = args.imagens.length;
   const principal = args.imagens.find(i => i.principal) ?? args.imagens[0];
+  const descricao = form.descricao.trim().replace(/\s+/g, ' ');
 
   const itens: ItemRevisao[] = [
     {
@@ -99,6 +100,14 @@ export function revisaoEmbarcacao(args: {
         comprimento,
         plural(args.comodidadesSelecionadas.length, 'comodidade', 'comodidades'),
       ].filter(Boolean).join(' · '),
+      onEditar: () => ir(ETAPA_EMB.detalhes),
+    },
+    {
+      label: 'Descrição',
+      status: descricao ? 'ok' : 'erro',
+      resumo: descricao
+        ? (descricao.length > 120 ? `${descricao.slice(0, 120).trimEnd()}…` : descricao)
+        : 'A descrição é obrigatória — na etapa Detalhes, toque em "Escrever com ajuda" se preferir.',
       onEditar: () => ir(ETAPA_EMB.detalhes),
     },
     {

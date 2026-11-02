@@ -81,12 +81,13 @@ export async function atualizarEmbarcacao(
   if ('error' in result && result.error) return { ok: false, error: result.error };
 
   if (!payload.nome.trim()) return { ok: false, error: 'O nome da embarcação é obrigatório.' };
+  if (!payload.descricao.trim()) return { ok: false, error: 'A descrição da embarcação é obrigatória.' };
 
   const { error } = await supabaseAdmin
     .from('embarcacao')
     .update({
       nome: payload.nome.trim(),
-      descricao: payload.descricao.trim() || null,
+      descricao: payload.descricao.trim(),
       embarcacao_tipo_id: payload.embarcacao_tipo_id || null,
       modalidade_capitao: payload.modalidade_capitao,
       capacidade: payload.capacidade ? parseInt(payload.capacidade, 10) : null,

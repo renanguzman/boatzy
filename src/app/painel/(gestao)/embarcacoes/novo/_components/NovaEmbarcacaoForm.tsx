@@ -4,7 +4,7 @@ import { useState, useTransition, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import {
   Info, ClipboardCheck, Ruler, MapPin, ImageIcon,
-  Loader2, AlertCircle, CheckCircle, Sparkles, ShieldCheck, Waves, ScrollText,
+  Loader2, AlertCircle, CheckCircle, Sparkles, ShieldCheck, Waves, ScrollText, PenLine,
 } from 'lucide-react';
 import GaleriaImagensEditor, { type GaleriaItem } from '@/components/painel/GaleriaImagensEditor';
 import { enviarFotosNovas, mensagemFalhaEnvio, MENSAGEM_SEM_FOTOS } from '@/lib/galeria-upload';
@@ -336,6 +336,11 @@ export default function NovaEmbarcacaoForm({
       etapas.ir(ETAPA_EMB.informacoes);
       return;
     }
+    if (!form.descricao.trim()) {
+      setFeedback({ type: 'error', msg: 'Escreva a descrição da embarcação — se preferir, toque em "Escrever com ajuda".' });
+      etapas.ir(ETAPA_EMB.detalhes);
+      return;
+    }
     if (imagens.length === 0) {
       setFeedback({ type: 'error', msg: MENSAGEM_SEM_FOTOS });
       etapas.ir(ETAPA_EMB.fotos);
@@ -454,25 +459,6 @@ export default function NovaEmbarcacaoForm({
             <Field label="Nome da embarcação" required>
               <input className={inputCls} placeholder="ex: Lancha Azul Horizon"
                 value={form.nome} onChange={e => setField('nome', e.target.value)} />
-            </Field>
-          </div>
-          <div className="md:col-span-2">
-            <Field label="Descrição">
-              <textarea className={`${inputCls} resize-y`} rows={4}
-                placeholder="Para quem ela é ideal, o que tem de especial, como é o conforto a bordo…"
-                value={form.descricao} onChange={e => setField('descricao', e.target.value)} />
-              <AssistenteDescricao
-                alvo="embarcacao"
-                valorAtual={form.descricao}
-                fatos={fatosEmbarcacao({
-                  form, tipos, estados, municipios,
-                  comodidades, comodidadesSelecionadas,
-                  equipamentos: equipamentosSeguranca, equipamentosSelecionados,
-                  acessorios, acessoriosSelecionados, regras,
-                })}
-                aviso={avisoDescricaoEmbarcacao(form, comodidadesSelecionadas)}
-                onAplicar={texto => setField('descricao', texto)}
-              />
             </Field>
           </div>
           <Field label="Tipo">
@@ -642,6 +628,27 @@ export default function NovaEmbarcacaoForm({
           )}
         </SectionCard>
       )}
+
+      {/* ── 6. Descrição — depois dos detalhes: os fatos vêm antes do texto (e alimentam o assistente) ─ */}
+      <SectionCard icon={PenLine} title="Descrição">
+        <Field label="O que o cliente vai ler sobre a embarcação" required>
+          <textarea className={`${inputCls} resize-y`} rows={5}
+            placeholder="Para quem ela é ideal, o que tem de especial, como é o conforto a bordo…"
+            value={form.descricao} onChange={e => setField('descricao', e.target.value)} />
+          <AssistenteDescricao
+            alvo="embarcacao"
+            valorAtual={form.descricao}
+            fatos={fatosEmbarcacao({
+              form, tipos, estados, municipios,
+              comodidades, comodidadesSelecionadas,
+              equipamentos: equipamentosSeguranca, equipamentosSelecionados,
+              acessorios, acessoriosSelecionados, regras,
+            })}
+            aviso={avisoDescricaoEmbarcacao(form, comodidadesSelecionadas)}
+            onAplicar={texto => setField('descricao', texto)}
+          />
+        </Field>
+      </SectionCard>
 
       </div>
 

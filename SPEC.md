@@ -695,8 +695,8 @@ galeria e dados permanecem).
 
 | # | Embarcação (`ETAPAS_EMBARCACAO`) | Roteiro (`ETAPAS_ROTEIRO`) |
 |---|---|---|
-| 1 | Informações (nome*, descrição, tipo, capitão, status) | Informações (nome*, descrição*, embarcação, duração, capacidade, itinerário) |
-| 2 | Detalhes (especificações + comodidades) | Localização de partida |
+| 1 | Informações (nome*, tipo, capitão, status) | Informações (nome*, descrição*, embarcação, duração, capacidade, itinerário) |
+| 2 | Detalhes (especificações + comodidades + **descrição\*** — desde 01/11/2026, §98.6) | Localização de partida |
 | 3 | Localização | Fotos |
 | 4 | Fotos | Preço (modelos de cobrança) |
 | 5 | Documentos (TIE/TIEM/PRPM e DPEM — §95.10) | Disponibilidade |
@@ -9373,8 +9373,9 @@ type RespostaDescricao =
   `not-allowed`/`network` com orientação; `suportado` via `useSyncExternalStore` (sem suporte → dica do microfone
   do teclado).
 - Formulários de roteiro: o campo Descrição foi para **depois do Itinerário** na etapa Informações (placeholder novo,
-  `rows=5`, `resize-y`); embarcação: `rows=4`, placeholder orientativo. `aviso`: embarcação sem capacidade e sem
-  comodidades → "preencha a etapa Detalhes"; roteiro sem itinerário → "preencha o itinerário".
+  `rows=5`, `resize-y`); embarcação: cartão próprio no fim da etapa Detalhes (§98.6). `aviso`: embarcação sem
+  capacidade e sem comodidades → "preencha a capacidade e as comodidades aqui em cima"; roteiro sem itinerário →
+  "preencha o itinerário".
 
 ### 98.5 Validação
 
@@ -9387,4 +9388,23 @@ Após a troca para a OpenAI: sem `OPENAI_API_KEY`, `gerarDescricao` (com pesquis
 caixa de pesquisa visível e marcada, `pesquisar: true` no pedido, fontes listadas com links em nova aba (API simulada).
 **Não exercitado:** geração real (sem `OPENAI_API_KEY` neste ambiente) — inclusive se `text.format` + `web_search` são
 aceitos juntos (há a repetição sem formato) — e ditado com microfone em aparelho real (iPhone/Android).
+
+### 98.6 Descrição da embarcação — depois dos Detalhes e obrigatória (01/11/2026)
+
+- `NovaEmbarcacaoForm` e `EditarEmbarcacaoForm` (também no admin): o campo saiu de Informações e virou o cartão
+  **"Descrição"** (ícone `PenLine`) no **fim da etapa Detalhes**, depois de Comodidades — no cadastro novo o assistente
+  já recebe tipo, medidas, regras, equipamentos, acessórios e comodidades como fatos. Rótulo "O que o cliente vai ler
+  sobre a embarcação" com `*`, `rows=5`. `ETAPAS_EMBARCACAO[detalhes].desc` = "Comodidades e descrição".
+- **Obrigatória:**
+  - Servidor: `criarEmbarcacao` e `atualizarEmbarcacao` recusam `descricao` vazia ("A descrição da embarcação é
+    obrigatória.") e gravam `descricao.trim()` (não mais `|| null`). A coluna `embarcacao.descricao` continua
+    anulável no banco (embarcações antigas sem texto seguem válidas até a próxima edição).
+  - Cadastro: `handleSubmit` confere depois do nome; vazia → feedback com a dica de "Escrever com ajuda" e volta para
+    `ETAPA_EMB.detalhes`.
+  - Edição: `camposObrigatoriosOk()` (nome + descrição) roda em `handleSubmit` **antes** do diálogo de nova análise e
+    de novo em `salvar()`.
+  - Revisão (`revisaoEmbarcacao`, `form.descricao` no tipo): item **"Descrição"** entre Detalhes e Localização — vazia
+    = `erro` ("A descrição é obrigatória…"), preenchida = `ok` com os primeiros 120 caracteres; "Editar" leva a
+    Detalhes.
+
 

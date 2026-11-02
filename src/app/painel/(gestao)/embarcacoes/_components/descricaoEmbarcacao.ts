@@ -43,9 +43,9 @@ export function fatosEmbarcacao(a: {
   return fatos.filter((f): f is [string, string] => !!f[1]).map(([rotulo, valor]) => ({ rotulo, valor }));
 }
 
-/** O texto fica mais completo com os Detalhes preenchidos (a descrição vem antes, na etapa 1). */
+/** O texto fica mais completo com os Detalhes preenchidos (a descrição fica no fim da mesma etapa). */
 export function avisoDescricaoEmbarcacao(f: { capacidade: string }, comodidadesSelecionadas: string[]): string | null {
   return !f.capacidade && comodidadesSelecionadas.length === 0
-    ? 'Dica: preencha a etapa Detalhes (capacidade e o que tem a bordo) e volte aqui — o texto fica mais completo.'
+    ? 'Dica: preencha a capacidade e as comodidades aqui em cima antes — o texto fica mais completo.'
     : null;
 }
