@@ -18,6 +18,7 @@ import legal from './legal.json';
 import metadados from './metadados.json';
 import minhasReservas from './minhas-reservas.json';
 import notificacoes from './notificacoes.json';
+import operador from './operador.json';
 import passeios from './passeios.json';
 import passeiosArtigos from './passeios-artigos.json';
 import reserva from './reserva.json';
@@ -39,6 +40,7 @@ const mensagens = {
   ...metadados,
   ...minhasReservas,
   ...notificacoes,
+  ...operador,
   ...passeios,
   ...passeiosArtigos,
   ...reserva,

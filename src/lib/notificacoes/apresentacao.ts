@@ -13,6 +13,7 @@ import {
   RotateCcw,
   Star,
   TimerOff,
+  UserRound,
   XCircle,
   type LucideIcon,
 } from 'lucide-react';
@@ -40,6 +41,8 @@ export const VISUAL_NOTIFICACAO: Record<NotificacaoTipo, Visual> = {
   documento_vencendo: { icone: FileWarning, cor: 'bg-amber-50 text-amber-600', rotulo: 'Documento vencendo' },
   cobranca_avulsa: { icone: HandCoins, cor: 'bg-sky-50 text-sky-600', rotulo: 'Cobrança' },
   lembrete_passeio: { icone: BellRing, cor: 'bg-turquesa/10 text-turquesa-escuro', rotulo: 'Lembrete do passeio' },
+  perfil_operador_aprovado: { icone: UserRound, cor: 'bg-emerald-50 text-emerald-600', rotulo: 'Perfil aprovado' },
+  perfil_operador_ajustes: { icone: UserRound, cor: 'bg-amber-50 text-amber-600', rotulo: 'Ajustes no perfil' },
 };
 
 export function visualNotificacao(tipo: string): Visual {

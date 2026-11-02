@@ -3396,6 +3396,7 @@ Renderiza 6 stat cards + grid de cards de acesso rápido aos 6 módulos.
 | Rota | Item | Status |
 |---|---|---|
 | `/administrator` | Dashboard | ✅ implementado |
+| `/administrator/operadores` | Operadores (perfil do operador, §99) | ✅ implementado (02/11/2026) |
 | `/administrator/avaliacoes` | Avaliações | ✅ implementado |
 | `/administrator/embarcacoes` | Embarcações | ✅ implementado |
 | `/administrator/roteiros` | Roteiros | ✅ implementado |
@@ -9248,10 +9249,17 @@ embarcacao_id, primeira_aprovacao_em, enviado_analise_em)`, `reserva` (como ante
      "Embarcação fora do site" + "Pedir para voltar ao site";
   4. `roteiro` — liberado com qualquer embarcação; ação → `/painel/roteiros/novo?embarcacao=[id]`;
   5. `aprovacao_roteiro` — `ativo` (visível) feito; `status='ativo'` sem a embarcação aprovada → aguardando
-     "entra no site quando a embarcação for aprovada"; `retorno`/inativo como no passo 3.
-- `completo` = alguma embarcação **e** algum roteiro com `primeira_aprovacao_em` → o cartão some (estável: pausar
-  tudo depois não o traz de volta). `embarcacaoId`/`roteiroId` voltam para não repetir esses itens nas pendências.
-- `PrimeirosPassosCard`: barra de progresso (`concluidos`/5), linha da regra de aprovação, o primeiro `fazer` é o
+     "entra no site quando a embarcação for aprovada"; `retorno`/inativo como no passo 3;
+  6. `perfil` (02/11/2026, §99.7) — último passo, **sempre acionável** ("Conte quem é você" → `/painel/perfil`).
+     `montarPrimeirosPassos({ …, perfil: PerfilInicio })`, `PerfilInicio = { status, enviado_analise_em, noAr } | null`
+     (`noAr` = há `publicado` e `status ≠ 'retirado'`): `noAr` → feito ("Perfil no ar"; alerta se `devolvido`);
+     `em_analise` → aguardando; `devolvido`/`retirado` → fazer + alerta ("Ver o que ajustar"); `rascunho` → "Continuar meu perfil".
+- `noSite` = alguma embarcação **e** algum roteiro com `primeira_aprovacao_em` (o dono já opera: libera os blocos de
+  negócio do Início e volta a listar embarcação/roteiro nas pendências). `completo` = `noSite` **e** passo `perfil`
+  feito → só então o cartão some (estável: pausar tudo depois não o traz de volta). `embarcacaoId`/`roteiroId` voltam
+  para não repetir esses itens nas pendências **enquanto `!noSite`**. Perfil `devolvido`/`retirado` fora do cartão
+  (ex.: aprovado antes e devolvido numa edição) vira item "Meu perfil" em **Para fazer agora**.
+- `PrimeirosPassosCard`: barra de progresso (`concluidos`/6; título "Falta pouco: apresente-se aos clientes" quando `noSite`), linha da regra de aprovação, o primeiro `fazer` é o
   "Próximo passo" (caixa destacada + botão principal; laranja se `alerta`); os demais `fazer` têm botão
   secundário. Ocultar: `localStorage['boatzy:inicio:primeiros-passos-oculto']`, lido com `useSyncExternalStore`
   (evento `boatzy:primeiros-passos`), vira uma barra com "Mostrar".
@@ -9296,6 +9304,9 @@ no banco (somente leitura). **Não exercitado:** Início logado com dados reais,
 
 PRD §6.8 "Escrever com ajuda". Botão abaixo do campo Descrição de `NovaEmbarcacaoForm`, `EditarEmbarcacaoForm`
 (também no admin), `NovoRoteiroForm` e `EditarRoteiroForm`; o texto só é aplicado com aprovação.
+
+> **02/11/2026 — terceiro alvo, `operador`** (apresentação do perfil do operador, §99.5): `AlvoDescricao =
+> 'embarcacao' | 'roteiro' | 'operador'`; `PedidoDescricao.voz?: 'primeira' | 'empresa'`; `TEXTO_MAXIMO` por alvo (operador 1.200).
 
 ### 98.1 Arquivos
 
@@ -9386,8 +9397,11 @@ destaques, 6 fatos), carregando → revisão, sugestão volta ao relato, "Usar e
 "Melhorar com ajuda"; celular (390 px) com 503 `semIa` → rascunho simples, "Outra versão" oculta.
 Após a troca para a OpenAI: sem `OPENAI_API_KEY`, `gerarDescricao` (com pesquisa) devolve `semIa` sem exceção;
 caixa de pesquisa visível e marcada, `pesquisar: true` no pedido, fontes listadas com links em nova aba (API simulada).
-**Não exercitado:** geração real (sem `OPENAI_API_KEY` neste ambiente) — inclusive se `text.format` + `web_search` são
-aceitos juntos (há a repetição sem formato) — e ditado com microfone em aparelho real (iPhone/Android).
+Com chave real (01/11/2026, `gpt-6-luna`): pedido simples, `text.format` (json_schema) e `web_search` +
+`text.format` no mesmo pedido responderam `completed` (busca ~4–5 s) — a repetição sem formato fica só como proteção.
+Produção: sem `OPENAI_API_KEY` no projeto da Vercel o log mostra `[descricao] falha ao chamar a OpenAI: Error: Missing
+credentials…` e o diálogo oferece o rascunho simples. **Não exercitado:** ditado com microfone em aparelho real
+(iPhone/Android).
 
 ### 98.6 Descrição da embarcação — depois dos Detalhes e obrigatória (01/11/2026)
 
@@ -9408,3 +9422,130 @@ aceitos juntos (há a repetição sem formato) — e ditado com microfone em apa
     Detalhes.
 
 
+
+---
+
+## 99. Perfil do Operador — foto, nome e apresentação aprovados pelo admin (02/11/2026)
+
+PRD §6.16. O gestor se apresenta ao cliente; o conteúdo só vai ao site depois da aprovação do admin, e editar um
+perfil aprovado **não** o tira do ar. Vocabulário público: **Operador**.
+
+### 99.1 Banco — migration `20261102_operador_perfil.sql`
+
+- **`operador_perfil`** (1 linha por gestor, `owner_id` PK → `users`): rascunho nas colunas `nome_publico` (≤ 80),
+  `headline` (≤ 90), `bio` (≤ 1.200), `foto_url`, `consentimento_em`; `status` ∈ `rascunho | em_analise | aprovado |
+  devolvido | retirado`; `enviado_analise_em`; **`publicado jsonb`** (`{nome_publico, headline, bio, foto_url}` — a
+  única versão que o site lê); `aprovado_em/por`, `primeira_aprovacao_em`, `revisao`; `created_at/updated_at`.
+  `CHECK`s: `retirado`/`aprovado` exigem `publicado`. Índice parcial da fila (`enviado_analise_em WHERE status='em_analise'`).
+- **`operador_perfil_evento`** (histórico imutável — trigger bloqueia `UPDATE`): `tipo` ∈ `enviado | recolhido | aprovado |
+  devolvido | retirado | restaurado`, `status_anterior/novo`, `observacao` (visível ao gestor), `observacao_interna` (só
+  admin), `snapshot jsonb`, `ator_id`, `ator_papel`.
+- **RLS/GRANTs:** ambas com RLS, `GRANT … TO anon, authenticated, service_role`, policy `service_role_all TO service_role`.
+  `operador_perfil` tem `user_select_own`; **nenhuma policy de escrita para `authenticated`** (o gestor não se autoaprova).
+  `operador_perfil_evento` não tem policy para `authenticated` (a observação interna nunca chega ao navegador).
+- **Trigger `operador_perfil_1_protege`:** `status`, `publicado`, `enviado_analise_em`, `aprovado_*`, `primeira_aprovacao_em`
+  e `revisao` só mudam dentro das funções (flag de transação `boatzy.operador_perfil_transicao`).
+- **`salvar_operador_perfil(p_owner, p_nome, p_headline, p_bio, p_foto_url, p_consentimento, p_enviar, p_versao) → jsonb
+  {status, enviado, foto_antiga, atualizado_em}`** (`SECURITY DEFINER`, só `service_role`): grava o rascunho; com
+  `p_enviar` exige perfil completo (nome ≥ 2, bio ≥ 120, foto, consentimento — `perfil_incompleto`) e vai a `em_analise`
+  (ou, se o conteúdo é igual ao publicado, permanece `aprovado`); sem `p_enviar` em `em_analise` com mudança, **recolhe** da
+  fila (`rascunho` ou `aprovado`). `p_versao` (= `updated_at` conhecido) recusa edição concorrente (`perfil_desatualizado`).
+  `foto_antiga` = arquivo do rascunho que saiu e **não** está no ar (o servidor apaga do R2).
+- **`decidir_operador_perfil(p_owner, p_decisao 'aprovar'|'devolver'|'retirar'|'restaurar', p_admin_id, p_observacao,
+  p_observacao_interna, p_versao) → jsonb {status, revisao, foto_antiga}`**: valida admin (`apenas_admin`), trava a linha;
+  `aprovar`/`devolver` só em `em_analise`; `devolver`/`retirar` exigem observação; `retirar` exige `publicado`; `restaurar`
+  só de `retirado`. `aprovar` copia o rascunho para `publicado`, incrementa `revisao` e devolve a foto antiga do ar.
+- **`operador_resumos_publicos(p_owners uuid[])`** (em lote): `media` (média das avaliações **aprovadas** das reservas do
+  operador — `avaliacao ⋈ reserva.owner_id`; `NULL` sem avaliações), `total_avaliacoes`, `avaliacoes_pendentes`,
+  `experiencias_ativas` (`roteiro.ativo`), `embarcacoes_ativas` (`status='ativo'`) e `passeios_realizados` (reservas
+  `confirmada`/`concluida` com `data_reserva` anterior a "hoje" **no fuso de Brasília**).
+- `notificacao_tipo_valido` ganhou `perfil_operador_aprovado` e `perfil_operador_ajustes`.
+
+### 99.2 Leitura no servidor — `src/lib/operador.ts` (`server-only`) e `src/lib/operador-tipos.ts` (cliente e servidor)
+
+- `getOperadorPublico(ownerId): OperadorPublico | null` — **o único lugar** com o filtro "versão aprovada e não retirada"
+  (as páginas públicas leem com `supabaseAdmin`, que ignora RLS). Seleciona só colunas seguras (nunca e-mail, telefone,
+  CPF). `null` → a seção não renderiza e `/operadores/[id]` dá 404.
+- `getResumosOperadores`, `getResumoOperador`, `getOperadorPerfil`, `listarEventosPerfil(ownerId, {incluirInterna})`,
+  `apagarFotoPerfil` (só a pasta do próprio operador), `contarPerfisOperadorPendentes`.
+- `operador-tipos.ts`: `OPERADOR_LIMITES`, `OperadorPublico`, `PerfilRascunho`, `validarPerfilParaEnvio`, `completudePerfil`,
+  `contemContato` (telefone com DDD, e-mail, link, @usuário — intervalos como "2010-2020" não contam),
+  `normalizarTextoPerfil`, `primeiroNome` ("BOAT RENT" → "Boat Rent"), `FOTO_EXEMPLO`, `montarOperadorPublico`,
+  `STATUS_PERFIL_INFO`.
+
+### 99.3 Painel — `/painel/perfil`
+
+- `perfil/page.tsx` (server) + `_components/PerfilForm.tsx` (cliente, `useState` + `useTransition`, sem libs) +
+  `AvisoStatusPerfil.tsx`. Menu: `Sidebar` (item MEU PERFIL, `tour: 'nav-perfil'`, pontinho `perfilPendente` vindo do
+  `(gestao)/layout.tsx`), `Header` (`TITULOS`), tutorial (novo passo, chave `v2` mantida).
+- `actions.ts` → `salvarPerfil({ nome, headline, bio, fotoUrl, consentimento, enviar, versao })`: autentica
+  (`gestor|admin`), valida tamanhos e **contato** mesmo no rascunho, exige que `fotoUrl` esteja em `perfil/{userId}/`
+  (`ehFotoDePerfilDe`), chama `salvar_operador_perfil` e, em `after()`: `apagarFotoPerfil(foto_antiga)` e, se enviou,
+  `notificarAdminsPerfilEnviado`. Revalida `/painel`, `/painel/perfil` e as telas do admin.
+- **Foto:** `lib/imagem-perfil.ts` + `components/painel/perfil/EnquadrarFoto.tsx` (canvas: arrastar + zoom, quadro 4:5,
+  exporta 800×1000 em WebP — JPEG onde o navegador não codifica WebP — respeitando a orientação EXIF; sem dependência nova).
+  Envio: `POST /api/painel/perfil/upload` (`FormData`, gestor/admin, tipo jpeg/png/webp, assinatura binária via
+  `conteudoEhImagem`, ≤ 4 MB) → R2 `perfil/{userId}/{uuid}.{ext}` (`buildPerfilKey`) → `{ publicUrl, key }`.
+  A foto só é vinculada ao perfil no "Salvar".
+
+### 99.4 Início — último passo e mensagens
+
+`passos.ts` (§97.3) ganhou o passo `perfil`; `page.tsx` carrega `operador_perfil` no `Promise.all`; `PrimeirosPassosCard`
+usa `noSite`. `emails/publicacao-decisao.ts`: ao **aprovar** embarcação/roteiro, se o perfil não está no ar, acrescenta o
+convite "Completar meu perfil". Mensagens por etapa em `PerfilForm.mensagem()` (sem estatísticas inventadas).
+
+### 99.5 Assistente de IA — alvo `operador`
+
+`lib/descricao/assistente.ts` (`DESTAQUES.operador`, `IDEIAS.operador`, `rascunhoSimples`, `TEXTO_MAXIMO`, `voz`),
+`gerar.ts` (`SISTEMA.operador` com `VERACIDADE_OPERADOR`: usa **somente** o que o operador informou — nunca inventa anos,
+títulos, registros ou números; 1ª pessoa do singular ou do plural; sem busca na web; `limparTexto` corta em 1.200 sem
+quebrar a frase), `api/painel/descricao/route.ts` (aceita `alvo:'operador'`; os **fatos** vêm do servidor —
+`lib/descricao/fatos-operador.ts`: "Membro do Boatzy desde", "Atua em", "Embarcações" —, só o `Nome` vem do formulário) e
+`AssistenteDescricao.tsx` (`TEXTOS.operador`, seletor "Como pessoa / Como empresa").
+
+### 99.6 Admin — `/administrator/operadores`
+
+- `AdminSidebar`: item OPERADORES + `FilaAnalise` `'operador_perfil'` (badge, `contarPerfisOperadorPendentes`); dashboard:
+  "Perfis de operador" em `filaAnalise`.
+- `operadores/page.tsx` (server, sem estado no navegador): gestores (`user_roles`) ⟕ `operador_perfil` ⟕
+  `operador_resumos_publicos`; abas `?st=` (`em_analise` por padrão se houver fila), busca `?q=` (formulário GET, sem
+  acento), `?per=`/`?page=`; filtragem em memória (poucos gestores no MVP).
+- `operadores/[id]/page.tsx`: prévia fiel (`OperadorSecao`) com abas `?ver=enviada|no-ar`, "O que mudou", dados da conta,
+  média/total e avaliações a moderar, `PainelDecisaoPerfil`, `TimelinePerfil` (com observação interna).
+- `actions.ts` → `decidirPerfilOperador({ ownerId, decisao, observacao, observacaoInterna, versao })`: `requireAdmin`,
+  RPC `decidir_operador_perfil`, `after()`: `apagarFotoPerfil` e `notificarGestorDecisaoPerfil` (e-mail + aviso no sino,
+  chave idempotente `gestor:perfil:{owner}:{revisao}:{decisao}`); a observação interna **nunca** vai ao gestor.
+- `components/administrator/PerfilOperadorAdmin.tsx`: cartão com a situação do perfil na revisão de embarcação e de roteiro.
+
+### 99.7 Site
+
+- `components/operador/OperadorSecao.tsx` (cliente, **sem imports de servidor** — as views de detalhe são compartilhadas
+  com a prévia do painel): cartão `rounded-3xl bg-areia`, ondas SVG, retrato 4:5 com moldura turquesa deslocada e selo
+  "Membro desde", eyebrow + título com o primeiro nome em gradiente marinho→turquesa, apresentação com "Ler mais"
+  (`aria-expanded`; recolhida em texto corrido), faixa de números (⭐ média ou "Novo" · experiências · passeios — itens
+  zerados somem), ações (`acao` + "Ver perfil completo"). `acao` fica isolada num wrapper (`display: contents`) porque vem de
+  Server Component. Tipografia Inter (a fonte da marca) e tokens `marinho`/`turquesa`/`areia`/`destaque`.
+- `OperadorSecaoSite.tsx` (server): `ehDono` → "Editar meu perfil"; senão `OperadorChatBotao` — roteiro: `ChatDonoDialog` em
+  modal (`AlvoChatDono {tipo:'roteiro'}`; sem sessão → `/roteiros/[id]/chat`); embarcação: link `/embarcacoes/[id]/chat`.
+- Páginas: `roteiros/[id]/page.tsx` (`getOperadorPublico(owner_id)` no `Promise.all`; `RoteiroDetalheView` ganhou o slot
+  `operadorSecao`, depois do grid e dentro dos providers → última seção, também no celular) e
+  `embarcacoes/[id]/roteiros/page.tsx` (`EmbarcacaoDetalheView`, slot `operadorSecao` depois do chat). A prévia do painel não passa o slot.
+- **`/operadores/[id]`:** `page.tsx` (`generateMetadata` com título e `openGraph.images` = foto; `notFound()` sem perfil
+  aprovado) + `_components/OperadorHero.tsx`; experiências (`RoteiroCard`), embarcações (`EmbarcacaoCard`), avaliações
+  (`AvaliacoesSection` ganhou `resumo?: {media, total}` para o cabeçalho refletir **todas** as avaliações; lista = 12 mais
+  recentes, via `avaliacao ⋈ reserva.owner_id`).
+- i18n: `messages/{pt-BR,en-US,es}/operador.json` (namespace `Operador`, `Operador.pagina`; `titulo` usa o tag
+  `<destaque>`); `eslint.config.mjs` inclui `src/components/operador/**` e `src/app/operadores/**` em `jsx-no-literals`.
+
+### 99.8 Validação (02/11/2026)
+
+- **SQL** (Postgres 18 local, tabelas-stub + a migration): rascunho/enviar/aprovar/devolver/retirar/restaurar; versão no ar
+  preservada ao editar; recolher da fila; `foto_antiga` nos três casos; trigger de proteção; `CHECK` de tamanho; RLS (gestor lê
+  o próprio perfil, `UPDATE` não afeta linhas, funções negadas a `authenticated`, eventos invisíveis); resumo (média só de
+  aprovadas = 4,50 com 5 e 4; pendente fora; experiências, embarcações e passeios; operador sem dados → `NULL`).
+- **Navegador:** seção e hero renderizados em 1280 px e 390 px (sem rolagem horizontal, sem erros de console; corrigidos
+  moldura esticada, `…` solto na bio recolhida e aviso de `key`).
+- `tsc --noEmit`, `npm run lint` e `npm run i18n:verificar` limpos.
+- **Não exercitado (precisa do banco com a migration aplicada):** fluxo completo painel → admin → site com dados reais,
+  upload real ao R2, geração real com `OPENAI_API_KEY`, e-mails (Resend) e aviso no sino.
+- **Pendência para entrar no ar:** aplicar `20261102_operador_perfil.sql`.

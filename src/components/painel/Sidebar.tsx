@@ -20,6 +20,7 @@ import {
   BookOpen,
   Tag,
   UsersRound,
+  UserRound,
   FileCheck2,
   X,
 } from 'lucide-react';
@@ -49,6 +50,7 @@ const GRUPOS_MENU: { titulo: string | null; tour?: string; itens: ItemMenu[] }[]
       { href: '/painel/embarcacoes', label: 'EMBARCAÇÕES', icon: Ship, exact: false, tour: 'nav-embarcacoes' },
       { href: '/painel/documentos', label: 'DOCUMENTOS', icon: FileCheck2, exact: false, tour: 'nav-documentos' },
       { href: '/painel/roteiros', label: 'ROTEIROS E PREÇOS', icon: MapPin, exact: false, tour: 'nav-roteiros' },
+      { href: '/painel/perfil', label: 'MEU PERFIL', icon: UserRound, exact: false, tour: 'nav-perfil' },
     ],
   },
   {
@@ -68,6 +70,7 @@ export default function Sidebar({
   pendentes = 0,
   userId = null,
   documentos = { alerta: 0, vencidos: 0 },
+  perfilPendente = false,
 }: {
   naoLidas?: number;
   /** Documentos vencidos ou vencendo em até 60 dias (badge de DOCUMENTOS — SPEC §95.6). */
@@ -75,6 +78,8 @@ export default function Sidebar({
   /** Solicitações de reserva aguardando resposta do gestor (badge de AGENDAMENTOS). */
   pendentes?: number;
   userId?: string | null;
+  /** Perfil de operador por preencher ou devolvido pela equipe: pontinho em MEU PERFIL (SPEC §99). */
+  perfilPendente?: boolean;
 }) {
   const pathname = usePathname();
   const router = useRouter();
@@ -218,6 +223,14 @@ export default function Sidebar({
               >
                 <Icon className="w-4 h-4 flex-shrink-0" />
                 <span className="flex-1">{label}</span>
+                {href === '/painel/perfil' && perfilPendente && (
+                  <span
+                    title="Complete o seu perfil"
+                    role="img"
+                    aria-label="Complete o seu perfil"
+                    className="h-2.5 w-2.5 rounded-full bg-amber-500 ring-2 ring-white"
+                  />
+                )}
                 {badge > 0 && (
                   <span
                     title={tituloBadge}

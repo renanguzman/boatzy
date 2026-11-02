@@ -42,7 +42,7 @@ function gravarOculto(oculto: boolean) {
  */
 export default function PrimeirosPassosCard({ dados }: { dados: PrimeirosPassos }) {
   const oculto = useSyncExternalStore(assinar, lerOculto, () => false);
-  const { passos, concluidos } = dados;
+  const { passos, concluidos, noSite } = dados;
   const proximo = passos.find((p) => p.estado === 'fazer') ?? null;
   const total = passos.length;
 
@@ -66,7 +66,9 @@ export default function PrimeirosPassosCard({ dados }: { dados: PrimeirosPassos 
         <div className="flex items-start justify-between gap-3">
           <div>
             <p className="text-[11px] font-bold uppercase tracking-wider text-teal-700">Primeiros passos</p>
-            <h2 id="primeiros-passos" className="mt-0.5 text-lg font-bold text-[#0B2447]">Coloque seu primeiro passeio no site</h2>
+            <h2 id="primeiros-passos" className="mt-0.5 text-lg font-bold text-[#0B2447]">
+              {noSite ? 'Falta pouco: apresente-se aos clientes' : 'Coloque seu primeiro passeio no site e apresente-se'}
+            </h2>
           </div>
           <button type="button" onClick={() => gravarOculto(true)} className="shrink-0 text-xs font-semibold text-slate-400 hover:text-slate-600">
             Ocultar
@@ -80,8 +82,9 @@ export default function PrimeirosPassosCard({ dados }: { dados: PrimeirosPassos 
         </div>
         <p className="mt-3 flex items-start gap-2 text-xs text-slate-500">
           <ShieldCheck className="mt-0.5 h-3.5 w-3.5 shrink-0 text-teal-600" />
-          Por segurança dos passageiros, a equipe Boatzy aprova cada embarcação e cada roteiro antes de irem para o site.
-          A embarcação só é aprovada com o documento (TIE).
+          {noSite
+            ? 'Seu passeio já está no ar. Agora é a sua vez: a equipe Boatzy aprova o seu perfil antes de ele aparecer para os clientes.'
+            : 'Por segurança dos passageiros, a equipe Boatzy aprova cada embarcação, cada roteiro e o seu perfil antes de irem para o site. A embarcação só é aprovada com o documento (TIE).'}
         </p>
       </div>
 

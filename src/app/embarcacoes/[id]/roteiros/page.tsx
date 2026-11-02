@@ -8,6 +8,8 @@ import { supabaseAdmin } from '@/lib/supabase';
 import { createClient } from '@/lib/supabase/server';
 import { getAvaliacoesResumoPorRoteiro } from '@/lib/avaliacoes';
 import { precoNaDataDeLinha, type PrecoNaData } from '@/lib/precos-roteiro';
+import { getOperadorPublico } from '@/lib/operador';
+import OperadorSecaoSite from '@/components/operador/OperadorSecaoSite';
 
 const ROTEIRO_SELECT = `id, nome, descricao, quantidade_pessoas, preco_minimo_cliente, preco_minimo_modelo,
    duracao, duracao_horas,
@@ -90,7 +92,11 @@ export default async function RoteirosDaEmbarcacaoPage({
     ? [...todosRoteiros.filter((r) => precoNaDataPorId.has(r.id)), ...todosRoteiros.filter((r) => !precoNaDataPorId.has(r.id))]
     : todosRoteiros;
 
-  const avaliacoesResumo = await getAvaliacoesResumoPorRoteiro(roteiroIds);
+  const [avaliacoesResumo, operador] = await Promise.all([
+    getAvaliacoesResumoPorRoteiro(roteiroIds),
+    // Perfil do operador: só a versão aprovada (SPEC §99); sem ela, a seção não aparece.
+    getOperadorPublico(embarcacao.owner_id),
+  ]);
 
   const supabase = await createClient();
   const {
@@ -113,6 +119,8 @@ export default async function RoteirosDaEmbarcacaoPage({
     precoNaData: precoNaDataPorId.get(roteiro.id) ?? null,
   }));
 
+  const ehDono = user?.id === embarcacao.owner_id;
+
   return (
     <div className="min-h-screen bg-white">
       <Header />
@@ -122,7 +130,12 @@ export default async function RoteirosDaEmbarcacaoPage({
         roteiros={carouselItems}
         query={query}
         voltarHref={voltarHref}
-        ehDono={user?.id === embarcacao.owner_id}
+        ehDono={ehDono}
+        operadorSecao={operador ? (
+          <div className="mt-12 lg:mt-16">
+            <OperadorSecaoSite operador={operador} ehDono={ehDono} embarcacaoId={embarcacao.id} />
+          </div>
+        ) : undefined}
       />
 
       <Footer />

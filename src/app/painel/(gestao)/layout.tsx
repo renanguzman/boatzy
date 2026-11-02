@@ -33,8 +33,9 @@ export default async function GestaoLayout({ children }: { children: React.React
   let naoLidas = 0;
   let pendentes = 0;
   let docs = { vencidos: 0, venceEmBreve: 0, urgentes: 0 };
+  let perfilPendente = false;
   if (user && canAccess) {
-    const [{ data }, { count }, resumoDocs] = await Promise.all([
+    const [{ data }, { count }, resumoDocs, { data: perfilOperador }] = await Promise.all([
       supabaseAdmin.rpc('chat_total_nao_lidas', { p_gestor: user.id }),
       supabaseAdmin
         .from('reserva')
@@ -43,10 +44,13 @@ export default async function GestaoLayout({ children }: { children: React.React
         .eq('status', 'pendente'),
       // Documentos vencidos/vencendo: badge do menu e faixa do topo (SPEC §95.6).
       getResumoDocumentos(user.id),
+      // Perfil de operador (SPEC §99): sem perfil, em rascunho, devolvido ou retirado = ação do gestor.
+      supabaseAdmin.from('operador_perfil').select('status').eq('owner_id', user.id).maybeSingle(),
     ]);
     naoLidas = Number(data ?? 0);
     pendentes = count ?? 0;
     docs = resumoDocs;
+    perfilPendente = !perfilOperador || ['rascunho', 'devolvido', 'retirado'].includes(perfilOperador.status);
   }
 
   // Sem o papel de gestor: o acesso é pedido e só vem com a aprovação do admin (SPEC §62).
@@ -83,6 +87,7 @@ export default async function GestaoLayout({ children }: { children: React.React
             pendentes={pendentes}
             userId={user?.id ?? null}
             documentos={{ alerta: docs.vencidos + docs.venceEmBreve, vencidos: docs.vencidos }}
+            perfilPendente={perfilPendente}
           />
           <div className="flex-1 min-w-0 flex flex-col overflow-hidden">
             <Header />

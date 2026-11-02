@@ -22,12 +22,14 @@ import {
   LayoutList,
   BadgeDollarSign,
   Users,
+  UserCheck,
 } from 'lucide-react';
 import clsx from 'clsx';
 
 const navItems = [
   { href: '/administrator', label: 'DASHBOARD', icon: LayoutDashboard, exact: true },
   { href: '/administrator/usuarios', label: 'USUÁRIOS', icon: Users, exact: false },
+  { href: '/administrator/operadores', label: 'OPERADORES', icon: UserCheck, exact: false },
   { href: '/administrator/avaliacoes', label: 'AVALIAÇÕES', icon: Star, exact: false },
   { href: '/administrator/embarcacoes', label: 'EMBARCAÇÕES', icon: Ship, exact: false },
   { href: '/administrator/roteiros', label: 'ROTEIROS', icon: MapPin, exact: false },
@@ -44,11 +46,12 @@ const navItems = [
   { href: '/administrator/configuracoes', label: 'CONFIGURAÇÕES', icon: Settings, exact: false },
 ];
 
-type FilaAnalise = 'embarcacao' | 'roteiro' | 'anuncio_venda' | 'solicitacao_gestor';
+type FilaAnalise = 'embarcacao' | 'roteiro' | 'anuncio_venda' | 'solicitacao_gestor' | 'operador_perfil';
 
 /** Itens com fila de análise (pipeline de aprovação e pedidos de gestor) — contador ao lado do rótulo. */
 const PENDENTES_POR_HREF: Record<string, FilaAnalise> = {
   '/administrator/usuarios': 'solicitacao_gestor',
+  '/administrator/operadores': 'operador_perfil',
   '/administrator/embarcacoes': 'embarcacao',
   '/administrator/roteiros': 'roteiro',
   '/administrator/vendas': 'anuncio_venda',

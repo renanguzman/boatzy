@@ -22,6 +22,7 @@ const TITULOS: [string, string][] = [
   ['/painel/embarcacoes', 'Embarcações'],
   ['/painel/documentos', 'Documentos'],
   ['/painel/roteiros', 'Roteiros e preços'],
+  ['/painel/perfil', 'Meu perfil'],
   ['/painel/catalogo', 'Catálogo de extras'],
   ['/painel/equipe', 'Equipe'],
   ['/painel/receitas', 'Receitas'],

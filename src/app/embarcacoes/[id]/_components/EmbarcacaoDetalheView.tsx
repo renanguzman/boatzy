@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react';
 import Link from 'next/link';
 import { useTranslations } from 'next-intl';
 import { MessageCircle } from 'lucide-react';
@@ -27,6 +28,7 @@ export default function EmbarcacaoDetalheView({
   query,
   voltarHref,
   ehDono,
+  operadorSecao,
 }: {
   embarcacao: EmbarcacaoDetalheDados;
   roteiros: RoteiroCarouselItem[];
@@ -35,6 +37,8 @@ export default function EmbarcacaoDetalheView({
   voltarHref: string;
   /** Dono vendo a própria embarcação: sem CTA de chat (não conversa consigo mesmo). */
   ehDono: boolean;
+  /** Seção do operador, já montada pela página (a prévia do painel não passa). */
+  operadorSecao?: ReactNode;
 }) {
   const t = useTranslations('Embarcacao');
   return (
@@ -65,6 +69,9 @@ export default function EmbarcacaoDetalheView({
               </Link>
             )}
           </div>
+
+          {/* Quem vai receber o cliente — só existe com o perfil do operador aprovado (SPEC §99). */}
+          {operadorSecao}
         </div>
       </section>
     </>

@@ -1,0 +1,29 @@
+{
+  "Operador": {
+    "eyebrow": "Who will welcome you",
+    "titulo": "Meet <destaque>{nome}</destaque>",
+    "membroDesde": "Member since {ano}",
+    "novo": "New",
+    "semAvaliacoes": "No reviews yet",
+    "avaliacoes": "{count, plural, one {# review} other {# reviews}}",
+    "metricaExperiencia": "Experience",
+    "metricaExperiencias": "Experiences",
+    "metricaPasseio": "Trip completed",
+    "metricaPasseios": "Trips completed",
+    "lerMais": "Read more",
+    "lerMenos": "Read less",
+    "conversar": "Message {nome}",
+    "verPerfil": "View full profile",
+    "fotoAlt": "Portrait of {nome}",
+    "ehVoce": "This is your operator profile",
+    "editarPerfil": "Edit my profile",
+    "pagina": {
+      "ola": "Hi, I'm {nome}",
+      "experienciasDe": "Experiences by {nome}",
+      "embarcacoesDe": "Boats by {nome}",
+      "semExperiencias": "{nome} has no experiences available right now.",
+      "metaTitulo": "{nome} — Operator on Boatzy",
+      "metaDescricaoPadrao": "Meet {nome}, an operator on Boatzy: boat experiences, reviews and boats."
+    }
+  }
+}

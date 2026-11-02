@@ -1,12 +1,13 @@
 /**
- * Assistente de descrição (SPEC §98) — embarcação e passeio (roteiro). Módulo neutro:
+ * Assistente de descrição (SPEC §98) — embarcação, passeio (roteiro) e apresentação do
+ * operador (SPEC §99). Módulo neutro:
  * tipos do pedido, opções de toque, ideias do que contar e o rascunho simples (sem IA).
  *
  * Princípio: o texto só usa fatos dados pelo dono — cadastro, relato (falado ou digitado)
  * e destaques que ele marcou. Nada é aplicado sem ele ver e aprovar.
  */
 
-export type AlvoDescricao = 'embarcacao' | 'roteiro';
+export type AlvoDescricao = 'embarcacao' | 'roteiro' | 'operador';
 
 /** Um fato do cadastro, já rotulado ("Capacidade" → "12 pessoas"). */
 export type FatoDescricao = { rotulo: string; valor: string };
@@ -26,7 +27,12 @@ export type PedidoDescricao = {
   versaoAnterior?: string | null;
   /** Roteiro: pesquisar na web sobre os lugares do itinerário para enriquecer o texto. */
   pesquisar?: boolean;
+  /** Operador: escrever como pessoa ("Sou…", padrão) ou como empresa ("Somos…"). */
+  voz?: 'primeira' | 'empresa';
 };
+
+/** Tamanho máximo do texto devolvido, por alvo (a apresentação do operador cabe em 1.200 caracteres). */
+export const TEXTO_MAXIMO: Record<AlvoDescricao, number> = { embarcacao: 3000, roteiro: 3000, operador: 1200 };
 
 /** Página consultada na pesquisa (mostrada ao dono na revisão). */
 export type FonteDescricao = { titulo: string; url: string };
@@ -74,6 +80,20 @@ export const DESTAQUES: Record<AlvoDescricao, string[]> = {
     'Ideal para grupos de amigos',
     'Bom para quem nunca andou de barco',
   ],
+  operador: [
+    'Muitos anos de experiência no mar',
+    'Habilitação náutica (Arrais, Mestre ou Capitão)',
+    'Instrutor ou professor de esportes náuticos',
+    'Atendimento a famílias e crianças',
+    'Passeios românticos e pôr do sol',
+    'Pesca esportiva',
+    'Festas e eventos a bordo',
+    'Foco em segurança',
+    'Conhece muito bem a região',
+    'Atendimento em outros idiomas',
+    'Empresa familiar',
+    'Equipe própria de marinheiros',
+  ],
 };
 
 /** Ideias do que contar — guiam o relato sem exigir um texto pronto. */
@@ -89,6 +109,12 @@ export const IDEIAS: Record<AlvoDescricao, string[]> = {
     'Qual é o momento mais bonito?',
     'O que dá para fazer em cada parada?',
     'Para quem esse passeio é perfeito?',
+  ],
+  operador: [
+    'Quem é você e há quanto tempo está no mar?',
+    'Qual é a sua experiência ou formação náutica?',
+    'Onde você atua e que tipo de passeio faz?',
+    'Como você gosta de receber os seus clientes?',
   ],
 };
 
@@ -118,7 +144,7 @@ const listar = (itens: string[]) =>
  * Rascunho simples, montado só com os fatos (sem IA) — quando o assistente com IA não
  * está disponível. O dono ainda revisa antes de usar.
  */
-export function rascunhoSimples(p: Pick<PedidoDescricao, 'alvo' | 'fatos' | 'relato' | 'destaques'>): string {
+export function rascunhoSimples(p: Pick<PedidoDescricao, 'alvo' | 'fatos' | 'relato' | 'destaques' | 'voz'>): string {
   const f = p.fatos;
   const paragrafos: string[] = [];
   if (p.alvo === 'embarcacao') {
@@ -137,6 +163,16 @@ export function rascunhoSimples(p: Pick<PedidoDescricao, 'alvo' | 'fatos' | 'rel
     const bordo = valor(f, 'Comodidades');
     if (conforto.length || bordo) {
       paragrafos.push(frase(`A bordo: ${[listar(conforto), bordo].filter(Boolean).join('; ')}`));
+    }
+  } else if (p.alvo === 'operador') {
+    const empresa = p.voz === 'empresa';
+    const nome = valor(f, 'Nome');
+    const desde = valor(f, 'Membro do Boatzy desde');
+    const local = valor(f, 'Atua em');
+    const barcos = valor(f, 'Embarcações');
+    paragrafos.push(frase(`${empresa ? 'Somos' : 'Sou'}${nome ? ` ${nome}` : ''}, ${empresa ? 'operadores' : 'operador'} no Boatzy${desde ? ` desde ${desde}` : ''}`));
+    if (local || barcos) {
+      paragrafos.push(frase(`${empresa ? 'Atuamos' : 'Atuo'}${local ? ` em ${local}` : ''}${barcos ? `, com ${barcos}` : ''}`));
     }
   } else {
     const nome = valor(f, 'Nome') || 'Este passeio';

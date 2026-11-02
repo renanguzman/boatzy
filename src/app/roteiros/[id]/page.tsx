@@ -8,6 +8,8 @@ import { supabaseAdmin } from '@/lib/supabase';
 import { createClient } from '@/lib/supabase/server';
 import { getCalendarioRoteiro, somarDiasISO } from '@/lib/reservas';
 import { getTaxaEfetiva } from '@/lib/taxas';
+import { getOperadorPublico } from '@/lib/operador';
+import OperadorSecaoSite from '@/components/operador/OperadorSecaoSite';
 import { dataMaximaReservaISO, hojeISO } from '@/lib/datas';
 import { DIAS_APOS_JANELA, diasParaCliente, type CalendarioCliente } from '@/lib/disponibilidade';
 import { escolherDiaDoPreco } from '@/lib/precos-roteiro';
@@ -70,9 +72,11 @@ export default async function RoteiroDetalhePage({
   // um mês além da janela para os dias seguintes de uma reserva Por Diária.
   const hoje = hojeISO();
   const dataMaxima = dataMaximaReservaISO(roteiro.janela_reserva_meses, hoje);
-  const [linhasCalendario, taxaPercent] = await Promise.all([
+  const [linhasCalendario, taxaPercent, operador] = await Promise.all([
     getCalendarioRoteiro(roteiro.id, hoje, somarDiasISO(dataMaxima, DIAS_APOS_JANELA)),
     getTaxaEfetiva(roteiro.owner_id),
+    // Perfil do operador: só a versão aprovada (SPEC §99); sem ela, a seção não aparece.
+    getOperadorPublico(roteiro.owner_id),
   ]);
   const calendario: CalendarioCliente = {
     dias: diasParaCliente(linhasCalendario, taxaPercent),
@@ -155,6 +159,11 @@ export default async function RoteiroDetalhePage({
         initialFlex={flex || undefined}
         initialModalidade={modalidadeInicial}
         initialPessoas={sp.pessoas ? parseInt(sp.pessoas) : undefined}
+        operadorSecao={operador ? (
+          <div className="mt-10 lg:mt-14">
+            <OperadorSecaoSite operador={operador} ehDono={ehDono} roteiro={{ id: roteiro.id, nome: roteiro.nome }} />
+          </div>
+        ) : undefined}
       />
       <Footer />
     </div>

@@ -84,9 +84,26 @@ export async function notificarGestorDecisaoPublicacao(input: {
     },
   }[input.tipo];
 
+  // Aprovação de embarcação/roteiro: convida a completar o perfil de operador, se ainda não está no ar (SPEC §99).
+  let paragrafos = conteudo.paragrafos;
+  if (input.tipo === 'aprovacao' && input.entidade !== 'anuncio_venda') {
+    const { data: perfil } = await supabaseAdmin
+      .from('operador_perfil')
+      .select('publicado')
+      .eq('owner_id', registro.ownerId)
+      .maybeSingle();
+    if (!perfil?.publicado) {
+      paragrafos = [
+        ...paragrafos,
+        `Falta só se apresentar: uma foto e algumas linhas sobre você passam confiança a quem vai reservar — e a IA ajuda a escrever. `
+        + `<a href="${esc(baseUrl())}/painel/perfil" style="color:#0E2F4F;font-weight:bold;">Completar meu perfil</a>`,
+      ];
+    }
+  }
+
   const html = montarEmailHtml({
     nome: dono.name ?? '',
-    paragrafos: conteudo.paragrafos,
+    paragrafos,
     botao: { texto: conteudo.botao, url },
     rodape: 'Você recebeu este e-mail porque é o responsável por este cadastro no Boatzy.',
   });

@@ -1,5 +1,5 @@
 import { redirect } from 'next/navigation';
-import { CalendarDays, Ship, FileCheck2, Users, Tag, Inbox, Undo2, FileWarning, FileClock } from 'lucide-react';
+import { CalendarDays, Ship, FileCheck2, Users, Tag, Inbox, Undo2, FileWarning, FileClock, UserRound } from 'lucide-react';
 import { createClient } from '@/lib/supabase/server';
 import { supabaseAdmin } from '@/lib/supabase';
 import { concluirReservasVencidas } from '@/lib/reservas';
@@ -9,7 +9,7 @@ import { getResumoDocumentos, inscricoesDoGestor, proximosVencimentos } from '@/
 import { pendenciaInscricao } from '@/lib/documentos/aprovacao';
 import { TIPOS_INSCRICAO, nomeCurtoDocumento } from '@/lib/documentos/tipos';
 import { DIAS_FAIXA_TOPO, diasParaVencer, textoPrazo } from '@/lib/documentos/validade';
-import { montarPrimeirosPassos, type EmbarcacaoInicio, type RoteiroInicio } from './_components/inicio/passos';
+import { montarPrimeirosPassos, type EmbarcacaoInicio, type PerfilInicio, type RoteiroInicio } from './_components/inicio/passos';
 import PrimeirosPassosCard from './_components/inicio/PrimeirosPassosCard';
 import {
   Desempenho, ParaFazerAgora, ProximosPasseios, Resumo, type CartaoResumo, type PasseioAgenda, type Tarefa,
@@ -49,7 +49,7 @@ export default async function PainelInicioPage() {
 
   const [
     { data: embarcacoesData }, { data: roteirosData }, { data: reservasData }, { data: anunciosData }, { data: funilData },
-    resumoDocs, vencimentos, inscricoes, { data: perfil },
+    resumoDocs, vencimentos, inscricoes, { data: perfil }, { data: perfilOperador },
   ] = await Promise.all([
     supabaseAdmin.from('embarcacao').select('id, nome, status, primeira_aprovacao_em, enviado_analise_em').eq('owner_id', user.id),
     supabaseAdmin.from('roteiro').select('id, nome, status, ativo, embarcacao_id, primeira_aprovacao_em, enviado_analise_em').eq('owner_id', user.id),
@@ -69,6 +69,8 @@ export default async function PainelInicioPage() {
     proximosVencimentos(user.id, 6),
     inscricoesDoGestor(user.id),
     supabaseAdmin.from('users').select('name').eq('id', user.id).maybeSingle(),
+    // Perfil de operador (SPEC §99): último passo do setup.
+    supabaseAdmin.from('operador_perfil').select('status, enviado_analise_em, publicado').eq('owner_id', user.id).maybeSingle(),
   ]);
 
   const embarcacoes = (embarcacoesData ?? []) as EmbarcacaoInicio[];
@@ -79,10 +81,19 @@ export default async function PainelInicioPage() {
   const hoje = hojeISO();
 
   // ── Primeiros passos ──
-  const passos = montarPrimeirosPassos({ embarcacoes, roteiros, inscricoes });
+  const perfilInicio: PerfilInicio = perfilOperador
+    ? {
+        status: perfilOperador.status,
+        enviado_analise_em: perfilOperador.enviado_analise_em,
+        noAr: perfilOperador.publicado != null && perfilOperador.status !== 'retirado',
+      }
+    : null;
+  const passos = montarPrimeirosPassos({ embarcacoes, roteiros, inscricoes, perfil: perfilInicio });
   const comPassos = !passos.completo;
-  // Embarcação/roteiro acompanhados nos passos não se repetem em "Para fazer agora".
-  const noPasso = (id: string) => comPassos && (id === passos.embarcacaoId || id === passos.roteiroId);
+  // Embarcação/roteiro acompanhados nos passos não se repetem em "Para fazer agora" — só até o dono
+  // estar no site; depois, o card fica só pelo perfil e esses assuntos voltam à lista.
+  const cardCobreBase = comPassos && !passos.noSite;
+  const noPasso = (id: string) => cardCobreBase && (id === passos.embarcacaoId || id === passos.roteiroId);
 
   // ── Para fazer agora ──
   const tarefas: Tarefa[] = [];
@@ -134,7 +145,19 @@ export default async function PainelInicioPage() {
     });
   }
 
-  const nomeNoPasso = comPassos ? embarcacoes.find((e) => e.id === passos.embarcacaoId)?.nome : undefined;
+  // Perfil devolvido/retirado: pendência real do gestor (fora do card, que já a mostra quando o perfil é o próximo passo).
+  const estadoPerfil = passos.passos.find((p) => p.id === 'perfil')?.estado;
+  const perfilNoCard = comPassos && estadoPerfil === 'fazer';
+  if (perfilOperador && (perfilOperador.status === 'devolvido' || perfilOperador.status === 'retirado') && !perfilNoCard) {
+    tarefas.push({
+      id: 'perfil', icone: UserRound, tom: 'alerta',
+      titulo: perfilOperador.status === 'devolvido' ? 'A equipe pediu ajustes no seu perfil' : 'Seu perfil saiu do ar',
+      detalhe: 'Veja o recado da equipe Boatzy, ajuste e reenvie para análise.',
+      itens: [{ id: 'perfil', titulo: 'Meu perfil', sub: 'Perfil de operador', href: '/painel/perfil', acao: 'Ajustar' }],
+    });
+  }
+
+  const nomeNoPasso = cardCobreBase ? embarcacoes.find((e) => e.id === passos.embarcacaoId)?.nome : undefined;
   const docsUrgentes = vencimentos.filter(
     (v) => diasParaVencer(v.data_validade, hoje) <= DIAS_FAIXA_TOPO && !(TIPOS_INSCRICAO.includes(v.tipo) && v.alvo === nomeNoPasso),
   );
@@ -162,7 +185,7 @@ export default async function PainelInicioPage() {
   ].filter((t): t is string => !!t);
 
   // ── Negócio: só depois do primeiro passeio no site (ou da primeira reserva) ──
-  const mostrarNegocio = passos.completo || reservas.length > 0;
+  const mostrarNegocio = passos.noSite || reservas.length > 0;
 
   const passeios: PasseioAgenda[] = reservas
     .filter((r) => r.status === 'confirmada' && r.data_reserva >= hoje)

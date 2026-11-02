@@ -6,6 +6,7 @@ import { formatarComprimento } from '@/lib/comprimento';
 import StatusPublicacaoBadge from '@/components/publicacao/StatusPublicacaoBadge';
 import PainelDecisaoAdmin from '@/components/publicacao/PainelDecisaoAdmin';
 import TimelinePublicacao from '@/components/publicacao/TimelinePublicacao';
+import PerfilOperadorAdmin from '@/components/administrator/PerfilOperadorAdmin';
 import {
   CabecalhoRevisao, CamposAlteradosCard, DadosRevisao, GaleriaRevisao, SecaoRevisao,
 } from '@/components/publicacao/RevisaoAdmin';
@@ -115,6 +116,7 @@ export default async function AdminRevisaoEmbarcacaoPage({ params }: { params: P
 
         <div className="space-y-6 xl:col-span-2">
           <PainelDecisaoAdmin entidade="embarcacao" id={id} status={emb.status} inscricao={inscricao} />
+          <PerfilOperadorAdmin ownerId={emb.owner_id} />
           <TimelinePublicacao eventos={timeline} />
         </div>
       </div>

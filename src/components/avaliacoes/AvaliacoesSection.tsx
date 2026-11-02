@@ -32,16 +32,21 @@ function Estrelas({ nota, tamanho = 'h-4 w-4', rotulo }: { nota: number; tamanho
 export default function AvaliacoesSection({
   avaliacoes,
   emptyLabel,
+  resumo,
 }: {
   avaliacoes: AvaliacaoPublica[];
   emptyLabel: string;
+  /** Média e total de TODAS as avaliações, quando `avaliacoes` traz só as mais recentes (página do operador). */
+  resumo?: { media: number; total: number };
 }) {
   const t = useTranslations('Avaliacoes');
   const tCards = useTranslations('Cards');
   const f = useFormatos();
   const nota1 = (n: number) => f.numero(n, { minimumFractionDigits: 1, maximumFractionDigits: 1 });
-  const media =
-    avaliacoes.length > 0
+  const total = resumo?.total ?? avaliacoes.length;
+  const media = resumo
+    ? resumo.media
+    : avaliacoes.length > 0
       ? avaliacoes.reduce((acc, a) => acc + a.nota, 0) / avaliacoes.length
       : 0;
 
@@ -49,14 +54,14 @@ export default function AvaliacoesSection({
     <div>
       <div className="flex items-center justify-between mb-6 flex-wrap gap-2">
         <h2 className="text-xl font-bold text-marinho">{t('titulo')}</h2>
-        {avaliacoes.length > 0 && (
+        {total > 0 && (
           <div className="flex items-center gap-2">
             <Estrelas nota={media} rotulo={t('nota', { nota: nota1(media) })} />
             <span className="text-sm font-bold text-marinho">
               {nota1(media)}
             </span>
             <span className="text-sm text-slate-400">
-              · {tCards('avaliacoes', { count: avaliacoes.length })}
+              · {tCards('avaliacoes', { count: total })}
             </span>
           </div>
         )}

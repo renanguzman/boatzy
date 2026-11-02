@@ -21,6 +21,7 @@ import { createClient } from '@/lib/supabase/server';
 import { supabaseAdmin } from '@/lib/supabase';
 import { contarPendentesAnalise } from '@/lib/publicacao/server';
 import { contarSolicitacoesGestorPendentes } from '@/lib/solicitacao-gestor';
+import { contarPerfisOperadorPendentes } from '@/lib/operador';
 import { resumoDocumentacaoAdmin } from '@/lib/documentos/admin';
 import { DIAS_ALERTA } from '@/lib/documentos/validade';
 
@@ -161,11 +162,12 @@ export default async function AdministratorDashboardPage() {
   ];
 
   // Pipeline de aprovação: fila aguardando a decisão do admin.
-  const [pendentes, pedidosGestor, documentacao] = await Promise.all([
-    contarPendentesAnalise(), contarSolicitacoesGestorPendentes(), resumoDocumentacaoAdmin(),
+  const [pendentes, pedidosGestor, documentacao, perfisOperador] = await Promise.all([
+    contarPendentesAnalise(), contarSolicitacoesGestorPendentes(), resumoDocumentacaoAdmin(), contarPerfisOperadorPendentes(),
   ]);
   const filaAnalise = [
     { label: 'Pedidos de gestor', n: pedidosGestor, href: '/administrator/usuarios/solicitacoes' },
+    { label: 'Perfis de operador', n: perfisOperador, href: '/administrator/operadores?st=em_analise' },
     { label: 'Embarcações', n: pendentes.embarcacao, href: '/administrator/embarcacoes?st=em_analise' },
     { label: 'Roteiros', n: pendentes.roteiro, href: '/administrator/roteiros?st=em_analise' },
     { label: 'Anúncios de venda', n: pendentes.anuncio_venda, href: '/administrator/vendas?st=em_analise' },

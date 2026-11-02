@@ -18,7 +18,19 @@ export type NotificacaoTipo =
   | 'mensagem'
   | 'documento_vencendo' // só gestor: documento da embarcação/condutor vencendo ou vencido (SPEC §95)
   | 'cobranca_avulsa' // cobrança avulsa criada/expirada/cancelada (SPEC §34.16)
-  | 'lembrete_passeio'; // lembrete D-1 / H-3 do passeio confirmado (SPEC §96)
+  | 'lembrete_passeio' // lembrete D-1 / H-3 do passeio confirmado (SPEC §96)
+  | 'perfil_operador_aprovado' // só gestor: perfil de operador aprovado e publicado (SPEC §99)
+  | 'perfil_operador_ajustes'; // só gestor: perfil devolvido ou retirado do ar, com recado da equipe (SPEC §99)
+/** Perfil do operador (foto + biografia) — aprovado pelo admin antes de ir ao site (SPEC §99). */
+export type OperadorPerfilStatus = 'rascunho' | 'em_analise' | 'aprovado' | 'devolvido' | 'retirado';
+export type OperadorPerfilEventoTipo = 'enviado' | 'recolhido' | 'aprovado' | 'devolvido' | 'retirado' | 'restaurado';
+/** Conteúdo guardado em `operador_perfil.publicado`. */
+export type OperadorPerfilConteudo = {
+  nome_publico: string | null;
+  headline: string | null;
+  bio: string | null;
+  foto_url: string | null;
+};
 /** Linha do tempo de comunicações da reserva (SPEC §96). */
 export type ComunicacaoPapel = 'cliente' | 'gestor';
 export type ComunicacaoCanal = 'email' | 'notificacao' | 'whatsapp';
@@ -598,6 +610,95 @@ export type Database = {
             columns: ['municipio_id'];
             isOneToOne: false;
             referencedRelation: 'municipios';
+            referencedColumns: ['id'];
+          },
+        ];
+      };
+      operador_perfil: {
+        Row: {
+          owner_id: string;
+          nome_publico: string | null;
+          headline: string | null;
+          bio: string | null;
+          foto_url: string | null;
+          consentimento_em: string | null;
+          status: OperadorPerfilStatus;
+          enviado_analise_em: string | null;
+          publicado: OperadorPerfilConteudo | null;
+          aprovado_em: string | null;
+          aprovado_por: string | null;
+          primeira_aprovacao_em: string | null;
+          revisao: number;
+          created_at: string;
+          updated_at: string;
+        };
+        /** Escrita só pelas funções salvar_/decidir_operador_perfil (trigger protege status e publicado). */
+        Insert: {
+          owner_id: string;
+          nome_publico?: string | null;
+          headline?: string | null;
+          bio?: string | null;
+          foto_url?: string | null;
+          consentimento_em?: string | null;
+        };
+        Update: {
+          nome_publico?: string | null;
+          headline?: string | null;
+          bio?: string | null;
+          foto_url?: string | null;
+          consentimento_em?: string | null;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'operador_perfil_owner_id_fkey';
+            columns: ['owner_id'];
+            isOneToOne: true;
+            referencedRelation: 'users';
+            referencedColumns: ['id'];
+          },
+        ];
+      };
+      operador_perfil_evento: {
+        Row: {
+          id: string;
+          owner_id: string;
+          tipo: OperadorPerfilEventoTipo;
+          status_anterior: string | null;
+          status_novo: string;
+          observacao: string | null;
+          observacao_interna: string | null;
+          snapshot: OperadorPerfilConteudo | null;
+          ator_id: string | null;
+          ator_papel: 'gestor' | 'admin';
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          owner_id: string;
+          tipo: OperadorPerfilEventoTipo;
+          status_anterior?: string | null;
+          status_novo: string;
+          observacao?: string | null;
+          observacao_interna?: string | null;
+          snapshot?: OperadorPerfilConteudo | null;
+          ator_id?: string | null;
+          ator_papel: 'gestor' | 'admin';
+          created_at?: string;
+        };
+        Update: Record<string, never>;
+        Relationships: [
+          {
+            foreignKeyName: 'operador_perfil_evento_owner_id_fkey';
+            columns: ['owner_id'];
+            isOneToOne: false;
+            referencedRelation: 'users';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'operador_perfil_evento_ator_id_fkey';
+            columns: ['ator_id'];
+            isOneToOne: false;
+            referencedRelation: 'users';
             referencedColumns: ['id'];
           },
         ];
@@ -3042,6 +3143,45 @@ export type Database = {
           p_observacao_interna?: string | null;
         };
         Returns: string;
+      };
+      /** Perfil do operador — o gestor salva o rascunho e, se quiser, envia para análise (SPEC §99). */
+      salvar_operador_perfil: {
+        Args: {
+          p_owner: string;
+          p_nome: string | null;
+          p_headline: string | null;
+          p_bio: string | null;
+          p_foto_url: string | null;
+          p_consentimento: boolean;
+          p_enviar: boolean;
+          p_versao?: string | null;
+        };
+        Returns: { status: OperadorPerfilStatus; enviado: boolean; foto_antiga: string | null; atualizado_em: string };
+      };
+      /** Perfil do operador — decisão do admin: aprovar publica o rascunho (SPEC §99). */
+      decidir_operador_perfil: {
+        Args: {
+          p_owner: string;
+          p_decisao: 'aprovar' | 'devolver' | 'retirar' | 'restaurar';
+          p_admin_id: string;
+          p_observacao?: string | null;
+          p_observacao_interna?: string | null;
+          p_versao?: string | null;
+        };
+        Returns: { status: OperadorPerfilStatus; revisao: number; foto_antiga: string | null };
+      };
+      /** Média das avaliações aprovadas, experiências e passeios por operador, em lote (SPEC §99). */
+      operador_resumos_publicos: {
+        Args: { p_owners: string[] };
+        Returns: {
+          owner_id: string;
+          media: number | null;
+          total_avaliacoes: number;
+          avaliacoes_pendentes: number;
+          experiencias_ativas: number;
+          embarcacoes_ativas: number;
+          passeios_realizados: number;
+        }[];
       };
       /** Pipeline de aprovação — porta única de mudança de status (SPEC §45). */
       transicionar_publicacao: {

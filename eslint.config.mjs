@@ -44,6 +44,8 @@ const eslintConfig = defineConfig([
       "src/components/legal/**/*.tsx",
       "src/app/notificacoes/**/*.tsx",
       "src/components/notificacoes/**/*.tsx",
+      "src/components/operador/**/*.tsx",
+      "src/app/operadores/**/*.tsx",
     ],
     rules: {
       "react/jsx-no-literals": ["error", {

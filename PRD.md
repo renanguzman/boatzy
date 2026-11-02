@@ -796,15 +796,18 @@ tecnologia: uma pergunta por bloco, frases curtas e nenhum bloco vazio para quem
 
 - **Saudação** ("Olá, Renan!") com uma linha que diz o que importa agora: "Siga os passos abaixo…" (quem está
   começando), "Você tem N assuntos para resolver" ou "Tudo em dia por aqui".
-- **Primeiros passos** (até a primeira embarcação **e** o primeiro roteiro serem aprovados): 5 passos numerados,
-  com barra de progresso, o **Próximo passo** destacado com um botão e o que depende da equipe Boatzy marcado
+- **Primeiros passos** (até a primeira embarcação, o primeiro roteiro **e o perfil de operador** serem aprovados):
+  6 passos numerados, com barra de progresso, o **Próximo passo** destacado com um botão e o que depende da equipe Boatzy marcado
   como "aguardando":
   1. **Cadastre sua embarcação** — fotos, local e detalhes;
   2. **Envie o documento da embarcação** — TIE (ou TIEM); sem ele a embarcação não é aprovada;
   3. **Aguarde a aprovação da embarcação** — a equipe confere dados e documento (vira "Ajuste o cadastro da
      embarcação" quando devolvida, com "Ver o que ajustar");
   4. **Crie um roteiro** — trajeto, duração e preço; já pode ser feito com a embarcação em análise;
-  5. **Aguarde a aprovação do roteiro** — aprovado, aparece no site (e só aparece com a embarcação aprovada).
+  5. **Aguarde a aprovação do roteiro** — aprovado, aparece no site (e só aparece com a embarcação aprovada);
+  6. **Conte quem é você** (desde 02/11/2026) — o perfil de operador: foto e apresentação que aparecem nos passeios
+     (§6.16). Sempre acionável; só vira "Próximo passo" quando os anteriores não pedem nada. Com o perfil no ar o
+     passo fica feito e o cartão some; devolvido pela equipe, vira tarefa em "Para fazer agora".
   Uma linha explica a regra: "a equipe Boatzy aprova cada embarcação e cada roteiro antes de irem para o site; a
   embarcação só é aprovada com o documento (TIE)". Pode ser **ocultado** (fica uma barra "Primeiros passos · 2 de
   5 · Mostrar") — útil para quem só anuncia barco à venda. Depois do primeiro cadastro de embarcação/roteiro, o
@@ -1767,6 +1770,73 @@ o item "Aguardando integração" com o celular de destino (visível só para o a
 cron-job.org (ver `SPEC.md` §96.6).
 
 Detalhes técnicos: `SPEC.md` §96.
+
+### 6.16 Perfil do Operador — foto, nome e apresentação (02/11/2026)
+
+#### ✅ Implementado — Perfil do operador (gestor) com aprovação do admin
+
+**Problema:** o cliente reserva sem saber **quem** vai conduzir o passeio, e o gestor não tem onde se apresentar.
+**Solução:** cada gestor escreve um **perfil de operador** (foto, nome de exibição e apresentação) em `/painel/perfil`.
+O texto só vai ao site **depois de aprovado pelo admin**. Vocabulário público: **Operador** (não "Anfitrião").
+
+**Painel do gestor — "Meu perfil" (`/painel/perfil`)**
+- Item **MEU PERFIL** no menu ("Seus cadastros", depois de Roteiros e preços), com um pontinho âmbar enquanto o
+  perfil não existe, está em rascunho, foi devolvido ou retirado.
+- Campos: **foto** (enviada e **enquadrada** no navegador — arrastar e zoom, retrato 4:5 — e reduzida antes do envio),
+  **como quer ser chamado** (pré-preenchido com o nome da conta; pode ser pessoa ou empresa), **frase de apresentação**
+  (opcional, até 90 caracteres) e **sobre você** (120 a 1.200 caracteres), mais a **autorização** de exibição pública (LGPD).
+- **Escrever com ajuda (IA):** o mesmo assistente da descrição de embarcação/passeio (§6.8), agora para a apresentação:
+  o gestor fala ou digita, toca em opções ("Muitos anos de experiência no mar", "Foco em segurança"…), escolhe falar
+  **como pessoa** ("Sou…") ou **como empresa** ("Somos…") e recebe um texto 2–3 parágrafos escrito **só com o que
+  informou** (não inventa anos de experiência, habilitações, registros ou números) e com os dados do cadastro (desde
+  quando está no Boatzy, onde atua, tipos de embarcação). Ele revisa antes de usar; sem IA disponível, monta um rascunho simples.
+- **Sem contato:** telefone, e-mail, links e @usuário são recusados no nome, na frase e no texto — o contato acontece
+  pelo chat do Boatzy.
+- **Prévia ao vivo** "Como os clientes vão ver" (a mesma seção do site) e **medidor de preenchimento** com mensagens
+  que incentivam a cada etapa ("Apresente-se! Sua história é o que faz o cliente escolher você", "Ótima foto!…",
+  "Tudo pronto! Envie para a equipe Boatzy revisar").
+- **Salvar rascunho** ou **Enviar para análise** (só com foto, nome, texto e autorização).
+- **Edição de perfil já aprovado:** a **versão aprovada continua no ar** enquanto a nova fica "em análise"; o perfil
+  nunca some do site por causa de uma edição. Se o gestor edita e não reenvia, sai da fila; a equipe revisa sempre o
+  que foi enviado.
+- **Estados:** rascunho · em análise · aprovado · devolvido (com o recado da equipe) · retirado do ar.
+- **Avisos ao gestor:** e-mail e aviso no sino do painel quando o perfil é aprovado, devolvido ou retirado; o e-mail
+  de aprovação de embarcação/roteiro convida a completar o perfil quando ele ainda não está no ar.
+
+**Primeiros passos:** o perfil é o **último passo** do setup do Início (§6.8), com texto que explica o porquê.
+
+**Admin — Operadores (`/administrator/operadores`)**
+- Novo item **OPERADORES** no menu, com contador de perfis em análise (também no card "Fila de análise" do dashboard)
+  e e-mail aos admins quando um perfil é enviado.
+- Lista de todos os gestores com abas por situação (Em análise, Aprovados, Devolvidos, Retirados, Rascunhos, Sem
+  perfil, Todos), busca por nome/e-mail e a **avaliação média** de cada um (e quantas avaliações aguardam moderação).
+- Detalhe de revisão: **prévia fiel** do que aparece no site, alternando "Versão enviada" × "No ar agora"; o que mudou
+  desde a versão no ar; dados da conta, **média das avaliações aprovadas**, experiências e passeios; histórico.
+- **Decisão:** Aprovar e publicar · Devolver para ajustes (observação obrigatória) · Retirar do ar (obrigatória) ·
+  Restaurar. Observação ao gestor + **observação interna** (só a equipe vê). Se o gestor mexer enquanto o admin analisa,
+  a decisão é recusada ("recarregue e revise de novo").
+- Na revisão de embarcação e de roteiro, um cartão mostra a situação do perfil do operador, com link.
+
+**Site — o que o cliente vê (só com perfil aprovado e no ar)**
+- **Seção "Quem vai receber você"** como **última seção** das páginas do roteiro (`/roteiros/[id]`) e da embarcação
+  (`/embarcacoes/[id]/roteiros`): retrato grande (4:5) com moldura turquesa, "Conheça {nome}", frase e apresentação
+  (com "Ler mais"), "Membro desde", e uma faixa de números — **avaliação média** do operador (média das avaliações
+  aprovadas de todas as reservas dele; "Novo" enquanto não houver), **experiências** e **passeios realizados** — com
+  **Conversar com {nome}** (o chat do dono que já existe) e **Ver perfil completo**. Layout próprio (cartão editorial
+  sobre `areia`, ondas discretas), tipografia Inter da marca e paleta oficial; responsivo e traduzido (pt-BR, en-US, es);
+  o texto escrito pelo gestor fica em português.
+- **Página do operador `/operadores/[id]`:** retrato, "Olá, eu sou {nome}", selos de reputação, apresentação completa,
+  **experiências** e **embarcações** dele (cards da busca) e as **avaliações** que recebeu. Só existe com perfil aprovado
+  (senão 404); título e imagem de compartilhamento (OG) com a foto dele.
+- Sem perfil aprovado, **nada** disso aparece. O dono vendo a própria página enxerga "Editar meu perfil" no lugar do chat.
+
+**Fora de escopo (futuro):** listagem `/operadores` e item "Nossos Operadores" no menu; selo "Identidade verificada";
+lembretes automáticos para quem não preencheu; edição do texto pelo admin antes de aprovar; avaliações na página da
+embarcação; tradução automática da apresentação.
+
+**Pendências para entrar no ar:** aplicar a migration `20261102_operador_perfil.sql`.
+
+Detalhes técnicos: `SPEC.md` §99.
 
 ---
 

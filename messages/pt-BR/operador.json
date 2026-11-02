@@ -1,0 +1,29 @@
+{
+  "Operador": {
+    "eyebrow": "Quem vai receber você",
+    "titulo": "Conheça <destaque>{nome}</destaque>",
+    "membroDesde": "Membro desde {ano}",
+    "novo": "Novo",
+    "semAvaliacoes": "Ainda sem avaliações",
+    "avaliacoes": "{count, plural, one {# avaliação} other {# avaliações}}",
+    "metricaExperiencia": "Experiência",
+    "metricaExperiencias": "Experiências",
+    "metricaPasseio": "Passeio realizado",
+    "metricaPasseios": "Passeios realizados",
+    "lerMais": "Ler mais",
+    "lerMenos": "Ler menos",
+    "conversar": "Conversar com {nome}",
+    "verPerfil": "Ver perfil completo",
+    "fotoAlt": "Retrato de {nome}",
+    "ehVoce": "Este é o seu perfil de operador",
+    "editarPerfil": "Editar meu perfil",
+    "pagina": {
+      "ola": "Olá, eu sou {nome}",
+      "experienciasDe": "Experiências de {nome}",
+      "embarcacoesDe": "Embarcações de {nome}",
+      "semExperiencias": "{nome} não tem experiências disponíveis no momento.",
+      "metaTitulo": "{nome} — Operador no Boatzy",
+      "metaDescricaoPadrao": "Conheça {nome}, operador no Boatzy: experiências náuticas, avaliações e embarcações."
+    }
+  }
+}

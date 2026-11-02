@@ -5,6 +5,7 @@ import { camposAlteradosDesdeAprovacao, listarTimeline } from '@/lib/publicacao/
 import { duracaoTexto } from '@/lib/duracao';
 import StatusPublicacaoBadge from '@/components/publicacao/StatusPublicacaoBadge';
 import PainelDecisaoAdmin from '@/components/publicacao/PainelDecisaoAdmin';
+import PerfilOperadorAdmin from '@/components/administrator/PerfilOperadorAdmin';
 import TimelinePublicacao from '@/components/publicacao/TimelinePublicacao';
 import {
   CabecalhoRevisao, CamposAlteradosCard, DadosRevisao, GaleriaRevisao, SecaoRevisao,
@@ -91,6 +92,7 @@ export default async function AdminRevisaoRoteiroPage({ params }: { params: Prom
 
         <div className="space-y-6 xl:col-span-2">
           <PainelDecisaoAdmin entidade="roteiro" id={id} status={rot.status} aviso={avisoEmbarcacao} />
+          <PerfilOperadorAdmin ownerId={rot.owner_id} />
           <TimelinePublicacao eventos={timeline} />
         </div>
       </div>

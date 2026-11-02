@@ -44,6 +44,19 @@ export function buildEquipeKey(gestorId: string, membroId: string, filename: str
 }
 
 /**
+ * Caminho (key) da foto do perfil do operador (SPEC §99): perfil/{ownerId}/{uuid}.{ext}.
+ * Nome aleatório: trocar a foto muda a URL (sem cache velho) e a versão no ar nunca é sobrescrita.
+ */
+export function buildPerfilKey(ownerId: string, extensao: 'webp' | 'jpg' | 'png'): string {
+  return `perfil/${ownerId}/${crypto.randomUUID()}.${extensao}`;
+}
+
+/** A URL aponta para um arquivo da pasta de perfil DESTE usuário no bucket público. */
+export function ehFotoDePerfilDe(ownerId: string, url: string): boolean {
+  return typeof url === 'string' && url.startsWith(`${R2_PUBLIC_URL.replace(/\/$/, '')}/perfil/${ownerId}/`);
+}
+
+/**
  * Retorna a URL pública de um objeto dado seu key.
  */
 export function buildPublicUrl(key: string): string {

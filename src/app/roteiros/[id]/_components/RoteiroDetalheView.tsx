@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react';
 import { useTranslations } from 'next-intl';
 import NomeCatalogo from '@/i18n/NomeCatalogo';
 import {
@@ -105,6 +106,7 @@ export default function RoteiroDetalheView({
   initialFlex,
   initialPessoas,
   initialModalidade,
+  operadorSecao,
 }: {
   roteiro: RoteiroDetalheDados;
   avaliacoes: AvaliacaoPublica[];
@@ -117,6 +119,8 @@ export default function RoteiroDetalheView({
   initialPessoas?: number;
   /** Modelo em que o card de reserva abre — o mesmo do preço anunciado no card. */
   initialModalidade?: 'roteiro' | 'diaria';
+  /** Seção do operador, já montada pela página (a prévia do painel não passa). */
+  operadorSecao?: ReactNode;
 }) {
   const t = useTranslations('Roteiro');
   const tCards = useTranslations('Cards');
@@ -527,6 +531,8 @@ export default function RoteiroDetalheView({
               />
             </div>
           </div>
+          {/* Quem vai receber o cliente — só existe com o perfil do operador aprovado (SPEC §99). */}
+          {operadorSecao}
           </DataReservaProvider>
           </CartProvider>
         </div>

@@ -27,6 +27,7 @@ Referência para manter os mesmos termos em todas as telas traduzidas. A fonte �
 | Vendas (menu) | For Sale | En venta | anúncios de embarcações à venda |
 | Anuncie sua embarcação | List your boat | Publica tu embarcación | |
 | Proprietário / gestor / dono | Owner | Propietario | no site é sempre "proprietário" |
+| Operador | Operator | Operador | perfil público do gestor (foto + apresentação), `/operadores/[id]` — não usar "Anfitrião" |
 | Cliente | Renter (login) / guest | Cliente | |
 | Reserva | Booking | Reserva | |
 | Solicitação de reserva | Booking request | Solicitud de reserva | |

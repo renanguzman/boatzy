@@ -1,11 +1,12 @@
 import { formatarData } from '@/lib/datas';
 import { pendenciaInscricao } from '@/lib/documentos/aprovacao';
 import type { DocumentoAtual } from '@/lib/documentos/rascunho';
-import type { PublicacaoStatus } from '@/types/supabase';
+import type { OperadorPerfilStatus, PublicacaoStatus } from '@/types/supabase';
 
 /**
  * "Primeiros passos" do Início do painel (PRD §6.8, SPEC §97): o caminho do dono até o
- * primeiro passeio no site — embarcação → documento → aprovação → roteiro → aprovação.
+ * primeiro passeio no site — embarcação → documento → aprovação → roteiro → aprovação — e,
+ * por último, o perfil de operador que apresenta o gestor ao cliente (SPEC §99).
  * Puro (sem React): recebe o que o gestor já tem e devolve o estado de cada passo.
  */
 
@@ -28,11 +29,18 @@ export type RoteiroInicio = {
   enviado_analise_em: string | null;
 };
 
+/** Perfil de operador do gestor (SPEC §99); `noAr` = há versão aprovada visível no site. */
+export type PerfilInicio = {
+  status: OperadorPerfilStatus;
+  enviado_analise_em: string | null;
+  noAr: boolean;
+} | null;
+
 /** feito ✓ · fazer (ação do dono) · aguardando (equipe Boatzy) · depois (passo anterior primeiro). */
 export type EstadoPasso = 'feito' | 'fazer' | 'aguardando' | 'depois';
 
 export type Passo = {
-  id: 'embarcacao' | 'documento' | 'aprovacao_embarcacao' | 'roteiro' | 'aprovacao_roteiro';
+  id: 'embarcacao' | 'documento' | 'aprovacao_embarcacao' | 'roteiro' | 'aprovacao_roteiro' | 'perfil';
   titulo: string;
   /** O que é e por quê, em uma frase. */
   descricao: string;
@@ -47,8 +55,10 @@ export type Passo = {
 export type PrimeirosPassos = {
   passos: Passo[];
   concluidos: number;
-  /** Já teve embarcação e roteiro aprovados — os primeiros passos saem do Início. */
+  /** Todos os passos feitos (inclui o perfil aprovado) — os primeiros passos saem do Início. */
   completo: boolean;
+  /** Já teve embarcação e roteiro aprovados: o dono já opera (libera os blocos de negócio do Início). */
+  noSite: boolean;
   /** Ids da embarcação/roteiro acompanhados nos passos (não se repetem em "Para fazer agora"). */
   embarcacaoId: string | null;
   roteiroId: string | null;
@@ -66,11 +76,12 @@ const porPrioridade = <T extends { status: PublicacaoStatus }>(lista: T[]) =>
   [...lista].sort((a, b) => PRIORIDADE[a.status] - PRIORIDADE[b.status]);
 
 export function montarPrimeirosPassos({
-  embarcacoes, roteiros, inscricoes,
+  embarcacoes, roteiros, inscricoes, perfil,
 }: {
   embarcacoes: EmbarcacaoInicio[];
   roteiros: RoteiroInicio[];
   inscricoes: Map<string, DocumentoAtual>;
+  perfil: PerfilInicio;
 }): PrimeirosPassos {
   const emb = porPrioridade(embarcacoes)[0] ?? null;
   const rot = porPrioridade(roteiros.filter((r) => emb && r.embarcacao_id === emb.id))[0]
@@ -168,10 +179,44 @@ export function montarPrimeirosPassos({
   }
   passos.push(aprovRot);
 
+  // 6. Perfil do operador — o último passo: quem vai receber o cliente. Sempre acionável (não
+  //    depende dos passos de cima); só vira "Próximo passo" quando os anteriores não pedem nada.
+  const passoPerfil: Passo = {
+    id: 'perfil', titulo: 'Conte quem é você',
+    descricao: 'Quem reserva quer saber quem vai conduzir o passeio. Uma foto e algumas linhas sobre você passam confiança — e a IA ajuda a escrever em poucos minutos.',
+    estado: 'fazer', acao: { label: 'Completar meu perfil', href: '/painel/perfil' },
+  };
+  if (perfil?.noAr) {
+    atualizar(passoPerfil, {
+      titulo: 'Perfil no ar', estado: 'feito', acao: undefined,
+      situacao: perfil.status === 'em_analise' ? 'Alterações em análise'
+        : perfil.status === 'devolvido' ? 'A equipe pediu ajustes' : 'Aparece nos seus passeios',
+      alerta: perfil.status === 'devolvido',
+    });
+  } else if (perfil?.status === 'em_analise') {
+    atualizar(passoPerfil, {
+      titulo: 'Aguarde a aprovação do perfil', estado: 'aguardando', acao: undefined,
+      descricao: 'A equipe Boatzy revisa a sua foto e o seu texto. Você recebe a resposta por e-mail e aqui no painel.',
+      situacao: perfil.enviado_analise_em ? `Em análise desde ${formatarData(perfil.enviado_analise_em)}` : 'Em análise',
+    });
+  } else if (perfil?.status === 'devolvido' || perfil?.status === 'retirado') {
+    atualizar(passoPerfil, {
+      titulo: perfil.status === 'devolvido' ? 'Ajuste o seu perfil' : 'Seu perfil saiu do ar',
+      alerta: true, situacao: perfil.status === 'devolvido' ? 'A equipe Boatzy pediu ajustes' : 'Retirado pela equipe Boatzy',
+      descricao: 'Veja o recado da equipe Boatzy, corrija e reenvie para análise.',
+      acao: { label: 'Ver o que ajustar', href: '/painel/perfil' },
+    });
+  } else if (perfil?.status === 'rascunho') {
+    atualizar(passoPerfil, { situacao: 'Rascunho salvo — falta enviar', acao: { label: 'Continuar meu perfil', href: '/painel/perfil' } });
+  }
+  passos.push(passoPerfil);
+
+  const noSite = embarcacoes.some((e) => e.primeira_aprovacao_em) && roteiros.some((r) => r.primeira_aprovacao_em);
   return {
     passos,
     concluidos: passos.filter((p) => p.estado === 'feito').length,
-    completo: embarcacoes.some((e) => e.primeira_aprovacao_em) && roteiros.some((r) => r.primeira_aprovacao_em),
+    noSite,
+    completo: noSite && passoPerfil.estado === 'feito',
     embarcacaoId: emb?.id ?? null,
     roteiroId: rot?.id ?? null,
   };

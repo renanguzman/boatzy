@@ -4,6 +4,7 @@ import { supabaseAdmin } from '@/lib/supabase';
 import { getRolesFromDb } from '@/lib/roles';
 import { ehUuid } from '@/lib/upload-imagem-server';
 import { formatarComprimento } from '@/lib/comprimento';
+import { fatosDoOperador } from '@/lib/descricao/fatos-operador';
 import { gerarDescricao } from '@/lib/descricao/gerar';
 import {
   LIMITES_DESCRICAO, podeGerar, type AlvoDescricao, type FatoDescricao, type PedidoDescricao, type RespostaDescricao,
@@ -35,7 +36,7 @@ const texto = (v: unknown, max: number) => (typeof v === 'string' ? v.trim().sli
 function lerPedido(body: unknown): PedidoDescricao | null {
   if (!body || typeof body !== 'object') return null;
   const b = body as Record<string, unknown>;
-  const alvo: AlvoDescricao | null = b.alvo === 'embarcacao' || b.alvo === 'roteiro' ? b.alvo : null;
+  const alvo: AlvoDescricao | null = b.alvo === 'embarcacao' || b.alvo === 'roteiro' || b.alvo === 'operador' ? b.alvo : null;
   if (!alvo) return null;
   const fatos = (Array.isArray(b.fatos) ? b.fatos : [])
     .slice(0, LIMITES_DESCRICAO.fatos)
@@ -58,6 +59,8 @@ function lerPedido(body: unknown): PedidoDescricao | null {
     versaoAnterior: texto(b.versaoAnterior, LIMITES_DESCRICAO.textoAtual) || null,
     // Pesquisa na web só no passeio (sobre os lugares do itinerário).
     pesquisar: alvo === 'roteiro' && b.pesquisar === true,
+    // Operador: pessoa ("Sou…") ou empresa ("Somos…").
+    voz: alvo === 'operador' && b.voz === 'empresa' ? 'empresa' : 'primeira',
   };
 }
 
@@ -86,8 +89,15 @@ async function fatosDaEmbarcacao(embarcacaoId: string, userId: string, admin: bo
   ];
 }
 
+const PEDIR_RELATO: Record<AlvoDescricao, string> = {
+  embarcacao: 'Fale ou escreva algo sobre a embarcação, ou toque em pelo menos uma opção.',
+  roteiro: 'Fale ou escreva algo sobre o passeio, ou toque em pelo menos uma opção.',
+  operador: 'Conte um pouco sobre você e o seu trabalho, ou toque em pelo menos uma opção.',
+};
+
 /**
- * POST /api/painel/descricao — escreve a descrição da embarcação ou do passeio a partir
+ * POST /api/painel/descricao — escreve a descrição da embarcação ou do passeio, ou a
+ * apresentação do operador (SPEC §99), a partir
  * dos fatos do cadastro, do relato e dos destaques. Devolve o texto para o dono revisar.
  */
 export async function POST(req: NextRequest) {
@@ -102,18 +112,23 @@ export async function POST(req: NextRequest) {
   const pedido = lerPedido(await req.json().catch(() => null));
   if (!pedido) return responder({ ok: false, error: 'Pedido inválido.' }, 400);
   if (!podeGerar(pedido.relato, pedido.destaques) && !pedido.textoAtual) {
-    return responder({ ok: false, error: 'Fale ou escreva algo sobre o passeio, ou toque em pelo menos uma opção.' }, 400);
+    return responder({ ok: false, error: PEDIR_RELATO[pedido.alvo] }, 400);
   }
   if (!dentroDoLimite(user.id)) {
     return responder({ ok: false, error: 'Você pediu muitos textos seguidos. Aguarde alguns minutos e tente de novo.' }, 429);
   }
 
-  const fatos = pedido.alvo === 'roteiro' && pedido.embarcacaoId
-    ? [
-        ...pedido.fatos.filter((f) => f.rotulo !== 'Embarcação'),
-        ...(await fatosDaEmbarcacao(pedido.embarcacaoId, user.id, papeis.includes('admin'))),
-      ]
-    : pedido.fatos;
+  let fatos: FatoDescricao[];
+  if (pedido.alvo === 'roteiro' && pedido.embarcacaoId) {
+    fatos = [
+      ...pedido.fatos.filter((f) => f.rotulo !== 'Embarcação'),
+      ...(await fatosDaEmbarcacao(pedido.embarcacaoId, user.id, papeis.includes('admin'))),
+    ];
+  } else if (pedido.alvo === 'operador') {
+    fatos = await fatosDoOperador(user.id, pedido.fatos.find((f) => f.rotulo === 'Nome')?.valor ?? '');
+  } else {
+    fatos = pedido.fatos;
+  }
 
   const r = await gerarDescricao(pedido, fatos);
   return responder(r, r.ok ? 200 : r.semIa ? 503 : 502);

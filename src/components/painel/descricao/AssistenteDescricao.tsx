@@ -11,16 +11,30 @@ import {
 } from '@/lib/descricao/assistente';
 import { useDitado } from './useDitado';
 
-const TEXTOS: Record<AlvoDescricao, { titulo: string; placeholder: string; marcarSo: string }> = {
+const TEXTOS: Record<AlvoDescricao, {
+  titulo: string; placeholder: string; marcarSo: string;
+  /** "Escrevendo sua descrição…" */ escrevendo: string;
+  /** Botão da etapa de contar. */ gerar: string;
+  /** Aviso ao revisar quando já há texto no campo. */ substitui: string;
+  /** Rótulo do botão que abre o assistente. */ nome: string;
+}> = {
   embarcacao: {
     titulo: 'Descrição da embarcação',
     placeholder: 'Ex.: lancha muito confortável, ótima para família, tem churrasqueira e som, sempre limpa…',
     marcarSo: 'Marque só o que é verdade nesta embarcação.',
+    escrevendo: 'Escrevendo sua descrição…', gerar: 'Gerar descrição', substitui: 'Vai substituir a descrição atual.', nome: 'descrição',
   },
   roteiro: {
     titulo: 'Descrição do passeio',
     placeholder: 'Ex.: saímos às 9h da marina, paramos na Praia do Pontal para banho, a água é bem clara, voltamos no fim da tarde…',
     marcarSo: 'Marque só o que é verdade neste passeio.',
+    escrevendo: 'Escrevendo sua descrição…', gerar: 'Gerar descrição', substitui: 'Vai substituir a descrição atual.', nome: 'descrição',
+  },
+  operador: {
+    titulo: 'Sua apresentação',
+    placeholder: 'Ex.: sou mestre amador há 20 anos, navego na Lagoa da Conceição, gosto de receber famílias e cuido de cada detalhe da segurança…',
+    marcarSo: 'Marque só o que é verdade sobre você e o seu trabalho.',
+    escrevendo: 'Escrevendo sua apresentação…', gerar: 'Gerar apresentação', substitui: 'Vai substituir o texto atual.', nome: 'apresentação',
   },
 };
 
@@ -53,6 +67,8 @@ export default function AssistenteDescricao({ alvo, valorAtual, fatos, embarcaca
   /** Passeio: pesquisar na web sobre os lugares do itinerário (ligado por padrão). */
   const [querPesquisar, setQuerPesquisar] = useState(true);
   const [texto, setTexto] = useState('');
+  /** Operador: escrever como pessoa ("Sou…") ou como empresa ("Somos…"). */
+  const [voz, setVoz] = useState<'primeira' | 'empresa'>('primeira');
   const relatoRef = useRef<HTMLTextAreaElement>(null);
   const t = TEXTOS[alvo];
 
@@ -98,6 +114,7 @@ export default function AssistenteDescricao({ alvo, valorAtual, fatos, embarcaca
     const pedido: PedidoDescricao = {
       alvo, fatos, relato, destaques, textoAtual: valorAtual, embarcacaoId: embarcacaoId ?? null,
       versaoAnterior: versaoAnterior ?? null, pesquisar,
+      ...(alvo === 'operador' ? { voz } : {}),
     };
     let r: RespostaDescricao;
     try {
@@ -121,7 +138,7 @@ export default function AssistenteDescricao({ alvo, valorAtual, fatos, embarcaca
   }
 
   function usarRascunhoSimples() {
-    const rascunho = rascunhoSimples({ alvo, fatos, relato: relato || valorAtual, destaques });
+    const rascunho = rascunhoSimples({ alvo, fatos, relato: relato || valorAtual, destaques, voz });
     setErro(null);
     setResultado({ texto: rascunho, sugestoes: [], fontes: [], semIa: true });
     setTexto(rascunho);
@@ -189,7 +206,7 @@ export default function AssistenteDescricao({ alvo, valorAtual, fatos, embarcaca
                 <div className="flex flex-col items-center justify-center gap-3 py-16 text-center">
                   <Loader2 className="h-8 w-8 animate-spin text-teal-600" />
                   <p className="text-sm font-semibold text-[#0B2447]">
-                    {pesquisar ? 'Pesquisando sobre os lugares e escrevendo…' : 'Escrevendo sua descrição…'}
+                    {pesquisar ? 'Pesquisando sobre os lugares e escrevendo…' : t.escrevendo}
                   </p>
                   <p className="text-xs text-slate-500">
                     {pesquisar
@@ -199,6 +216,23 @@ export default function AssistenteDescricao({ alvo, valorAtual, fatos, embarcaca
                 </div>
               ) : etapa === 'contar' ? (
                 <div className="space-y-6">
+                  {alvo === 'operador' && (
+                    <section>
+                      <h3 className="text-sm font-bold text-[#0B2447]">Como você quer se apresentar?</h3>
+                      <div role="radiogroup" aria-label="Voz do texto" className="mt-2 grid grid-cols-2 gap-2">
+                        {([['primeira', 'Como pessoa', '“Sou… atuo… conduzo…”'], ['empresa', 'Como empresa', '“Somos… atuamos…”']] as const).map(([valor, rotulo, exemplo]) => (
+                          <button key={valor} type="button" role="radio" aria-checked={voz === valor} onClick={() => setVoz(valor)}
+                            className={`rounded-xl border px-3 py-2.5 text-left transition-colors ${
+                              voz === valor ? 'border-teal-400 bg-teal-50' : 'border-slate-200 hover:bg-slate-50'
+                            }`}>
+                            <span className={`block text-sm font-semibold ${voz === valor ? 'text-teal-800' : 'text-slate-700'}`}>{rotulo}</span>
+                            <span className="block text-xs text-slate-500">{exemplo}</span>
+                          </button>
+                        ))}
+                      </div>
+                    </section>
+                  )}
+
                   <section>
                     <h3 className="text-sm font-bold text-[#0B2447]">1. Conte do seu jeito</h3>
                     <p className="mt-0.5 text-xs text-slate-500">Fale ou escreva como se explicasse para um cliente. Não se preocupe com erros — a gente arruma.</p>
@@ -306,7 +340,7 @@ export default function AssistenteDescricao({ alvo, valorAtual, fatos, embarcaca
               ) : (
                 <div className="space-y-4">
                   <p className="text-sm text-slate-600">
-                    Leia e ajuste o que quiser. O texto só vai para a descrição quando você tocar em <strong>Usar este texto</strong>.
+                    Leia e ajuste o que quiser. O texto só vai para o campo quando você tocar em <strong>Usar este texto</strong>.
                   </p>
                   {resultado?.semIa && (
                     <p className="flex items-start gap-1.5 rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-900">
@@ -372,13 +406,13 @@ export default function AssistenteDescricao({ alvo, valorAtual, fatos, embarcaca
                   <>
                     <button type="button" onClick={() => void gerar()} disabled={!pode}
                       className="flex w-full items-center justify-center gap-2 rounded-xl bg-teal-600 px-5 py-3.5 text-sm font-semibold text-white transition-colors hover:bg-teal-700 disabled:cursor-not-allowed disabled:opacity-40">
-                      <Sparkles className="h-4 w-4" /> Gerar descrição
+                      <Sparkles className="h-4 w-4" /> {t.gerar}
                     </button>
                     {!pode && <p className="text-center text-xs text-slate-400">Fale ou escreva algo, ou toque em pelo menos uma opção.</p>}
                   </>
                 ) : (
                   <>
-                    {temTextoAtual && <p className="text-center text-xs text-slate-400">Vai substituir a descrição atual.</p>}
+                    {temTextoAtual && <p className="text-center text-xs text-slate-400">{t.substitui}</p>}
                     <div className="flex flex-col-reverse gap-2 sm:flex-row sm:items-center">
                       <button type="button" onClick={() => setEtapa('contar')}
                         className="inline-flex items-center justify-center gap-1.5 rounded-xl px-4 py-3 text-sm font-semibold text-slate-500 hover:bg-slate-50 sm:py-2.5">

@@ -65,6 +65,11 @@ const PASSOS: Passo[] = [
     descricao: 'O passeio que o cliente reserva: trajeto, duração e preço. Também passa pela aprovação da equipe Boatzy.',
   },
   {
+    alvo: '[data-tour="nav-perfil"]',
+    titulo: 'Meu perfil',
+    descricao: 'Sua foto e uma apresentação. Aparecem no fim dos seus passeios, depois de aprovadas pela equipe Boatzy — a IA ajuda a escrever.',
+  },
+  {
     alvo: '[data-tour="nav-grupo-ferramentas"]',
     titulo: 'Mais ferramentas',
     descricao:
