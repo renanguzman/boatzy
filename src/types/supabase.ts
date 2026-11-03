@@ -19,9 +19,44 @@ export type NotificacaoTipo =
   | 'documento_vencendo' // só gestor: documento da embarcação/condutor vencendo ou vencido (SPEC §95)
   | 'cobranca_avulsa' // cobrança avulsa criada/expirada/cancelada (SPEC §34.16)
   | 'lembrete_passeio' // lembrete D-1 / H-3 do passeio confirmado (SPEC §96)
-  | 'perfil_operador_aprovado' // só gestor: perfil de operador aprovado e publicado (SPEC §99)
-  | 'perfil_operador_ajustes'; // só gestor: perfil devolvido ou retirado do ar, com recado da equipe (SPEC §99)
-/** Perfil do operador (foto + biografia) — aprovado pelo admin antes de ir ao site (SPEC §99). */
+  | 'perfil_operador_aprovado' // só gestor: perfil de operador aprovado e publicado (SPEC §100)
+  | 'perfil_operador_ajustes' // só gestor: perfil devolvido ou retirado do ar, com recado da equipe (SPEC §100)
+  | 'repasse_realizado'; // só gestor: o Boatzy registrou um repasse a ele (SPEC §101)
+/** Repasse ao gestor (SPEC §101). */
+export type RepasseStatus = 'pago' | 'cancelado';
+export type RepasseMetodo = 'pix' | 'ted' | 'doc' | 'outro';
+/** Situação de um pedido pago quanto ao repasse (view `pedido_repasse_situacao`). */
+export type SituacaoRepasse =
+  | 'aguardando_recebimento' // pago, mas o Asaas ainda não liquidou (cartão ~D+32)
+  | 'aguardando_passeio'
+  | 'aguardando_prazo' // passeio feito, dentro do prazo de espera (48h)
+  | 'a_repassar'
+  | 'retido' // disputa, reembolso parcial ou reserva encerrada
+  | 'reembolsado'
+  | 'repassado';
+export type RecebimentoTipo = 'pix' | 'conta';
+export type PixTipoChave = 'cpf' | 'cnpj' | 'email' | 'telefone' | 'aleatoria';
+export type TipoConta = 'corrente' | 'poupanca';
+export type ContaGrupo = 'ativo' | 'passivo' | 'receita' | 'despesa';
+export type LancamentoTipo = 'recebimento' | 'repasse' | 'estorno' | 'ajuste';
+/** Destino + dados do gestor congelados no repasse (`repasse.destino_snapshot`). */
+export type DestinoRepasse = {
+  gestor_nome: string | null;
+  gestor_documento: string | null;
+  recebimento_id: string;
+  tipo: RecebimentoTipo;
+  pix_tipo_chave: PixTipoChave | null;
+  pix_chave: string | null;
+  banco_codigo: string | null;
+  banco_nome: string | null;
+  agencia: string | null;
+  conta: string | null;
+  conta_digito: string | null;
+  tipo_conta: TipoConta | null;
+  titular_nome: string;
+  titular_documento: string;
+};
+/** Perfil do operador (foto + biografia) — aprovado pelo admin antes de ir ao site (SPEC §100). */
 export type OperadorPerfilStatus = 'rascunho' | 'em_analise' | 'aprovado' | 'devolvido' | 'retirado';
 export type OperadorPerfilEventoTipo = 'enviado' | 'recolhido' | 'aprovado' | 'devolvido' | 'retirado' | 'restaurado';
 /** Conteúdo guardado em `operador_perfil.publicado`. */
@@ -374,6 +409,8 @@ export type Database = {
           name: string;
           email: string;
           cpf_cnpj: string | null;
+          documento_estrangeiro: string | null;
+          pais_documento: string | null;
           phone: string | null;
           birthday: string | null;
           avatar_url: string | null;
@@ -395,6 +432,8 @@ export type Database = {
           name: string;
           email: string;
           cpf_cnpj?: string | null;
+          documento_estrangeiro?: string | null;
+          pais_documento?: string | null;
           phone?: string | null;
           birthday?: string | null;
           avatar_url?: string | null;
@@ -416,6 +455,8 @@ export type Database = {
           name?: string;
           email?: string;
           cpf_cnpj?: string | null;
+          documento_estrangeiro?: string | null;
+          pais_documento?: string | null;
           phone?: string | null;
           birthday?: string | null;
           avatar_url?: string | null;
@@ -2711,6 +2752,7 @@ export type Database = {
           bairro: string | null;
           cidade: string | null;
           uf: string | null;
+          pais: string | null;
           criado_em: string;
         };
         Insert: {
@@ -2728,6 +2770,7 @@ export type Database = {
           bairro?: string | null;
           cidade?: string | null;
           uf?: string | null;
+          pais?: string | null;
           criado_em?: string;
         };
         Update: {
@@ -2745,6 +2788,7 @@ export type Database = {
           bairro?: string | null;
           cidade?: string | null;
           uf?: string | null;
+          pais?: string | null;
           criado_em?: string;
         };
         Relationships: [
@@ -2995,6 +3039,129 @@ export type Database = {
         Update: Record<string, never>;
         Relationships: [];
       };
+      // Onde o gestor recebe os repasses (migration 20261104_repasses). Troca = nova linha; histórico preservado.
+      gestor_recebimento: {
+        Row: {
+          id: string;
+          owner_id: string;
+          tipo: RecebimentoTipo;
+          pix_tipo_chave: PixTipoChave | null;
+          pix_chave: string | null;
+          banco_codigo: string | null;
+          banco_nome: string | null;
+          agencia: string | null;
+          conta: string | null;
+          conta_digito: string | null;
+          tipo_conta: TipoConta | null;
+          titular_nome: string;
+          titular_documento: string;
+          ativo: boolean;
+          criado_em: string;
+        };
+        Insert: {
+          id?: string;
+          owner_id: string;
+          tipo: RecebimentoTipo;
+          pix_tipo_chave?: PixTipoChave | null;
+          pix_chave?: string | null;
+          banco_codigo?: string | null;
+          banco_nome?: string | null;
+          agencia?: string | null;
+          conta?: string | null;
+          conta_digito?: string | null;
+          tipo_conta?: TipoConta | null;
+          titular_nome: string;
+          titular_documento: string;
+          ativo?: boolean;
+          criado_em?: string;
+        };
+        Update: Partial<Database['public']['Tables']['gestor_recebimento']['Insert']>;
+        Relationships: [];
+      };
+      // Lote de repasse: 1 pagamento (Pix/TED) ao gestor cobrindo N pedidos.
+      repasse: {
+        Row: {
+          id: string;
+          numero: number;
+          gestor_id: string;
+          valor_total: number;
+          status: RepasseStatus;
+          metodo: RepasseMetodo;
+          pago_em: string;
+          pago_por: string | null;
+          referencia: string | null;
+          observacao: string | null;
+          destino_snapshot: DestinoRepasse;
+          comprovante_key: string | null;
+          comprovante_nome: string | null;
+          cancelado_em: string | null;
+          cancelado_por: string | null;
+          motivo_cancelamento: string | null;
+          criado_em: string;
+          atualizado_em: string;
+        };
+        // Criado só por `registrar_repasse()`; depois só o comprovante muda direto.
+        Insert: Record<string, never>;
+        Update: { comprovante_key?: string | null; comprovante_nome?: string | null; observacao?: string | null };
+        Relationships: [];
+      };
+      repasse_item: {
+        Row: {
+          id: string;
+          repasse_id: string;
+          pedido_id: string;
+          valor: number;
+          cancelado: boolean;
+          criado_em: string;
+        };
+        Insert: Record<string, never>;
+        Update: Record<string, never>;
+        Relationships: [];
+      };
+      conta_contabil: {
+        Row: {
+          codigo: string;
+          nome: string;
+          grupo: ContaGrupo;
+          codigo_contabilidade: string | null;
+        };
+        Insert: { codigo: string; nome: string; grupo: ContaGrupo; codigo_contabilidade?: string | null };
+        Update: { nome?: string; codigo_contabilidade?: string | null };
+        Relationships: [];
+      };
+      // Append-only (partidas dobradas): correção = lote inverso.
+      lancamento_lote: {
+        Row: {
+          id: string;
+          origem_ref: string;
+          tipo: LancamentoTipo;
+          descricao: string | null;
+          pedido_id: string | null;
+          pagamento_id: string | null;
+          repasse_id: string | null;
+          gestor_id: string | null;
+          data_competencia: string;
+          data_caixa: string;
+          estorno_de: string | null;
+          criado_por: string | null;
+          criado_em: string;
+        };
+        Insert: Record<string, never>;
+        Update: Record<string, never>;
+        Relationships: [];
+      };
+      lancamento_financeiro: {
+        Row: {
+          id: string;
+          lote_id: string;
+          conta_codigo: string;
+          natureza: 'D' | 'C';
+          valor: number;
+        };
+        Insert: Record<string, never>;
+        Update: Record<string, never>;
+        Relationships: [];
+      };
       // Fila/idempotência dos webhooks do Asaas (migration 20260930_asaas_webhook_evento).
       asaas_webhook_evento: {
         Row: {
@@ -3126,8 +3293,104 @@ export type Database = {
         Relationships: [];
       };
     };
-    Views: Record<string, never>;
+    Views: {
+      // Fonte única da regra de elegibilidade ao repasse (migration 20261104_repasses). Só service_role.
+      pedido_repasse_situacao: {
+        Row: {
+          pedido_id: string;
+          numero: number;
+          tipo: 'reserva' | 'avulso';
+          gestor_id: string;
+          cliente_id: string;
+          pedido_status: PedidoStatus;
+          pago_em: string | null;
+          valor_itens: number;
+          valor_comissao: number;
+          valor_desconto: number;
+          valor_total: number;
+          reserva_id: string | null;
+          reserva_status: ReservaStatus | null;
+          data_reserva: string | null;
+          fim_passeio: string | null;
+          pagamento_id: string;
+          pagamento_status: PagamentoStatus;
+          forma_pagamento: string;
+          recebido_em: string | null;
+          credito_previsto_em: string | null;
+          pagamento_valor: number;
+          valor_liquido: number | null;
+          valor_tarifa: number | null;
+          liquidado: boolean;
+          repasse_id: string | null;
+          repasse_numero: number | null;
+          repasse_pago_em: string | null;
+          valor_repassar: number;
+          /** Quando o repasse fica liberado (fim do passeio + prazo, horário de Brasília). */
+          liberado_em: string | null;
+          situacao: SituacaoRepasse;
+        };
+        Relationships: [];
+      };
+    };
     Functions: {
+      /** Lança o recebimento do pagamento no ledger; NULL enquanto não liquidado (SPEC §101). */
+      lancar_recebimento_pagamento: {
+        Args: { p_pagamento: string };
+        Returns: string | null;
+      };
+      /** Registra o repasse (lote) de forma atômica: repasse + itens + lançamento (SPEC §101). */
+      registrar_repasse: {
+        Args: {
+          p_repasse_id: string;
+          p_gestor: string;
+          p_pedidos: string[];
+          p_metodo: RepasseMetodo;
+          p_pago_em: string;
+          p_referencia: string | null;
+          p_observacao: string | null;
+          p_admin: string;
+          p_comprovante_key: string | null;
+          p_comprovante_nome: string | null;
+        };
+        Returns: { id: string; numero: number; valor_total: number; pedidos: number };
+      };
+      /** Cancela o repasse, libera os pedidos e lança o inverso (SPEC §101). */
+      cancelar_repasse: {
+        Args: { p_repasse: string; p_admin: string; p_motivo: string };
+        Returns: { id: string; numero: number };
+      };
+      /** Demonstrativo por gestor no período: bruto, tarifa, desconto, comissão, devido e repassado (SPEC §101). */
+      demonstrativo_gestores: {
+        Args: { p_de: string; p_ate: string; p_base?: 'competencia' | 'caixa' };
+        Returns: {
+          gestor_id: string;
+          pedidos: number;
+          bruto: number;
+          tarifa: number;
+          desconto: number;
+          comissao: number;
+          devido: number;
+          repassado: number;
+        }[];
+      };
+      /** Gestor informa/troca onde recebe: desativa o destino atual (histórico) e grava o novo (SPEC §101). */
+      salvar_gestor_recebimento: {
+        Args: { p_owner: string; p_dados: Json };
+        Returns: { id: string; anterior_id: string | null };
+      };
+      /** Balancete por período e base (competência ou caixa) (SPEC §101). */
+      balancete: {
+        Args: { p_de: string; p_ate: string; p_base?: 'competencia' | 'caixa' };
+        Returns: {
+          conta_codigo: string;
+          conta_nome: string;
+          grupo: ContaGrupo;
+          codigo_contabilidade: string | null;
+          debitos: number;
+          creditos: number;
+          saldo: number;
+        }[];
+      };
       /** Documentação no admin — contadores por situação numa passada (SPEC §95.9). */
       contar_documentacao_embarcacoes: {
         Args: { p_status?: string | null };
@@ -3144,7 +3407,7 @@ export type Database = {
         };
         Returns: string;
       };
-      /** Perfil do operador — o gestor salva o rascunho e, se quiser, envia para análise (SPEC §99). */
+      /** Perfil do operador — o gestor salva o rascunho e, se quiser, envia para análise (SPEC §100). */
       salvar_operador_perfil: {
         Args: {
           p_owner: string;
@@ -3158,7 +3421,7 @@ export type Database = {
         };
         Returns: { status: OperadorPerfilStatus; enviado: boolean; foto_antiga: string | null; atualizado_em: string };
       };
-      /** Perfil do operador — decisão do admin: aprovar publica o rascunho (SPEC §99). */
+      /** Perfil do operador — decisão do admin: aprovar publica o rascunho (SPEC §100). */
       decidir_operador_perfil: {
         Args: {
           p_owner: string;
@@ -3170,7 +3433,7 @@ export type Database = {
         };
         Returns: { status: OperadorPerfilStatus; revisao: number; foto_antiga: string | null };
       };
-      /** Média das avaliações aprovadas, experiências e passeios por operador, em lote (SPEC §99). */
+      /** Média das avaliações aprovadas, experiências e passeios por operador, em lote (SPEC §100). */
       operador_resumos_publicos: {
         Args: { p_owners: string[] };
         Returns: {

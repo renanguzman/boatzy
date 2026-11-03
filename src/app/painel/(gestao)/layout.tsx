@@ -34,8 +34,9 @@ export default async function GestaoLayout({ children }: { children: React.React
   let pendentes = 0;
   let docs = { vencidos: 0, venceEmBreve: 0, urgentes: 0 };
   let perfilPendente = false;
+  let recebimentoPendente = false;
   if (user && canAccess) {
-    const [{ data }, { count }, resumoDocs, { data: perfilOperador }] = await Promise.all([
+    const [{ data }, { count }, resumoDocs, { data: perfilOperador }, { count: recebimentos }] = await Promise.all([
       supabaseAdmin.rpc('chat_total_nao_lidas', { p_gestor: user.id }),
       supabaseAdmin
         .from('reserva')
@@ -46,11 +47,14 @@ export default async function GestaoLayout({ children }: { children: React.React
       getResumoDocumentos(user.id),
       // Perfil de operador (SPEC §99): sem perfil, em rascunho, devolvido ou retirado = ação do gestor.
       supabaseAdmin.from('operador_perfil').select('status').eq('owner_id', user.id).maybeSingle(),
+      // Dados de recebimento (SPEC §101): sem eles o repasse não sai.
+      supabaseAdmin.from('gestor_recebimento').select('id', { count: 'exact', head: true }).eq('owner_id', user.id).eq('ativo', true),
     ]);
     naoLidas = Number(data ?? 0);
     pendentes = count ?? 0;
     docs = resumoDocs;
     perfilPendente = !perfilOperador || ['rascunho', 'devolvido', 'retirado'].includes(perfilOperador.status);
+    recebimentoPendente = (recebimentos ?? 0) === 0;
   }
 
   // Sem o papel de gestor: o acesso é pedido e só vem com a aprovação do admin (SPEC §62).
@@ -88,6 +92,7 @@ export default async function GestaoLayout({ children }: { children: React.React
             userId={user?.id ?? null}
             documentos={{ alerta: docs.vencidos + docs.venceEmBreve, vencidos: docs.vencidos }}
             perfilPendente={perfilPendente}
+            recebimentoPendente={recebimentoPendente}
           />
           <div className="flex-1 min-w-0 flex flex-col overflow-hidden">
             <Header />

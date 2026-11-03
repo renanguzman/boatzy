@@ -1,3 +1,4 @@
+import { documentoEstrangeiroRotulo } from '@/lib/pagamentos/estrangeiro';
 import { notFound } from 'next/navigation';
 import Link from 'next/link';
 import {
@@ -25,7 +26,7 @@ const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const brl = (v: number | string | null | undefined) => (v == null ? '—' : formatCurrencyPrecise(Number(v)));
 const dh = (iso: string | null | undefined) => (iso ? formatarDataHoraBR(iso) : '—');
 
-type Pessoa = { id: string; name: string; email: string; phone: string | null; cpf_cnpj: string | null; created_at: string } | null;
+type Pessoa = { id: string; name: string; email: string; phone: string | null; cpf_cnpj: string | null; documento_estrangeiro: string | null; pais_documento: string | null; created_at: string } | null;
 
 type Reserva = {
   id: string;
@@ -114,7 +115,9 @@ function DadosPessoa({ u, papel }: { u: Pessoa; papel: string }) {
       </Campo>
       <Campo label="E-mail">{u.email}</Campo>
       <Campo label="Celular">{formatarTelefone(u.phone)}</Campo>
-      <Campo label="CPF / CNPJ">{formatarDocumento(u.cpf_cnpj)}</Campo>
+      <Campo label={u.cpf_cnpj || !u.documento_estrangeiro ? 'CPF / CNPJ' : 'Documento (estrangeiro)'}>
+        {u.cpf_cnpj ? formatarDocumento(u.cpf_cnpj) : (documentoEstrangeiroRotulo(u.documento_estrangeiro, u.pais_documento) ?? '—')}
+      </Campo>
     </div>
   );
 }
@@ -133,8 +136,8 @@ export default async function AdminReservaDetalhePage({ params }: { params: Prom
        roteiro ( nome, origem, destino, horario_saida, duracao_horas, logradouro, logradouro_numero, complemento, bairro, cep,
                  municipios ( nome, estados ( uf ) ), roteiro_parada ( nome, ordem ) ),
        embarcacao ( nome ),
-       cliente:users!reserva_cliente_id_fkey ( id, name, email, phone, cpf_cnpj, created_at ),
-       owner:users!reserva_owner_id_fkey ( id, name, email, phone, cpf_cnpj, created_at ),
+       cliente:users!reserva_cliente_id_fkey ( id, name, email, phone, cpf_cnpj, documento_estrangeiro, pais_documento, created_at ),
+       owner:users!reserva_owner_id_fkey ( id, name, email, phone, cpf_cnpj, documento_estrangeiro, pais_documento, created_at ),
        reserva_adicional ( id, descricao, valor, tipo ),
        reserva_atendente ( equipe_membro ( nome_completo, telefone, is_gestor ) ),
        pedido ( id, numero, status, valor_total, pago_em ),

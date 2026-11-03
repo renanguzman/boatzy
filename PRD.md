@@ -675,12 +675,40 @@ cliente escolhe **em nome de quem** sai o pagamento. Por padrão é ele mesmo (n
   estão gravados e no customer do Asaas para quando entrar (depende da decisão tributária D2).
 - Detalhes técnicos: SPEC §97.
 
+#### ✅ Implementado — Fase 3 (manual): repasses ao gestor, ledger e dados de recebimento (04/11/2026)
+
+O Boatzy recebe o pagamento do cliente e **repassa ao gestor o valor dos itens**, depois do passeio. Nesta fase o
+**admin paga fora (Pix/TED) e registra** na plataforma; a transferência automática pelo Asaas segue como evolução.
+
+- **Quando o repasse é liberado**: pagamento **recebido** no Asaas (cartão só depois de liquidado, ~D+32) **+** passeio
+  realizado (data final) **+** prazo de espera configurável (hoje 48h). Não depende de ação do gestor.
+- **Quem fica com o quê** (visível por pedido): o gestor recebe sempre o valor dos itens; o Boatzy fica com a comissão menos o
+  cupom e **absorve a tarifa do Asaas**. Cada recebimento gera lançamentos em **partidas dobradas** classificados por conta
+  (saldo Asaas, obrigações com gestores, tarifa, desconto, receita de comissão) — base de balancete e conciliação.
+- **Gestor — dados de recebimento**: nova tela **Recebimentos** (chave Pix ou conta bancária, titular e CPF/CNPJ) e **último
+  passo do Início**. Sem esses dados o repasse não pode ser registrado para ele. Trocar o destino guarda o histórico e avisa a
+  equipe por e-mail.
+- **Gestor — Receitas → Repasses**: faixa "Aguardando liberação / Liberado / Já repassado", lista por situação (Aguardando,
+  Liberados, Pagos) e o detalhe de cada repasse com **data, meio, destino, pedidos incluídos e comprovante**.
+  Aviso por e-mail e no sino quando o repasse é feito. O gestor não vê tarifa nem comissão.
+- **Admin — Financeiro → Repasses**: fila **por gestor** do que está liberado (marque os pedidos e **registre o repasse**: meio,
+  data/hora, referência bancária, observação e **comprovante anexado**, que pode vir depois), abas Aguardando, Retidos e
+  Repassados (filtros e exportação). Cada repasse tem sua página (destino congelado, pedidos, lançamento contábil, auditoria)
+  e pode ser **cancelado com motivo** (os pedidos voltam à fila; o lançamento é revertido). O detalhe do pedido mostra a
+  situação do repasse.
+- **Admin — Financeiro → Relatórios**: demonstrativo por gestor, balancete, razão e **conciliação** (recebido sem lançamento,
+  líquido × ledger, obrigações × a repassar, repasses sem comprovante, repasse a recuperar após reembolso/disputa), com
+  **exportação para o escritório de contabilidade** (Excel/CSV: razão, balancete, demonstrativo, detalhe por pedido e repasses).
+- **Pendências**: aplicar a migration no Supabase; validar o plano de contas e o regime (D2) com o contador; transferência
+  automática via API (D1/D4); confirmação de realização pelo gestor (D6); estorno contábil de reembolsos (Fase 2).
+- Detalhes técnicos: SPEC §101.
+
 #### 🔜 Próximas etapas
 
 1. **Agendador do Supabase** a cada ~10 min para expirar pedidos e reprocessar webhooks (hoje:
    1×/dia + automaticamente quando cliente/gestor abrem as telas de reservas).
-3. Fases 2 (cancelamento/estornos — inclui reembolso de cobrança avulsa), 3 (repasses — inclui a
-   confirmação de realização pelo gestor, o livro-razão financeiro e o repasse das cobranças avulsas),
+3. Fases 2 (cancelamento/estornos — inclui reembolso de cobrança avulsa e o estorno contábil), 3 (repasses:
+   ✅ manual em 04/11/2026; falta a transferência automática pelo Asaas e a confirmação de realização pelo gestor),
    4 (controle total) e 5 (produção).
 4. **Nota fiscal (NFS-e)** emitida pelo Asaas em nome do titular escolhido no checkout (próprio cliente,
    outra pessoa ou empresa) — dados já gravados (SPEC §97); depende de D2.
@@ -796,8 +824,9 @@ tecnologia: uma pergunta por bloco, frases curtas e nenhum bloco vazio para quem
 
 - **Saudação** ("Olá, Renan!") com uma linha que diz o que importa agora: "Siga os passos abaixo…" (quem está
   começando), "Você tem N assuntos para resolver" ou "Tudo em dia por aqui".
-- **Primeiros passos** (até a primeira embarcação, o primeiro roteiro **e o perfil de operador** serem aprovados):
-  6 passos numerados, com barra de progresso, o **Próximo passo** destacado com um botão e o que depende da equipe Boatzy marcado
+- **Primeiros passos** (até a primeira embarcação, o primeiro roteiro **e o perfil de operador** serem aprovados e os **dados de
+  recebimento** informados):
+  7 passos numerados, com barra de progresso, o **Próximo passo** destacado com um botão e o que depende da equipe Boatzy marcado
   como "aguardando":
   1. **Cadastre sua embarcação** — fotos, local e detalhes;
   2. **Envie o documento da embarcação** — TIE (ou TIEM); sem ele a embarcação não é aprovada;
@@ -807,7 +836,10 @@ tecnologia: uma pergunta por bloco, frases curtas e nenhum bloco vazio para quem
   5. **Aguarde a aprovação do roteiro** — aprovado, aparece no site (e só aparece com a embarcação aprovada);
   6. **Conte quem é você** (desde 02/11/2026) — o perfil de operador: foto e apresentação que aparecem nos passeios
      (§6.16). Sempre acionável; só vira "Próximo passo" quando os anteriores não pedem nada. Com o perfil no ar o
-     passo fica feito e o cartão some; devolvido pela equipe, vira tarefa em "Para fazer agora".
+     passo fica feito; devolvido pela equipe, vira tarefa em "Para fazer agora".
+  7. **Informe onde receber seus repasses** (desde 04/11/2026) — o **último passo**: chave Pix ou conta bancária em
+     `/painel/recebimentos`. Sempre acionável. Sem isso o Boatzy não consegue depositar o valor dos passeios. Com todos os
+     passos feitos o cartão some (quem já havia concluído volta a ver o cartão até informar onde receber).
   Uma linha explica a regra: "a equipe Boatzy aprova cada embarcação e cada roteiro antes de irem para o site; a
   embarcação só é aprovada com o documento (TIE)". Pode ser **ocultado** (fica uma barra "Primeiros passos · 2 de
   5 · Mostrar") — útil para quem só anuncia barco à venda. Depois do primeiro cadastro de embarcação/roteiro, o
@@ -828,7 +860,7 @@ tecnologia: uma pergunta por bloco, frases curtas e nenhum bloco vazio para quem
 - Resumo, próximos passeios e gráfico só aparecem depois do primeiro passeio no site (ou da primeira reserva).
 
 **Menu e topo (01/11/2026):** menu em português e agrupado — **Início, Reservas, Clientes**; "Seus cadastros":
-**Embarcações, Documentos, Roteiros e preços**; "Mais ferramentas": **Catálogo de extras, Equipe, Receitas, Venda
+**Embarcações, Documentos, Roteiros e preços, Meu perfil, Recebimentos**; "Mais ferramentas": **Catálogo de extras, Equipe, Receitas, Venda
 de embarcações**. "Admin Portal" → "Painel do proprietário"; "SUPPORT" (levava a uma página inexistente) →
 **Ajuda** (central de ajuda do site, em nova aba); "SIGN OUT" → **Sair**. O topo mostra o nome da seção
 (antes, "Overview" em todas). Status "Retorno" passou a se chamar **Devolvido**.
@@ -904,7 +936,8 @@ Todos os números são do **gestor logado** (`owner_id`):
 - **Gráficos:** receita por mês (tendência), receita por embarcação (top 8) e por roteiro (top 8), top clientes por receita.
 - **Grid de reservas** do período filtrado: ordenável por qualquer coluna, paginado (10/página), com exportação para **Excel** e **PDF** (refletindo o filtro e a ordenação atuais).
 - Todos os filtros, KPIs, gráficos e grid reagem em conjunto ao mesmo estado de filtro — nunca mostram números divergentes entre si.
-- Detalhes técnicos em `SPEC.md` §24.
+- **Repasses (04/11/2026)**: no topo, faixa com o que está aguardando liberação, liberado e já repassado, e o atalho **Ver meus repasses** (`/painel/receitas/repasses`, com comprovantes). Detalhes na Fase 3 de §6.6.
+- Detalhes técnicos em `SPEC.md` §24 e §101.
 
 #### ✅ Implementado — Menu **Clientes** (`/painel/clientes`)
 
@@ -3376,11 +3409,27 @@ regras, paradas, avaliações e chat).
   - Painel do gestor e admin seguem em português.
 
 **Pontos de atenção:**
-- **CPF obrigatório:** o cadastro por e-mail e o pagamento exigem CPF. O estrangeiro navega no seu idioma,
-  mas sem CPF não conclui o pagamento — a verificar com o Asaas se aceita cliente estrangeiro.
+- **CPF:** estrangeiro sem CPF cadastra-se e paga com cartão internacional informando país e documento
+  oficial (ver "Pagamento de estrangeiros sem CPF"); o PIX continua exigindo CPF.
 - Recomendada revisão das traduções por falante nativo (ao menos reserva e pagamento) antes de divulgar.
 
 Detalhes técnicos: `SPEC.md` §94.
+
+### 🚧 Pagamento de estrangeiros sem CPF (03/11/2026)
+
+Turistas de fora do Brasil (argentinos, chilenos, uruguaios…) pagam a reserva sem CPF.
+
+**Como funciona para o cliente:**
+- No cadastro por e-mail, a opção **"Não tenho CPF (sou estrangeiro)"** esconde o campo CPF — não barra mais o cadastro.
+- No pagamento, quando o cadastro não tem CPF, aparece **"Sou estrangeiro e não tenho CPF"** (já marcado para quem navega em inglês ou espanhol). Marcada, a pessoa informa só o **país** e o **número de um documento oficial** (passaporte, cédula, DNI… qualquer documento com foto). O documento fica salvo no cadastro para as próximas compras.
+- Estrangeiro paga **somente com cartão de crédito/débito internacional**: o PIX exige CPF/CNPJ no Asaas e é escondido, com um aviso. Quem quiser PIX pode pagar "em nome de outra pessoa" (CPF de um brasileiro).
+- Gestor e admin veem o documento estrangeiro (com o país) no lugar do CPF.
+
+**Decisões:** o Asaas não tem campo para passaporte (só CPF/CNPJ), então o cliente é criado como pagador estrangeiro, sem documento, e o documento oficial é guardado só no Boatzy; validação do documento é só tamanho/caracteres (formato varia por país). Validado no sandbox em 03/11/2026.
+
+**Pendente para produção:** liberação de "pagadores estrangeiros" no Asaas de produção (em andamento) e aplicar a migration `20261103_pagador_estrangeiro.sql`; confirmar com o Asaas taxas e risco de chargeback de cartão internacional. Edição do documento em "Minha conta" fica para depois.
+
+Detalhes técnicos: `SPEC.md` §100.
 
 ## 11. Não Incluído no MVP
 

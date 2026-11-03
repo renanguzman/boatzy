@@ -44,7 +44,7 @@ function passaFiltrosBase(
   return true;
 }
 
-export default function ReceitasView({ reservas }: { reservas: ReservaReceita[] }) {
+export default function ReceitasView({ reservas, repasses }: { reservas: ReservaReceita[]; repasses?: React.ReactNode }) {
   const [filtros, setFiltros] = useState<Filtros>(() => ({
     ...presetEsteMes(),
     embarcacaoId: '',
@@ -163,6 +163,9 @@ export default function ReceitasView({ reservas }: { reservas: ReservaReceita[] 
           Visão financeira das suas reservas e cobranças adicionais pagas — filtre por período, embarcação, roteiro ou cliente.
         </p>
       </div>
+
+      {/* Repasses do Boatzy ao gestor (SPEC §101): faixa renderizada no servidor. */}
+      {repasses}
 
       <FiltrosReceitas
         filtros={filtros}

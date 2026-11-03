@@ -1,3 +1,4 @@
+import { documentoEstrangeiroRotulo } from '@/lib/pagamentos/estrangeiro';
 import { notFound, redirect } from 'next/navigation';
 import Link from 'next/link';
 import {
@@ -47,7 +48,7 @@ type ReservaDetalhe = {
   observacao_gestor: string | null;
   solicitado_em: string;
   respondido_em: string | null;
-  cliente: { name: string; email: string; cpf_cnpj: string | null; avatar_url: string | null; phone: string | null } | null;
+  cliente: { name: string; email: string; cpf_cnpj: string | null; documento_estrangeiro: string | null; pais_documento: string | null; avatar_url: string | null; phone: string | null } | null;
   roteiro: {
     nome: string;
     embarcacao_id: string | null;
@@ -130,7 +131,7 @@ export default async function ReservaDetalhePage({ params }: { params: Promise<{
        quantidade_diarias, flexibilidade, quantidade_pessoas, item_nome,
        preco_base, total_adicionais, taxa_servico, taxa_percent, total_estimado, cupom_codigo, desconto_valor,
        status, observacao_gestor, solicitado_em, respondido_em,
-       cliente:users!reserva_cliente_id_fkey ( name, email, cpf_cnpj, avatar_url, phone ),
+       cliente:users!reserva_cliente_id_fkey ( name, email, cpf_cnpj, documento_estrangeiro, pais_documento, avatar_url, phone ),
        roteiro ( nome, embarcacao_id, horario_saida, municipios ( nome, estados ( uf ) ) ),
        embarcacao ( nome ),
        reserva_adicional ( id, descricao, valor, tipo ),
@@ -293,10 +294,10 @@ export default async function ReservaDetalhePage({ params }: { params: Promise<{
                 <Mail className="h-4 w-4 text-slate-400 shrink-0" />
                 <span className="min-w-0 break-all">{r.cliente?.email ?? '—'}</span>
               </div>
-              {r.cliente?.cpf_cnpj && (
+              {(r.cliente?.cpf_cnpj || r.cliente?.documento_estrangeiro) && (
                 <div className="flex items-center gap-2.5 text-slate-700">
                   <IdCard className="h-4 w-4 text-slate-400 shrink-0" />
-                  {r.cliente.cpf_cnpj}
+                  {r.cliente.cpf_cnpj ?? documentoEstrangeiroRotulo(r.cliente.documento_estrangeiro, r.cliente.pais_documento)}
                 </div>
               )}
             </div>

@@ -95,6 +95,7 @@ export function validarTomador(entrada: TomadorForm):
       nome_fantasia: tipo === 'cnpj' ? limpo(form.nomeFantasia) : null,
       email: null,
       telefone: telefone || null,
+      pais: null,
       cep,
       logradouro: limpo(form.logradouro),
       numero: limpo(form.numero, 20),
@@ -106,10 +107,23 @@ export function validarTomador(entrada: TomadorForm):
   };
 }
 
-/** Mesmo tomador? Decide se a cobrança pendente pode ser reaproveitada ou precisa ser refeita. */
-export function mesmoTomador(gravado: TomadorRegistro | null, desejado: Tomador | null): boolean {
+/**
+ * Mesmo tomador? Decide se a cobrança pendente pode ser reaproveitada ou precisa ser refeita.
+ * `estrangeiro`: o próprio cliente pagando sem CPF (SPEC §100) — o customer do Asaas é outro.
+ */
+export function mesmoTomador(
+  gravado: TomadorRegistro | null,
+  desejado: Tomador | null,
+  estrangeiro: { pais: string; documento: string } | null = null,
+): boolean {
   // `null` = o próprio cliente (pagamentos antigos não têm linha).
-  if (!desejado) return !gravado || gravado.tipo === 'proprio';
+  if (!desejado) {
+    if (!gravado) return !estrangeiro;
+    if (gravado.tipo !== 'proprio') return false;
+    return estrangeiro
+      ? gravado.pais === estrangeiro.pais && gravado.documento === estrangeiro.documento
+      : gravado.pais == null;
+  }
   if (!gravado || gravado.tipo === 'proprio') return false;
   const campos = ['tipo', 'nome', 'documento', 'telefone', 'cep', 'logradouro', 'numero', 'complemento', 'bairro', 'cidade', 'uf'] as const;
   return campos.every((c) => (gravado[c] ?? null) === (desejado[c] ?? null));

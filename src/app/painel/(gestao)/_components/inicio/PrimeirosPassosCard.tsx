@@ -67,7 +67,7 @@ export default function PrimeirosPassosCard({ dados }: { dados: PrimeirosPassos 
           <div>
             <p className="text-[11px] font-bold uppercase tracking-wider text-teal-700">Primeiros passos</p>
             <h2 id="primeiros-passos" className="mt-0.5 text-lg font-bold text-[#0B2447]">
-              {noSite ? 'Falta pouco: apresente-se aos clientes' : 'Coloque seu primeiro passeio no site e apresente-se'}
+              {noSite ? 'Falta pouco: apresente-se e informe onde receber' : 'Coloque seu primeiro passeio no site e prepare-se para receber'}
             </h2>
           </div>
           <button type="button" onClick={() => gravarOculto(true)} className="shrink-0 text-xs font-semibold text-slate-400 hover:text-slate-600">
@@ -83,8 +83,8 @@ export default function PrimeirosPassosCard({ dados }: { dados: PrimeirosPassos 
         <p className="mt-3 flex items-start gap-2 text-xs text-slate-500">
           <ShieldCheck className="mt-0.5 h-3.5 w-3.5 shrink-0 text-teal-600" />
           {noSite
-            ? 'Seu passeio já está no ar. Agora é a sua vez: a equipe Boatzy aprova o seu perfil antes de ele aparecer para os clientes.'
-            : 'Por segurança dos passageiros, a equipe Boatzy aprova cada embarcação, cada roteiro e o seu perfil antes de irem para o site. A embarcação só é aprovada com o documento (TIE).'}
+            ? 'Seu passeio já está no ar. Agora é a sua vez: a equipe Boatzy aprova o seu perfil antes de ele aparecer para os clientes, e os dados de recebimento liberam os seus repasses.'
+            : 'Por segurança dos passageiros, a equipe Boatzy aprova cada embarcação, cada roteiro e o seu perfil antes de irem para o site. A embarcação só é aprovada com o documento (TIE). Para receber, informe também onde depositar os repasses.'}
         </p>
       </div>
 

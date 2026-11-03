@@ -1,3 +1,4 @@
+import { documentoEstrangeiroMascarado } from '@/lib/pagamentos/estrangeiro';
 import { notFound } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
@@ -290,7 +291,7 @@ export default async function DetalheReserva({ reservaId: id, clienteId }: { res
           .eq('pedido_id', pedido.id)
           .order('criado_em', { ascending: false })
       : Promise.resolve({ data: [] }),
-    supabaseAdmin.from('users').select('name, cpf_cnpj').eq('id', clienteId).maybeSingle(),
+    supabaseAdmin.from('users').select('name, cpf_cnpj, documento_estrangeiro, pais_documento').eq('id', clienteId).maybeSingle(),
     supabaseAdmin.from('users').select('name').eq('id', r.owner_id).maybeSingle(),
     supabaseAdmin
       .from('termos_uso_aceite')
@@ -720,7 +721,7 @@ export default async function DetalheReserva({ reservaId: id, clienteId }: { res
                 ) : (
                   <LinhaRecibo
                     rotulo={t('comprovante.pagador')}
-                    valor={[tomador?.nome ?? cliente?.name, documentoMascarado(tomador?.documento ?? cliente?.cpf_cnpj ?? null)].filter(Boolean).join(' · ') || '—'}
+                    valor={[tomador?.nome ?? cliente?.name, (tomador?.pais ? documentoEstrangeiroMascarado(tomador.documento) : documentoMascarado(tomador?.documento ?? cliente?.cpf_cnpj ?? null)) ?? documentoEstrangeiroMascarado(cliente?.documento_estrangeiro)].filter(Boolean).join(' · ') || '—'}
                   />
                 )}
                 <LinhaRecibo rotulo={t('comprovante.recebedor')} valor={t('comprovante.recebedorValor')} />

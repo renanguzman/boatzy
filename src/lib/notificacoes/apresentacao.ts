@@ -9,6 +9,7 @@ import {
   FileWarning,
   HandCoins,
   Inbox,
+  Landmark,
   MessageCircle,
   RotateCcw,
   Star,
@@ -43,6 +44,7 @@ export const VISUAL_NOTIFICACAO: Record<NotificacaoTipo, Visual> = {
   lembrete_passeio: { icone: BellRing, cor: 'bg-turquesa/10 text-turquesa-escuro', rotulo: 'Lembrete do passeio' },
   perfil_operador_aprovado: { icone: UserRound, cor: 'bg-emerald-50 text-emerald-600', rotulo: 'Perfil aprovado' },
   perfil_operador_ajustes: { icone: UserRound, cor: 'bg-amber-50 text-amber-600', rotulo: 'Ajustes no perfil' },
+  repasse_realizado: { icone: Landmark, cor: 'bg-emerald-50 text-emerald-600', rotulo: 'Repasse realizado' },
 };
 
 export function visualNotificacao(tipo: string): Visual {

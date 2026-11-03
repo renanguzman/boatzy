@@ -49,7 +49,7 @@ export default async function PainelInicioPage() {
 
   const [
     { data: embarcacoesData }, { data: roteirosData }, { data: reservasData }, { data: anunciosData }, { data: funilData },
-    resumoDocs, vencimentos, inscricoes, { data: perfil }, { data: perfilOperador },
+    resumoDocs, vencimentos, inscricoes, { data: perfil }, { data: perfilOperador }, { count: recebimentos },
   ] = await Promise.all([
     supabaseAdmin.from('embarcacao').select('id, nome, status, primeira_aprovacao_em, enviado_analise_em').eq('owner_id', user.id),
     supabaseAdmin.from('roteiro').select('id, nome, status, ativo, embarcacao_id, primeira_aprovacao_em, enviado_analise_em').eq('owner_id', user.id),
@@ -71,6 +71,8 @@ export default async function PainelInicioPage() {
     supabaseAdmin.from('users').select('name').eq('id', user.id).maybeSingle(),
     // Perfil de operador (SPEC §99): último passo do setup.
     supabaseAdmin.from('operador_perfil').select('status, enviado_analise_em, publicado').eq('owner_id', user.id).maybeSingle(),
+    // Dados de recebimento (SPEC §101): o último passo do setup.
+    supabaseAdmin.from('gestor_recebimento').select('id', { count: 'exact', head: true }).eq('owner_id', user.id).eq('ativo', true),
   ]);
 
   const embarcacoes = (embarcacoesData ?? []) as EmbarcacaoInicio[];
@@ -88,7 +90,8 @@ export default async function PainelInicioPage() {
         noAr: perfilOperador.publicado != null && perfilOperador.status !== 'retirado',
       }
     : null;
-  const passos = montarPrimeirosPassos({ embarcacoes, roteiros, inscricoes, perfil: perfilInicio });
+  const temRecebimento = (recebimentos ?? 0) > 0;
+  const passos = montarPrimeirosPassos({ embarcacoes, roteiros, inscricoes, perfil: perfilInicio, temRecebimento });
   const comPassos = !passos.completo;
   // Embarcação/roteiro acompanhados nos passos não se repetem em "Para fazer agora" — só até o dono
   // estar no site; depois, o card fica só pelo perfil e esses assuntos voltam à lista.

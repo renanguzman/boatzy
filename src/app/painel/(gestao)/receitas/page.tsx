@@ -3,6 +3,8 @@ import { createClient } from '@/lib/supabase/server';
 import { supabaseAdmin } from '@/lib/supabase';
 import { concluirReservasVencidas } from '@/lib/reservas';
 import ReceitasView from './_components/ReceitasView';
+import ResumoRepasses from './_components/ResumoRepasses';
+import { totaisDeRepasse } from './repasses/_lib/consulta';
 import type { ReservaReceita } from './_lib/types';
 
 export default async function ReceitasPage() {
@@ -57,5 +59,7 @@ export default async function ReceitasPage() {
 
   const reservas = [...((data ?? []) as unknown as ReservaReceita[]), ...linhasAvulsas]
     .sort((x, y) => y.data_reserva.localeCompare(x.data_reserva));
-  return <ReceitasView reservas={reservas} />;
+  // Repasses do Boatzy ao gestor (SPEC §101).
+  const totais = await totaisDeRepasse(user.id);
+  return <ReceitasView reservas={reservas} repasses={<ResumoRepasses totais={totais} />} />;
 }

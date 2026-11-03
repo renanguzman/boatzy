@@ -310,7 +310,18 @@ export async function aplicarCobranca(
     );
   }
 
+  // Ledger (SPEC §101): pagamento liquidado vira obrigação com o gestor + comissão + tarifa. Idempotente e
+  // devolve NULL enquanto não é hora (parcelas em aberto, sem valor líquido). Cartão parcelado dispara em
+  // qualquer parcela recebida, pois a última pode não ser a principal.
+  if (novoStatus === 'recebido') await lancarRecebimento(pagamento.id);
+
   return { resultado: 'processado', pagamentoId: pagamento.id, statusAnterior, statusNovo: statusAplicado };
+}
+
+/** Falha só é logada: o webhook não pode falhar por causa do ledger — a conciliação mostra "recebido sem lançamento". */
+export async function lancarRecebimento(pagamentoId: string): Promise<void> {
+  const { error } = await supabaseAdmin.rpc('lancar_recebimento_pagamento', { p_pagamento: pagamentoId });
+  if (error) console.error('[pagamentos/webhook] falha ao lançar o recebimento', pagamentoId, error.message);
 }
 
 /** Carrega o pedido e dispara os e-mails (cliente e/ou gestor) — falha só é logada (o webhook não pode falhar por e-mail). */

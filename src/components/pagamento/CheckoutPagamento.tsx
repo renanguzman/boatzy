@@ -1,8 +1,8 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { useTranslations } from 'next-intl';
+import { useLocale, useTranslations } from 'next-intl';
 import { QrCode, CreditCard, Loader2, Copy, Check, ShieldCheck, Clock, FlaskConical } from 'lucide-react';
 import type { FormaPagamentoCodigo } from '@/types/supabase';
 import { rastrear } from '@/lib/analytics';
@@ -10,6 +10,7 @@ import { maskCPF } from '@/lib/validators';
 import { useFormatos } from '@/i18n/formatos';
 import { consultarStatusPedido, pagarPedido } from '@/lib/pagamentos/actions-cliente';
 import { TOMADOR_VAZIO, validarTomador, type CampoTomador, type TomadorForm } from '@/lib/pagamentos/tomador';
+import { normalizarDocumentoEstrangeiro, opcoesPaises, validarDocumentoEstrangeiro } from '@/lib/pagamentos/estrangeiro';
 import TomadorPagamento from './TomadorPagamento';
 
 export type FormaCheckout = { codigo: FormaPagamentoCodigo; nome: string; opcoesParcelas: number[] };
@@ -26,6 +27,8 @@ type Props = {
   expiraEm: string;
   formas: FormaCheckout[];
   precisaCpf: boolean;
+  /** Sem CPF no cadastro: valores iniciais do "Sou estrangeiro" (SPEC §100). */
+  estrangeiroInicial: { ativo: boolean; pais: string; documento: string };
   /** Nome e CPF do cadastro — em nome de quem sai o pagamento por padrão (SPEC §97). */
   titular: { nome: string; documento: string | null };
   /** Tomador de terceiro da cobrança pendente (o checkout reabre com ele). */
@@ -50,23 +53,33 @@ function formatRestante(ms: number): string {
 }
 
 export default function CheckoutPagamento({
-  pedidoId, caminho, valorTotal, expiraEm, formas, precisaCpf, titular, tomadorInicial, formaInicial, pixInicial, retornoCartao, sandbox,
+  pedidoId, caminho, valorTotal, expiraEm, formas, precisaCpf, estrangeiroInicial, titular, tomadorInicial, formaInicial, pixInicial, retornoCartao, sandbox,
 }: Props) {
   const router = useRouter();
   const t = useTranslations('Pagamento');
   const f = useFormatos();
-  const [forma, setForma] = useState<FormaPagamentoCodigo>(formaInicial ?? formas[0]?.codigo ?? 'pix');
+  const [formaSel, setForma] = useState<FormaPagamentoCodigo>(formaInicial ?? formas[0]?.codigo ?? 'pix');
   const [parcelas, setParcelas] = useState(1);
   const [cpf, setCpf] = useState('');
+  const [estrangeiro, setEstrangeiro] = useState(precisaCpf && estrangeiroInicial.ativo);
+  const [pais, setPais] = useState(estrangeiroInicial.pais);
+  const [docEstrangeiro, setDocEstrangeiro] = useState(estrangeiroInicial.documento);
   const [tomador, setTomador] = useState<TomadorForm>(tomadorInicial ?? TOMADOR_VAZIO);
   const [carregando, setCarregando] = useState(false);
-  const [erro, setErro] = useState<{ texto: string; campo?: 'cpf' | CampoTomador } | null>(null);
+  const [erro, setErro] = useState<{ texto: string; campo?: 'cpf' | 'pais' | 'documentoEstrangeiro' | CampoTomador } | null>(null);
   const proprio = tomador.tipo === 'proprio';
+  const idioma = useLocale();
+  const paises = useMemo(() => opcoesPaises(idioma), [idioma]);
+  // Sem CPF só há cartão (o Asaas exige CPF/CNPJ para o Pix); em nome de terceiro vale o CPF/CNPJ dele.
+  const semCpf = proprio && precisaCpf && estrangeiro;
+  const formasVisiveis = semCpf ? formas.filter((fm) => fm.codigo !== 'pix') : formas;
+  const pixOculto = formasVisiveis.length < formas.length;
+  const forma = formasVisiveis.some((fm) => fm.codigo === formaSel) ? formaSel : (formasVisiveis[0]?.codigo ?? formaSel);
   const [pix, setPix] = useState<Pix | null>(pixInicial);
   const [copiado, setCopiado] = useState(false);
   const [restante, setRestante] = useState(() => new Date(expiraEm).getTime() - Date.now());
 
-  const formaAtual = formas.find((f) => f.codigo === forma);
+  const formaAtual = formasVisiveis.find((f) => f.codigo === forma);
   const acompanhando = !!pix || retornoCartao;
 
   // Contagem regressiva do prazo.
@@ -86,7 +99,13 @@ export default function CheckoutPagamento({
   }, [acompanhando, pedidoId, router]);
 
   async function pagar(formaEscolhida: FormaPagamentoCodigo) {
-    if (proprio && precisaCpf && !cpf) {
+    if (semCpf) {
+      const v = validarDocumentoEstrangeiro({ pais, documento: docEstrangeiro });
+      if (!v.ok) {
+        setErro({ texto: t(v.campo === 'pais' ? 'erros.paisInvalido' : 'erros.documentoEstrangeiroInvalido'), campo: v.campo });
+        return;
+      }
+    } else if (proprio && precisaCpf && !cpf) {
       setErro({ texto: t('informeCpf'), campo: 'cpf' });
       return;
     }
@@ -104,7 +123,8 @@ export default function CheckoutPagamento({
       pedidoId,
       forma: formaEscolhida,
       parcelas,
-      cpf: proprio && precisaCpf ? cpf : undefined,
+      cpf: proprio && precisaCpf && !semCpf ? cpf : undefined,
+      estrangeiro: semCpf ? { pais, documento: normalizarDocumentoEstrangeiro(docEstrangeiro) } : null,
       tomador: proprio ? null : tomador,
     });
     if (!r.ok) {
@@ -176,8 +196,8 @@ export default function CheckoutPagamento({
       {/* Formas de pagamento */}
       {!pix && (
         <div className="p-5 space-y-5">
-          <div className="grid grid-cols-2 gap-3">
-            {formas.map((f) => {
+          <div className={`grid gap-3 ${formasVisiveis.length > 1 ? 'grid-cols-2' : 'grid-cols-1'}`}>
+            {formasVisiveis.map((f) => {
               const Icon = ICONE[f.codigo] ?? CreditCard;
               const ativo = f.codigo === forma;
               return (
@@ -200,23 +220,72 @@ export default function CheckoutPagamento({
             titular={titular}
             valor={tomador}
             onChange={setTomador}
-            erroCampo={erro?.campo && erro.campo !== 'cpf' ? erro.campo : null}
+            erroCampo={erro?.campo && erro.campo !== 'cpf' && erro.campo !== 'pais' && erro.campo !== 'documentoEstrangeiro' ? erro.campo : null}
           />
 
           {proprio && precisaCpf && (
-            <label className="block">
-              <span className="text-xs font-semibold text-slate-600">{t('cpfPagador')}</span>
-              <input
-                inputMode="numeric"
-                value={cpf}
-                onChange={(e) => setCpf(maskCPF(e.target.value))}
-                placeholder="000.000.000-00"
-                className={`mt-1 w-full rounded-xl border px-3.5 py-2.5 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-marinho/20 ${
-                  erro?.campo === 'cpf' ? 'border-red-300' : 'border-slate-200'
-                }`}
-              />
-              <span className="block mt-1 text-[11px] text-slate-400">{t('cpfAjuda')}</span>
-            </label>
+            <div className="space-y-3">
+              <label className="flex items-center gap-2 text-sm text-slate-700 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={estrangeiro}
+                  onChange={(e) => {
+                    setEstrangeiro(e.target.checked);
+                    setErro(null);
+                  }}
+                  className="h-4 w-4 rounded border-slate-300 text-marinho focus:ring-marinho/30"
+                />
+                {t('estrangeiro.flag')}
+              </label>
+
+              {estrangeiro ? (
+                <div className="space-y-3">
+                  <label className="block">
+                    <span className="text-xs font-semibold text-slate-600">{t('estrangeiro.pais')}</span>
+                    <select
+                      value={pais}
+                      onChange={(e) => setPais(e.target.value)}
+                      className={`mt-1 w-full rounded-xl border bg-white px-3.5 py-2.5 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-marinho/20 cursor-pointer ${
+                        erro?.campo === 'pais' ? 'border-red-300' : 'border-slate-200'
+                      }`}
+                    >
+                      <option value="">{t('estrangeiro.paisPlaceholder')}</option>
+                      {paises.map((p, i) => (
+                        <option key={p.codigo} value={p.codigo}>{p.nome}{p.destaque && !paises[i + 1]?.destaque ? ' ─────' : ''}</option>
+                      ))}
+                    </select>
+                  </label>
+                  <label className="block">
+                    <span className="text-xs font-semibold text-slate-600">{t('estrangeiro.documento')}</span>
+                    <input
+                      autoComplete="off"
+                      value={docEstrangeiro}
+                      onChange={(e) => setDocEstrangeiro(e.target.value.toUpperCase().slice(0, 30))}
+                      placeholder={t('estrangeiro.documentoPlaceholder')}
+                      className={`mt-1 w-full rounded-xl border px-3.5 py-2.5 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-marinho/20 ${
+                        erro?.campo === 'documentoEstrangeiro' ? 'border-red-300' : 'border-slate-200'
+                      }`}
+                    />
+                    <span className="block mt-1 text-[11px] text-slate-400">{t('estrangeiro.ajuda')}</span>
+                  </label>
+                  {pixOculto && <p className="text-[11px] text-slate-500">{t('estrangeiro.semPix')}</p>}
+                </div>
+              ) : (
+                <label className="block">
+                  <span className="text-xs font-semibold text-slate-600">{t('cpfPagador')}</span>
+                  <input
+                    inputMode="numeric"
+                    value={cpf}
+                    onChange={(e) => setCpf(maskCPF(e.target.value))}
+                    placeholder="000.000.000-00"
+                    className={`mt-1 w-full rounded-xl border px-3.5 py-2.5 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-marinho/20 ${
+                      erro?.campo === 'cpf' ? 'border-red-300' : 'border-slate-200'
+                    }`}
+                  />
+                  <span className="block mt-1 text-[11px] text-slate-400">{t('cpfAjuda')}</span>
+                </label>
+              )}
+            </div>
           )}
 
           {forma === 'cartao_credito' && formaAtual && formaAtual.opcoesParcelas.length > 1 && (

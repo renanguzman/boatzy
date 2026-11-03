@@ -20,6 +20,8 @@ export type UsuarioDetalhe = {
   email: string;
   phone: string | null;
   cpf_cnpj: string | null;
+  documento_estrangeiro: string | null;
+  pais_documento: string | null;
   avatar_url: string | null;
   created_at: string;
 };
@@ -110,9 +112,23 @@ export type DetalhePedido = {
   avulsasVinculadas: AvulsaVinculada[];
   /** Linha do tempo de negócio (`pedido_evento`). */
   eventosPedido: EventoPedidoDetalhe[];
+  /** Situação do repasse ao gestor (SPEC §101); null enquanto o pedido não foi pago. */
+  repasse: RepasseDoPedido | null;
 };
 
-const USUARIO = 'id, name, email, phone, cpf_cnpj, avatar_url, created_at';
+export type RepasseDoPedido = {
+  situacao: Database['public']['Views']['pedido_repasse_situacao']['Row']['situacao'];
+  liberado_em: string | null;
+  repasse_id: string | null;
+  repasse_numero: number | null;
+  repasse_pago_em: string | null;
+  /** Destino de recebimento ativo do gestor (null = ainda não informou). */
+  recebimento: Tabela<'gestor_recebimento'> | null;
+  /** Lançamento contábil do recebimento já feito? Se não, a conciliação aponta. */
+  lancado: boolean;
+};
+
+const USUARIO = 'id, name, email, phone, cpf_cnpj, documento_estrangeiro, pais_documento, avatar_url, created_at';
 
 export async function carregarDetalhePedido(id: string): Promise<DetalhePedido | null> {
   const { data: bruto } = await supabaseAdmin
@@ -257,6 +273,20 @@ export async function carregarDetalhePedido(id: string): Promise<DetalhePedido |
     : { data: [] as { id: string; name: string; email: string }[] };
   const atorPorId = new Map((atores ?? []).map((a) => [a.id, a]));
 
+  // Repasse ao gestor: situação (view), destino de recebimento e se o recebimento já foi lançado no ledger.
+  const [situacaoRes, recebimentoRes, lancamentoRes] = await Promise.all([
+    supabaseAdmin
+      .from('pedido_repasse_situacao')
+      .select('situacao, liberado_em, repasse_id, repasse_numero, repasse_pago_em')
+      .eq('pedido_id', id)
+      .maybeSingle(),
+    supabaseAdmin.from('gestor_recebimento').select('*').eq('owner_id', pedido.gestor_id).eq('ativo', true).maybeSingle(),
+    supabaseAdmin.from('lancamento_lote').select('id', { count: 'exact', head: true }).eq('pedido_id', id).eq('tipo', 'recebimento'),
+  ]);
+  const repasse: RepasseDoPedido | null = situacaoRes.data
+    ? { ...situacaoRes.data, recebimento: recebimentoRes.data ?? null, lancado: (lancamentoRes.count ?? 0) > 0 }
+    : null;
+
   return {
     pedido,
     cliente,
@@ -284,5 +314,6 @@ export async function carregarDetalhePedido(id: string): Promise<DetalhePedido |
     avulsasVinculadas: ((vinculadasRes.data ?? []) as unknown as { titulo: string; pedido: Omit<AvulsaVinculada, 'titulo'> }[])
       .map((v) => ({ ...v.pedido, titulo: v.titulo })),
     eventosPedido: eventosPedidoBrutos.map((e) => ({ ...e, ator: e.ator_id ? atorPorId.get(e.ator_id) ?? null : null })),
+    repasse,
   };
 }

@@ -5,8 +5,9 @@ import type { OperadorPerfilStatus, PublicacaoStatus } from '@/types/supabase';
 
 /**
  * "Primeiros passos" do Início do painel (PRD §6.8, SPEC §97): o caminho do dono até o
- * primeiro passeio no site — embarcação → documento → aprovação → roteiro → aprovação — e,
- * por último, o perfil de operador que apresenta o gestor ao cliente (SPEC §99).
+ * primeiro passeio no site — embarcação → documento → aprovação → roteiro → aprovação —, o
+ * perfil de operador que apresenta o gestor ao cliente (SPEC §99) e, por último, os dados de
+ * recebimento (Pix ou conta), sem os quais o Boatzy não consegue repassar (SPEC §101).
  * Puro (sem React): recebe o que o gestor já tem e devolve o estado de cada passo.
  */
 
@@ -40,7 +41,7 @@ export type PerfilInicio = {
 export type EstadoPasso = 'feito' | 'fazer' | 'aguardando' | 'depois';
 
 export type Passo = {
-  id: 'embarcacao' | 'documento' | 'aprovacao_embarcacao' | 'roteiro' | 'aprovacao_roteiro' | 'perfil';
+  id: 'embarcacao' | 'documento' | 'aprovacao_embarcacao' | 'roteiro' | 'aprovacao_roteiro' | 'perfil' | 'recebimento';
   titulo: string;
   /** O que é e por quê, em uma frase. */
   descricao: string;
@@ -55,7 +56,7 @@ export type Passo = {
 export type PrimeirosPassos = {
   passos: Passo[];
   concluidos: number;
-  /** Todos os passos feitos (inclui o perfil aprovado) — os primeiros passos saem do Início. */
+  /** Todos os passos feitos (inclui o perfil aprovado e os dados de recebimento) — os primeiros passos saem do Início. */
   completo: boolean;
   /** Já teve embarcação e roteiro aprovados: o dono já opera (libera os blocos de negócio do Início). */
   noSite: boolean;
@@ -76,12 +77,14 @@ const porPrioridade = <T extends { status: PublicacaoStatus }>(lista: T[]) =>
   [...lista].sort((a, b) => PRIORIDADE[a.status] - PRIORIDADE[b.status]);
 
 export function montarPrimeirosPassos({
-  embarcacoes, roteiros, inscricoes, perfil,
+  embarcacoes, roteiros, inscricoes, perfil, temRecebimento,
 }: {
   embarcacoes: EmbarcacaoInicio[];
   roteiros: RoteiroInicio[];
   inscricoes: Map<string, DocumentoAtual>;
   perfil: PerfilInicio;
+  /** Há destino de repasse (Pix ou conta) ativo em `gestor_recebimento`. */
+  temRecebimento: boolean;
 }): PrimeirosPassos {
   const emb = porPrioridade(embarcacoes)[0] ?? null;
   const rot = porPrioridade(roteiros.filter((r) => emb && r.embarcacao_id === emb.id))[0]
@@ -211,12 +214,21 @@ export function montarPrimeirosPassos({
   }
   passos.push(passoPerfil);
 
+  // 7. Dados de recebimento — o último passo: sem Pix/conta o repasse não pode ser registrado.
+  passos.push(temRecebimento
+    ? { id: 'recebimento', titulo: 'Dados de recebimento informados', descricao: 'Onde o Boatzy deposita os seus repasses.', estado: 'feito', situacao: 'Você pode receber seus repasses', acao: { label: 'Ver ou alterar', href: '/painel/recebimentos' } }
+    : {
+        id: 'recebimento', titulo: 'Informe onde receber seus repasses',
+        descricao: 'Sua chave Pix ou conta bancária. Sem esses dados, o Boatzy não consegue depositar o valor dos seus passeios.',
+        estado: 'fazer', acao: { label: 'Informar dados de recebimento', href: '/painel/recebimentos' },
+      });
+
   const noSite = embarcacoes.some((e) => e.primeira_aprovacao_em) && roteiros.some((r) => r.primeira_aprovacao_em);
   return {
     passos,
     concluidos: passos.filter((p) => p.estado === 'feito').length,
     noSite,
-    completo: noSite && passoPerfil.estado === 'feito',
+    completo: noSite && passoPerfil.estado === 'feito' && temRecebimento,
     embarcacaoId: emb?.id ?? null,
     roteiroId: rot?.id ?? null,
   };

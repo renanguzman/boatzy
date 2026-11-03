@@ -1,3 +1,4 @@
+import { documentoEstrangeiroRotulo } from '@/lib/pagamentos/estrangeiro';
 import { notFound, redirect } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
@@ -20,6 +21,8 @@ import PedidoAcoes from './_components/PedidoAcoes';
 import CancelarCobrancaButton from './_components/CancelarCobrancaButton';
 import CopiarValor from './_components/CopiarValor';
 import { enderecoTomador } from '@/lib/pagamentos/tomador';
+import { SITUACAO_ADMIN } from '@/lib/repasses/rotulos';
+import { resumoDestino } from '@/lib/recebimento-tipos';
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const brl = (v: number | string | null | undefined) => (v == null ? '—' : formatCurrencyPrecise(Number(v)));
@@ -94,7 +97,9 @@ function Pessoa({ u, papel }: { u: DetalhePedido['cliente']; papel: string }) {
       <div className="grid grid-cols-1 gap-2.5">
         <Campo label="E-mail">{u.email}</Campo>
         <Campo label="Telefone">{formatarTelefone(u.phone)}</Campo>
-        <Campo label="CPF / CNPJ">{formatarDocumento(u.cpf_cnpj)}</Campo>
+        <Campo label={u.cpf_cnpj || !u.documento_estrangeiro ? 'CPF / CNPJ' : 'Documento (estrangeiro)'}>
+          {u.cpf_cnpj ? formatarDocumento(u.cpf_cnpj) : (documentoEstrangeiroRotulo(u.documento_estrangeiro, u.pais_documento) ?? '—')}
+        </Campo>
         <Campo label="ID do usuário"><CopiarValor valor={u.id} curto /></Campo>
       </div>
     </div>
@@ -219,7 +224,9 @@ function TomadorPagamento({ pg }: { pg: PagamentoDetalhe }) {
       </p>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
         <Campo label={t.tipo === 'cnpj' ? 'Razão social' : 'Nome'}>{t.nome}</Campo>
-        <Campo label={t.tipo === 'cnpj' ? 'CNPJ' : 'CPF'}><CopiarValor valor={formatarDocumento(t.documento)} /></Campo>
+        {t.pais
+          ? <Campo label="Documento (estrangeiro)"><CopiarValor valor={documentoEstrangeiroRotulo(t.documento, t.pais) ?? t.documento} /></Campo>
+          : <Campo label={t.tipo === 'cnpj' ? 'CNPJ' : 'CPF'}><CopiarValor valor={formatarDocumento(t.documento)} /></Campo>}
         {t.nome_fantasia && <Campo label="Nome fantasia">{t.nome_fantasia}</Campo>}
         {t.telefone && <Campo label="Telefone">{formatarTelefone(t.telefone)}</Campo>}
         {t.email && <Campo label="E-mail">{t.email}</Campo>}
@@ -537,7 +544,7 @@ export default async function AdminPedidoDetalhePage({ params }: { params: Promi
                 <p className="text-[10px] font-bold text-slate-400 tracking-wider uppercase mb-1">Resultado</p>
                 <Linha label="Recebido no Asaas (líquido)" valor={brl(pagamentoPago?.valor_liquido)} />
                 <Linha label="Tarifa Asaas (absorvida)" valor={tarifa != null ? `−${brl(tarifa)}` : '—'} cor="text-amber-600" />
-                <Linha label="A repassar ao gestor" valor={brl(p.valor_itens)} cor="text-sky-700" />
+                <Linha label="Repasse ao gestor" valor={brl(p.valor_itens)} cor="text-sky-700" />
                 <Linha label="Receita Boatzy (comissão − desconto)" valor={brl(receitaBoatzy)} />
                 <Linha
                   label="Margem Boatzy (− tarifa)"
@@ -558,9 +565,40 @@ export default async function AdminPedidoDetalhePage({ params }: { params: Promi
                 {d.taxaAtualGestor && (
                   <> · taxa que valeria hoje para este gestor: <b>{d.taxaAtualGestor.percent.toLocaleString('pt-BR')}%</b> ({d.taxaAtualGestor.origem === 'especifica' ? 'específica' : 'geral'})</>
                 )}
-                {' · '}o repasse ao gestor é feito na Fase 3 (após o passeio e a confirmação de realização).
               </div>
             </div>
+
+            {/* Divisão do pedido e situação do repasse (SPEC §101) */}
+            {d.repasse && (() => {
+              const rp = d.repasse;
+              const sit = SITUACAO_ADMIN[rp.situacao];
+              return (
+                <div className="mt-5 pt-4 border-t border-slate-100">
+                  <p className="text-[10px] font-bold text-slate-400 tracking-wider uppercase mb-2">Repasse ao gestor</p>
+                  <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+                    <span title={sit.dica} className={`inline-block text-[11px] font-semibold px-2.5 py-1 rounded-full ${sit.cls}`}>{sit.label}</span>
+                    {rp.repasse_id && rp.repasse_numero != null ? (
+                      <Link href={`/administrator/financeiro/repasses/${rp.repasse_id}`} className="text-xs font-semibold text-[#0B3D91] hover:underline">
+                        Repasse #{rp.repasse_numero}{rp.repasse_pago_em ? ` · pago em ${dh(rp.repasse_pago_em)}` : ''}
+                      </Link>
+                    ) : rp.liberado_em ? (
+                      <span className="text-xs text-slate-500">
+                        {rp.situacao === 'a_repassar' ? 'Liberado desde' : 'Libera em'} {formatarDataCurta(rp.liberado_em)}
+                      </span>
+                    ) : null}
+                    {rp.situacao === 'a_repassar' && (
+                      <Link href={`/administrator/financeiro/repasses?gestor=${p.gestor_id}`} className="text-xs font-semibold text-[#0B3D91] hover:underline">Ir para a fila de repasses</Link>
+                    )}
+                  </div>
+                  <p className="mt-2 text-xs text-slate-500">
+                    Destino do gestor: {rp.recebimento ? resumoDestino(rp.recebimento) : <b className="text-amber-700">ainda não informou onde receber</b>}
+                  </p>
+                  {!rp.lancado && pagamentoPago?.status === 'recebido' && (
+                    <p className="mt-1 text-xs text-amber-700">Recebimento ainda sem lançamento contábil — verifique na conciliação.</p>
+                  )}
+                </div>
+              );
+            })()}
           </Card>
 
           {/* Pagamentos */}
@@ -653,6 +691,14 @@ export default async function AdminPedidoDetalhePage({ params }: { params: Promi
 
           <Card titulo="Gestor (dono da embarcação)" icon={Anchor}>
             <Pessoa u={d.gestor} papel="Gestor" />
+            {d.repasse && (
+              <p className="mt-3 pt-3 border-t border-slate-100 text-xs text-slate-500">
+                <span className="font-bold uppercase tracking-wider text-[10px] text-slate-400 block mb-0.5">Dados de recebimento</span>
+                {d.repasse.recebimento
+                  ? <>{resumoDestino(d.repasse.recebimento)}<br />Titular: {d.repasse.recebimento.titular_nome}</>
+                  : <b className="text-amber-700">Ainda não informou</b>}
+              </p>
+            )}
           </Card>
 
           <Card titulo="Reserva" icon={CalendarDays}>

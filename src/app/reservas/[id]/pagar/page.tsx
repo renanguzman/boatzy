@@ -1,6 +1,7 @@
 import { notFound, redirect } from 'next/navigation';
 import Link from 'next/link';
-import { getTranslations } from 'next-intl/server';
+import { getLocale, getTranslations } from 'next-intl/server';
+import { estrangeiroInicial } from '@/lib/pagamentos/estrangeiro';
 import { CalendarDays, Users, MapPin, Ship, BadgeCheck, TimerOff, Receipt } from 'lucide-react';
 import Header from '@/components/layout/Header';
 import Footer from '@/components/layout/Footer';
@@ -112,6 +113,7 @@ export default async function PagarReservaPage({
   // Checkout: formas ativas, parcelas permitidas, CPF e pagamento pendente para retomar.
   let formas: FormaCheckout[] = [];
   let precisaCpf = false;
+  let estrangeiro = { ativo: false, pais: '', documento: '' };
   let titular: { nome: string; documento: string | null } = { nome: '', documento: null };
   let tomadorInicial: TomadorForm | null = null;
   let formaInicial: FormaPagamentoCodigo | null = null;
@@ -119,7 +121,7 @@ export default async function PagarReservaPage({
   if (pedido?.status === 'aguardando_pagamento') {
     const [todas, { data: usuario }, { data: pendente }] = await Promise.all([
       getFormasPagamento(),
-      supabaseAdmin.from('users').select('name, cpf_cnpj').eq('id', user.id).single(),
+      supabaseAdmin.from('users').select('name, cpf_cnpj, documento_estrangeiro, pais_documento').eq('id', user.id).single(),
       supabaseAdmin
         .from('pagamento')
         .select('forma_pagamento, pagamento_tomador ( * )')
@@ -133,6 +135,7 @@ export default async function PagarReservaPage({
       .map((forma) => ({ ...forma, nome: t(`formas.${forma.codigo}`) }));
     precisaCpf = !(usuario?.cpf_cnpj && isValidCPF(usuario.cpf_cnpj));
     titular = { nome: usuario?.name ?? '', documento: usuario?.cpf_cnpj ?? null };
+    estrangeiro = estrangeiroInicial(usuario, await getLocale());
     const tomadorPendente = pendente
       ? ((Array.isArray(pendente.pagamento_tomador) ? pendente.pagamento_tomador[0] : pendente.pagamento_tomador) ?? null) as TomadorRegistro | null
       : null;
@@ -221,6 +224,7 @@ export default async function PagarReservaPage({
                   expiraEm={pedido.expira_em}
                   formas={formas}
                   precisaCpf={precisaCpf}
+                  estrangeiroInicial={estrangeiro}
                   titular={titular}
                   tomadorInicial={tomadorInicial}
                   formaInicial={formaInicial}

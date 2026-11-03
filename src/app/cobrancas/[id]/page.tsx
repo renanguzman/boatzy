@@ -2,7 +2,8 @@ import type { Metadata } from 'next';
 import { notFound, redirect } from 'next/navigation';
 import { after } from 'next/server';
 import Link from 'next/link';
-import { getTranslations } from 'next-intl/server';
+import { getLocale, getTranslations } from 'next-intl/server';
+import { estrangeiroInicial } from '@/lib/pagamentos/estrangeiro';
 import { BadgeCheck, CalendarDays, MapPin, MessageSquare, Receipt, Ship, TimerOff } from 'lucide-react';
 import Header from '@/components/layout/Header';
 import Footer from '@/components/layout/Footer';
@@ -148,6 +149,7 @@ export default async function CobrancaPage({
   // Checkout: formas liberadas pelo gestor ∩ formas ativas, CPF e Pix pendente para retomar.
   let formas: FormaCheckout[] = [];
   let precisaCpf = false;
+  let estrangeiro = { ativo: false, pais: '', documento: '' };
   let titular: { nome: string; documento: string | null } = { nome: '', documento: null };
   let tomadorInicial: TomadorForm | null = null;
   let formaInicial: FormaPagamentoCodigo | null = null;
@@ -155,7 +157,7 @@ export default async function CobrancaPage({
   if (c.status === 'aguardando_pagamento') {
     const [todas, { data: usuario }, { data: pendente }] = await Promise.all([
       getFormasPagamento(),
-      supabaseAdmin.from('users').select('name, cpf_cnpj').eq('id', user.id).single(),
+      supabaseAdmin.from('users').select('name, cpf_cnpj, documento_estrangeiro, pais_documento').eq('id', user.id).single(),
       supabaseAdmin
         .from('pagamento')
         .select('forma_pagamento, pagamento_tomador ( * )')
@@ -169,6 +171,7 @@ export default async function CobrancaPage({
       .map((forma) => ({ ...forma, nome: tPag(`formas.${forma.codigo}`) }));
     precisaCpf = !(usuario?.cpf_cnpj && isValidCPF(usuario.cpf_cnpj));
     titular = { nome: usuario?.name ?? '', documento: usuario?.cpf_cnpj ?? null };
+    estrangeiro = estrangeiroInicial(usuario, await getLocale());
     const tomadorPendente = pendente
       ? ((Array.isArray(pendente.pagamento_tomador) ? pendente.pagamento_tomador[0] : pendente.pagamento_tomador) ?? null) as TomadorRegistro | null
       : null;
@@ -254,6 +257,7 @@ export default async function CobrancaPage({
                   expiraEm={c.expira_em}
                   formas={formas}
                   precisaCpf={precisaCpf}
+                  estrangeiroInicial={estrangeiro}
                   titular={titular}
                   tomadorInicial={tomadorInicial}
                   formaInicial={formaInicial}

@@ -25,10 +25,13 @@ export function validarArquivoDocumento(file: File): string | null {
   return null;
 }
 
-async function chamarRota<T>(corpo: object): Promise<{ ok: true; json: T } | { ok: false; erro: string }> {
+export async function chamarRota<T>(
+  corpo: object,
+  endpoint: string = ENDPOINT,
+): Promise<{ ok: true; json: T } | { ok: false; erro: string }> {
   let res: Response;
   try {
-    res = await fetch(ENDPOINT, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(corpo) });
+    res = await fetch(endpoint, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(corpo) });
   } catch {
     return { ok: false, erro: 'Falha de conexão durante o envio. Verifique sua internet e tente novamente.' };
   }
@@ -38,7 +41,7 @@ async function chamarRota<T>(corpo: object): Promise<{ ok: true; json: T } | { o
   return { ok: false, erro: `O servidor não conseguiu processar o arquivo (erro ${res.status}). Tente novamente.` };
 }
 
-function putNoStorage(url: string, file: File, onProgresso: (pct: number) => void): Promise<string | null> {
+export function putNoStorage(url: string, file: File, onProgresso: (pct: number) => void): Promise<string | null> {
   return new Promise((resolve) => {
     const xhr = new XMLHttpRequest();
     xhr.open('PUT', url);

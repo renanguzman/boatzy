@@ -29,6 +29,8 @@ export async function pagarPedido(input: {
   forma: FormaPagamentoCodigo;
   parcelas: number;
   cpf?: string;
+  /** Cliente sem CPF (SPEC §100): documento oficial e país; só cartão. */
+  estrangeiro?: { pais: string; documento: string } | null;
   /** Em nome de quem sai o pagamento (SPEC §97); omitido = o próprio cliente. */
   tomador?: TomadorForm | null;
 }): Promise<IniciarPagamentoResultado> {

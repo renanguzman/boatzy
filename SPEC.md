@@ -4917,7 +4917,7 @@ implementado**.
 | 1.4 — Admin: Pedidos | Menu Pedidos: lista com indicadores/filtros/exportação + detalhe completo com controles do admin | ✅ 30/09/2026 |
 | Cobrança avulsa | Gestor cobra à parte após a reserva (pedido `tipo = 'avulso'`), página `/cobrancas/[id]`, admin discriminado — §34.16 | ✅ 29/10/2026 |
 | 2 — Cancelamento e estornos | Política configurável, estornos | 🔜 |
-| 3 — Repasses | Recebedor, job de repasse, validação de saque | 🔜 (depende de D1–D4) |
+| 3 — Repasses | **Manual** (admin paga fora e registra): dados de recebimento, ledger de partidas dobradas, fila e lotes de repasse, comprovante, relatórios/conciliação — §101 | ✅ 04/11/2026 (transferência automática via API, validação de saque e confirmação de realização pelo gestor seguem 🔜; dependem de D1–D4) |
 | 4 — Controle total | Dashboard, conciliação, disputas, auditoria | 🔜 |
 | 5 — Produção | Chaves e webhooks de produção, homologação | 🔜 |
 
@@ -5315,7 +5315,7 @@ de outra pessoa ou empresa, snapshot em `pagamento_tomador`) — §97.
 
 ### 34.14 Decisões desta fase
 
-- **Ledger (`lancamento_financeiro`) adiado para a Fase 3**: `pedido` + `pagamento` +
+- **Ledger (`lancamento_financeiro`) adiado para a Fase 3** (✅ entregue em 04/11/2026, §101): `pedido` + `pagamento` +
   `pagamento_transacao` já dão a trilha de conciliação da cobrança; o ledger entra junto com repasses
   e compensação de chargeback, que é onde ele é necessário.
 - Cupom limitado ao valor da comissão (D7c) aplicado na solicitação (`validarCupom`/`criarReserva`,
@@ -9254,12 +9254,16 @@ embarcacao_id, primeira_aprovacao_em, enviado_analise_em)`, `reserva` (como ante
      `montarPrimeirosPassos({ …, perfil: PerfilInicio })`, `PerfilInicio = { status, enviado_analise_em, noAr } | null`
      (`noAr` = há `publicado` e `status ≠ 'retirado'`): `noAr` → feito ("Perfil no ar"; alerta se `devolvido`);
      `em_analise` → aguardando; `devolvido`/`retirado` → fazer + alerta ("Ver o que ajustar"); `rascunho` → "Continuar meu perfil".
+  7. `recebimento` (04/11/2026, §101.4) — **o último passo**: "Informe onde receber seus repasses" → `/painel/recebimentos`;
+     `montarPrimeirosPassos({ …, temRecebimento })` (há `gestor_recebimento` ativo) → feito ("Dados de recebimento informados").
+     Sempre acionável, como o perfil. `completo` agora exige também `temRecebimento`: quem já havia concluído os passos volta a
+     ver o cartão até informar onde receber (intencional).
 - `noSite` = alguma embarcação **e** algum roteiro com `primeira_aprovacao_em` (o dono já opera: libera os blocos de
   negócio do Início e volta a listar embarcação/roteiro nas pendências). `completo` = `noSite` **e** passo `perfil`
-  feito → só então o cartão some (estável: pausar tudo depois não o traz de volta). `embarcacaoId`/`roteiroId` voltam
+  feito **e** `temRecebimento` → só então o cartão some (estável: pausar tudo depois não o traz de volta). `embarcacaoId`/`roteiroId` voltam
   para não repetir esses itens nas pendências **enquanto `!noSite`**. Perfil `devolvido`/`retirado` fora do cartão
   (ex.: aprovado antes e devolvido numa edição) vira item "Meu perfil" em **Para fazer agora**.
-- `PrimeirosPassosCard`: barra de progresso (`concluidos`/6; título "Falta pouco: apresente-se aos clientes" quando `noSite`), linha da regra de aprovação, o primeiro `fazer` é o
+- `PrimeirosPassosCard`: barra de progresso (`concluidos`/7; título "Falta pouco: apresente-se e informe onde receber" quando `noSite`), linha da regra de aprovação, o primeiro `fazer` é o
   "Próximo passo" (caixa destacada + botão principal; laranja se `alerta`); os demais `fazer` têm botão
   secundário. Ocultar: `localStorage['boatzy:inicio:primeiros-passos-oculto']`, lido com `useSyncExternalStore`
   (evento `boatzy:primeiros-passos`), vira uma barra com "Mostrar".
@@ -9549,3 +9553,87 @@ quebrar a frase), `api/painel/descricao/route.ts` (aceita `alvo:'operador'`; os 
 - **Não exercitado (precisa do banco com a migration aplicada):** fluxo completo painel → admin → site com dados reais,
   upload real ao R2, geração real com `OPENAI_API_KEY`, e-mails (Resend) e aviso no sino.
 - **Pendência para entrar no ar:** aplicar `20261102_operador_perfil.sql`.
+
+---
+
+## 100. Pagador estrangeiro (sem CPF) — 03/11/2026
+
+Turista sem CPF paga com **cartão de crédito/débito internacional**. **PIX não está disponível** sem CPF/CNPJ (o Asaas recusa a cobrança PIX de customer sem documento).
+
+### 100.1 O que o Asaas aceita (validado no sandbox em 03/11/2026)
+- `POST /customers` com `foreignCustomer: true` e **sem** `cpfCnpj` → 200. Exige a conta liberada para "Pagadores estrangeiros" (sandbox: Configurações; produção: pedido ao Asaas, até 4 dias úteis; sem a liberação a API devolve 400).
+- Passaporte/DNI em `cpfCnpj` → 400 "O CPF/CNPJ informado é inválido." O Asaas não tem campo para documento estrangeiro: o documento fica só no Boatzy.
+- Cobrança `CREDIT_CARD` (à vista e parcelada) → 200. `PIX` e `UNDEFINED` → 400 "é necessário preencher o CPF ou CNPJ do cliente".
+
+### 100.2 Banco — migration `20261103_pagador_estrangeiro.sql`
+- `users.documento_estrangeiro` (A–Z/0–9, 4–20, normalizado) e `users.pais_documento` (ISO alfa-2), com `CHECK` coerente.
+- `pagamento_tomador.pais` (ISO alfa-2). Quando preenchido, o próprio cliente pagou como estrangeiro (`tipo = 'proprio'`) e `documento` guarda o documento estrangeiro (a constraint `pagamento_tomador_documento_valido` aceita alfanumérico só nesse caso). `telefone` fica `NULL`.
+- Sem tabela nova (nenhum GRANT adicional).
+
+### 100.3 Código
+- `src/lib/pagamentos/estrangeiro.ts` (puro): lista de países (AR/UY/CL no topo, nomes via `Intl.DisplayNames` no idioma da tela), `normalizarDocumentoEstrangeiro` (tira espaços/pontos/hífens, maiúsculas), `validarDocumentoEstrangeiro` (país da lista + 4–20 alfanuméricos; sem dígito verificador, varia por país), `estrangeiroInicial` (checkout abre marcado se já há documento salvo ou se o idioma não é pt-BR), mascaramento e rótulo para painéis.
+- `src/lib/asaas/clientes.ts` → `garantirClienteAsaasEstrangeiro`: customer `foreignCustomer: true`, sem `cpfCnpj`, `externalReference = "<userId>:estrangeiro"` (separado do customer com CPF de `cliente_asaas`).
+- `src/lib/pagamentos/checkout.ts` → `iniciarPagamento({ …, estrangeiro?: { pais, documento } })`: revalida no servidor; **rejeita `pix`** (`erros.pixEstrangeiro`); ignora `estrangeiro` se o pagamento sai em nome de terceiro (CPF/CNPJ dele); grava `users.documento_estrangeiro/pais_documento`; snapshot em `pagamento_tomador` com `pais`; 400 do Asaas (conta sem liberação) → `erros.estrangeiroIndisponivel` + log. `mesmoTomador(gravado, desejado, estrangeiro)` não reaproveita cobrança entre CPF ↔ estrangeiro nem com outro documento.
+- `pagarPedido` (`actions-cliente.ts`) repassa `estrangeiro`.
+- `CheckoutPagamento`: com CPF faltando no cadastro (`precisaCpf`), aparece "Sou estrangeiro e não tenho CPF"; marcado, troca o campo CPF por **País do documento** + **Documento de identidade** (qualquer documento oficial com foto) e esconde o PIX. Props novas: `estrangeiroInicial`. As duas páginas (`/reservas/[id]/pagar`, `/cobrancas/[id]`) passam o valor inicial.
+- Cadastro `/entrar`: "Não tenho CPF (sou estrangeiro)" oculta o CPF; o metadata do signup vai sem `cpf` e o documento é pedido no pagamento.
+- Telas: admin (pedido, reserva) e painel do gestor (agendamento) mostram o documento estrangeiro com o país quando não há CPF; "Minhas reservas" (comprovante) mostra o documento mascarado.
+- i18n: `Pagamento.estrangeiro.*`, `Pagamento.erros.{paisInvalido,documentoEstrangeiroInvalido,pixEstrangeiro,estrangeiroIndisponivel}` e `Auth.semCpf` em pt-BR, en-US e es.
+
+### 100.4 Pendências
+- Aplicar `20261103_pagador_estrangeiro.sql` e ter "pagadores estrangeiros" liberado no Asaas de **produção**.
+- Não coberto: edição do documento estrangeiro em "Minha conta"; listas/CSV do admin (`cpf_cnpj`) e busca por documento estrangeiro; taxa e chargeback de cartão internacional (confirmar com o Asaas).
+
+---
+
+## 101. Repasses ao gestor, ledger contábil e dados de recebimento — Fase 3 manual (04/11/2026)
+
+O Boatzy recebe 100% do valor no Asaas (sem split) e **repassa ao gestor o valor dos itens** (`pedido.valor_itens`) depois do
+passeio. O admin **paga fora** (Pix/TED) e **registra** na plataforma; tudo vira partida dobrada para balancete e exportação
+ao contador. Decisões: elegibilidade automática (sem confirmação de realização pelo gestor — D6 vira evolução); repasse **por
+lote** do gestor; tarifa do Asaas absorvida pelo Boatzy e cupom abatido só da comissão (D7).
+
+### 101.1 Banco — migration `20261104_repasses.sql`
+Todas com RLS + GRANTs; escrita só por `supabaseAdmin`/funções `SECURITY DEFINER` (execução só `service_role`).
+- `gestor_recebimento` — `owner_id`, `tipo` (`pix`|`conta`), `pix_tipo_chave`/`pix_chave`, `banco_codigo`/`banco_nome`/`agencia`/`conta`/`conta_digito`/`tipo_conta`, `titular_nome`, `titular_documento` (11/14 dígitos), `ativo`. Índice único parcial: **1 ativo por gestor**; troca = nova linha e a anterior vira histórico. RLS: o gestor lê o próprio.
+- `repasse` (lote) — `numero` (identity, desde 1001), `gestor_id`, `valor_total`, `status` (`pago`|`cancelado`), `metodo` (`pix`|`ted`|`doc`|`outro`), `pago_em`, `pago_por`, `referencia` (E2E/ID), `observacao`, `destino_snapshot jsonb` (destino + nome/documento do gestor **congelados**), `comprovante_key`/`comprovante_nome`, `cancelado_*`. RLS: o gestor lê os próprios.
+- `repasse_item` — `repasse_id`, `pedido_id`, `valor` (snapshot), `cancelado`. **Índice único parcial `(pedido_id) WHERE NOT cancelado`**: um pedido não entra em dois repasses vigentes.
+- `conta_contabil` (plano de contas, seed — **validar com o contador**; `codigo_contabilidade` mapeia ao plano do escritório): `1.1.01` Saldo na conta Asaas · `1.1.02` Banco (repasses) · `2.1.01` Obrigações com gestores · `3.1.01` Tarifas do Asaas · `3.1.02` Descontos e cupons · `4.1.01` Receita de comissão.
+- `lancamento_lote` (cabeçalho, `origem_ref` UNIQUE = idempotência; `tipo` recebimento|repasse|estorno|ajuste; `data_competencia`, `data_caixa`; `pedido_id`/`pagamento_id`/`repasse_id`/`gestor_id`; `estorno_de`) e `lancamento_financeiro` (partidas: `conta_codigo`, `natureza` D|C, `valor > 0`). **Append-only** (trigger recusa UPDATE/DELETE/TRUNCATE) e **todo lote fecha em zero** (constraint trigger deferida). Só `service_role`.
+- `notificacao_tipo_valido` ganhou `repasse_realizado`.
+
+**View `pedido_repasse_situacao`** (`security_invoker`, só `service_role`) — a única regra de elegibilidade, usada por admin e painel. `situacao`: `repassado` (há `repasse_item` vigente) › `reembolsado` › `retido` (pedido ≠ `pago` ou reserva cancelada/recusada/expirada) › `aguardando_recebimento` (pagamento não liquidado; parcelado só liquida com **todas** as parcelas `recebido`) › `aguardando_passeio` (agora < 00:00 de Brasília do dia seguinte ao fim do passeio) › `aguardando_prazo` (+ `financeiro_config.horas_repasse_apos_passeio`) › `a_repassar`. Fim do passeio = `coalesce(data_fim_reserva, data_reserva)` (na avulsa, a reserva de origem); **não depende** de `reserva.status = 'concluida'` (transição lazy que ignora `data_fim_reserva`). Também expõe `liberado_em`, valores e `repasse_*`.
+
+**Funções SQL**
+- `lancar_recebimento_pagamento(pagamento)` — pagamento `recebido` (e liquidado, com `valor_liquido`) e pedido pago → lote `pagamento:<id>:recebimento`: **D** `1.1.01` líquido · **D** `3.1.01` tarifa · **D** `3.1.02` desconto → **C** `2.1.01` valor_itens · **C** `4.1.01` comissão (Σ D = bruto + desconto = Σ C). Competência = fim do passeio; caixa = dia do recebimento (BRT). Idempotente; devolve NULL "ainda não é hora". Chamada pelo webhook (`aplicarCobranca` → `lancarRecebimento`, falha só logada).
+- `registrar_repasse(...)` — atômico: valida admin, meio, data não futura, gestor **com destino ativo** (`gestor_sem_recebimento`), trava os pedidos e exige `situacao = 'a_repassar'` de todos (`pedido_nao_liberado`); grava repasse (com snapshot), itens e o lote **D** `2.1.01` / **C** `1.1.02`.
+- `cancelar_repasse(repasse, admin, motivo≥5)` — marca cancelado, libera os itens e lança o inverso (`repasse:<id>:cancelamento`).
+- `salvar_gestor_recebimento(owner, jsonb)` — troca atômica do destino (advisory lock).
+- `balancete(de, ate, base)` e `demonstrativo_gestores(de, ate, base)` — base `competencia` (padrão) ou `caixa`.
+- Backfill na própria migration: pagamentos já `recebido` ganham lançamento.
+
+### 101.2 Código compartilhado
+- `src/lib/recebimento-tipos.ts` (puro): `validarRecebimento` (CPF/CNPJ/e-mail/celular `+55…`/chave aleatória; banco COMPE 3 dígitos, agência/conta numéricas, titular CPF/CNPJ válido), `BANCOS`, `resumoDestino(d, ocultar)`, `formatarChavePix`.
+- `src/lib/repasses/rotulos.ts` (`SITUACAO_ADMIN`, `SITUACAO_GESTOR`, `METODO_REPASSE`, `ACAO_REPASSE`), `comprovante-server.ts` (upload), `envio.ts` (cliente), `src/lib/emails/repasse.ts` (avisos).
+- **Comprovante**: bucket R2 **privado** de documentos (mesmo fluxo preparar → PUT assinado → confirmar de §95.2; `conteudoValido` e `putNoStorage`/`chamarRota` foram exportados para reuso). Key `repasses/{gestorId}/{repasseId}/{8}-{nome}`; o `repasseId` é gerado no navegador, então o arquivo sobe antes do registro (e é apagado se o registro falhar). Envio: `POST /api/administrator/repasses/upload` (só admin). Leitura: `GET /api/painel/repasses/[id]/comprovante` (dono do repasse ou admin → redirect para URL assinada de 5 min).
+
+### 101.3 Admin — Financeiro (`/administrator/financeiro/*`)
+Abas novas **Repasses** e **Relatórios**; `/administrator/financeiro` agora abre em Repasses. `requireAdmin()` por `actions.ts`, `registrarAuditoria` em toda ação (`repasse.registrar`, `repasse.cancelar`, `repasse.comprovante`).
+- `/repasses` — indicadores (a repassar agora, aguardando, retido, repassado no mês); abas **A repassar** (por gestor, com checkbox por pedido, destino exibido, alertas "sem destino" e "titular com CPF/CNPJ diferente do cadastro", botão **Registrar repasse** bloqueado sem destino) · **Aguardando** · **Retidos** · **Repassados** (filtros gestor/período/meio/sem comprovante, paginação, export Excel/CSV). Modal de registro: meio, data/hora (Brasília, `-03:00`), referência, observação, comprovante opcional.
+- `/repasses/[id]` — pagamento, destino congelado, pedidos incluídos, lançamento contábil, auditoria; ações **anexar/trocar comprovante** e **cancelar** (motivo obrigatório).
+- Pedido (`/administrator/pedidos/[id]`): o "Resumo financeiro" mostra a situação do repasse, previsão, link do lote, destino do gestor e aviso de recebimento sem lançamento.
+- `/relatorios` — **Demonstrativo** por gestor (bruto, tarifa, descontos, comissão, devido, repassado; saldo acumulado a repassar), **Balancete** (confere débitos = créditos), **Razão** (filtro de conta/gestor, paginado) e **Conciliação** (pagamentos recebidos sem lançamento, líquido × ledger, obrigações × pedidos a repassar, partidas fechando, repasses sem comprovante, repasses a recuperar após reembolso/disputa). Exportações (Excel/CSV, `;` e BOM): razão, balancete, demonstrativo, **detalhe por pedido** e repasses do período — com CPF/CNPJ e código na contabilidade.
+
+### 101.4 Painel do gestor
+- `/painel/recebimentos` — Pix (tipo + chave) **ou** conta bancária; titular + CPF/CNPJ (aviso se diferente do cadastro). Cada mudança envia e-mail ao admin (chave mascarada). Item **RECEBIMENTOS** no menu (pontinho âmbar enquanto falta) e último passo do Início (§97.3).
+- `/painel/receitas`: faixa **Aguardando liberação / Liberado / Já repassado** + banner quando há valor a receber sem destino. `/painel/receitas/repasses` (abas Todos, Aguardando, Liberados, Pagos; só o valor dos itens — nunca tarifa/comissão) e `/painel/receitas/repasses/[id]` (data, meio, destino mascarado, referência, pedidos, **comprovante**). Repasse cancelado some da vista do gestor (o pedido volta a "liberado").
+- Aviso ao registrar: e-mail + sino (`repasse_realizado`).
+
+### 101.5 Validação (04/11/2026)
+`tsc`, `eslint` e `next build` limpos. A migration foi exercitada num Postgres em WASM (PGlite) com esquema mínimo: elegibilidade (a repassar / aguardando passeio / prazo / recebimento), lançamento idempotente e balanceado, imutabilidade, bloqueio sem destino, pedido não liberado, data futura, duplicidade, cancelamento (inverso) e re-repasse, troca de destino, balancete e demonstrativo.
+
+### 101.6 Pendências
+- **Aplicar `20261104_repasses.sql` no Supabase** (inclui backfill) e conferir se o CORS do bucket privado de documentos aceita o PUT do `/administrator`.
+- Plano de contas e regime (competência × caixa, D2) a validar com o contador; cartão só reconhece/repassa quando liquida (D+32; parcelado, todas as parcelas).
+- Fora do escopo: transferência automática via API do Asaas e validação de saque (D1/D4); confirmação de realização pelo gestor (D6); estorno contábil de reembolsos (Fase 2 — a conciliação sinaliza); verificação/carência na troca de chave Pix; status do repasse no detalhe do agendamento do gestor.
+

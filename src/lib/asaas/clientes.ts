@@ -112,3 +112,46 @@ export async function garantirClienteAsaasTomador(input: {
   const cliente = await asaasRequest<AsaasCliente>('/customers', { metodo: 'POST', corpo });
   return cliente.id;
 }
+
+/**
+ * Customer do Asaas para quem não tem CPF (SPEC §100): `foreignCustomer: true`
+ * e nenhum `cpfCnpj` — o Asaas só aceita CPF/CNPJ nesse campo e recusa
+ * passaporte (400 "CPF/CNPJ inválido"). Só cartão: o PIX exige CPF/CNPJ do
+ * cliente. Exige a conta liberada para "pagadores estrangeiros" no Asaas
+ * (sandbox: Configurações; produção: pedido ao Asaas).
+ *
+ * Um customer por usuário (`externalReference = "<userId>:estrangeiro"`),
+ * separado do customer com CPF de `cliente_asaas`; quem muda entre os dois
+ * modos de pagamento não mistura cobranças.
+ */
+export async function garantirClienteAsaasEstrangeiro(input: {
+  userId: string;
+  nome: string;
+  email: string | null;
+}): Promise<string> {
+  const externalReference = `${input.userId}:estrangeiro`;
+  const nome = input.nome.trim() || 'Cliente Boatzy';
+
+  const busca = await asaasRequest<{ data: AsaasCliente[] }>('/customers', {
+    query: { externalReference, limit: 1 },
+  });
+  const existente = busca.data?.[0];
+  if (existente) {
+    if (existente.name !== nome) {
+      await asaasRequest<AsaasCliente>(`/customers/${existente.id}`, { metodo: 'PUT', corpo: { name: nome } });
+    }
+    return existente.id;
+  }
+
+  const cliente = await asaasRequest<AsaasCliente>('/customers', {
+    metodo: 'POST',
+    corpo: {
+      name: nome,
+      foreignCustomer: true,
+      email: input.email ?? undefined,
+      externalReference,
+      notificationDisabled: true,
+    },
+  });
+  return cliente.id;
+}

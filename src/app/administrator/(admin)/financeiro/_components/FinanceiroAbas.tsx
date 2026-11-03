@@ -1,7 +1,9 @@
 import Link from 'next/link';
-import { PlugZap, SlidersHorizontal } from 'lucide-react';
+import { FileSpreadsheet, HandCoins, PlugZap, SlidersHorizontal } from 'lucide-react';
 
 const ABAS = [
+  { chave: 'repasses', href: '/administrator/financeiro/repasses', label: 'Repasses', icon: HandCoins },
+  { chave: 'relatorios', href: '/administrator/financeiro/relatorios', label: 'Relatórios', icon: FileSpreadsheet },
   { chave: 'integracao', href: '/administrator/financeiro/integracao', label: 'Integração', icon: PlugZap },
   { chave: 'configuracoes', href: '/administrator/financeiro/configuracoes', label: 'Configurações', icon: SlidersHorizontal },
 ] as const;

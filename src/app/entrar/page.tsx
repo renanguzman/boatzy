@@ -27,6 +27,7 @@ function EntrarForm() {
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [cpf, setCpf] = useState('');
+  const [semCpf, setSemCpf] = useState(false);
   const [phone, setPhone] = useState<PhoneValue>({ e164: '', valid: false });
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -50,6 +51,7 @@ function EntrarForm() {
     setName('');
     setEmail('');
     setCpf('');
+    setSemCpf(false);
     setPhone({ e164: '', valid: false });
     setPassword('');
     setConfirmPassword('');
@@ -81,7 +83,7 @@ function EntrarForm() {
     setError('');
 
     // Validações client-side antes de chamar o Supabase.
-    if (!isValidCPF(cpf)) {
+    if (!semCpf && !isValidCPF(cpf)) {
       setError(t('cpfInvalidoConfira'));
       return;
     }
@@ -106,7 +108,8 @@ function EntrarForm() {
       options: {
         data: {
           full_name: name,
-          cpf: onlyDigits(cpf),
+          // Estrangeiro sem CPF: o documento é pedido no pagamento (SPEC §99).
+          ...(semCpf ? {} : { cpf: onlyDigits(cpf) }),
           phone: phone.e164,
           // Idioma do e-mail de confirmação (Send Email Hook — SPEC §98).
           idioma: locale,
@@ -246,6 +249,7 @@ function EntrarForm() {
         {mode === 'cadastro' && (
           <>
             <div>
+              {!semCpf && (<>
               <label htmlFor="cpf" className="block text-xs font-bold text-marinho tracking-wider uppercase mb-2">
                 {t('cpf')}
               </label>
@@ -267,6 +271,16 @@ function EntrarForm() {
               {attemptedSubmit && cpf && !isValidCPF(cpf) && (
                 <p className="mt-1.5 text-xs text-red-500">{t('cpfInvalido')}</p>
               )}
+              </>)}
+              <label className={`flex items-center gap-2 text-sm text-slate-600 cursor-pointer ${semCpf ? '' : 'mt-2.5'}`}>
+                <input
+                  type="checkbox"
+                  checked={semCpf}
+                  onChange={(e) => setSemCpf(e.target.checked)}
+                  className="h-4 w-4 rounded border-slate-300 text-marinho focus:ring-marinho/30"
+                />
+                {t('semCpf')}
+              </label>
             </div>
 
             <div>

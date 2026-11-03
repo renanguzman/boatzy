@@ -5,7 +5,7 @@ import { supabaseAdmin } from '@/lib/supabase';
 import { isValidCPF, onlyDigits } from '@/lib/validators';
 import { lerAsaasConfig } from '@/lib/asaas/config';
 import { AsaasError, mensagemErroAsaas } from '@/lib/asaas/client';
-import { garantirClienteAsaas, garantirClienteAsaasTomador } from '@/lib/asaas/clientes';
+import { garantirClienteAsaas, garantirClienteAsaasEstrangeiro, garantirClienteAsaasTomador } from '@/lib/asaas/clientes';
 import { buscarCobrancaPorReferencia, criarCobranca, obterQrCodePix } from '@/lib/asaas/cobrancas';
 import type { AsaasCobranca } from '@/lib/asaas/tipos';
 import { getFormasPagamento, type FormaPagamento } from '@/lib/financeiro/config';
@@ -14,6 +14,7 @@ import { cancelarCobrancasPendentes, PAGAMENTO_PAGO } from './pedidos';
 import { registrarEventoPedido } from './historico';
 import { opcoesParcelas, VALOR_MINIMO_COBRANCA } from './valores';
 import { FUSO_HORARIO } from '@/lib/datas';
+import { validarDocumentoEstrangeiro } from './estrangeiro';
 import { mesmoTomador, validarTomador, type CampoTomador, type Tomador, type TomadorForm, type TomadorRegistro } from './tomador';
 
 export type PixParaPagar = { imagem: string; payload: string; expiraEm: string | null };
@@ -21,7 +22,7 @@ export type PixParaPagar = { imagem: string; payload: string; expiraEm: string |
 export type IniciarPagamentoResultado =
   | { ok: true; forma: 'pix'; pix: PixParaPagar }
   | { ok: true; forma: 'cartao_credito'; faturaUrl: string }
-  | { ok: false; error: string; campo?: 'cpf' | CampoTomador };
+  | { ok: false; error: string; campo?: 'cpf' | 'pais' | 'documentoEstrangeiro' | CampoTomador };
 
 function baseUrl(): string {
   return (process.env.NEXT_PUBLIC_APP_URL ?? 'https://boatzy.app').trim().replace(/\/+$/, '');
@@ -93,6 +94,10 @@ async function carregarQrCode(pagamentoId: string, asaasPaymentId: string): Prom
  *   empresa → a cobrança vai para um customer do Asaas com esses dados (o CPF
  *   do cliente deixa de ser exigido); trocar o tomador refaz a cobrança. O
  *   snapshot fica em `pagamento_tomador` (comprovante, gestor e admin).
+ * - `estrangeiro`: o próprio cliente sem CPF (SPEC §100) — customer
+ *   `foreignCustomer` no Asaas, documento oficial salvo em `users` e no
+ *   snapshot, só cartão (o Asaas exige CPF/CNPJ para PIX). Ignorado quando o
+ *   pagamento sai em nome de terceiro (que tem o próprio CPF/CNPJ).
  */
 export async function iniciarPagamento(input: {
   pedidoId: string;
@@ -100,6 +105,7 @@ export async function iniciarPagamento(input: {
   forma: FormaPagamentoCodigo;
   parcelas: number;
   cpf?: string;
+  estrangeiro?: { pais: string; documento: string } | null;
   tomador?: TomadorForm | null;
 }): Promise<IniciarPagamentoResultado> {
   const t = await getTranslations('Pagamento.erros');
@@ -160,6 +166,17 @@ export async function iniciarPagamento(input: {
     terceiro = v.tomador;
   }
 
+  // Estrangeiro sem CPF (só vale para o próprio cliente): documento e país revalidados aqui.
+  let estrangeiro: { pais: string; documento: string } | null = null;
+  if (input.estrangeiro && !terceiro) {
+    const v = validarDocumentoEstrangeiro(input.estrangeiro);
+    if (!v.ok) {
+      return { ok: false, error: t(v.campo === 'pais' ? 'paisInvalido' : 'documentoEstrangeiroInvalido'), campo: v.campo };
+    }
+    if (input.forma === 'pix') return { ok: false, error: t('pixEstrangeiro') };
+    estrangeiro = v.valor;
+  }
+
   // Já existe pagamento confirmado aguardando o webhook? Não cobra de novo.
   const { count: pagos } = await supabaseAdmin
     .from('pagamento')
@@ -190,7 +207,7 @@ export async function iniciarPagamento(input: {
     : (pendente?.pagamento_tomador ?? null);
 
   try {
-    if (pendente?.asaas_payment_id && mesmoTomador(tomadorPendente, terceiro)) {
+    if (pendente?.asaas_payment_id && mesmoTomador(tomadorPendente, terceiro, estrangeiro)) {
       await cancelarCobrancasPendentes(pedido.id, { excetoPagamentoId: pendente.id });
       if (input.forma === 'pix') {
         return { ok: true, forma: 'pix', pix: await carregarQrCode(pendente.id, pendente.asaas_payment_id) };
@@ -218,36 +235,60 @@ export async function iniciarPagamento(input: {
       }
       tomador = terceiro;
     } else {
-      // Dados do cliente (CPF obrigatório para o Asaas).
+      // Dados do cliente (CPF obrigatório para o Asaas — ou documento estrangeiro, SPEC §100).
       const { data: usuario } = await supabaseAdmin
         .from('users')
         .select('name, email, phone, cpf_cnpj')
         .eq('id', input.userId)
         .single();
       if (!usuario) return { ok: false, error: t('cadastro') };
-      let cpf = usuario.cpf_cnpj && isValidCPF(usuario.cpf_cnpj) ? onlyDigits(usuario.cpf_cnpj) : null;
-      if (!cpf) {
-        if (!input.cpf || !isValidCPF(input.cpf)) {
-          return { ok: false, error: t('cpfInvalido'), campo: 'cpf' };
-        }
-        cpf = onlyDigits(input.cpf);
-        await supabaseAdmin.from('users').update({ cpf_cnpj: cpf }).eq('id', input.userId);
-      }
+      const nomeCliente = usuario.name.trim() || 'Cliente Boatzy';
 
-      const celular = usuario.phone ? onlyDigits(usuario.phone) : null;
-      customer = await garantirClienteAsaas({
-        userId: input.userId,
-        ambiente,
-        nome: usuario.name,
-        cpfCnpj: cpf,
-        email: usuario.email,
-        celular,
-      });
-      tomador = {
-        tipo: 'proprio', nome: usuario.name.trim() || 'Cliente Boatzy', documento: cpf, nome_fantasia: null,
-        email: usuario.email, telefone: celular && celular.length >= 10 && celular.length <= 11 ? celular : null,
-        cep: null, logradouro: null, numero: null, complemento: null, bairro: null, cidade: null, uf: null,
-      };
+      if (estrangeiro) {
+        await supabaseAdmin
+          .from('users')
+          .update({ documento_estrangeiro: estrangeiro.documento, pais_documento: estrangeiro.pais })
+          .eq('id', input.userId);
+        try {
+          customer = await garantirClienteAsaasEstrangeiro({ userId: input.userId, nome: usuario.name, email: usuario.email });
+        } catch (err) {
+          // Conta do Asaas sem a liberação de "pagadores estrangeiros": o cliente não tem o que corrigir.
+          if (err instanceof AsaasError && err.status === 400) {
+            console.error('[pagamentos/checkout] Asaas recusou pagador estrangeiro:', err.message);
+            return { ok: false, error: t('estrangeiroIndisponivel') };
+          }
+          throw err;
+        }
+        tomador = {
+          tipo: 'proprio', nome: nomeCliente, documento: estrangeiro.documento, pais: estrangeiro.pais, nome_fantasia: null,
+          email: usuario.email, telefone: null,
+          cep: null, logradouro: null, numero: null, complemento: null, bairro: null, cidade: null, uf: null,
+        };
+      } else {
+        let cpf = usuario.cpf_cnpj && isValidCPF(usuario.cpf_cnpj) ? onlyDigits(usuario.cpf_cnpj) : null;
+        if (!cpf) {
+          if (!input.cpf || !isValidCPF(input.cpf)) {
+            return { ok: false, error: t('cpfInvalido'), campo: 'cpf' };
+          }
+          cpf = onlyDigits(input.cpf);
+          await supabaseAdmin.from('users').update({ cpf_cnpj: cpf }).eq('id', input.userId);
+        }
+
+        const celular = usuario.phone ? onlyDigits(usuario.phone) : null;
+        customer = await garantirClienteAsaas({
+          userId: input.userId,
+          ambiente,
+          nome: usuario.name,
+          cpfCnpj: cpf,
+          email: usuario.email,
+          celular,
+        });
+        tomador = {
+          tipo: 'proprio', nome: nomeCliente, documento: cpf, pais: null, nome_fantasia: null,
+          email: usuario.email, telefone: celular && celular.length >= 10 && celular.length <= 11 ? celular : null,
+          cep: null, logradouro: null, numero: null, complemento: null, bairro: null, cidade: null, uf: null,
+        };
+      }
     }
 
     const { data: pagamento, error: errPagamento } = await supabaseAdmin
