@@ -2491,6 +2491,45 @@ taxa continua sendo cobrada e repassada como antes — muda só a apresentação
   continua travando no fim do card.
 - Detalhes técnicos: `SPEC.md` §53.
 
+### ✅ Home — vitrine de passeios no lugar da busca completa (03/11/2026) — em teste
+
+**Problema (teste com usuários reais):** quem chega à home tenta buscar qualquer destino (cidade, praia,
+passeio). No lançamento há poucos passeios (5, todos saindo de Florianópolis) e a busca só devolve o que
+está no banco — quase toda busca terminava em "nenhum resultado", e a oferta real ficava escondida atrás
+de um formulário.
+
+**Decisão:** inverter o fluxo — **mostrar primeiro, filtrar depois**. O hero passa a ser uma vitrine com
+**todos os passeios ativos**, e a busca vira um campo **discreto** que só filtra a lista na própria página.
+Busca sem resultado **nunca esvazia a tela**: mostra "Ainda não navegamos por “X”" e mantém todos os
+passeios à vista. Só a área do hero mudou; as demais seções da home seguem iguais por enquanto.
+
+- **Duas opções em teste**, escolhidas pela URL (sem deploy):
+  - `/?hero=mar` (**opção A, padrão**): vídeo de fundo atrás de tudo; cards imersivos (foto inteira,
+    texto sobre degradê marinho) em carrossel.
+  - `/?hero=areia` (**opção B**): faixa curta de vídeo com o título; abaixo, sobre o fundo areia, os mesmos
+    cards da busca (`RoteiroCard`, com favorito) "emergindo" da faixa.
+  - `/?hero=busca`: a **busca completa anterior** (destino + data + pessoas), **guardada** para quando
+    houver mais passeios — volta a ser o padrão trocando `HERO_PADRAO` em `src/app/page.tsx`.
+- Linha de contexto: "5 passeios disponíveis · Saídas de Florianópolis, SC" (expectativa honesta sobre a
+  cobertura); ao filtrar, "2 passeios para “campeche”".
+- Busca discreta: pílula pequena que alarga ao focar; procura em nome, descrição, cidade/UF e tipo de
+  embarcação, sem diferenciar acento e maiúscula.
+- **Demanda reprimida:** cada termo buscado (≥ 3 letras) vai ao GA4 (`busca_vitrine_home`, com número
+  de resultados) — mostra que destinos o público pede antes de existirem passeios lá.
+- Animações leves: título surge em cascata (sobe 14 px, sai de um leve desfoque); os cards têm entrada própria, rápida e em camadas (card sobe, foto "assenta" de um zoom leve, um brilho atravessa uma vez, texto chega por último); respeita
+  "reduzir movimento" do sistema. Mobile first: carrossel com rolagem por toque e o próximo card à mostra;
+  setas só no desktop.
+- **"Novos Roteiros" retirada da home** (repetia os passeios da vitrine): com a vitrine ativa, a seção
+  logo abaixo do hero passa a ser **"Novas Embarcações"**. Com `?hero=busca` (busca completa), "Novos
+  Roteiros" volta a aparecer, já que nesse modo a home não mostra outra lista de passeios.
+  Detalhes técnicos: `SPEC.md` §102.
+- **CTA ao proprietário em "Novas Embarcações"** — "Deseja disponibilizar sua embarcação aqui?" →
+  `/painel/login`. Celular: faixa marinho de ponta a ponta logo abaixo de "Ver Todas as Embarcações",
+  com âncora e seta em amarelo. Desktop: botão amarelo (cor de destaque) centralizado sob a grade, com
+  âncora num círculo marinho; ao passar o mouse, sobe de leve e a seta avança.
+
+---
+
 ### ✅ Campo Destino funcionando — home e busca (19/10/2026)
 
 **Problema:** o campo "Destino" (home e filtros da busca) não sugeria nenhuma cidade — a consulta das

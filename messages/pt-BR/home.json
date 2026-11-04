@@ -10,6 +10,19 @@
       "buscar": "Busque o destino",
       "escolher": "Escolha o roteiro",
       "reservar": "Reserve e pague online"
+    },
+    "vitrine": {
+      "subtitulo": "Escolha seu passeio e reserve em poucos minutos, com pagamento seguro.",
+      "buscaPlaceholder": "Buscar praia, ilha ou cidade",
+      "buscaRotulo": "Filtrar passeios",
+      "disponiveis": "{count, plural, one {# passeio disponível} other {# passeios disponíveis}}",
+      "saidas": "Saídas de {locais}",
+      "resultados": "{count, plural, one {# passeio} other {# passeios}} para “{termo}”",
+      "semResultadoTitulo": "Ainda não navegamos por “{termo}”.",
+      "semResultadoTexto": "Estamos chegando a novos destinos — por enquanto, estes são os passeios disponíveis:",
+      "anterior": "Passeios anteriores",
+      "proximo": "Próximos passeios",
+      "verTodos": "Ver todos os passeios"
     }
   },
   "Home": {
@@ -23,7 +36,8 @@
       "sobretitulo": "Coleção de Destaque",
       "titulo": "Novas <destaque>Embarcações</destaque>",
       "verTodas": "Ver Todas",
-      "verTodasEmbarcacoes": "Ver Todas as Embarcações"
+      "verTodasEmbarcacoes": "Ver Todas as Embarcações",
+      "ctaProprietario": "Deseja disponibilizar sua embarcação aqui?"
     },
     "avaliacoes": {
       "sobretitulo": "Avaliações reais",

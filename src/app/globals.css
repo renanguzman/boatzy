@@ -124,6 +124,75 @@ body {
   .animate-opcionais-pulso { animation: none; }
 }
 
+/* Vitrine da home (HeroVitrine): textos e cards surgem de leve, em cascata
+   (atraso por elemento via style="animation-delay"). Sobe 14px, sai de um
+   desfoque mínimo e assenta com curva suave — sem quique. */
+@keyframes vitrine-surge {
+  from { opacity: 0; transform: translateY(14px) scale(0.985); filter: blur(3px); }
+  to { opacity: 1; transform: none; filter: none; }
+}
+
+.vitrine-surge {
+  animation: vitrine-surge 0.8s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .vitrine-surge { animation: none; }
+}
+
+/* Cards da vitrine: entrada rápida em camadas, sincronizada por --atraso
+   (definido no wrapper de cada card, em cascata de 70 ms).
+   1. o card sobe 18px e cresce de 96% (0,55s);
+   2. a foto "assenta" de um zoom de 112% (1s) — sensação de câmera pousando;
+   3. um brilho diagonal atravessa o card uma única vez;
+   4. o texto chega por último, 6px abaixo.
+   Curva expo-out: começa ágil e pousa macio. */
+@keyframes vitrine-card-entra {
+  from { opacity: 0; transform: translateY(18px) scale(0.96); }
+  to { opacity: 1; transform: none; }
+}
+
+@keyframes vitrine-card-foto {
+  from { transform: scale(1.12); }
+  to { transform: scale(1); }
+}
+
+@keyframes vitrine-card-brilho {
+  from { background-position: 130% 0; opacity: 1; }
+  to { background-position: -30% 0; opacity: 0; }
+}
+
+@keyframes vitrine-card-texto {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: none; }
+}
+
+.vitrine-card {
+  animation: vitrine-card-entra 0.55s cubic-bezier(0.16, 1, 0.3, 1) var(--atraso, 0ms) both;
+}
+
+.vitrine-card .vitrine-card-foto {
+  animation: vitrine-card-foto 1s cubic-bezier(0.16, 1, 0.3, 1) var(--atraso, 0ms) both;
+}
+
+.vitrine-card .vitrine-card-brilho {
+  background-image: linear-gradient(110deg, transparent 40%, rgb(255 255 255 / 0.16) 50%, transparent 60%);
+  background-size: 250% 100%;
+  background-repeat: no-repeat;
+  animation: vitrine-card-brilho 0.9s ease-out calc(var(--atraso, 0ms) + 150ms) both;
+}
+
+.vitrine-card .vitrine-card-texto {
+  animation: vitrine-card-texto 0.45s ease-out calc(var(--atraso, 0ms) + 200ms) both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .vitrine-card,
+  .vitrine-card .vitrine-card-foto,
+  .vitrine-card .vitrine-card-texto { animation: none; }
+  .vitrine-card .vitrine-card-brilho { display: none; }
+}
+
 /* Smooth scrolling */
 html {
   scroll-behavior: smooth;

@@ -10,6 +10,19 @@
       "buscar": "Search for a destination",
       "escolher": "Choose your trip",
       "reservar": "Book and pay online"
+    },
+    "vitrine": {
+      "subtitulo": "Pick your trip and book in minutes, with secure payment.",
+      "buscaPlaceholder": "Search a beach, island or city",
+      "buscaRotulo": "Filter trips",
+      "disponiveis": "{count, plural, one {# trip available} other {# trips available}}",
+      "saidas": "Departing from {locais}",
+      "resultados": "{count, plural, one {# trip} other {# trips}} for “{termo}”",
+      "semResultadoTitulo": "We don't sail to “{termo}” yet.",
+      "semResultadoTexto": "New destinations are on the way — for now, these are the trips available:",
+      "anterior": "Previous trips",
+      "proximo": "Next trips",
+      "verTodos": "See all trips"
     }
   },
   "Home": {
@@ -23,7 +36,8 @@
       "sobretitulo": "Featured Collection",
       "titulo": "New <destaque>Boats</destaque>",
       "verTodas": "See All",
-      "verTodasEmbarcacoes": "See All Boats"
+      "verTodasEmbarcacoes": "See All Boats",
+      "ctaProprietario": "Want to list your boat here?"
     },
     "avaliacoes": {
       "sobretitulo": "Real reviews",

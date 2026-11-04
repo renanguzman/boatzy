@@ -9637,3 +9637,41 @@ Abas novas **Repasses** e **Relatórios**; `/administrator/financeiro` agora abr
 - Plano de contas e regime (competência × caixa, D2) a validar com o contador; cartão só reconhece/repassa quando liquida (D+32; parcelado, todas as parcelas).
 - Fora do escopo: transferência automática via API do Asaas e validação de saque (D1/D4); confirmação de realização pelo gestor (D6); estorno contábil de reembolsos (Fase 2 — a conciliação sinaliza); verificação/carência na troca de chave Pix; status do repasse no detalhe do agendamento do gestor.
 
+
+
+## 102. Home — vitrine de passeios no hero (`HeroVitrine`) (03/11/2026)
+
+### 102.1 Seleção do hero — `src/app/page.tsx`
+- `searchParams.hero` ∈ `'busca' | 'mar' | 'areia'`; inválido/ausente → `HERO_PADRAO` (`'mar'`).
+- `'busca'` → `HeroSection` (busca completa, inalterado; carrega `getTiposEmbarcacaoComRoteiro` e `getFiltrosVenda` só nesse modo).
+- `'mar' | 'areia'` → `HeroVitrineServidor`: `getRoteirosRecentes(LIMITE_VITRINE = 24)` + `getFavoritosRoteiroSet` do usuário logado → `<HeroVitrine variante roteiros>`. Sem roteiro ativo → cai para `HeroSection`.
+- `FeaturedChartersSection` ("Novos Roteiros") só é renderizada com `modo === 'busca'`; na vitrine, a ordem fica: hero → `TopRatedSection` ("Novas Embarcações") → `AvaliacoesHomeSection` → `BenefitsSection` → `MomentsSection`.
+
+### 102.1.1 CTA ao proprietário — `TopRatedSection.tsx`
+- Dois `<Link href="/painel/login">` com o texto `Home.novasEmbarcacoes.ctaProprietario` (pt-BR, en-US, es), ícone `Anchor`:
+  - `md:hidden`: faixa `-mx-4 mt-8` em gradiente `marinho → marinho-escuro`, ícone e seta em `destaque`; a seção passa a `pt-8 md:pb-16` (no celular a faixa encosta na seção seguinte).
+  - `hidden md:flex`: pílula `bg-destaque text-marinho` centralizada (`mt-10`), sombra `shadow-destaque/30`, ícone em círculo `bg-marinho`; hover `-translate-y-0.5` e seta `translate-x-1`.
+- Vale para todos os modos do hero.
+
+### 102.2 Componentes — `src/components/home/vitrine/`
+| arquivo | papel |
+|---|---|
+| `HeroVitrine.tsx` (client) | Props `{ roteiros: FeaturedRoteiroItem[]; variante: 'mar' \| 'areia' }`. Vídeo de fundo sorteado no cliente (mesma lista do `HeroSection`), título (`Hero.sobretitulo/titulo`), linha de contagem/cidades, `BuscaDiscreta`, carrossel `snap-x` (80% / 46% / 4 por linha no `lg`) e setas no `lg`. `mar` usa `CartaoVitrine`; `areia` usa `RoteiroCard`. Mantém `id="hero-section"`. |
+| `CartaoVitrine.tsx` (client) | Card imersivo: imagem principal, selo nota (`★ média (total)`) ou "Novo", cidade/UF, nome, tipo · pessoas · duração, preço (`precoExibicaoRoteiro` + `useFormatos`). Link `hrefRoteiro(id)`. |
+| `BuscaDiscreta.tsx` (client) | `<input type="search">` em pílula (`role="search"`), `tom: 'escuro' \| 'claro'`; botão limpar (`Comum.limpar`). |
+| `filtrar.ts` | `normalizar` (NFD sem acento, minúsculo), `filtrarRoteiros(roteiros, termo, traduzirTipo)` (todas as palavras precisam aparecer em nome, descrição, cidade, UF, tipo pt-BR ou traduzido), `cidadesDeSaida`. |
+
+- Filtro 100% no cliente (sem rota/RPC nova). Termo sem resultado → exibe a lista inteira + aviso `Hero.vitrine.semResultadoTitulo/Texto`. Ao digitar, o carrossel volta ao início.
+- Cidades na linha de contexto só quando são ≤ 3.
+- GA4: `rastrear('busca_vitrine_home', { termo, resultados, variante })`, debounce 1,2 s, termo ≥ 3 caracteres.
+
+### 102.3 Animação — `globals.css`
+- `.vitrine-surge` (keyframes `vitrine-surge`: `opacity 0`, `translateY(14px) scale(.985)`, `blur(3px)` → normal; 0,8 s `cubic-bezier(.22,1,.36,1)`, `both`). Cascata por `style.animationDelay` (título 0/80/160 ms; barra 240 ms; cards 320 ms + 90 ms × índice). `key` dos cards = `id` (cards que permanecem no filtro não reanimam). `prefers-reduced-motion` desliga.
+- **Cards** (desde 03/11/2026) usam entrada própria, mais rápida e em camadas, sincronizada pela variável `--atraso` no wrapper (`280 ms + 70 ms × índice`):
+  `.vitrine-card` (sobe 18 px e cresce de 96%, 0,55 s, `cubic-bezier(.16,1,.3,1)`) → `.vitrine-card-foto` (wrapper da imagem: zoom 112% → 100%, 1 s — no wrapper para não travar o zoom do hover) → `.vitrine-card-brilho` (faixa diagonal branca 16% atravessa uma vez, +150 ms) → `.vitrine-card-texto` (bloco inferior sobe 6 px, +200 ms). Na variante `areia` (`RoteiroCard`) só a camada do wrapper se aplica. `prefers-reduced-motion` desliga todas.
+
+### 102.4 i18n
+- Novo namespace `Hero.vitrine` (pt-BR, en-US, es): `subtitulo`, `buscaPlaceholder`, `buscaRotulo`, `disponiveis` (plural), `saidas`, `resultados` (plural + `termo`), `semResultadoTitulo`, `semResultadoTexto`, `anterior`, `proximo`, `verTodos` ("Ver todos os passeios" → `/buscar`, pílula com borda em gradiente marinho→turquesa, seta em círculo turquesa; hover preenche com o gradiente).
+
+### 102.5 Validação
+`tsc` e `eslint` limpos; conferido no navegador (390 px e 1440 px) nas duas variantes, filtro com resultado ("campeche" → 1) e sem resultado ("Búzios"), sem erros de console.
