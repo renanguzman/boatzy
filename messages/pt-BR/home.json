@@ -12,7 +12,6 @@
       "reservar": "Reserve e pague online"
     },
     "vitrine": {
-      "subtitulo": "Escolha seu passeio e reserve em poucos minutos, com pagamento seguro.",
       "buscaPlaceholder": "Buscar praia, ilha ou cidade",
       "buscaRotulo": "Filtrar passeios",
       "disponiveis": "{count, plural, one {# passeio disponível} other {# passeios disponíveis}}",

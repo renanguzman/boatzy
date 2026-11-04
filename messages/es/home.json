@@ -12,7 +12,6 @@
       "reservar": "Reserva y paga online"
     },
     "vitrine": {
-      "subtitulo": "Elige tu paseo y reserva en pocos minutos, con pago seguro.",
       "buscaPlaceholder": "Buscar playa, isla o ciudad",
       "buscaRotulo": "Filtrar paseos",
       "disponiveis": "{count, plural, one {# paseo disponible} other {# paseos disponibles}}",

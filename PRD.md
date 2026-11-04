@@ -2527,6 +2527,11 @@ passeios à vista. Só a área do hero mudou; as demais seções da home seguem 
   `/painel/login`. Celular: faixa marinho de ponta a ponta logo abaixo de "Ver Todas as Embarcações",
   com âncora e seta em amarelo. Desktop: botão amarelo (cor de destaque) centralizado sob a grade, com
   âncora num círculo marinho; ao passar o mouse, sobe de leve e a seta avança.
+- **Hero mais enxuto (04/11/2026):** saíram o título "O horizonte é seu." e o subtítulo "Escolha seu
+  passeio e reserve em poucos minutos…" — os próprios passeios são a mensagem. "Passeios de barco com
+  reserva 100% online" ganhou mais destaque (maior, vira o título principal da página) e "5 passeios
+  disponíveis" ficou bem maior, mantendo "Saídas de Florianópolis, SC" ao lado. **Cards maiores:** 3 por
+  linha no computador (antes 4), mais altos, e ocupando quase toda a largura no celular.
 
 ---
 
@@ -2836,7 +2841,10 @@ card de reserva — ficou para depois):
   sem a tripulação); no card de reserva, "Até N pessoas a bordo, sem contar a tripulação." — antes
   apareciam "10 pessoas" e "Capacidade máxima: 8" na mesma página.
 - **Galeria (celular):** deslizar com o dedo troca a foto; tocar abre a galeria em tela cheia;
-  contador "1/4" no lugar dos pontinhos; setas só no computador. **Favoritar e compartilhar viraram
+  contador "1/4" no lugar dos pontinhos; setas grandes só no computador. **Dica de deslize (04/11/2026):**
+  no celular, quando há mais de uma foto, uma seta pequena e discreta (sem fundo) aparece na lateral
+  direita da foto e dá dois "empurrõezinhos" ao abrir a página, indicando que dá para ver a próxima;
+  a da esquerda aparece a partir da 2ª foto. Vale para roteiro, embarcação e anúncio de venda. **Favoritar e compartilhar viraram
   ícones sobre a foto** (compartilhar abre a folha nativa do celular, com WhatsApp, Instagram etc.);
   no computador continuam no topo da coluna de reserva.
 - **Selos do topo:** "Novo no Boatzy" (só quando o roteiro ainda não tem avaliações), "Roteiro

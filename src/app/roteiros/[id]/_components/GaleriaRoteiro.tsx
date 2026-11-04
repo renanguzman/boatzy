@@ -150,6 +150,34 @@ export default function GaleriaRoteiro({ images, nome, voltarHref = '/buscar', a
                 </div>
               )}
 
+              {/* Dica de deslize (celular): seta discreta indicando que há mais fotos ao lado.
+                  A da direita aparece sempre (o carrossel é circular); a da esquerda só depois da 1ª foto. */}
+              {total > 1 && (
+                <>
+                  {current > 0 && (
+                    <button
+                      type="button"
+                      onClick={(e) => { e.stopPropagation(); prevCarousel(); }}
+                      aria-label={t('anterior')}
+                      className="absolute left-1 top-1/2 -translate-y-1/2 z-10 lg:hidden h-9 w-7 flex items-center justify-center text-white/80"
+                    >
+                      <ChevronLeft className="h-6 w-6 drop-shadow-[0_1px_2px_rgba(0,0,0,0.6)]" strokeWidth={2.25} />
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    onClick={(e) => { e.stopPropagation(); nextCarousel(); }}
+                    aria-label={t('proxima')}
+                    className="absolute right-1 top-1/2 -translate-y-1/2 z-10 lg:hidden h-9 w-7 flex items-center justify-center text-white/80"
+                  >
+                    <ChevronRight
+                      className={`h-6 w-6 drop-shadow-[0_1px_2px_rgba(0,0,0,0.6)] ${current === 0 ? 'animate-dica-deslize' : ''}`}
+                      strokeWidth={2.25}
+                    />
+                  </button>
+                </>
+              )}
+
               {/* Carousel arrows — só no desktop; no celular a troca é deslizando */}
               {total > 1 && (
                 <>

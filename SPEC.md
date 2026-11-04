@@ -7470,6 +7470,12 @@ Arquivos em `src/app/roteiros/[id]/_components/` salvo indicação. Breakpoint "
   `FotosLightbox` (todas as larguras, `cursor-zoom-in`). Pontinhos → contador `Camera` "n/total"
   (`bg-black/55`, `lg:hidden`, abre o lightbox). Setas `hidden lg:flex`. "Ver todas" do celular
   removido (o contador cumpre o papel); no desktop sem fotos laterais segue "Ver todas".
+  **Dica de deslize (04/11/2026):** com `total > 1`, botões `lg:hidden` (`h-9 w-7`, sem fundo,
+  `text-white/80`, `ChevronRight`/`ChevronLeft` `h-6 w-6` com `drop-shadow`) nas laterais
+  (`right-1`/`left-1`, centro vertical); direita sempre (carrossel circular), esquerda só com
+  `current > 0`; clique avança/volta com `stopPropagation` (não abre o lightbox). Na 1ª foto a seta
+  direita usa `.animate-dica-deslize` (`globals.css`: `translateX` 0→4px→0, 1,2 s, atraso 0,8 s,
+  2 repetições, só sob `prefers-reduced-motion: no-preference`).
 - **`RoteiroAcoes`:** prop `variante?: 'barra' | 'sobreFoto'` (padrão `barra`, igual ao anterior).
   `sobreFoto`: dois botões redondos `h-10 w-10 bg-white/90` só com ícone (`aria-label`); compartilhar
   usa `navigator.share({ title, text, url })` quando existe (cancelamento ignorado), senão o menu
@@ -9656,8 +9662,8 @@ Abas novas **Repasses** e **Relatórios**; `/administrator/financeiro` agora abr
 ### 102.2 Componentes — `src/components/home/vitrine/`
 | arquivo | papel |
 |---|---|
-| `HeroVitrine.tsx` (client) | Props `{ roteiros: FeaturedRoteiroItem[]; variante: 'mar' \| 'areia' }`. Vídeo de fundo sorteado no cliente (mesma lista do `HeroSection`), título (`Hero.sobretitulo/titulo`), linha de contagem/cidades, `BuscaDiscreta`, carrossel `snap-x` (80% / 46% / 4 por linha no `lg`) e setas no `lg`. `mar` usa `CartaoVitrine`; `areia` usa `RoteiroCard`. Mantém `id="hero-section"`. |
-| `CartaoVitrine.tsx` (client) | Card imersivo: imagem principal, selo nota (`★ média (total)`) ou "Novo", cidade/UF, nome, tipo · pessoas · duração, preço (`precoExibicaoRoteiro` + `useFormatos`). Link `hrefRoteiro(id)`. |
+| `HeroVitrine.tsx` (client) | Props `{ roteiros: FeaturedRoteiroItem[]; variante: 'mar' \| 'areia' }`. Vídeo de fundo sorteado no cliente (mesma lista do `HeroSection`), `h1` só com `Hero.sobretitulo` (`text-sm sm:text-base md:text-lg font-semibold uppercase text-turquesa`; desde 04/11/2026 sem `Hero.titulo` nem subtítulo), linha de contagem (`text-lg md:text-2xl font-bold`) / cidades (separador "·" só a partir do `sm`), `BuscaDiscreta`, carrossel `snap-x` (86% / 48% / 3 por linha no `lg`: `calc((100%-2rem)/3)`) e setas no `lg`. `mar` usa `CartaoVitrine`; `areia` usa `RoteiroCard`. Mantém `id="hero-section"`. |
+| `CartaoVitrine.tsx` (client) | Card imersivo (`h-[25rem] md:h-[28rem]`, nome `text-xl`, `sizes` 86vw/48vw/33vw): imagem principal, selo nota (`★ média (total)`) ou "Novo", cidade/UF, nome, tipo · pessoas · duração, preço (`precoExibicaoRoteiro` + `useFormatos`). Link `hrefRoteiro(id)`. |
 | `BuscaDiscreta.tsx` (client) | `<input type="search">` em pílula (`role="search"`), `tom: 'escuro' \| 'claro'`; botão limpar (`Comum.limpar`). |
 | `filtrar.ts` | `normalizar` (NFD sem acento, minúsculo), `filtrarRoteiros(roteiros, termo, traduzirTipo)` (todas as palavras precisam aparecer em nome, descrição, cidade, UF, tipo pt-BR ou traduzido), `cidadesDeSaida`. |
 
@@ -9671,7 +9677,7 @@ Abas novas **Repasses** e **Relatórios**; `/administrator/financeiro` agora abr
   `.vitrine-card` (sobe 18 px e cresce de 96%, 0,55 s, `cubic-bezier(.16,1,.3,1)`) → `.vitrine-card-foto` (wrapper da imagem: zoom 112% → 100%, 1 s — no wrapper para não travar o zoom do hover) → `.vitrine-card-brilho` (faixa diagonal branca 16% atravessa uma vez, +150 ms) → `.vitrine-card-texto` (bloco inferior sobe 6 px, +200 ms). Na variante `areia` (`RoteiroCard`) só a camada do wrapper se aplica. `prefers-reduced-motion` desliga todas.
 
 ### 102.4 i18n
-- Novo namespace `Hero.vitrine` (pt-BR, en-US, es): `subtitulo`, `buscaPlaceholder`, `buscaRotulo`, `disponiveis` (plural), `saidas`, `resultados` (plural + `termo`), `semResultadoTitulo`, `semResultadoTexto`, `anterior`, `proximo`, `verTodos` ("Ver todos os passeios" → `/buscar`, pílula com borda em gradiente marinho→turquesa, seta em círculo turquesa; hover preenche com o gradiente).
+- Novo namespace `Hero.vitrine` (pt-BR, en-US, es): `buscaPlaceholder`, `buscaRotulo`, `disponiveis` (plural), `saidas`, `resultados` (plural + `termo`), `semResultadoTitulo`, `semResultadoTexto`, `anterior`, `proximo`, `verTodos` ("Ver todos os passeios" → `/buscar`, pílula com borda em gradiente marinho→turquesa, seta em círculo turquesa; hover preenche com o gradiente).
 
 ### 102.5 Validação
 `tsc` e `eslint` limpos; conferido no navegador (390 px e 1440 px) nas duas variantes, filtro com resultado ("campeche" → 1) e sem resultado ("Búzios"), sem erros de console.

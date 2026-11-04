@@ -31,7 +31,7 @@ export default function CartaoVitrine({ roteiro, prioridade }: { roteiro: Featur
   return (
     <Link
       href={hrefRoteiro(roteiro.id)}
-      className="group relative block h-[22rem] md:h-[23rem] overflow-hidden rounded-3xl bg-marinho-escuro ring-1 ring-white/10 shadow-xl shadow-black/30 transition-transform duration-500 ease-out hover:-translate-y-1 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-turquesa"
+      className="group relative block h-[25rem] md:h-[28rem] overflow-hidden rounded-3xl bg-marinho-escuro ring-1 ring-white/10 shadow-xl shadow-black/30 transition-transform duration-500 ease-out hover:-translate-y-1 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-turquesa"
     >
       {img ? (
         // A animação de entrada (zoom que assenta) fica no wrapper: na própria
@@ -42,7 +42,7 @@ export default function CartaoVitrine({ roteiro, prioridade }: { roteiro: Featur
           alt={roteiro.nome}
           fill
           priority={prioridade}
-          sizes="(max-width: 640px) 80vw, (max-width: 1024px) 45vw, 25vw"
+          sizes="(max-width: 640px) 86vw, (max-width: 1024px) 48vw, 33vw"
           className="object-cover transition-transform duration-[1200ms] ease-out group-hover:scale-105"
         />
         </div>
@@ -77,7 +77,7 @@ export default function CartaoVitrine({ roteiro, prioridade }: { roteiro: Featur
             {localidade}
           </p>
         )}
-        <h3 className="text-lg font-semibold leading-snug text-white line-clamp-2">{roteiro.nome}</h3>
+        <h3 className="text-xl font-semibold leading-snug text-white line-clamp-2">{roteiro.nome}</h3>
 
         <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-white/70">
           {tipo && <span>{traduzir('tipo', tipo)}</span>}

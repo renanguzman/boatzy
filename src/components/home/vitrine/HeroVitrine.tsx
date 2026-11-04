@@ -109,8 +109,8 @@ export default function HeroVitrine({
     : t('vitrine.disponiveis', { count: roteiros.length });
 
   const barra = (
-    <div className="vitrine-surge flex flex-col-reverse gap-3 sm:flex-row sm:items-center sm:justify-between" style={{ animationDelay: '240ms' }}>
-      <div className={`flex min-h-[2.5rem] items-center text-sm ${mar ? 'text-white/80' : 'text-slate-600'}`} aria-live="polite">
+    <div className="vitrine-surge flex flex-col-reverse gap-3 sm:flex-row sm:items-center sm:justify-between" style={{ animationDelay: '120ms' }}>
+      <div className={`flex min-h-[2.5rem] items-center text-sm md:text-base ${mar ? 'text-white/80' : 'text-slate-600'}`} aria-live="polite">
         {semResultado ? (
           <p key="sem" className="vitrine-surge flex items-start gap-2">
             <Compass aria-hidden className={`mt-0.5 h-4 w-4 shrink-0 ${mar ? 'text-turquesa' : 'text-turquesa-escuro'}`} />
@@ -123,11 +123,11 @@ export default function HeroVitrine({
           </p>
         ) : (
           <p key="ok" className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
-            <span className={`font-semibold ${mar ? 'text-white' : 'text-marinho'}`}>{contagem}</span>
+            <span className={`text-lg md:text-2xl font-bold tracking-tight ${mar ? 'text-white' : 'text-marinho'}`}>{contagem}</span>
             {!termoLimpo && cidades.length > 0 && cidades.length <= 3 && (
               <span className="flex items-center gap-1">
-                <span aria-hidden className={mar ? 'text-white/40' : 'text-slate-300'}>·</span>
-                <MapPin aria-hidden className={`h-3.5 w-3.5 ${mar ? 'text-turquesa' : 'text-turquesa-escuro'}`} />
+                <span aria-hidden className={`hidden sm:inline ${mar ? 'text-white/40' : 'text-slate-300'}`}>·</span>
+                <MapPin aria-hidden className={`h-4 w-4 ${mar ? 'text-turquesa' : 'text-turquesa-escuro'}`} />
                 {t('vitrine.saidas', { locais: cidades.join(' · ') })}
               </span>
             )}
@@ -168,7 +168,7 @@ export default function HeroVitrine({
         // `key` só pelo id: card que continua no filtro não reanima; o que volta, sim.
         <div
           key={r.id}
-          className="vitrine-card w-[80%] shrink-0 snap-start sm:w-[46%] lg:w-[calc((100%-3rem)/4)]"
+          className="vitrine-card w-[86%] shrink-0 snap-start sm:w-[48%] lg:w-[calc((100%-2rem)/3)]"
           style={{ '--atraso': `${280 + i * PASSO_CASCATA_MS}ms` } as React.CSSProperties}
         >
           {mar ? (
@@ -185,24 +185,12 @@ export default function HeroVitrine({
     </div>
   );
 
+  // Sem título grande nem subtítulo: a própria vitrine é a mensagem. A frase de
+  // proposta ("reserva 100% online") vira o h1 da página.
   const titulo = (
-    <>
-      <p className="vitrine-surge mb-2 text-xs md:text-sm font-medium uppercase tracking-wider md:tracking-widest text-turquesa">
-        {t('sobretitulo')}
-      </p>
-      <h1
-        className="vitrine-surge mb-2 text-3xl sm:text-4xl md:text-5xl font-bold tracking-tight text-white"
-        style={{ animationDelay: '80ms' }}
-      >
-        {t.rich('titulo', { destaque: (texto) => <span className="text-destaque">{texto}</span> })}
-      </h1>
-      <p
-        className="vitrine-surge max-w-xl text-sm md:text-base leading-relaxed text-slate-200"
-        style={{ animationDelay: '160ms' }}
-      >
-        {t('vitrine.subtitulo')}
-      </p>
-    </>
+    <h1 className="vitrine-surge text-sm sm:text-base md:text-lg font-semibold uppercase tracking-wider md:tracking-widest text-turquesa">
+      {t('sobretitulo')}
+    </h1>
   );
 
   // Pílula com o gradiente oficial (marinho → turquesa) na borda e a seta num
@@ -236,7 +224,7 @@ export default function HeroVitrine({
       <section className="relative z-10 overflow-hidden bg-marinho" id="hero-section">
         {fundo}
         <div className="relative mx-auto max-w-7xl px-4 pt-10 pb-8 sm:px-6 md:pt-14 lg:px-8">
-          <div className="mb-6 md:mb-8">{titulo}</div>
+          <div className="mb-3 md:mb-4">{titulo}</div>
           <div className="mb-4">{barra}</div>
           {carrossel}
           <div className="mt-2 flex items-center justify-between">
@@ -252,7 +240,7 @@ export default function HeroVitrine({
     <section className="relative z-10 bg-areia" id="hero-section">
       <div className="relative overflow-hidden">
         {fundo}
-        <div className="relative mx-auto max-w-7xl px-4 pt-10 pb-28 text-center sm:px-6 md:pt-14 md:pb-32 lg:px-8 flex flex-col items-center">
+        <div className="relative mx-auto max-w-7xl px-4 pt-10 pb-24 text-center sm:px-6 md:pt-14 md:pb-28 lg:px-8 flex flex-col items-center">
           {titulo}
         </div>
       </div>

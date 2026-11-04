@@ -12,7 +12,6 @@
       "reservar": "Book and pay online"
     },
     "vitrine": {
-      "subtitulo": "Pick your trip and book in minutes, with secure payment.",
       "buscaPlaceholder": "Search a beach, island or city",
       "buscaRotulo": "Filter trips",
       "disponiveis": "{count, plural, one {# trip available} other {# trips available}}",
