@@ -19,7 +19,7 @@ export default async function AdminRevisaoRoteiroPage({ params }: { params: Prom
   const { data: rot } = await supabaseAdmin
     .from('roteiro')
     .select(`
-      id, owner_id, nome, descricao, status, origem, destino, duracao_horas, quantidade_pessoas, horario_saida,
+      id, owner_id, nome, descricao, cortesias, status, origem, destino, duracao_horas, quantidade_pessoas, horario_saida,
       created_at, enviado_analise_em, aprovado_em, primeira_aprovacao_em, revisao,
       embarcacao ( id, nome, status ),
       municipios ( nome, estados ( uf ) ),
@@ -79,6 +79,7 @@ export default async function AdminRevisaoRoteiroPage({ params }: { params: Prom
                 ) : null,
               },
               { label: 'Descrição', valor: rot.descricao, chave: 'descricao', largo: true },
+              { label: 'Cortesias do passeio', valor: (rot.cortesias as string[] | null)?.length ? (rot.cortesias as string[]).join(' · ') : null, chave: 'cortesias', largo: true },
               { label: 'Origem', valor: rot.origem, chave: 'origem' },
               { label: 'Destino', valor: rot.destino, chave: 'destino' },
               { label: 'Paradas', valor: paradas.length > 0 ? paradas.join(' → ') : 'Sem paradas', chave: 'paradas', largo: true },

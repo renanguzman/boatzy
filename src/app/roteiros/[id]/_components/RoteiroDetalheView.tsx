@@ -19,6 +19,7 @@ import RoteiroAcoes from './RoteiroAcoes';
 import EmbarcacaoFotosModal from './EmbarcacaoFotosModal';
 import EquipamentosEmbarcacao from '@/components/boat/EquipamentosEmbarcacao';
 import RegrasEmbarcacao from '@/components/boat/RegrasEmbarcacao';
+import CortesiasRoteiro from '@/components/boat/CortesiasRoteiro';
 import OpcionaisRoteiro from './OpcionaisRoteiro';
 import { CartProvider } from './CartContext';
 import { DataReservaProvider } from './DataReservaContext';
@@ -39,6 +40,8 @@ export type RoteiroDetalheDados = {
   id: string;
   nome: string;
   descricao: string;
+  /** Cortesias do passeio definidas pelo gestor (`roteiro.cortesias`). */
+  cortesias: string[];
   origem: string | null;
   destino: string | null;
   duracao: string | null;
@@ -345,6 +348,9 @@ export default function RoteiroDetalheView({
                   </div>
                 )}
               </div>
+
+              {/* Cortesias do passeio: entre as especificações e os opcionais (some sem cortesias) */}
+              <CortesiasRoteiro cortesias={roteiro.cortesias} />
 
               {/* Opcionais do dono à vista, antes da embarcação (some sem opcionais) */}
               <OpcionaisRoteiro roteiroId={roteiro.id} variante="conteudo" />

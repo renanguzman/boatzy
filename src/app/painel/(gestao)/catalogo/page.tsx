@@ -1,8 +1,10 @@
+import IconeLink from '@/components/ui/IconeLink';
 import { redirect } from 'next/navigation';
 import Link from 'next/link';
 import { Plus } from 'lucide-react';
 import { createClient } from '@/lib/supabase/server';
 import { supabaseAdmin } from '@/lib/supabase';
+import OrientacaoCatalogo from './_components/OrientacaoCatalogo';
 import CatalogoGrid, { type CatalogoListItem } from './_components/CatalogoGrid';
 
 export default async function CatalogoPage() {
@@ -27,13 +29,16 @@ export default async function CatalogoPage() {
             Gerencie seus produtos e serviços disponíveis para oferta.
           </p>
         </div>
+        <div className="flex flex-col sm:flex-row gap-2">
+        <OrientacaoCatalogo />
         <Link
           href="/painel/catalogo/novo"
           className="flex items-center justify-center gap-2 bg-[#0B2447] hover:bg-[#0B3D91] text-white text-sm font-semibold px-5 py-2.5 rounded-xl transition-colors shadow-md shadow-[#0B2447]/10 whitespace-nowrap"
         >
-          <Plus className="w-4 h-4" />
+          <IconeLink tamanho={16}><Plus className="w-4 h-4" /></IconeLink>
           Novo item
         </Link>
+        </div>
       </div>
 
       <CatalogoGrid itens={itens} />

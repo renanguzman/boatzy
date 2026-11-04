@@ -87,7 +87,7 @@ export async function listarEmbarcacoesDoGestor(ownerId: string): Promise<{ id: 
 export async function listarCondutores(ownerId: string): Promise<MembroCondutor[]> {
   const { data } = await supabaseAdmin
     .from('equipe_membro')
-    .select('id, nome_completo, is_gestor, funcao, ativo, cpf, telefone')
+    .select('id, nome_completo, is_gestor, funcao, ativo, cpf, documento_estrangeiro, telefone')
     .eq('owner_id', ownerId)
     .order('is_gestor', { ascending: false })
     .order('nome_completo', { ascending: true });
@@ -97,7 +97,7 @@ export async function listarCondutores(ownerId: string): Promise<MembroCondutor[
     is_gestor: m.is_gestor,
     funcao: m.funcao,
     ativo: m.ativo,
-    incompleto: !m.is_gestor && (!m.cpf || !m.telefone),
+    incompleto: !m.is_gestor && (!(m.cpf || m.documento_estrangeiro) || !m.telefone),
   }));
 }
 
@@ -292,7 +292,7 @@ export type AnaliseCondutor =
 export async function analisarCondutor(ownerId: string, nome: string, cpf: string | null): Promise<AnaliseCondutor> {
   const { data } = await supabaseAdmin
     .from('equipe_membro')
-    .select('id, nome_completo, is_gestor, funcao, ativo, cpf, telefone')
+    .select('id, nome_completo, is_gestor, funcao, ativo, cpf, documento_estrangeiro, telefone')
     .eq('owner_id', ownerId);
   const membros = (data ?? []).map((m) => ({
     membro: {
@@ -301,7 +301,7 @@ export async function analisarCondutor(ownerId: string, nome: string, cpf: strin
       is_gestor: m.is_gestor,
       funcao: m.funcao,
       ativo: m.ativo,
-      incompleto: !m.is_gestor && (!m.cpf || !m.telefone),
+      incompleto: !m.is_gestor && (!(m.cpf || m.documento_estrangeiro) || !m.telefone),
     } satisfies MembroCondutor,
     cpf: m.cpf,
   }));

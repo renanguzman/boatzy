@@ -3,6 +3,8 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { BadgeCheck, CalendarDays, ShieldCheck } from 'lucide-react';
+import Spinner from '@/components/ui/Spinner';
+import { useNavegacaoPendente } from '@/lib/hooks/useNavegacaoPendente';
 import GuestPicker from '@/components/home/search/GuestPicker';
 import { useFormatos } from '@/i18n/formatos';
 import { useCart } from './CartContext';
@@ -110,6 +112,7 @@ export default function BookingCard({
 
   // Pessoas vindas da busca acima da capacidade são ajustadas ao máximo, com aviso.
   const pessoasPedidas = initialPessoas && initialPessoas > 0 ? initialPessoas : 1;
+  const { pendente: indoReservar, navegar: irParaReserva } = useNavegacaoPendente();
   const [guests, setGuests] = useState(limitePessoas != null ? Math.min(pessoasPedidas, limitePessoas) : pessoasPedidas);
   const [ajustadoPara, setAjustadoPara] = useState<number | null>(
     limitePessoas != null && pessoasPedidas > limitePessoas ? limitePessoas : null,
@@ -248,6 +251,7 @@ export default function BookingCard({
       : f.unidadePreco(modalidade);
 
   function handleReserve() {
+    if (indoReservar) return;
     // Data e Pessoas são obrigatórios para solicitar a reserva.
     if (!dateISO) {
       setError(t('erros.selecioneData'));
@@ -283,7 +287,7 @@ export default function BookingCard({
     if (selectedAddons.length > 0) params.set('adicionais', selectedAddons.map((a) => a.id).join(','));
     // Pré-visualização do painel: valida como no site, mas não reserva.
     if (preview.ativo) { preview.avisar(); return; }
-    window.location.assign(`/reservas/novo?${params.toString()}`);
+    irParaReserva(`/reservas/novo?${params.toString()}`);
   }
 
   return (
@@ -477,8 +481,11 @@ export default function BookingCard({
         {/* CTA */}
         <button
           onClick={handleReserve}
-          className="w-full bg-marinho hover:bg-marinho-escuro text-white font-semibold py-3.5 rounded-xl transition-all hover:shadow-lg hover:shadow-marinho/25 hover:scale-[1.01] active:scale-[0.99] flex items-center justify-center gap-2 cursor-pointer mt-4"
+          disabled={indoReservar}
+          aria-busy={indoReservar}
+          className="w-full bg-marinho hover:bg-marinho-escuro text-white font-semibold py-3.5 rounded-xl transition-all hover:shadow-lg hover:shadow-marinho/25 hover:scale-[1.01] active:scale-[0.99] flex items-center justify-center gap-2 cursor-pointer mt-4 disabled:opacity-80 disabled:cursor-wait disabled:hover:scale-100"
         >
+          {indoReservar && <Spinner />}
           {t('solicitar')}
         </button>
 

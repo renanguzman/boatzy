@@ -194,6 +194,9 @@ export type MembroComHabilitacoes = {
   funcao: EquipeFuncao | null;
   ativo: boolean;
   cpf: string | null;
+  tipo_documento_estrangeiro: string | null;
+  documento_estrangeiro: string | null;
+  pais_documento: string | null;
   telefone: string | null;
   email: string | null;
   documentos: DocumentoItem[];
@@ -212,11 +215,11 @@ export async function documentacaoDaEmbarcacao(embarcacaoId: string, ownerId: st
     listarDocumentos(ownerId),
     supabaseAdmin
       .from('equipe_membro_embarcacao')
-      .select('equipe_membro ( id, owner_id, nome_completo, is_gestor, funcao, ativo, cpf, telefone, email )')
+      .select('equipe_membro ( id, owner_id, nome_completo, is_gestor, funcao, ativo, cpf, tipo_documento_estrangeiro, documento_estrangeiro, pais_documento, telefone, email )')
       .eq('embarcacao_id', embarcacaoId),
     supabaseAdmin
       .from('equipe_membro')
-      .select('id, owner_id, nome_completo, is_gestor, funcao, ativo, cpf, telefone, email')
+      .select('id, owner_id, nome_completo, is_gestor, funcao, ativo, cpf, tipo_documento_estrangeiro, documento_estrangeiro, pais_documento, telefone, email')
       .eq('owner_id', ownerId)
       .eq('is_gestor', true)
       .maybeSingle(),
@@ -241,6 +244,9 @@ export async function documentacaoDaEmbarcacao(embarcacaoId: string, ownerId: st
       funcao: m.funcao,
       ativo: m.ativo,
       cpf: m.cpf,
+      tipo_documento_estrangeiro: m.tipo_documento_estrangeiro,
+      documento_estrangeiro: m.documento_estrangeiro,
+      pais_documento: m.pais_documento,
       telefone: m.telefone,
       email: m.email,
       documentos: todos.filter((d) => d.escopo === 'condutor' && d.equipe_membro_id === m.id),

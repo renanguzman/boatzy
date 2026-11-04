@@ -1,5 +1,6 @@
 'use client';
 
+import { iniciarBarraNavegacao } from '@/components/ui/BarraProgressoNavegacao';
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Info, DollarSign, ChevronRight, Loader2, AlertCircle, CheckCircle } from 'lucide-react';
@@ -84,7 +85,6 @@ export default function EditarCatalogoForm({ catalogo }: Props) {
     }
 
     setFeedback({ type: 'success', msg: 'Item atualizado com sucesso!' });
-    setSubmitting(false);
     setTimeout(() => router.push('/painel/catalogo'), 1200);
   }
 
@@ -95,10 +95,10 @@ export default function EditarCatalogoForm({ catalogo }: Props) {
       <SectionCard icon={Info} title="Informações do item">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
           <div className="md:col-span-2">
-            <Field label="Descrição" required>
+            <Field label="Descrição" required hint="Em pacotes (ex.: churrasco), diga para quantas pessoas serve, o que inclui e cadastre o valor total do pacote.">
               <input
                 className={inputCls}
-                placeholder="ex: Locação de equipamento de mergulho"
+                placeholder="ex: Churrasco para 5 pessoas — linguiça, carne, 3 packs de cerveja"
                 value={form.descricao}
                 onChange={e => setField('descricao', e.target.value)}
                 required
@@ -158,7 +158,7 @@ export default function EditarCatalogoForm({ catalogo }: Props) {
       <div className="flex items-center justify-end gap-3 pb-4">
         <button
           type="button"
-          onClick={() => router.push('/painel/catalogo')}
+          onClick={() => { iniciarBarraNavegacao(); router.push('/painel/catalogo'); }}
           disabled={submitting}
           className="flex-1 sm:flex-none px-5 py-3 sm:py-2.5 rounded-xl border border-slate-200 text-sm font-semibold text-slate-600 hover:bg-slate-50 transition disabled:opacity-50"
         >

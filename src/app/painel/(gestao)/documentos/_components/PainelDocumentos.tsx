@@ -1,5 +1,6 @@
 'use client';
 
+import IconeLink from '@/components/ui/IconeLink';
 import { useMemo, useState, useTransition } from 'react';
 import Link from 'next/link';
 import {
@@ -216,7 +217,7 @@ export default function PainelDocumentos({
                         href={`/painel/equipe/${m.id}/editar`}
                         className="inline-flex items-center gap-1 rounded-full bg-amber-50 px-2 py-0.5 text-[11px] font-semibold text-amber-700 hover:bg-amber-100"
                       >
-                        <AlertTriangle className="h-3 w-3" /> Completar cadastro
+                        <IconeLink tamanho={12}><AlertTriangle className="h-3 w-3" /></IconeLink> Completar cadastro
                       </Link>
                     )}
                   </>
@@ -280,7 +281,7 @@ function CartaoAlvo({
             href={novoHref}
             className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-600 hover:border-slate-300 hover:bg-slate-50"
           >
-            <Plus className="h-3.5 w-3.5" /> Documento
+            <IconeLink tamanho={14}><Plus className="h-3.5 w-3.5" /></IconeLink> Documento
           </Link>
         </div>
       </header>
@@ -352,11 +353,11 @@ function LinhaDocumento({ d }: { d: DocumentoItem }) {
               title="Renovar: enviar o documento novo"
               className="inline-flex items-center gap-1 rounded-lg px-2 py-1.5 text-xs font-semibold text-teal-700 hover:bg-teal-50"
             >
-              <RefreshCw className="h-3.5 w-3.5" /> <span className="hidden md:inline">Renovar</span>
+              <IconeLink tamanho={14}><RefreshCw className="h-3.5 w-3.5" /></IconeLink> <span className="hidden md:inline">Renovar</span>
             </Link>
           )}
           <Link href={`/painel/documentos/${d.id}/editar`} title="Editar dados" className="rounded-lg p-2 text-slate-400 hover:bg-slate-100 hover:text-slate-600">
-            <Pencil className="h-4 w-4" />
+            <IconeLink tamanho={16}><Pencil className="h-4 w-4" /></IconeLink>
           </Link>
           <BotaoExcluir id={d.id} nome={d.tipo === 'outro' ? (d.titulo ?? 'documento') : info.sigla} />
         </div>
@@ -385,7 +386,7 @@ function LinhaPendente({
           destaque ? 'bg-[#0B2447] text-white hover:bg-[#0B3D91]' : 'border border-slate-200 text-slate-600 hover:bg-slate-50'
         }`}
       >
-        <Plus className="h-3.5 w-3.5" /> {rotulo}
+        <IconeLink tamanho={14}><Plus className="h-3.5 w-3.5" /></IconeLink> {rotulo}
       </Link>
     </li>
   );
@@ -436,7 +437,8 @@ function Vazio({
       <p className="text-sm font-medium text-slate-500">{titulo}</p>
       <p className="mt-1 text-xs text-slate-400">{texto}</p>
       {acao && (
-        <Link href={acao.href} className="mt-4 rounded-xl bg-[#0B2447] px-4 py-2 text-xs font-semibold text-white hover:bg-[#0B3D91]">
+        <Link href={acao.href} className="mt-4 inline-flex items-center gap-1.5 rounded-xl bg-[#0B2447] px-4 py-2 text-xs font-semibold text-white hover:bg-[#0B3D91]">
+          <IconeLink tamanho={14} />
           {acao.rotulo}
         </Link>
       )}

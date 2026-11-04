@@ -1,3 +1,4 @@
+import IconeLink from '@/components/ui/IconeLink';
 import { redirect } from 'next/navigation';
 import Link from 'next/link';
 import { Ship } from 'lucide-react';
@@ -56,8 +57,9 @@ export default async function NovoAnuncioPage() {
           <div className="flex items-center gap-4 mt-4">
             <Link
               href="/painel/embarcacoes/novo"
-              className="text-sm font-semibold text-[#0B3D91] hover:text-[#0B2447] transition-colors"
+              className="inline-flex items-center gap-1.5 text-sm font-semibold text-[#0B3D91] hover:text-[#0B2447] transition-colors"
             >
+              <IconeLink />
               Cadastrar embarcação →
             </Link>
             <Link

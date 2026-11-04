@@ -1,5 +1,6 @@
 'use client';
 
+import IconeLink from '@/components/ui/IconeLink';
 import { useState, useMemo } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
@@ -165,8 +166,9 @@ export default function VendasGrid({ anuncios }: { anuncios: AnuncioListItem[] }
             ) : (
               <Link
                 href="/painel/vendas/novo"
-                className="mt-4 text-sm font-semibold text-[#0B3D91] hover:text-[#0B2447] transition-colors"
+                className="mt-4 inline-flex items-center gap-1.5 text-sm font-semibold text-[#0B3D91] hover:text-[#0B2447] transition-colors"
               >
+                <IconeLink />
                 Anunciar uma embarcação →
               </Link>
             )}
@@ -226,7 +228,7 @@ export default function VendasGrid({ anuncios }: { anuncios: AnuncioListItem[] }
                           aria-label="Editar anúncio"
                           className="w-10 h-10 flex items-center justify-center rounded-lg text-slate-400 hover:text-[#0B2447] hover:bg-slate-100 transition-colors"
                         >
-                          <Pencil className="w-4 h-4" />
+                          <IconeLink tamanho={16}><Pencil className="w-4 h-4" /></IconeLink>
                         </Link>
                       )}
                     </div>
@@ -354,7 +356,7 @@ export default function VendasGrid({ anuncios }: { anuncios: AnuncioListItem[] }
                               title="Editar anúncio"
                               className="w-8 h-8 flex items-center justify-center rounded-lg text-slate-400 hover:text-[#0B2447] hover:bg-slate-100 transition-colors"
                             >
-                              <Pencil className="w-4 h-4" />
+                              <IconeLink tamanho={16}><Pencil className="w-4 h-4" /></IconeLink>
                             </Link>
                           </div>
                         ) : (

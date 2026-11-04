@@ -1,3 +1,4 @@
+import { formatarTelefoneMembro, telefoneMembroInternacional } from '@/lib/telefone-membro';
 import { redirect } from 'next/navigation';
 import type { Metadata } from 'next';
 import { getTranslations } from 'next-intl/server';
@@ -71,6 +72,7 @@ type PedidoCliente = { numero: number; status: PedidoStatus; expira_em: string |
 
 function formatTelefone(digits: string | null): string | null {
   if (!digits) return null;
+  if (telefoneMembroInternacional(digits)) return formatarTelefoneMembro(digits);
   const d = onlyDigits(digits);
   if (d.length < 10) return null;
   return applyPhoneMask(d, d.length > 10 ? '(##) #####-####' : '(##) ####-####');

@@ -1,3 +1,4 @@
+import { formatarTelefoneMembro, telefoneMembroInternacional } from '@/lib/telefone-membro';
 import { documentoEstrangeiroMascarado } from '@/lib/pagamentos/estrangeiro';
 import { notFound } from 'next/navigation';
 import Link from 'next/link';
@@ -140,6 +141,7 @@ const codigoReserva = (id: string) => id.slice(0, 8).toUpperCase();
 
 function formatTelefone(digits: string | null): string | null {
   if (!digits) return null;
+  if (telefoneMembroInternacional(digits)) return formatarTelefoneMembro(digits);
   const d = onlyDigits(digits);
   if (d.length < 10) return null;
   return applyPhoneMask(d, d.length > 10 ? '(##) #####-####' : '(##) ####-####');

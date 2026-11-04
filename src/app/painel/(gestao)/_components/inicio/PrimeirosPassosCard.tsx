@@ -1,5 +1,6 @@
 'use client';
 
+import IconeLink from '@/components/ui/IconeLink';
 import { useSyncExternalStore } from 'react';
 import Link from 'next/link';
 import { ArrowRight, Check, Hourglass, ShieldCheck, ChevronDown } from 'lucide-react';
@@ -141,7 +142,7 @@ function LinhaPasso({ passo, numero, ultimo, principal }: { passo: Passo; numero
                 : 'border border-slate-200 bg-white text-[#0B2447] hover:bg-slate-50'
             }`}
           >
-            {passo.acao.label} <ArrowRight className="h-4 w-4" />
+            {passo.acao.label} <IconeLink tamanho={16}><ArrowRight className="h-4 w-4" /></IconeLink>
           </Link>
         )}
       </div>

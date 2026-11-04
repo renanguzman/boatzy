@@ -426,7 +426,6 @@ export default function NovaEmbarcacaoForm({
         type: 'error',
         msg: `Embarcação enviada para análise, mas o documento não foi salvo (${falhasDocs.join('; ')}). Abrindo a edição para você enviar de novo…`,
       });
-      setSubmitting(false);
       setTimeout(() => router.push(`/painel/embarcacoes/${embarcacaoId}/editar#documentacao`), 3500);
       return;
     }
@@ -437,7 +436,6 @@ export default function NovaEmbarcacaoForm({
         ? 'Embarcação enviada para análise! A equipe Boatzy confere os dados e o documento e avisa você por e-mail.'
         : 'Embarcação salva e enviada para análise. Falta o documento (TIE): sem ele, a equipe Boatzy não consegue aprovar.',
     });
-    setSubmitting(false);
     // Primeira embarcação: volta ao Início, que mostra o próximo passo.
     setTimeout(() => router.push(embarcacoesParaCopiar.length === 0 ? '/painel' : '/painel/embarcacoes'), documentos.inscricao ? 1200 : 2500);
   }

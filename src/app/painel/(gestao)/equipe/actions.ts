@@ -1,5 +1,6 @@
 'use server';
 
+import { normalizarTelefoneMembro, telefoneMembroValido } from '@/lib/telefone-membro';
 import { revalidatePath } from 'next/cache';
 import { createClient } from '@/lib/supabase/server';
 import { supabaseAdmin } from '@/lib/supabase';
@@ -7,6 +8,7 @@ import { checkRoleInDb } from '@/lib/roles';
 import { onlyDigits, isValidCPF } from '@/lib/validators';
 import { deleteFromR2, buildKeyFromUrl } from '@/lib/r2';
 import { apagarArquivoDocumento } from '@/lib/documentos/arquivo-server';
+import { validarDocumentoEquipe, type DocumentoEstrangeiroEquipe } from '@/lib/equipe-documento';
 import type { EquipeFuncao } from '@/types/supabase';
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -15,7 +17,10 @@ import type { EquipeFuncao } from '@/types/supabase';
 
 export type MembroFormPayload = {
   nome_completo: string;
+  /** Vazio quando `estrangeiro` está preenchido. */
   cpf: string;
+  /** Membro sem CPF (estrangeiro): passaporte ou registro de identificação — SPEC §104. */
+  estrangeiro?: DocumentoEstrangeiroEquipe | null;
   email: string;
   telefone: string;
   /** Papel na embarcação (marinheiro, capitão, auxiliar) — opcional. */
@@ -54,9 +59,15 @@ async function authGestor() {
 
 function validarCampos(p: MembroFormPayload): string | null {
   if (!p.nome_completo.trim()) return 'O nome completo é obrigatório.';
-  if (!isValidCPF(p.cpf)) return 'CPF inválido.';
-  const tel = onlyDigits(p.telefone);
-  if (tel.length < 10 || tel.length > 11) return 'Telefone inválido — informe DDD + número.';
+  if (p.estrangeiro) {
+    const v = validarDocumentoEquipe(p.estrangeiro);
+    if (!v.ok) return v.erro;
+  } else if (!isValidCPF(p.cpf)) {
+    return 'CPF inválido.';
+  }
+  if (!telefoneMembroValido(p.telefone)) {
+    return p.telefone.trim().startsWith('+') ? 'Telefone inválido — confira o código do país e o número.' : 'Telefone inválido — informe DDD + número.';
+  }
   const email = p.email.trim();
   if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return 'E-mail inválido.';
   if (p.funcao && !['marinheiro', 'capitao', 'auxiliar'].includes(p.funcao)) return 'Função inválida.';
@@ -64,6 +75,26 @@ function validarCampos(p: MembroFormPayload): string | null {
     return 'Vincule o membro a pelo menos uma embarcação.';
   }
   return null;
+}
+
+/** Colunas de documento: CPF ou documento estrangeiro — nunca os dois (CHECK no banco). */
+function colunasDocumento(p: MembroFormPayload) {
+  if (p.estrangeiro) {
+    const v = validarDocumentoEquipe(p.estrangeiro);
+    if (v.ok) {
+      return {
+        cpf: null,
+        tipo_documento_estrangeiro: v.valor.tipo,
+        documento_estrangeiro: v.valor.documento,
+        pais_documento: v.valor.pais,
+      };
+    }
+  }
+  return { cpf: onlyDigits(p.cpf), tipo_documento_estrangeiro: null, documento_estrangeiro: null, pais_documento: null };
+}
+
+function erroDuplicado(p: MembroFormPayload): string {
+  return p.estrangeiro ? 'Você já cadastrou um membro com este documento.' : 'Você já cadastrou um membro com este CPF.';
 }
 
 async function embarcacoesDoGestor(ownerId: string, ids: string[]): Promise<boolean> {
@@ -149,9 +180,9 @@ export async function criarMembro(payload: MembroFormPayload): Promise<CriarMemb
       user_id: userVinculo,
       is_gestor: false,
       nome_completo: payload.nome_completo.trim(),
-      cpf: onlyDigits(payload.cpf),
+      ...colunasDocumento(payload),
       email: payload.email.trim() || null,
-      telefone: onlyDigits(payload.telefone),
+      telefone: normalizarTelefoneMembro(payload.telefone),
       funcao: payload.funcao || null,
       ativo: true,
     })
@@ -160,7 +191,7 @@ export async function criarMembro(payload: MembroFormPayload): Promise<CriarMemb
 
   if (insErr || !data) {
     if (insErr?.code === '23505') {
-      return { ok: false, error: 'Você já cadastrou um membro com este CPF.' };
+      return { ok: false, error: erroDuplicado(payload) };
     }
     return { ok: false, error: insErr?.message ?? 'Erro ao salvar o membro.' };
   }
@@ -196,16 +227,16 @@ export async function atualizarMembro(
     .update({
       user_id: userVinculo,
       nome_completo: payload.nome_completo.trim(),
-      cpf: onlyDigits(payload.cpf),
+      ...colunasDocumento(payload),
       email: payload.email.trim() || null,
-      telefone: onlyDigits(payload.telefone),
+      telefone: normalizarTelefoneMembro(payload.telefone),
       funcao: payload.funcao || null,
     })
     .eq('id', membroId);
 
   if (updErr) {
     if (updErr.code === '23505') {
-      return { ok: false, error: 'Você já cadastrou um membro com este CPF.' };
+      return { ok: false, error: erroDuplicado(payload) };
     }
     return { ok: false, error: updErr.message };
   }

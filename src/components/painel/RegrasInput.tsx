@@ -1,7 +1,7 @@
 'use client';
 
 import { useId, useRef, useState } from 'react';
-import { Ban, X } from 'lucide-react';
+import { Ban, Check, X } from 'lucide-react';
 import {
   MAX_CARACTERES_REGRA, MAX_REGRAS, normalizarRegra, normalizarRegras, separarRegras,
 } from '@/lib/embarcacao-regras';
@@ -9,15 +9,37 @@ import {
 type Props = {
   value: string[];
   onChange: (regras: string[]) => void;
+  /**
+   * `regras` (padrão): proibições da embarcação, em vermelho com ícone de bloqueio.
+   * `cortesias`: itens oferecidos de cortesia no passeio, em verde suave com check.
+   */
+  variante?: 'regras' | 'cortesias';
 };
 
+const VARIANTES = {
+  regras: {
+    item: 'regra', itens: 'regras', artigo: 'outra', Icone: Ban,
+    exemplo: 'Ex.: Proibido fumar a bordo', ajuda: 'uma regra',
+    tag: 'border-red-100 bg-red-50 text-red-700',
+    remover: 'text-red-400 hover:bg-red-100 hover:text-red-700',
+  },
+  cortesias: {
+    item: 'cortesia', itens: 'cortesias', artigo: 'outra', Icone: Check,
+    exemplo: 'Ex.: Água potável', ajuda: 'uma cortesia',
+    tag: 'border-emerald-100 bg-emerald-50 text-emerald-700',
+    remover: 'text-emerald-400 hover:bg-emerald-100 hover:text-emerald-700',
+  },
+} as const;
+
 /**
- * Campo de tags das regras da embarcação (step Detalhes do cadastro/edição). Cada regra vira uma
+ * Campo de tags das regras da embarcação (step Detalhes do cadastro/edição da embarcação; variante `cortesias` na etapa Informações do roteiro). Cada regra vira uma
  * tag ao pressionar Enter ou digitar ponto e vírgula; colar um texto com ";" ou quebras de linha
  * cria várias de uma vez; Backspace com o campo vazio remove a última; sair do campo guarda o que
- * estava digitado. As tags usam o mesmo vermelho da exibição no site.
+ * estava digitado. As tags usam as mesmas cores da exibição no site (vermelho nas regras, verde nas cortesias).
  */
-export default function RegrasInput({ value, onChange }: Props) {
+export default function RegrasInput({ value, onChange, variante = 'regras' }: Props) {
+  const v = VARIANTES[variante];
+  const Icone = v.Icone;
   const [texto, setTexto] = useState('');
   const inputRef = useRef<HTMLInputElement>(null);
   const idAjuda = useId();
@@ -49,15 +71,15 @@ export default function RegrasInput({ value, onChange }: Props) {
         {value.map((regra, i) => (
           <span
             key={`${regra}-${i}`}
-            className="inline-flex max-w-full items-center gap-1.5 rounded-lg border border-red-100 bg-red-50 py-1 pl-2.5 pr-1 text-sm font-medium text-red-700"
+            className={`inline-flex max-w-full items-center gap-1.5 rounded-lg border ${v.tag} py-1 pl-2.5 pr-1 text-sm font-medium`}
           >
-            <Ban className="h-3.5 w-3.5 shrink-0" />
+            <Icone className="h-3.5 w-3.5 shrink-0" />
             <span className="min-w-0 break-words">{regra}</span>
             <button
               type="button"
               onClick={(e) => { e.stopPropagation(); remover(i); }}
-              aria-label={`Remover regra: ${regra}`}
-              className="ml-0.5 rounded-md p-0.5 text-red-400 transition-colors hover:bg-red-100 hover:text-red-700"
+              aria-label={`Remover ${v.item}: ${regra}`}
+              className={`ml-0.5 rounded-md p-0.5 transition-colors ${v.remover}`}
             >
               <X className="h-3.5 w-3.5" />
             </button>
@@ -69,7 +91,7 @@ export default function RegrasInput({ value, onChange }: Props) {
           disabled={cheio}
           maxLength={MAX_CARACTERES_REGRA * 4}
           aria-describedby={idAjuda}
-          placeholder={cheio ? `Limite de ${MAX_REGRAS} regras atingido` : value.length === 0 ? 'Ex.: Proibido fumar a bordo' : 'Adicionar outra regra…'}
+          placeholder={cheio ? `Limite de ${MAX_REGRAS} ${v.itens} atingido` : value.length === 0 ? v.exemplo : `Adicionar ${v.artigo} ${v.item}…`}
           onChange={(e) => {
             const v = e.target.value;
             // Ponto e vírgula fecha a regra na hora; o que vier depois continua sendo digitado.
@@ -102,7 +124,7 @@ export default function RegrasInput({ value, onChange }: Props) {
         />
       </div>
       <p id={idAjuda} className="mt-2 flex flex-wrap justify-between gap-x-4 gap-y-1 text-xs text-slate-400">
-        <span>Digite uma regra e pressione <strong className="font-semibold text-slate-500">Enter</strong> ou <strong className="font-semibold text-slate-500">;</strong> para separar. Clique no × para remover.</span>
+        <span>Digite {v.ajuda} e pressione <strong className="font-semibold text-slate-500">Enter</strong> ou <strong className="font-semibold text-slate-500">;</strong> para separar. Clique no × para remover.</span>
         <span className="tabular-nums">{value.length}/{MAX_REGRAS}</span>
       </p>
     </div>

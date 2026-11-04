@@ -1,5 +1,8 @@
 'use client';
 
+import { normalizarDocumentoEstrangeiro, opcoesPaises } from '@/lib/pagamentos/estrangeiro';
+import { ROTULO_TIPO_DOCUMENTO_EQUIPE, TIPOS_DOCUMENTO_EQUIPE, validarDocumentoEquipe, type DocumentoEstrangeiroEquipe, type TipoDocumentoEquipe } from '@/lib/equipe-documento';
+import IconeLink from '@/components/ui/IconeLink';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
@@ -103,6 +106,9 @@ export default function DocumentoWizard({ embarcacoes, condutores, ativos, inici
   const [analisando, setAnalisando] = useState(false);
   const [escolhaCondutor, setEscolhaCondutor] = useState<string | 'novo' | null>(null);
   const [funcaoNovo, setFuncaoNovo] = useState<EquipeFuncao>('marinheiro');
+  // Condutor novo estrangeiro, sem CPF (SPEC §104).
+  const [estrangeiroNovo, setEstrangeiroNovo] = useState(false);
+  const [docEstrangeiro, setDocEstrangeiro] = useState<DocumentoEstrangeiroEquipe>({ tipo: '', pais: '', documento: '' });
 
   // Salvar
   const [salvando, setSalvando] = useState<string | null>(null);
@@ -260,7 +266,7 @@ export default function DocumentoWizard({ embarcacoes, condutores, ativos, inici
     if (escopo !== 'condutor') return null;
     if (membroFixoId) return { modo: 'existente', membroId: membroFixoId };
     if (escolhaCondutor && escolhaCondutor !== 'novo') return { modo: 'existente', membroId: escolhaCondutor };
-    if (escolhaCondutor === 'novo') return { modo: 'novo', nome: campos.titular, cpf: campos.cpf, funcao: funcaoNovo };
+    if (escolhaCondutor === 'novo') return { modo: 'novo', nome: campos.titular, cpf: estrangeiroNovo ? '' : campos.cpf, funcao: funcaoNovo, estrangeiro: estrangeiroNovo ? docEstrangeiro : null };
     return null;
   }
 
@@ -272,6 +278,13 @@ export default function DocumentoWizard({ embarcacoes, condutores, ativos, inici
     if (!edicao && escopo === 'condutor' && !condutor) {
       setErro('Confirme quem é o condutor desta habilitação.');
       return;
+    }
+    if (condutor?.modo === 'novo' && condutor.estrangeiro) {
+      const v = validarDocumentoEquipe(condutor.estrangeiro);
+      if (!v.ok) {
+        setErro(v.erro);
+        return;
+      }
     }
     if (!edicao && !arquivo) {
       setErro('Envie a foto ou o PDF do documento.');
@@ -341,8 +354,9 @@ export default function DocumentoWizard({ embarcacoes, condutores, ativos, inici
         <div className="mt-6 flex flex-col justify-center gap-2 sm:flex-row">
           <Link
             href={`/painel/equipe/${concluido.membroCriado.id}/editar`}
-            className="rounded-xl bg-[#0B2447] px-5 py-2.5 text-sm font-semibold text-white hover:bg-[#0B3D91]"
+            className="inline-flex items-center justify-center gap-2 rounded-xl bg-[#0B2447] px-5 py-2.5 text-sm font-semibold text-white hover:bg-[#0B3D91]"
           >
+            <IconeLink />
             Completar cadastro
           </Link>
           <Link
@@ -706,6 +720,10 @@ export default function DocumentoWizard({ embarcacoes, condutores, ativos, inici
                 nome={campos.titular}
                 funcao={funcaoNovo}
                 onFuncao={setFuncaoNovo}
+                estrangeiro={estrangeiroNovo}
+                onEstrangeiro={setEstrangeiroNovo}
+                documento={docEstrangeiro}
+                onDocumento={setDocEstrangeiro}
                 onTrocarFixo={() => setMembroFixoId(null)}
               />
             )}
@@ -855,6 +873,7 @@ function ResumoEscolha({ sigla, nome, alvo, onAlterar }: { sigla: string; nome: 
 
 function SecaoCondutor({
   membroFixo, condutores, analise, analisando, escolha, onEscolha, nome, funcao, onFuncao, onTrocarFixo,
+  estrangeiro, onEstrangeiro, documento, onDocumento,
 }: {
   membroFixo: MembroCondutor | null;
   condutores: MembroCondutor[];
@@ -866,7 +885,12 @@ function SecaoCondutor({
   funcao: EquipeFuncao;
   onFuncao: (f: EquipeFuncao) => void;
   onTrocarFixo: () => void;
+  estrangeiro: boolean;
+  onEstrangeiro: (v: boolean) => void;
+  documento: DocumentoEstrangeiroEquipe;
+  onDocumento: (d: DocumentoEstrangeiroEquipe) => void;
 }) {
+  const paises = useMemo(() => opcoesPaises('pt-BR'), []);
   const nomeMembro = (m: MembroCondutor) => (m.is_gestor ? `${m.nome_completo} (você)` : m.nome_completo);
 
   if (membroFixo) {
@@ -941,7 +965,7 @@ function SecaoCondutor({
         <div className="space-y-3 rounded-lg bg-slate-50 p-3">
           <p className="text-xs text-slate-600">
             <strong>{nome.trim() ? nomeApresentavel(nome) : 'O condutor'}</strong> será adicionado à sua equipe com o nome e o CPF
-            acima. O telefone fica pendente para você completar depois, na Equipe.
+            acima (ou o documento de estrangeiro, se marcar abaixo). O telefone fica pendente para você completar depois, na Equipe.
           </p>
           <div className="sm:max-w-xs">
             <label className="mb-1.5 block text-xs font-medium text-slate-600">Função</label>
@@ -951,6 +975,48 @@ function SecaoCondutor({
               ))}
             </select>
           </div>
+          <label className="flex cursor-pointer select-none items-center gap-2 text-sm text-slate-600">
+            <input
+              type="checkbox"
+              checked={estrangeiro}
+              onChange={(e) => onEstrangeiro(e.target.checked)}
+              className="h-4 w-4 rounded border-slate-300 text-teal-600 focus:ring-teal-500"
+            />
+            Estrangeiro — não tem CPF
+          </label>
+          {estrangeiro && (
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+              <div>
+                <label className="mb-1.5 block text-xs font-medium text-slate-600">Tipo de documento</label>
+                <select className={inputCls} value={documento.tipo} onChange={(e) => onDocumento({ ...documento, tipo: e.target.value as TipoDocumentoEquipe | '' })}>
+                  <option value="">Selecione…</option>
+                  {TIPOS_DOCUMENTO_EQUIPE.map((t) => (
+                    <option key={t} value={t}>{ROTULO_TIPO_DOCUMENTO_EQUIPE[t]}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="mb-1.5 block text-xs font-medium text-slate-600">País emissor</label>
+                <select className={inputCls} value={documento.pais} onChange={(e) => onDocumento({ ...documento, pais: e.target.value })}>
+                  <option value="">Selecione…</option>
+                  {paises.map((p) => (
+                    <option key={p.codigo} value={p.codigo}>{p.nome}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="mb-1.5 block text-xs font-medium text-slate-600">Número</label>
+                <input
+                  className={inputCls}
+                  value={documento.documento}
+                  onChange={(e) => onDocumento({ ...documento, documento: normalizarDocumentoEstrangeiro(e.target.value) })}
+                  placeholder="AB123456"
+                  maxLength={20}
+                  autoCapitalize="characters"
+                />
+              </div>
+            </div>
+          )}
         </div>
       )}
     </div>

@@ -9,6 +9,11 @@
       "sem_capitao": "No captain",
       "opcional": "Captain optional"
     },
+    "cortesias": {
+      "titulo": "Included with the tour",
+      "descricao": "Included in the tour at no extra cost",
+      "contagem": "{count, plural, one {# item} other {# items}}"
+    },
     "aPartirDe": "From",
     "porDiaria": "per day",
     "porPasseio": "per trip",

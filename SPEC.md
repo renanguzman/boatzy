@@ -1165,7 +1165,7 @@ id    uuid primary key default gen_random_uuid()
 nome  text not null unique
 ```
 
-Seeds iniciais: Churrasqueira, TV com Satélite, Internet WiFi, Ar-Condicionado, Cozinha Completa, Som Ambiente, Jet Ski incluso, Prancha de Stand Up, Equipamento de Mergulho, Geladeira, Banheiro a bordo, Toldo/Cobertura, Âncora, GPS Náutico, Salva-vidas completo.
+Seeds iniciais (histórico — catálogo vigente em §17.3): Churrasqueira, TV com Satélite, Internet WiFi, Ar-Condicionado, Cozinha Completa, Som Ambiente, Jet Ski incluso, Prancha de Stand Up, Equipamento de Mergulho, Geladeira, Banheiro a bordo, Toldo/Cobertura, Âncora, GPS Náutico, Salva-vidas completo.
 
 RLS: leitura pública; escrita apenas via service role.
 
@@ -1209,7 +1209,7 @@ id    uuid primary key default gen_random_uuid()
 nome  text not null unique
 ```
 
-Seeds iniciais: Colete Salva-Vidas, Boia Circular, Sinalizador de Fumaça, Sinalizador Luminoso, Extintor de Incêndio, Âncora e Corrente, Kit de Primeiros Socorros, Bote Salva-Vidas, Rádio VHF, EPIRB (Radiobaliza), Espelho de Sinalização, Apito de Neblina, Lanterna Estanque, Cabo de Reboque, Bomba de Porão, Cinto de Segurança Náutico, Mapa Náutico, Compasso, GPS, Detector de Monóxido de Carbono.
+Seeds iniciais (histórico — catálogo vigente em §17.3): Colete Salva-Vidas, Boia Circular, Sinalizador de Fumaça, Sinalizador Luminoso, Extintor de Incêndio, Âncora e Corrente, Kit de Primeiros Socorros, Bote Salva-Vidas, Rádio VHF, EPIRB (Radiobaliza), Espelho de Sinalização, Apito de Neblina, Lanterna Estanque, Cabo de Reboque, Bomba de Porão, Cinto de Segurança Náutico, Mapa Náutico, Compasso, GPS, Detector de Monóxido de Carbono.
 
 RLS: leitura pública; escrita apenas via service role. GRANTs para `anon`, `authenticated`, `service_role`.
 
@@ -1261,7 +1261,7 @@ id    uuid primary key default gen_random_uuid()
 nome  text not null unique
 ```
 
-Seeds iniciais: Prancha de Stand Up Paddle, Caiaque, Prancha de Surf, Boia Rebocável, Banana Boat,
+Seeds iniciais (histórico — catálogo vigente em §17.3): Prancha de Stand Up Paddle, Caiaque, Prancha de Surf, Boia Rebocável, Banana Boat,
 Wakeboard, Esqui Aquático, Kit de Snorkel, Equipamento de Mergulho, Vara de Pesca, Churrasqueira,
 Cooler / Caixa Térmica, Caixa de Som Bluetooth, Toalhas, Escada de Mergulho, Plataforma de Banho,
 Tenda de Sol / Toldo, Rede de Descanso, Carregador USB, Iluminação Subaquática.
@@ -1322,6 +1322,86 @@ Mesma seção no bloco "Sobre a Embarcação" de `RoteiroDetalheView`, na mesma 
 `equipamentosSeguranca`/`equipamentosSegurancaSelecionados` e `acessorios`/`acessoriosSelecionados`,
 mapeando os itens marcados no formulário. Antes `embarcacao_equipamentos_seguranca` ia fixo como `[]`
 — a prévia não mostrava o que o gestor acabara de marcar; corrigido junto com esta entrega.
+
+---
+
+## 17.3 Revisão dos catálogos da embarcação (04/11/2026)
+
+Migration: `supabase/migrations/20261107_revisao_catalogos_embarcacao.sql` — só dados (sem mudança de
+schema/GRANT), em transação, **idempotente**. Os seeds de §17, §17.1 e §17.2 ficam como histórico; o
+catálogo vigente é o desta seção.
+
+### Critério de cada catálogo
+
+| Tabela | Contém |
+|---|---|
+| `equipamentos_seguranca` | Salvatagem, incêndio, sinalização de socorro, comunicação, navegação/instrumentos, fundeio/reboque, esgotamento, primeiros socorros, detectores |
+| `acessorios` | Itens móveis de lazer/atividade: brinquedos e esportes aquáticos, mergulho, pesca, itens avulsos levados no passeio |
+| `comodidade` | Estrutura e conforto: climatização, banheiro/chuveiro, cozinha e eletrodomésticos, entretenimento fixo, áreas, escada/plataforma de banho, energia, enxoval |
+
+Nenhum nome se repete entre as três tabelas (comparação sem acento/caixa).
+
+### Etapas da migration
+
+1. **Renomear no lugar** (mesmo `id`, traduções atualizadas; pula se o novo nome já existir):
+   - comodidade: Banheiro a bordo → Banheiro a Bordo; Internet WiFi → Wi-Fi; Toldo/Cobertura → Toldo / Cobertura.
+   - acessorios: Caixa de Som Bluetooth → Caixa de Som Portátil (Bluetooth); Vara de Pesca → Equipamento de Pesca.
+   - equipamentos_seguranca: Apito de Neblina → Buzina / Apito de Neblina; Bote Salva-Vidas → Balsa Salva-Vidas;
+     Cinto de Segurança Náutico → Arnês e Linha de Vida; Compasso → Bússola / Agulha Magnética; GPS → GPS Náutico;
+     Mapa Náutico → Carta Náutica.
+2. **Inserir** itens novos e destinos de mudança de categoria, com `nome_en`/`nome_es`
+   (`ON CONFLICT (nome)` só preenche tradução vazia; não sobrescreve edição do admin).
+3. **Mover** (copia os vínculos da origem para o destino com `ON CONFLICT DO NOTHING` e exclui a origem;
+   o `ON DELETE CASCADE` remove os vínculos antigos). Destino inexistente → `RAISE EXCEPTION` (aborta tudo).
+
+   | Origem | → Destino |
+   |---|---|
+   | comodidade: Boia, Bote de Apoio, Cadeira de Praia, Caiaque, Equipamento de Mergulho, Macarrão flutuante, Máscara de mergulho, Pé de pato, Prancha de Stand Up, Tapete flutuante, Wakeboard | acessorios: Boia Inflável, Bote de Apoio (Tender), Cadeira de Praia, Caiaque, Equipamento de Mergulho, Macarrão Flutuante, Máscara de Mergulho, Nadadeiras (Pé de Pato), Prancha de Stand Up Paddle, Tapete Flutuante, Wakeboard |
+   | comodidade: GPS Náutico, Salva-vidas completo | equipamentos_seguranca: GPS Náutico, Colete Salva-Vidas |
+   | acessorios: Churrasqueira, Tenda de Sol / Toldo, Carregador USB, Escada de Mergulho, Iluminação Subaquática, Plataforma de Banho, Toalhas | comodidade: Churrasqueira, Toldo / Cobertura, Tomadas USB, Escada de Banho, Iluminação Subaquática, Plataforma de Banho, Toalhas |
+
+4. **Excluir** de `comodidade`: Prancha, Mesa de Ping Pong — só se nenhuma embarcação usar.
+
+Efeito nos dados de 04/11/2026 (6 embarcações): 163 → 152 vínculos — as 11 diferenças são a mesma
+embarcação marcada com o mesmo item nas duas tabelas (Churrasqueira ×3, GPS ×3, Stand Up ×3,
+Equipamento de Mergulho ×2). Validado num Postgres 18 local com cópia dos dados: todo vínculo original
+existe no destino, `id` dos itens mantidos/renomeados preservado, 2ª execução sem alteração.
+
+Itens movidos de tabela ganham `id` novo: um link antigo de `/buscar` com o `id` de origem no filtro
+simplesmente deixa de filtrar por ele. Renomeados mantêm o `id`.
+
+### Catálogo vigente
+
+**`equipamentos_seguranca` (33):** Âncora e Corrente; AIS (Identificação Automática); Arnês e Linha de
+Vida; Balde / Bartedouro; Balsa Salva-Vidas; Boia Circular; Bomba de Porão; Bússola / Agulha Magnética;
+Buzina / Apito de Neblina; Cabo de Reboque; Carta Náutica; Chave de Emergência (Kill Switch); Colete
+Salva-Vidas; Colete Salva-Vidas Infantil; Detector de Fumaça; Detector de Gás; Detector de Monóxido de
+Carbono; EPIRB (Radiobaliza); Espelho de Sinalização; Extintor de Incêndio; GPS Náutico; Holofote de
+Busca; Kit de Primeiros Socorros; Lanterna Estanque; Luzes de Navegação; Radar; Rádio VHF; Remos;
+Sinalizador de Fumaça; Sinalizador Luminoso; Sistema Fixo de Combate a Incêndio; Sonda de Profundidade
+(Ecobatímetro); Telefone Satelital.
+
+**`acessorios` (29):** Banana Boat; Binóculo; Bodyboard; Boia Inflável; Boia Rebocável; Bote de Apoio
+(Tender); Cadeira de Praia; Caiaque; Caixa de Som Portátil (Bluetooth); Câmera à Prova d'Água; Cooler /
+Caixa Térmica; Equipamento de Mergulho; Equipamento de Pesca; Esqui Aquático; Guarda-Sol; Jet Ski; Jogos
+de Tabuleiro; Kit de Snorkel; Macarrão Flutuante; Máscara de Mergulho; Nadadeiras (Pé de Pato); Piscina
+Flutuante; Prancha de Stand Up Paddle; Prancha de Surf; Rede de Descanso; Roupa de Neoprene; Scooter
+Subaquático (Seabob); Tapete Flutuante; Wakeboard.
+
+**`comodidade` (37):** Adega Climatizada; Água Quente; Ar-Condicionado; Banheira de Hidromassagem;
+Banheiro a Bordo; Bar a Bordo; Churrasqueira; Chuveiro de Água Doce; Cozinha Completa; Deck para Sol;
+Dessalinizador; Escada de Banho; Estabilizador Antibalanço; Flybridge; Fogão / Cooktop; Forno; Frigobar;
+Gerador de Energia; Geladeira; Iluminação Subaquática; Máquina de Café; Máquina de Gelo; Mesa de Jantar;
+Micro-ondas; Plataforma de Banho; Rede de Proa (Trampolim); Roupa de Cama; Salão Interno; Smart TV; Som
+Ambiente; Toalhas; Toldo / Cobertura; Tomadas 110V/220V; Tomadas USB; TV com Satélite; Ventiladores; Wi-Fi.
+
+### Ícones no site
+
+`ICONE_POR_NOME` (`src/components/boat/EquipamentosEmbarcacao.tsx`) ganhou regras para os itens novos
+(Lightbulb, Radar, Phone, Map, Megaphone, Power, Plug, Camera, Binoculars, Fan, Coffee, Sofa, Armchair,
+Dices) e reordenou casos ambíguos: luzes antes de "navega", detector antes de "fumaca", adega antes de
+"climatiz", câmera antes de "agua", roupa de cama antes de "roupa". Sem regra → `Check`
+(Arnês, Cabo de Reboque, Espelho, Remos, Rede de Descanso, Rede de Proa, Estabilizador).
 
 ---
 
@@ -9681,3 +9761,76 @@ Abas novas **Repasses** e **Relatórios**; `/administrator/financeiro` agora abr
 
 ### 102.5 Validação
 `tsc` e `eslint` limpos; conferido no navegador (390 px e 1440 px) nas duas variantes, filtro com resultado ("campeche" → 1) e sem resultado ("Búzios"), sem erros de console.
+
+
+## 103. Feedback de carregamento — Fase 1 site/front (05/11/2026)
+
+- **`src/components/ui/Spinner.tsx`** — `<Spinner tamanho={16} className? />`: SVG anel fino, `currentColor` (herda a cor do botão), `aria-hidden`. Classe `.boatzy-spinner` (`globals.css`): gira 0,75 s; em `prefers-reduced-motion` vira pulso de opacidade.
+- **`src/components/ui/BarraProgressoNavegacao.tsx`** — montada no `app/layout.tsx` dentro de `<Suspense>`. Listener `click` (captura) em `document`: link `<a>` interno, botão esquerdo, sem modificadores/`target`/`download`, destino com pathname+search diferente → fase `andando` (barra `.barra-nav-andando`, 0→88% em 8 s, desacelerando). Quando `pathname`+`searchParams` mudam → `concluindo` (100% + fade, 350 ms). Limite de segurança de 20 s. Não faz `preventDefault`.
+- **`src/lib/hooks/useNavegacaoPendente.ts`** — `{ pendente, setPendente, navegar(url) }`: marca pendente e faz `window.location.assign`; limpa em `pageshow` com `persisted` (voltar pelo histórico).
+- **Aplicado em:** `BookingCard` (CTA "Solicitar", `disabled` + `aria-busy` + Spinner; não dispara no modo preview), `HeroSection` (botão Buscar, 3 abas), `ContatoDono` (Spinner enquanto vai ao login).
+- **Convenção para novos botões:** estado pendente → `disabled` + `aria-busy` + `<Spinner />` no lugar do ícone (ou antes do rótulo); nunca esconder o rótulo se couber.
+- **Fora desta fase:** painel (`/painel`) e admin; sugestões de roteiro da busca (`LocationPicker`, navega por `window.location`) e "Sair" (menu fecha ao clicar).
+
+### 103.1 Fase 2 — painel (05/11/2026)
+- `BarraProgressoNavegacao` exporta **`iniciarBarraNavegacao()`**: dispara o evento `boatzy:navegacao-inicio` e acende a barra para navegações que não vêm de `<a>` (`router.push` em botões, sair, tutorial). Usada em `Sidebar`, `SignOutLink`, `TutorialPainel` e nos botões Cancelar de `NovoCatalogoForm`, `EditarCatalogoForm`, `AnuncioForm`, `MembroForm`.
+- **Regra de formulário com redirecionamento atrasado:** quando o sucesso faz `setTimeout(() => router.push(...))`, **não** chamar `setSubmitting(false)` antes — o botão permanece em loading até a rota trocar (evita duplo envio). Aplicado em `NovaEmbarcacaoForm`, `EditarEmbarcacaoForm`, `NovoRoteiroForm`, `EditarRoteiroForm`, `AnuncioForm`, `NovoCatalogoForm`, `EditarCatalogoForm`, `MembroForm`.
+- `Sidebar` / `SignOutLink`: estado `saindo` (`disabled`, `aria-busy`, `<Spinner />`). `CatalogoGrid`: `<Spinner />` no botão excluir (`deleting === item.id`). `FiltroStatusPublicacao`: `useTransition` pendente + `alvo` mostram `<Spinner tamanho={12} />` no filtro clicado.
+- Já cobertos antes (mantidos): `RodapeEtapas` (Salvando…), CEP/municípios, OCR de documentos, upload de galeria/foto, `CopiarDeOutroCadastro`, ações de reserva/cobrança, equipe, perfil, recebimentos, login/recuperar/redefinir senha do painel.
+
+### 103.2 Botões/links que levam a formulários — loader no próprio botão (05/11/2026)
+- **`src/components/ui/IconeLink.tsx`** — `<IconeLink tamanho={16}>{ícone}</IconeLink>` usado DENTRO de `<Link>`: com `useLinkStatus().pending` troca o ícone por `<Spinner tamanho />` do mesmo tamanho (sem mudar o layout). Sem filhos (`<IconeLink />`), aparece só durante o carregamento, antes do rótulo (links de texto ganham `inline-flex items-center gap-1.5`).
+- **Aplicado em todos os links para formulário do painel:** Nova embarcação / Novo roteiro / Novo item (catálogo) / Anunciar / Documento (novo), ícones Editar, Preço e Criar roteiro nos grids (cards mobile `w-10 h-10` e tabela desktop `w-8 h-8`), "Completar cadastro", "Cadastrar embarcação", passos do "Primeiros passos", atalho "Cadastrar embarcação" da Sidebar, links de documento/habilitação.
+- **Mobile:** a barra de topo e o spinner dependem de clique/toque (`click` dispara no toque), sem hover. Os cards dos grids no celular usam os mesmos links com ícone trocado; o botão Buscar da home mostra spinner + rótulo em largura total.
+- **Convenção:** todo novo `<Link>` que leva a um formulário usa `IconeLink`.
+
+---
+
+## 104. Equipe — membro estrangeiro sem CPF (05/11/2026)
+
+### 104.1 Banco — migration `20261105_equipe_documento_estrangeiro.sql`
+- `equipe_membro.tipo_documento_estrangeiro` (`passaporte` | `registro_identificacao`), `documento_estrangeiro` (A–Z/0–9, 4–20, normalizado), `pais_documento` (ISO alfa-2).
+- `CHECK equipe_membro_documento_estrangeiro_valido`: os três nulos **ou** os três válidos com `cpf IS NULL` (um ou outro).
+- Índice único parcial `equipe_membro_owner_doc_estrangeiro_uniq (owner_id, pais_documento, documento_estrangeiro)`. Sem tabela nova → sem GRANT adicional.
+
+### 104.2 Código
+- `src/lib/equipe-documento.ts` (puro): `TIPOS_DOCUMENTO_EQUIPE`, `ROTULO_TIPO_DOCUMENTO_EQUIPE`, `validarDocumentoEquipe` (tipo + país + número, reusa `validarDocumentoEstrangeiro` do §100), `membroTemDocumento`, `documentoEstrangeiroEquipeRotulo`.
+- `equipe/actions.ts`: `MembroFormPayload.estrangeiro?: { tipo, pais, documento } | null`. Com `estrangeiro`, valida o documento em vez do CPF; `colunasDocumento` grava um ou outro (zera o oposto); duplicidade devolve "…com este documento".
+- `MembroForm`: checkbox "Estrangeiro — não tenho CPF" esconde o CPF e mostra Tipo / País emissor / Número (`normalizarDocumentoEstrangeiro`). Leitura da CHA não preenche CPF e não compara CPF quando marcado.
+- `EquipeGrid`, `equipe/page.tsx`, `equipe/[id]/editar/page.tsx`: carregam as novas colunas, exibem o documento, busca por número, "cadastro incompleto" usa `membroTemDocumento`.
+- `lib/documentos/server.ts`: `incompleto` dos condutores considera o documento estrangeiro.
+- `src/types/supabase.ts`: colunas novas em `equipe_membro`.
+
+### 104.3 Telefone internacional, wizard de documentos e admin
+- `src/lib/telefone-membro.ts`: brasileiro = só dígitos com DDD (10–11, como antes); **estrangeiro = E.164 com "+"** (8–15 dígitos). `telefoneMembroValido`, `normalizarTelefoneMembro` (o "+" distingue os formatos no banco), `formatarTelefoneMembro` (usa `formatarTelefoneE164`), `telefoneMembroInternacional`. Sem mudança de schema (coluna `telefone` já é texto).
+- `MembroForm`: com "Estrangeiro" marcado, o Telefone vira `PhoneInput` (país + número; ponto de partida = telefone salvo ou o BR digitado como +55). `equipe/actions.ts` valida/normaliza com os helpers acima.
+- Exibição do telefone do membro com os helpers: `EquipeGrid`, `minhas-reservas` (lista e detalhe — "Quem vai te atender"), admin (`pedidos/_lib/rotulos.ts#formatarTelefone`, `DocumentacaoAdmin`).
+- **Wizard de documentos (condutor novo):** `CondutorPayload` `{ modo: 'novo' }` ganhou `estrangeiro?: DocumentoEstrangeiroEquipe | null`. `SecaoCondutor` tem o checkbox "Estrangeiro — não tem CPF" + tipo/país/número; `salvar()` valida com `validarDocumentoEquipe`; `resolverCondutor` (`documentos/actions.ts`) cria o membro com `cpf = NULL` + documento, ou reaproveita quem já tem o mesmo país + documento.
+- **Admin:** `lib/documentos/admin.ts` traz as colunas novas; `DocumentacaoAdmin` mostra "Passaporte AB123456 · Argentina" no lugar do CPF e o "Cadastro incompleto" usa `membroTemDocumento`.
+
+### 104.4 Pendências
+- **Aplicar a migration** `20261105_equipe_documento_estrangeiro.sql` (as telas de equipe, condutores e a análise do admin selecionam as colunas novas).
+- Não coberto: telefone internacional em "Minha conta"/outras telas que não são de equipe; membro **existente** do wizard não recebe documento estrangeiro automaticamente (edição na Equipe).
+
+---
+
+## 105. Catálogo de extras — orientação ao gestor (04/11/2026)
+- O cliente seleciona cada extra como item único (sem quantidade). Itens compostos (ex.: churrasco) devem ser cadastrados como **pacotes fechados**, um por tamanho, com pessoas atendidas + conteúdo na descrição e o preço total em Valor.
+- **`catalogo/_components/OrientacaoCatalogo.tsx`** (client): modal (portal) com a orientação e exemplos (churrasco 5 e 10 pessoas). Abre sozinho na primeira visita a `/painel/catalogo`; checkbox "Não mostrar novamente" grava `localStorage['boatzy:catalogo-orientacao-oculta'] = '1'` (por navegador). Botão **"Dicas de cadastro"** ao lado de "Novo item" reabre sempre. Fecha com Esc/clique fora/Entendi.
+- `NovoCatalogoForm` / `EditarCatalogoForm`: placeholder e hint do campo Descrição reforçam a regra. Sem mudança de banco ou endpoints.
+
+---
+
+## 106. Cortesias do passeio (`roteiro.cortesias`) (06/11/2026)
+
+**Banco — `supabase/migrations/20261106_roteiro_cortesias.sql`:** `roteiro.cortesias text[] NOT NULL DEFAULT '{}'` + `CHECK (cardinality(cortesias) <= 20)` (`roteiro_cortesias_limite`). Coluna em tabela existente — sem GRANT novo. `publicacao_snapshot('roteiro')` ganha a chave `cortesias` **só quando há itens** (mesmo critério das regras da embarcação); campo sensível (`CAMPO_SENSIVEL_LABEL.cortesias = 'Cortesias do passeio'`). **Aplicar a migration** (a página do roteiro e os forms selecionam a coluna).
+
+**Normalização:** reusa `normalizarRegras` de `src/lib/embarcacao-regras.ts` (trim, sem vazias/duplicadas, até 20 itens de 120 caracteres).
+
+**Painel:** `CriarRoteiroPayload` / `AtualizarRoteiroPayload` ganharam `cortesias: string[]` (normalizado no servidor em `criarRoteiro`/`atualizarRoteiro`). `NovoRoteiroForm` / `EditarRoteiroForm`: estado `cortesias` (edição: `roteiro.cortesias`) e `SectionCard id="cortesias" icon={Gift} title="Cortesias do passeio"` ao final da etapa **Informações**, logo após o cartão de Descrição. Campo = `RegrasInput variante="cortesias"` (tags verdes com check; Enter/`;` separam). Edição: `camposSensiveisAlterados` inclui `cortesias` quando a lista mudou e há cortesias. `montarPreviewRoteiro` recebe `cortesias`.
+
+**Site:** `RoteiroDetalheDados.cortesias: string[]`; `/roteiros/[id]` seleciona a coluna. `src/components/boat/CortesiasRoteiro.tsx` renderiza o bloco entre a linha de especificações e `OpcionaisRoteiro` ("Turbine seu passeio"): mesmo desenho de `RegrasEmbarcacao`, em verde suave (`emerald`) com ícone de presente e check por item, grade de 2 colunas ≥ sm; não renderiza sem cortesias. i18n: `Roteiro.cortesias.{titulo,descricao,contagem}` em pt-BR/en-US/es.
+
+**Admin:** `/administrator/roteiros/[id]` mostra "Cortesias do passeio" (destacada quando alterada); edição pelo admin reaproveita o form do painel.
+
+Não coberto: cópia de cortesias entre roteiros (`CopiarDadosRoteiro`).

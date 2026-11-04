@@ -1,3 +1,4 @@
+import IconeLink from '@/components/ui/IconeLink';
 import { redirect } from 'next/navigation';
 import Link from 'next/link';
 import { Plus, Filter } from 'lucide-react';
@@ -59,7 +60,7 @@ export default async function VendasPage() {
             href="/painel/vendas/novo"
             className="flex items-center justify-center gap-2 bg-[#0B2447] hover:bg-[#0B3D91] text-white text-sm font-semibold px-5 py-2.5 rounded-xl transition-colors shadow-md shadow-[#0B2447]/10 whitespace-nowrap"
           >
-            <Plus className="w-4 h-4" />
+            <IconeLink tamanho={16}><Plus className="w-4 h-4" /></IconeLink>
             Novo anúncio
           </Link>
         </div>

@@ -1,5 +1,6 @@
 'use client';
 
+import IconeLink from '@/components/ui/IconeLink';
 import { useState, useMemo, type ReactNode } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
@@ -57,7 +58,7 @@ function SeloDocumento({ id, status, pendencia }: { id: string; status: Embarcac
       title="Sem o documento em dia, a equipe Boatzy não aprova a embarcação"
       className="inline-flex items-center gap-1 rounded-full bg-red-50 px-2 py-0.5 text-[11px] font-semibold text-red-700 ring-1 ring-red-200 hover:bg-red-100"
     >
-      <FileWarning className="h-3 w-3" /> {rotulo}
+      <IconeLink tamanho={12}><FileWarning className="h-3 w-3" /></IconeLink> {rotulo}
     </Link>
   );
 }
@@ -258,7 +259,7 @@ export default function EmbarcacoesGrid({ embarcacoes }: { embarcacoes: Embarcac
                           aria-label={`${DICA_CRIAR_ROTEIRO}: ${e.nome}`}
                           className="w-10 h-10 flex items-center justify-center rounded-lg text-slate-400 hover:text-[#0B2447] hover:bg-slate-100 transition-colors"
                         >
-                          <MapPinPlus className="w-4 h-4" />
+                          <IconeLink tamanho={16}><MapPinPlus className="w-4 h-4" /></IconeLink>
                         </Link>
                       )}
                       <Link
@@ -266,7 +267,7 @@ export default function EmbarcacoesGrid({ embarcacoes }: { embarcacoes: Embarcac
                         aria-label={`Editar ${e.nome}`}
                         className="w-10 h-10 flex items-center justify-center rounded-lg text-slate-400 hover:text-[#0B2447] hover:bg-slate-100 transition-colors"
                       >
-                        <Pencil className="w-4 h-4" />
+                        <IconeLink tamanho={16}><Pencil className="w-4 h-4" /></IconeLink>
                       </Link>
                     </div>
                   </div>
@@ -389,7 +390,7 @@ export default function EmbarcacoesGrid({ embarcacoes }: { embarcacoes: Embarcac
                                 aria-label={`${DICA_CRIAR_ROTEIRO}: ${e.nome}`}
                                 className="w-8 h-8 flex items-center justify-center rounded-lg text-slate-400 hover:text-[#0B2447] hover:bg-slate-100 transition-colors"
                               >
-                                <MapPinPlus className="w-4 h-4" />
+                                <IconeLink tamanho={16}><MapPinPlus className="w-4 h-4" /></IconeLink>
                               </Link>
                             </Dica>
                           ) : (
@@ -408,7 +409,7 @@ export default function EmbarcacoesGrid({ embarcacoes }: { embarcacoes: Embarcac
                             title="Editar"
                             className="w-8 h-8 flex items-center justify-center rounded-lg text-slate-400 hover:text-[#0B2447] hover:bg-slate-100 transition-colors"
                           >
-                            <Pencil className="w-4 h-4" />
+                            <IconeLink tamanho={16}><Pencil className="w-4 h-4" /></IconeLink>
                           </Link>
                           <button
                             title="Excluir"

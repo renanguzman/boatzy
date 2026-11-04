@@ -302,3 +302,19 @@ html {
 .painel-shell {
   -webkit-tap-highlight-color: transparent;
 }
+
+/* Feedback de carregamento (Spinner + barra de navegação). Discreto: anel fino que gira, e uma
+   faixa turquesa no topo que avança rápido e desacelera até a página responder. */
+@keyframes boatzy-gira { to { transform: rotate(360deg); } }
+@keyframes boatzy-pulsa { 0%, 100% { opacity: 1; } 50% { opacity: 0.35; } }
+.boatzy-spinner { animation: boatzy-gira 0.75s linear infinite; }
+
+@keyframes barra-nav-avanca { from { width: 0; } to { width: 88%; } }
+@keyframes barra-nav-completa { from { opacity: 1; } to { width: 100%; opacity: 0; } }
+.barra-nav-andando { width: 0; animation: barra-nav-avanca 8s cubic-bezier(0.1, 0.6, 0.2, 1) forwards; }
+.barra-nav-concluindo { width: 88%; animation: barra-nav-completa 0.3s ease-out forwards; }
+
+@media (prefers-reduced-motion: reduce) {
+  .boatzy-spinner { animation: boatzy-pulsa 1.2s ease-in-out infinite; }
+  .barra-nav-andando { animation-duration: 0.01s; width: 60%; }
+}

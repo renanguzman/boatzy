@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import {
   Info, ClipboardCheck, MapPin, ImageIcon, DollarSign,
   Loader2, AlertCircle, CheckCircle,
-  Plus, ChevronDown, ChevronUp, Trash2, BookOpen,
+  Plus, ChevronDown, ChevronUp, Trash2, BookOpen, Gift,
 } from 'lucide-react';
 import GaleriaImagensEditor, { type GaleriaItem } from '@/components/painel/GaleriaImagensEditor';
 import { enviarFotosNovas, mensagemFalhaEnvio, MENSAGEM_SEM_FOTOS } from '@/lib/galeria-upload';
@@ -41,6 +41,7 @@ import { useEtapas } from '@/components/painel/etapas/useEtapas';
 import RoteiroCard from '@/app/buscar/_components/RoteiroCard';
 import { ETAPAS_ROTEIRO, ETAPA_ROT, revisaoRoteiro } from '../../_components/etapasRoteiro';
 import CopiarDadosRoteiro, { type RoteiroCopiavel } from '../../_components/CopiarDadosRoteiro';
+import RegrasInput from '@/components/painel/RegrasInput';
 import AssistenteDescricao from '@/components/painel/descricao/AssistenteDescricao';
 import { avisoDescricaoRoteiro, fatosRoteiro } from '../../_components/descricaoRoteiro';
 
@@ -113,7 +114,7 @@ export default function NovoRoteiroForm({
   const [, startTransition] = useTransition();
   const numeroInputRef = useRef<HTMLInputElement>(null);
 
-  const [form, setForm] = useState<Omit<CriarRoteiroPayload, 'municipio_id' | 'disponibilidade_dias_semana' | 'janela_reserva_meses' | 'id' | 'imagens'> & {
+  const [form, setForm] = useState<Omit<CriarRoteiroPayload, 'municipio_id' | 'disponibilidade_dias_semana' | 'janela_reserva_meses' | 'id' | 'imagens' | 'cortesias'> & {
     municipio_id: string; estado_id: string;
   }>({
     embarcacao_id: embarcacaoInicial?.id ?? '',
@@ -129,6 +130,8 @@ export default function NovoRoteiroForm({
     cep: '', bairro: '', logradouro: '', logradouro_numero: '', complemento: '',
     horario_saida: '',
   });
+
+  const [cortesias, setCortesias] = useState<string[]>([]);
 
   const [municipios, setMunicipios]               = useState<Municipio[]>([]);
   const [loadingMunicipios, setLoadingMunicipios] = useState(false);
@@ -221,7 +224,7 @@ export default function NovoRoteiroForm({
   const embarcacaoPronta = !form.embarcacao_id || previewEmb?.id === form.embarcacao_id;
   const previewDados = previewAberto && embarcacaoPronta
     ? montarPreviewRoteiro({
-        form, estados, municipios, imagens,
+        form, cortesias, estados, municipios, imagens,
         paradas, itensCatalogo, catalogo,
         agenda: agendaPreview,
         embarcacao: form.embarcacao_id ? previewEmb?.dados ?? null : null,
@@ -422,6 +425,7 @@ export default function NovoRoteiroForm({
       embarcacao_id:      form.embarcacao_id,
       nome:               form.nome,
       descricao:          form.descricao,
+      cortesias,
       duracao_valor:      form.duracao_valor,
       duracao_unidade:    form.duracao_unidade,
       quantidade_pessoas: form.quantidade_pessoas,
@@ -506,7 +510,6 @@ export default function NovoRoteiroForm({
     }
 
     setFeedback({ type: 'success', msg: 'Roteiro enviado para análise! Ele aparece no site assim que a equipe Boatzy aprovar o roteiro e a embarcação.' });
-    setSubmitting(false);
     // Primeiro roteiro: volta ao Início, que mostra os próximos passos (aprovação).
     setTimeout(() => router.push(roteirosParaCopiar.length === 0 ? '/painel' : '/painel/roteiros'), 1200);
   }
@@ -656,6 +659,15 @@ export default function NovoRoteiroForm({
             </Field>
           </div>
         </div>
+      </SectionCard>
+
+      {/* ── Cortesias do passeio (itens oferecidos pelo gestor; aparecem no site entre as especificações e os opcionais) ─ */}
+      <SectionCard id="cortesias" icon={Gift} title="Cortesias do passeio">
+        <p className="text-xs text-slate-400 mb-4">
+          Descreva as cortesias que são oferecidas pelo passeio, sem custo extra para o cliente (ex.: água
+          potável, 5kg de gelo, carvão). Elas aparecem em destaque na página do roteiro.
+        </p>
+        <RegrasInput variante="cortesias" value={cortesias} onChange={setCortesias} />
       </SectionCard>
 
       </div>

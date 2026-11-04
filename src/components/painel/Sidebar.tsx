@@ -1,5 +1,6 @@
 'use client';
 
+import IconeLink from '@/components/ui/IconeLink';
 import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
@@ -27,6 +28,8 @@ import {
 } from 'lucide-react';
 import clsx from 'clsx';
 import { useMenuMobile } from './MenuMobile';
+import Spinner from '@/components/ui/Spinner';
+import { iniciarBarraNavegacao } from '@/components/ui/BarraProgressoNavegacao';
 import { EVENTO_AVISO_GESTOR } from './NotificacoesBell';
 
 type ItemMenu = { href: string; label: string; icon: typeof House; exact: boolean; tour: string };
@@ -94,6 +97,7 @@ export default function Sidebar({
   // Total de mensagens não lidas: começa com o valor do servidor e é mantido
   // ao vivo via Realtime (eventos em `mensagem`).
   const [totalNaoLidas, setTotalNaoLidas] = useState(naoLidas);
+  const [saindo, setSaindo] = useState(false);
 
   // Solicitações pendentes: valor do servidor, recontado a cada navegação (o gestor pode ter
   // acabado de responder uma) e quando chega aviso novo ao gestor pelo sino (Realtime).
@@ -150,6 +154,9 @@ export default function Sidebar({
   }, []);
 
   async function handleSignOut() {
+    if (saindo) return;
+    setSaindo(true);
+    iniciarBarraNavegacao();
     await supabaseRef.current.auth.signOut();
     router.push('/painel/login');
   }
@@ -265,7 +272,7 @@ export default function Sidebar({
               data-tour="nova-embarcacao"
               className="flex items-center justify-center gap-2 w-full bg-[#0B3D91] hover:bg-[#0B2447] text-white font-semibold text-xs py-3 rounded-xl transition-all duration-200 shadow-lg shadow-[#0B3D91]/20"
             >
-              <Plus className="w-4 h-4" />
+              <IconeLink tamanho={16}><Plus className="w-4 h-4" /></IconeLink>
               Nova Embarcação
             </Link>
           </div>
@@ -284,9 +291,11 @@ export default function Sidebar({
 
           <button
             onClick={handleSignOut}
-            className="flex items-center gap-3 px-3 py-3 lg:py-2.5 w-full rounded-lg text-xs font-semibold tracking-wide text-slate-500 hover:bg-red-50 hover:text-red-600 transition-all duration-150"
+            disabled={saindo}
+            aria-busy={saindo}
+            className="flex items-center gap-3 px-3 py-3 lg:py-2.5 w-full rounded-lg text-xs font-semibold tracking-wide text-slate-500 hover:bg-red-50 hover:text-red-600 transition-all duration-150 disabled:opacity-70 disabled:cursor-wait"
           >
-            <LogOut className="w-4 h-4" />
+            {saindo ? <Spinner /> : <LogOut className="w-4 h-4" />}
             SAIR
           </button>
         </div>

@@ -1,3 +1,4 @@
+import type { DocumentoEstrangeiroEquipe } from '@/lib/equipe-documento';
 import type { DocumentoEscopo, DocumentoOrigem, DocumentoTipo, EquipeFuncao } from '@/types/supabase';
 import { isValidCPF, maskCPF, onlyDigits } from '@/lib/validators';
 import type { ArquivoEnviado } from './envio';
@@ -140,7 +141,7 @@ export type DocumentoAtual = {
 /** Quem é o condutor da habilitação: alguém da equipe ou um cadastro novo. */
 export type CondutorPayload =
   | { modo: 'existente'; membroId: string }
-  | { modo: 'novo'; nome: string; cpf: string; funcao: EquipeFuncao };
+  | { modo: 'novo'; nome: string; cpf: string; funcao: EquipeFuncao; estrangeiro?: DocumentoEstrangeiroEquipe | null };
 
 export type DocumentoPayload = {
   /** Gerado no navegador (o arquivo sobe para a pasta dele antes do registro existir). */

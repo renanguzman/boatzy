@@ -7,6 +7,7 @@ import { ArrowRight, MessageCircle } from 'lucide-react';
 import { useModoPreview } from '@/components/preview/ModoPreview';
 import { ChatDonoDialog, saudacaoPasseio } from '@/components/chat/ChatDonoModal';
 import { useFormatos } from '@/i18n/formatos';
+import Spinner from '@/components/ui/Spinner';
 
 /** Mesmo teto do envio no chat (`enviarMensagem`, src/lib/chat-actions.ts). */
 const MAX_MENSAGEM = 4000;
@@ -108,7 +109,7 @@ export default function ContatoDono({ roteiroId, roteiroNome, dataISO, pessoas }
         className="group mt-3 w-full flex items-center justify-center gap-2 py-2.5 rounded-xl bg-destaque text-marinho shadow-sm shadow-destaque/40 hover:brightness-95 active:scale-[0.99] text-sm font-bold transition disabled:opacity-70"
       >
         {t('botao')}
-        <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
+        {indo ? <Spinner /> : <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />}
       </button>
 
       <ChatDonoDialog

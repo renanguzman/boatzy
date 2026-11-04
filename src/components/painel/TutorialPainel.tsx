@@ -1,5 +1,6 @@
 'use client';
 
+import { iniciarBarraNavegacao } from '@/components/ui/BarraProgressoNavegacao';
 import {
   createContext,
   useCallback,
@@ -234,6 +235,7 @@ function TutorialOverlay({
 
   function executarAcao(href: string) {
     onFechar();
+    iniciarBarraNavegacao();
     router.push(href);
   }
 

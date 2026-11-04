@@ -23,7 +23,7 @@ export default async function AdminEditarRoteiroPage({
   // O roteiro vem primeiro: embarcações e catálogo dos selects são do gestor dono.
   const { data: roteiro } = await supabaseAdmin
     .from('roteiro')
-    .select('id, owner_id, embarcacao_id, nome, descricao, duracao, duracao_horas, quantidade_pessoas, origem, destino, municipio_id, cep, bairro, logradouro, logradouro_numero, complemento, latitude, longitude, preco_base, preco_diaria_ativo, preco_diaria_valor, preco_diaria_minimo, disponibilidade_dias_semana, janela_reserva_meses, horario_saida')
+    .select('id, owner_id, embarcacao_id, nome, descricao, cortesias, duracao, duracao_horas, quantidade_pessoas, origem, destino, municipio_id, cep, bairro, logradouro, logradouro_numero, complemento, latitude, longitude, preco_base, preco_diaria_ativo, preco_diaria_valor, preco_diaria_minimo, disponibilidade_dias_semana, janela_reserva_meses, horario_saida')
     .eq('id', id)
     .single();
 

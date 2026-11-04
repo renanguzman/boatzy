@@ -1,5 +1,6 @@
 /** Rótulos e cores do módulo Pedidos (admin) — compartilhados entre lista e detalhe. */
 
+import { formatarTelefoneMembro, telefoneMembroInternacional } from '@/lib/telefone-membro';
 import type {
   AsaasWebhookEventoStatus,
   FormaPagamentoCodigo,
@@ -124,6 +125,7 @@ export function formatarDocumento(doc: string | null | undefined): string {
 
 /** Telefone só dígitos → (00) 00000-0000. */
 export function formatarTelefone(tel: string | null | undefined): string {
+  if (telefoneMembroInternacional(tel)) return formatarTelefoneMembro(tel);
   const d = (tel ?? '').replace(/\D/g, '');
   if (d.length === 11) return d.replace(/(\d{2})(\d{5})(\d{4})/, '($1) $2-$3');
   if (d.length === 10) return d.replace(/(\d{2})(\d{4})(\d{4})/, '($1) $2-$3');

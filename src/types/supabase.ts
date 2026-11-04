@@ -1161,6 +1161,7 @@ export type Database = {
           embarcacao_id: string | null;
           nome: string;
           descricao: string;
+          cortesias: string[];
           duracao: string | null;
           duracao_horas: number | null;
           quantidade_pessoas: number | null;
@@ -1215,6 +1216,7 @@ export type Database = {
           embarcacao_id?: string | null;
           nome: string;
           descricao: string;
+          cortesias?: string[];
           duracao?: string | null;
           duracao_horas?: number | null;
           quantidade_pessoas?: number | null;
@@ -1250,6 +1252,7 @@ export type Database = {
           embarcacao_id?: string | null;
           nome?: string;
           descricao?: string;
+          cortesias?: string[];
           duracao?: string | null;
           duracao_horas?: number | null;
           quantidade_pessoas?: number | null;
@@ -2047,6 +2050,9 @@ export type Database = {
           nome_completo: string;
           funcao: EquipeFuncao | null;
           cpf: string | null;
+          tipo_documento_estrangeiro: string | null;
+          documento_estrangeiro: string | null;
+          pais_documento: string | null;
           email: string | null;
           telefone: string | null;
           foto_url: string | null;
@@ -2062,6 +2068,9 @@ export type Database = {
           nome_completo: string;
           funcao?: EquipeFuncao | null;
           cpf?: string | null;
+          tipo_documento_estrangeiro?: string | null;
+          documento_estrangeiro?: string | null;
+          pais_documento?: string | null;
           email?: string | null;
           telefone?: string | null;
           foto_url?: string | null;
@@ -2077,6 +2086,9 @@ export type Database = {
           nome_completo?: string;
           funcao?: EquipeFuncao | null;
           cpf?: string | null;
+          tipo_documento_estrangeiro?: string | null;
+          documento_estrangeiro?: string | null;
+          pais_documento?: string | null;
           email?: string | null;
           telefone?: string | null;
           foto_url?: string | null;

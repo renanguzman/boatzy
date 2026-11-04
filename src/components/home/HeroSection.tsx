@@ -3,6 +3,8 @@
 import { useEffect, useRef, useState } from 'react';
 import Image from 'next/image';
 import { useTranslations } from 'next-intl';
+import Spinner from '@/components/ui/Spinner';
+import { useNavegacaoPendente } from '@/lib/hooks/useNavegacaoPendente';
 import { Search, X, Compass, ChevronRight, Ship, CreditCard } from 'lucide-react';
 import LocationPicker, { type LocationValue } from './search/LocationPicker';
 import DatePicker, { type DateValue } from './search/DatePicker';
@@ -36,6 +38,7 @@ type Props = {
 export default function HeroSection({ tiposEmbarcacao, tiposVenda, locaisVenda }: Props) {
   const t = useTranslations('Hero');
   const tComum = useTranslations('Comum');
+  const { pendente: buscando, navegar: irPara } = useNavegacaoPendente();
   const [location, setLocation] = useState<LocationValue | null>(null);
   const [date, setDate] = useState<DateValue | null>(null);
   const [guests, setGuests] = useState(0);
@@ -98,18 +101,19 @@ export default function HeroSection({ tiposEmbarcacao, tiposVenda, locaisVenda }
   }
 
   function handleSearch() {
+    if (buscando) return;
     // A aba Vendas tem filtros e destino próprios (/vendas); tipo é obrigatório.
     if (searchType === 'venda') {
       if (!tipoVenda) {
         setActive('tipo_venda');
         return;
       }
-      window.location.href = buildVendaSearchUrl({
+      irPara(buildVendaSearchUrl({
         tipo: tipoVenda,
         localidade: localidadeVenda,
         ano: anoVenda,
         valor: valorVenda,
-      });
+      }));
       return;
     }
 
@@ -140,7 +144,7 @@ export default function HeroSection({ tiposEmbarcacao, tiposVenda, locaisVenda }
     }
     if (guests > 0) params.set('pessoas', String(guests));
 
-    window.location.href = `/buscar?${params.toString()}`;
+    irPara(`/buscar?${params.toString()}`);
   }
 
   return (
@@ -402,11 +406,13 @@ export default function HeroSection({ tiposEmbarcacao, tiposVenda, locaisVenda }
               <button
                 type="button"
                 onClick={handleSearch}
-                className="bg-marinho hover:bg-marinho-escuro text-white rounded-xl p-3.5 flex items-center justify-center gap-2 transition-all hover:shadow-lg hover:scale-[1.03] active:scale-[0.97] cursor-pointer shrink-0 w-full md:w-auto"
+                disabled={buscando}
+                aria-busy={buscando}
+                className="disabled:opacity-80 disabled:cursor-wait bg-marinho hover:bg-marinho-escuro text-white rounded-xl p-3.5 flex items-center justify-center gap-2 transition-all hover:shadow-lg hover:scale-[1.03] active:scale-[0.97] cursor-pointer shrink-0 w-full md:w-auto"
                 id="search-button"
                 aria-label={tComum('buscar')}
               >
-                <Search className="h-5 w-5" />
+                {buscando ? <Spinner tamanho={20} /> : <Search className="h-5 w-5" />}
                 <span className="font-semibold md:hidden">{tComum('buscar')}</span>
               </button>
             </div>

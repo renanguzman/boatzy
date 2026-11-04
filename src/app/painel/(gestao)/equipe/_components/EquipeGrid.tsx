@@ -1,12 +1,15 @@
 'use client';
 
+import { formatarTelefoneMembro } from '@/lib/telefone-membro';
+import { membroTemDocumento, documentoEstrangeiroEquipeRotulo } from '@/lib/equipe-documento';
+import IconeLink from '@/components/ui/IconeLink';
 import { useMemo, useState, useTransition } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import {
   Search, User, UsersRound, Ship, BadgeCheck, Phone, Pencil, Power, Trash2, Loader2,
 } from 'lucide-react';
-import { maskCPF, applyPhoneMask, onlyDigits } from '@/lib/validators';
+import { maskCPF, onlyDigits } from '@/lib/validators';
 import { alternarAtivoMembro, excluirMembro } from '../actions';
 import { rotuloFuncao } from '@/lib/documentos/tipos';
 import type { EquipeFuncao } from '@/types/supabase';
@@ -15,6 +18,9 @@ export type MembroListItem = {
   id: string;
   nome_completo: string;
   cpf: string | null;
+  tipo_documento_estrangeiro: string | null;
+  documento_estrangeiro: string | null;
+  pais_documento: string | null;
   email: string | null;
   telefone: string | null;
   funcao: EquipeFuncao | null;
@@ -26,12 +32,6 @@ export type MembroListItem = {
   created_at: string;
 };
 
-function fmtTelefone(digits: string | null): string {
-  if (!digits) return '—';
-  const d = onlyDigits(digits);
-  return applyPhoneMask(d, d.length > 10 ? '(##) #####-####' : '(##) ####-####');
-}
-
 export default function EquipeGrid({ membros }: { membros: MembroListItem[] }) {
   const [busca, setBusca] = useState('');
   const [pending, startTransition] = useTransition();
@@ -40,11 +40,13 @@ export default function EquipeGrid({ membros }: { membros: MembroListItem[] }) {
   const filtrados = useMemo(() => {
     const q = busca.toLowerCase().trim();
     if (!q) return membros;
+    const alfanum = q.replace(/[^a-z0-9]/g, '');
     return membros.filter(
       (m) =>
         m.nome_completo.toLowerCase().includes(q) ||
         (m.email ?? '').toLowerCase().includes(q) ||
-        (m.cpf ?? '').includes(onlyDigits(q)) ||
+        (!!onlyDigits(q) && (m.cpf ?? '').includes(onlyDigits(q))) ||
+        (!!alfanum && (m.documento_estrangeiro ?? '').toLowerCase().includes(alfanum)) ||
         m.embarcacoes.some((e) => e.nome.toLowerCase().includes(q)),
     );
   }, [membros, busca]);
@@ -129,9 +131,9 @@ export default function EquipeGrid({ membros }: { membros: MembroListItem[] }) {
                       <BadgeCheck className="w-3.5 h-3.5 text-teal-500 shrink-0" aria-label="Conta vinculada" />
                     )}
                   </div>
-                  <p className="text-xs text-slate-400 mt-0.5">{m.cpf ? maskCPF(m.cpf) : '—'}</p>
+                  <p className="text-xs text-slate-400 mt-0.5">{m.cpf ? maskCPF(m.cpf) : documentoEstrangeiroEquipeRotulo(m) ?? '—'}</p>
                   <p className="text-xs text-slate-500 mt-0.5 flex items-center gap-1">
-                    <Phone className="w-3 h-3" /> {fmtTelefone(m.telefone)}
+                    <Phone className="w-3 h-3" /> {formatarTelefoneMembro(m.telefone)}
                   </p>
                 </div>
                 {!m.ativo && (
@@ -141,17 +143,18 @@ export default function EquipeGrid({ membros }: { membros: MembroListItem[] }) {
                 )}
               </div>
 
-              {(rotuloFuncao(m.funcao) || !m.cpf || !m.telefone) && (
+              {(rotuloFuncao(m.funcao) || !membroTemDocumento(m) || !m.telefone) && (
                 <div className="flex flex-wrap gap-1.5">
                   {rotuloFuncao(m.funcao) && (
                     <span className="rounded-full bg-teal-50 px-2 py-0.5 text-[11px] font-semibold text-teal-700">{rotuloFuncao(m.funcao)}</span>
                   )}
-                  {(!m.cpf || !m.telefone) && (
+                  {(!membroTemDocumento(m) || !m.telefone) && (
                     <Link
                       href={`/painel/equipe/${m.id}/editar`}
-                      className="rounded-full bg-amber-50 px-2 py-0.5 text-[11px] font-semibold text-amber-700 hover:bg-amber-100"
+                      className="inline-flex items-center gap-1 rounded-full bg-amber-50 px-2 py-0.5 text-[11px] font-semibold text-amber-700 hover:bg-amber-100"
                     >
-                      Cadastro incompleto — falta {[!m.cpf && 'CPF', !m.telefone && 'telefone'].filter(Boolean).join(' e ')}
+                      <IconeLink tamanho={12} />
+                      Cadastro incompleto — falta {[!membroTemDocumento(m) && 'CPF ou documento', !m.telefone && 'telefone'].filter(Boolean).join(' e ')}
                     </Link>
                   )}
                 </div>
@@ -183,7 +186,7 @@ export default function EquipeGrid({ membros }: { membros: MembroListItem[] }) {
                     className="p-2.5 sm:p-1.5 rounded-lg text-slate-400 hover:text-[#0B2447] hover:bg-slate-100 transition-colors"
                     title="Editar"
                   >
-                    <Pencil className="w-4 h-4" />
+                    <IconeLink tamanho={16}><Pencil className="w-4 h-4" /></IconeLink>
                   </Link>
                   <button
                     onClick={() => toggleAtivo(m)}

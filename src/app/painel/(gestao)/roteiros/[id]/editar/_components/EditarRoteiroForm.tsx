@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import {
   Info, ClipboardCheck, MapPin, ImageIcon, DollarSign,
   Loader2, AlertCircle, CheckCircle,
-  Plus, ChevronDown, ChevronUp, Trash2, BookOpen,
+  Plus, ChevronDown, ChevronUp, Trash2, BookOpen, Gift,
 } from 'lucide-react';
 import GaleriaImagensEditor, { itensDeImagensSalvas, type GaleriaItem } from '@/components/painel/GaleriaImagensEditor';
 import { enviarFotosNovas, mensagemFalhaEnvio, MENSAGEM_SEM_FOTOS } from '@/lib/galeria-upload';
@@ -51,6 +51,8 @@ import { useEtapas } from '@/components/painel/etapas/useEtapas';
 import RoteiroCard from '@/app/buscar/_components/RoteiroCard';
 import { ETAPAS_ROTEIRO, ETAPA_ROT, revisaoRoteiro } from '../../../_components/etapasRoteiro';
 import CopiarDadosRoteiro, { type RoteiroCopiavel } from '../../../_components/CopiarDadosRoteiro';
+import { normalizarRegras } from '@/lib/embarcacao-regras';
+import RegrasInput from '@/components/painel/RegrasInput';
 import AssistenteDescricao from '@/components/painel/descricao/AssistenteDescricao';
 import { avisoDescricaoRoteiro, fatosRoteiro } from '../../../_components/descricaoRoteiro';
 
@@ -85,6 +87,7 @@ type RoteiroData = {
   embarcacao_id: string | null;
   nome: string;
   descricao: string;
+  cortesias: string[];
   duracao_horas: number | null;
   quantidade_pessoas: number | null;
   origem: string | null;
@@ -201,7 +204,9 @@ export default function EditarRoteiroForm({ roteiro, estados, municipiosIniciais
   // duracao_horas → (número, unidade) para os dois campos do formulário.
   const duracaoInicial = horasParaPartes(roteiro.duracao_horas);
 
-  const [form, setForm] = useState<Omit<AtualizarRoteiroPayload, 'municipio_id' | 'disponibilidade_dias_semana' | 'janela_reserva_meses'> & {
+  const [cortesias, setCortesias] = useState<string[]>(roteiro.cortesias ?? []);
+
+  const [form, setForm] = useState<Omit<AtualizarRoteiroPayload, 'municipio_id' | 'disponibilidade_dias_semana' | 'janela_reserva_meses' | 'cortesias'> & {
     municipio_id: string; estado_id: string;
   }>({
     embarcacao_id:      roteiro.embarcacao_id ?? '',
@@ -336,7 +341,7 @@ export default function EditarRoteiroForm({ roteiro, estados, municipiosIniciais
   const embarcacaoPronta = !form.embarcacao_id || previewEmb?.id === form.embarcacao_id;
   const previewDados = previewAberto && embarcacaoPronta
     ? montarPreviewRoteiro({
-        form, estados, municipios, imagens,
+        form, cortesias, estados, municipios, imagens,
         paradas, itensCatalogo, catalogo,
         agenda: agendaPreview,
         embarcacao: form.embarcacao_id ? previewEmb?.dados ?? null : null,
@@ -512,6 +517,8 @@ export default function EditarRoteiroForm({ roteiro, estados, municipiosIniciais
     const campos: string[] = [];
     if (form.nome.trim() !== roteiro.nome.trim()) campos.push('nome');
     if (form.descricao.trim() !== roteiro.descricao.trim()) campos.push('descricao');
+    if (normalizarRegras(cortesias).join('\n') !== normalizarRegras(roteiro.cortesias).join('\n')
+      && cortesias.length > 0) campos.push('cortesias');
     if (form.origem.trim() !== (roteiro.origem ?? '').trim()) campos.push('origem');
     if (form.destino.trim() !== (roteiro.destino ?? '').trim()) campos.push('destino');
     if (form.embarcacao_id !== (roteiro.embarcacao_id ?? '')) campos.push('embarcacao_id');
@@ -566,6 +573,7 @@ export default function EditarRoteiroForm({ roteiro, estados, municipiosIniciais
       embarcacao_id:      form.embarcacao_id,
       nome:               form.nome,
       descricao:          form.descricao,
+      cortesias,
       duracao_valor:      form.duracao_valor,
       duracao_unidade:    form.duracao_unidade,
       quantidade_pessoas: form.quantidade_pessoas,
@@ -693,7 +701,6 @@ export default function EditarRoteiroForm({ roteiro, estados, municipiosIniciais
         ? 'Alterações salvas e enviadas para análise. O roteiro volta ao site após a aprovação.'
         : 'Roteiro atualizado com sucesso!',
     });
-    setSubmitting(false);
     setTimeout(() => router.push(voltarHref), 1200);
   }
 
@@ -842,6 +849,15 @@ export default function EditarRoteiroForm({ roteiro, estados, municipiosIniciais
             </Field>
           </div>
         </div>
+      </SectionCard>
+
+      {/* ── Cortesias do passeio (itens oferecidos pelo gestor; aparecem no site entre as especificações e os opcionais) ─ */}
+      <SectionCard id="cortesias" icon={Gift} title="Cortesias do passeio">
+        <p className="text-xs text-slate-400 mb-4">
+          Descreva as cortesias que são oferecidas pelo passeio, sem custo extra para o cliente (ex.: água
+          potável, 5kg de gelo, carvão). Elas aparecem em destaque na página do roteiro.
+        </p>
+        <RegrasInput variante="cortesias" value={cortesias} onChange={setCortesias} />
       </SectionCard>
 
       </div>

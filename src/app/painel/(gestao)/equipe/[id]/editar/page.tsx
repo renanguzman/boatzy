@@ -1,3 +1,4 @@
+import { membroTemDocumento } from '@/lib/equipe-documento';
 import { notFound, redirect } from 'next/navigation';
 import Link from 'next/link';
 import { ArrowLeft } from 'lucide-react';
@@ -13,6 +14,9 @@ type MembroRow = {
   is_gestor: boolean;
   nome_completo: string;
   cpf: string | null;
+  tipo_documento_estrangeiro: string | null;
+  documento_estrangeiro: string | null;
+  pais_documento: string | null;
   email: string | null;
   telefone: string | null;
   funcao: EquipeFuncao | null;
@@ -32,7 +36,7 @@ export default async function EditarMembroPage({ params }: { params: Promise<{ i
   const { data } = await supabaseAdmin
     .from('equipe_membro')
     .select(
-      `id, owner_id, is_gestor, nome_completo, cpf, email, telefone, funcao, foto_url, user_id,
+      `id, owner_id, is_gestor, nome_completo, cpf, tipo_documento_estrangeiro, documento_estrangeiro, pais_documento, email, telefone, funcao, foto_url, user_id,
        equipe_membro_embarcacao ( embarcacao_id ),
        conta:users!equipe_membro_user_id_fkey ( name, email )`,
     )
@@ -57,6 +61,9 @@ export default async function EditarMembroPage({ params }: { params: Promise<{ i
     id: m.id,
     nome_completo: m.nome_completo,
     cpf: m.cpf,
+    tipo_documento_estrangeiro: m.tipo_documento_estrangeiro,
+    documento_estrangeiro: m.documento_estrangeiro,
+    pais_documento: m.pais_documento,
     email: m.email,
     telefone: m.telefone,
     funcao: m.funcao,
@@ -79,9 +86,9 @@ export default async function EditarMembroPage({ params }: { params: Promise<{ i
       <h1 className="mt-4 text-xl sm:text-2xl font-bold text-[#0B2447]">Editar membro</h1>
       <p className="text-slate-500 mt-0.5 text-sm mb-6">{m.nome_completo}</p>
 
-      {(!m.cpf || !m.telefone) && (
+      {(!membroTemDocumento(m) || !m.telefone) && (
         <p className="mb-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
-          Cadastro incompleto: falta {[!m.cpf && 'o CPF', !m.telefone && 'o telefone'].filter(Boolean).join(' e ')}.
+          Cadastro incompleto: falta {[!membroTemDocumento(m) && 'o CPF ou documento', !m.telefone && 'o telefone'].filter(Boolean).join(' e ')}.
           Complete para indicar esta pessoa como atendente das reservas.
         </p>
       )}

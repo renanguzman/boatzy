@@ -1,5 +1,6 @@
 'use client';
 
+import { iniciarBarraNavegacao } from '@/components/ui/BarraProgressoNavegacao';
 import { useMemo, useState } from 'react';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
@@ -171,7 +172,6 @@ export default function AnuncioForm({ modo, anuncioId, embarcacoes, tipos, initi
           ? 'Alterações salvas e enviadas para análise.'
           : 'Anúncio atualizado com sucesso!',
     });
-    setSubmitting(false);
     setTimeout(() => router.push('/painel/vendas'), 1200);
   }
 
@@ -421,7 +421,7 @@ export default function AnuncioForm({ modo, anuncioId, embarcacoes, tipos, initi
       <div className="flex items-center justify-end gap-3 pb-4">
         <button
           type="button"
-          onClick={() => router.push('/painel/vendas')}
+          onClick={() => { iniciarBarraNavegacao(); router.push('/painel/vendas'); }}
           disabled={submitting}
           className="flex-1 sm:flex-none px-5 py-3 sm:py-2.5 rounded-xl border border-slate-200 text-sm font-semibold text-slate-600 hover:bg-slate-50 transition disabled:opacity-50"
         >

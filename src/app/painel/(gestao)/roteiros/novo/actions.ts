@@ -1,5 +1,6 @@
 'use server';
 
+import { normalizarRegras } from '@/lib/embarcacao-regras';
 import { createClient } from '@/lib/supabase/server';
 import { supabaseAdmin } from '@/lib/supabase';
 import { janelaValida, type JanelaReservaMeses } from '@/lib/disponibilidade';
@@ -32,6 +33,8 @@ export type CriarRoteiroPayload = {
   embarcacao_id: string;
   nome: string;
   descricao: string;
+  /** Cortesias oferecidas pelo passeio (tags); o servidor normaliza. */
+  cortesias: string[];
   /** Duração: número digitado + unidade — vira `duracao_horas` (busca) e `duracao` (rótulo). */
   duracao_valor: string;
   duracao_unidade: DuracaoUnidade;
@@ -121,6 +124,7 @@ export async function criarRoteiro(
       embarcacao_id:      payload.embarcacao_id || null,
       nome:               payload.nome.trim(),
       descricao:          payload.descricao.trim(),
+      cortesias:          normalizarRegras(payload.cortesias),
       preco_base:         payload.preco_base ? parseFloat(payload.preco_base) : null,
       preco_diaria_ativo: payload.preco_diaria_ativo,
       preco_diaria_valor: payload.preco_diaria_ativo && payload.preco_diaria_valor

@@ -1,6 +1,7 @@
 'use client';
 
-import { useTransition } from 'react';
+import { useState, useTransition } from 'react';
+import Spinner from '@/components/ui/Spinner';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { STATUS_INFO, type StatusPublicacaoQualquer } from '@/lib/publicacao/config';
 
@@ -17,12 +18,14 @@ export default function FiltroStatusPublicacao({ opcoes, atual }: {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
-  const [, startTransition] = useTransition();
+  const [pendente, startTransition] = useTransition();
+  const [alvo, setAlvo] = useState<string | null>(null);
 
   function selecionar(value: OpcaoFiltroStatus['value']) {
     const params = new URLSearchParams(searchParams.toString());
     params.set('st', value);
     params.delete('page');
+    setAlvo(value);
     startTransition(() => router.replace(`${pathname}?${params.toString()}`, { scroll: false }));
   }
 
@@ -37,6 +40,7 @@ export default function FiltroStatusPublicacao({ opcoes, atual }: {
             key={value}
             type="button"
             onClick={() => selecionar(value)}
+            aria-busy={pendente && alvo === value}
             className={`inline-flex items-center gap-1.5 rounded-xl border px-3 py-1.5 text-xs font-semibold transition ${
               ativo
                 ? 'border-marinho bg-marinho text-white'
@@ -45,6 +49,7 @@ export default function FiltroStatusPublicacao({ opcoes, atual }: {
                   : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50'
             }`}
           >
+            {pendente && alvo === value && <Spinner tamanho={12} />}
             {label}
             <span className={`rounded-full px-1.5 py-px text-[10px] ${
               ativo ? 'bg-white/20' : fila ? 'bg-amber-200/70' : 'bg-slate-100 text-slate-500'}`}>

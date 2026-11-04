@@ -214,7 +214,7 @@ Visualização:
 #### ✅ Implementado — Filtro de comodidades (busca de embarcações)
 
 - Na aba **Embarcações** de `/buscar`, novo botão **"Comodidades"** ao lado de "Filtros" (preço/duração), com badge mostrando quantas estão selecionadas.
-- Abre um painel com **busca embutida** (digitar filtra a lista na hora) e a lista de comodidades em **grid de 2 colunas com rolagem interna** — pensado para as ~25 comodidades cadastradas (lista extensa) sem virar um popover gigante nem quebrar no celular.
+- Abre um painel com **busca embutida** (digitar filtra a lista na hora) e a lista de comodidades em **grid de 2 colunas com rolagem interna** — pensado para as ~37 comodidades cadastradas (lista extensa; revisão de 04/11/2026, SPEC §17.3) sem virar um popover gigante nem quebrar no celular.
 - A embarcação só aparece se tiver **todas** as comodidades marcadas (não basta ter uma). Chip removível "Comodidades: N" na barra de filtros; o filtro é preservado ao trocar local/data/pessoas.
 - Só existe na aba Embarcações — comodidade é um atributo da embarcação, não do roteiro.
 - Detalhes técnicos: SPEC §31.
@@ -3478,6 +3478,40 @@ Turistas de fora do Brasil (argentinos, chilenos, uruguaios…) pagam a reserva 
 
 Detalhes técnicos: `SPEC.md` §100.
 
+## 10.x Feedback de carregamento em ações (05/11/2026) — Fase 1: site/front
+
+**Problema:** com conexão lenta, o usuário clicava em botões que navegam/enviam e, sem resposta visual, clicava de novo enquanto o sistema já carregava.
+
+**Solução (discreta, na identidade Boatzy):**
+- **Barra de progresso no topo** (turquesa, 3 px) em qualquer clique em link interno, até a página trocar. Vale para todo o site.
+- **Spinner no botão** + botão desabilitado (sem clique repetido) nas ações principais que navegam: **Solicitar reserva**, **Buscar** da home (passeios, embarcações e vendas) e **Falar com o dono** (login).
+- Já tinham loader e foram mantidos: login/cadastro, recuperar/redefinir senha, contato, Minha conta, confirmar reserva, pagamento, login social, favoritos e cancelar reserva.
+- Respeita "reduzir movimento": o giro vira pulso suave.
+
+**Fase 2 — painel do gestor (`/painel`) (implementada):**
+- Auditados os formulários, wizards em etapas e ações do painel. A maioria já tinha loader; foram corrigidos os pontos sem feedback:
+  - **Duplo envio após salvar:** em cadastro/edição de embarcação, roteiro, anúncio de venda, item de catálogo e membro da equipe, o botão voltava ao normal depois do sucesso e só navegava ~1 s depois, permitindo salvar duas vezes. Agora o botão **segue com spinner e desabilitado até a página mudar**.
+  - **Sair** (menu lateral e `SignOutLink`): spinner + botão desabilitado.
+  - **Excluir item do catálogo**: spinner no ícone da lixeira durante a exclusão.
+  - **Filtro de status das publicações**: spinner no filtro clicado enquanto a lista recarrega.
+  - **Botões que levam a um formulário** (Novo item, Nova embarcação, Novo roteiro, Anunciar, Editar, Preço, Documento…): o ícone do próprio botão vira spinner enquanto a próxima tela carrega — no computador e no celular.
+  - **Cancelar** dos formulários e ação do tutorial: acendem a barra de progresso no topo (navegação por botão, não por link).
+
+## 10.y Equipe: membro estrangeiro, sem CPF (05/11/2026)
+
+No cadastro de membro da equipe (marinheiro, capitão, auxiliar), o campo CPF ganhou a opção **"Estrangeiro — não tenho CPF"**. Marcada, o CPF some e o gestor informa **tipo de documento** (Passaporte ou Registro de Identificação), **país emissor** e **número**. O membro é salvo com um documento **ou** com CPF, nunca os dois.
+
+- A lista de equipe mostra o documento ("Passaporte AB123456 · Argentina") no lugar do CPF e a busca encontra pelo número.
+- O aviso de "cadastro incompleto" só aparece se faltar CPF **e** documento estrangeiro (ou o telefone).
+- Mesmo documento + país não se repete na equipe do mesmo gestor.
+
+**Também incluído:**
+- **Telefone internacional:** para estrangeiro, o telefone aceita número de qualquer país (código do país + número); o brasileiro segue com DDD. Aparece formatado na lista de equipe, em "Minhas reservas" (quem vai atender) e no admin.
+- **Wizard de documentos:** ao cadastrar um condutor novo a partir da habilitação, dá para marcar "Estrangeiro — não tem CPF" e informar passaporte/registro de identificação.
+- **Admin:** a análise de documentação da embarcação mostra o documento estrangeiro do membro no lugar do CPF.
+
+**Decisões:** a leitura automática da carteira (CHA) só preenche CPF quando o membro não é estrangeiro. Depende de aplicar a migration `20261105_equipe_documento_estrangeiro.sql`.
+
 ## 11. Não Incluído no MVP
 
 - Chat em tempo real
@@ -3537,3 +3571,30 @@ O MVP será considerado validado quando:
 - ≥ 100 reservas realizadas  
 - ≥ 10 avaliações reais  
 - Receita recorrente iniciada  
+
+---
+
+## Catálogo de extras — orientação de pacotes (04/11/2026) — implementado
+- Problema: o cliente não escolhe quantidade de extras; o churrasco é pacote fechado sem indicação de pessoas/valor.
+- Decisão: orientar o gestor a cadastrar pacotes pré-definidos (ex.: "Churrasco para 5 pessoas…" R$ 500; "…10 pessoas…" R$ 900), com pessoas, conteúdo e valor total na descrição.
+- Entrega: modal na primeira visita ao Catálogo com "Não mostrar novamente", botão "Dicas de cadastro" para reabrir e dica nos formulários de novo/editar item.
+- Fora de escopo: seletor de quantidade no front.
+
+## Cortesias do passeio (06/11/2026) — implementado
+- Na etapa **Informações** do roteiro (cadastro e edição, inclusive pelo admin), novo cartão **"Cortesias do passeio"**, logo após a Descrição: o gestor lista o que o passeio oferece sem custo extra (ex.: água potável, 5kg de gelo, carvão), em tags (Enter ou `;`), até 20 itens de 120 caracteres.
+- No site, o bloco aparece **entre as especificações do roteiro e "Turbine seu passeio"**, no mesmo desenho das Regras a bordo, mas em verde suave com check. Some quando não há cortesias.
+- Campo sensível da publicação: incluir/alterar cortesias de um roteiro aprovado o devolve para análise (remover todas não). A análise do admin mostra a linha "Cortesias do passeio".
+- Decisão: a Descrição do roteiro continua na etapa Informações, então o cartão ficou logo após ela. Cópia entre roteiros fora do escopo.
+
+
+## Revisão dos catálogos da embarcação (04/11/2026) — implementado, aplicar migration
+- Problema: os catálogos de **Equipamentos de Segurança**, **Acessórios** e **Comodidades** tinham itens repetidos entre si (Caiaque, Churrasqueira, Wakeboard, Stand Up, Equipamento de Mergulho, Toldo, GPS, Salva-vidas), itens na categoria errada (brinquedos aquáticos em Comodidades; escada, plataforma e iluminação em Acessórios), nomes imprecisos ("Compasso", "Mapa Náutico", "Prancha") e lacunas (colete infantil, luzes de navegação, chuveiro, tomadas, jet ski…).
+- Critério adotado (vale também para novos itens em Cadastros Auxiliares):
+  - **Equipamentos de Segurança:** salvatagem, incêndio, sinalização de socorro, comunicação, navegação e instrumentos, fundeio/reboque, esgotamento, primeiros socorros e detectores.
+  - **Acessórios:** itens móveis de lazer e atividade — brinquedos e esportes aquáticos, mergulho, pesca e itens avulsos levados no passeio (cooler, caixa de som portátil, cadeira de praia, guarda-sol).
+  - **Comodidades a bordo:** estrutura e conforto da embarcação — climatização, banheiro e chuveiro, cozinha e eletrodomésticos, entretenimento fixo, áreas (deck, flybridge, salão), escada e plataforma de banho, energia e enxoval (toalhas, roupa de cama).
+- Resultado: segurança 20 → 33 itens, acessórios 20 → 29, comodidades 30 → 37; nenhum nome repetido entre os catálogos; todos com nome em inglês e espanhol.
+- Sem perda de dado: as marcações das embarcações foram levadas para o item certo; quando a embarcação já tinha o item na outra categoria, ficou uma marcação só (11 casos). Itens só renomeados mantêm o mesmo cadastro, então filtros da busca já salvos continuam valendo.
+- Excluídos por não terem uso nem lugar no catálogo: "Prancha" (genérico) e "Mesa de Ping Pong".
+- No site, o bloco "O que esta embarcação possui" ganhou ícones para os itens novos.
+- **Implantação:** aplicar a migration `20261107_revisao_catalogos_embarcacao.sql` no Supabase (idempotente). Detalhes: SPEC §17.3.

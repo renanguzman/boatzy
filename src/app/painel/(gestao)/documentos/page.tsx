@@ -1,3 +1,4 @@
+import IconeLink from '@/components/ui/IconeLink';
 import { redirect } from 'next/navigation';
 import Link from 'next/link';
 import { FileCheck2, Upload } from 'lucide-react';
@@ -52,7 +53,7 @@ export default async function DocumentosPage({
           href="/painel/documentos/novo"
           className="flex items-center justify-center gap-2 whitespace-nowrap rounded-xl bg-[#0B2447] px-5 py-2.5 text-sm font-semibold text-white shadow-md shadow-[#0B2447]/10 transition-colors hover:bg-[#0B3D91]"
         >
-          <Upload className="h-4 w-4" />
+          <IconeLink tamanho={16}><Upload className="h-4 w-4" /></IconeLink>
           Enviar documento
         </Link>
       </div>

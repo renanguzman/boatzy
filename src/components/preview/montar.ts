@@ -173,6 +173,8 @@ export function montarPreviewRoteiro(args: {
     horario_saida: string;
     estado_id: string; municipio_id: string;
   };
+  /** Cortesias do passeio digitadas no formulário (tags). */
+  cortesias: string[];
   estados: Estado[];
   municipios: Municipio[];
   imagens: GaleriaItem[];
@@ -192,6 +194,7 @@ export function montarPreviewRoteiro(args: {
     id: 'preview',
     nome: form.nome.trim() || 'Nome do roteiro',
     descricao: form.descricao.trim(),
+    cortesias: normalizarRegras(args.cortesias),
     origem: textoOuNull(form.origem),
     destino: textoOuNull(form.destino),
     duracao: duracaoTexto(duracaoParaHoras(form.duracao_valor, form.duracao_unidade)),

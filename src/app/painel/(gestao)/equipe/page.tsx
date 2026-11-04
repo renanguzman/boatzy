@@ -1,3 +1,4 @@
+import IconeLink from '@/components/ui/IconeLink';
 import { redirect } from 'next/navigation';
 import Link from 'next/link';
 import { UsersRound, UserPlus, IdCard } from 'lucide-react';
@@ -17,6 +18,9 @@ type MembroRow = {
   id: string;
   nome_completo: string;
   cpf: string | null;
+  tipo_documento_estrangeiro: string | null;
+  documento_estrangeiro: string | null;
+  pais_documento: string | null;
   email: string | null;
   telefone: string | null;
   funcao: EquipeFuncao | null;
@@ -39,7 +43,7 @@ export default async function EquipePage() {
     supabaseAdmin
       .from('equipe_membro')
       .select(
-        `id, nome_completo, cpf, email, telefone, funcao, foto_url, ativo, user_id, created_at,
+        `id, nome_completo, cpf, tipo_documento_estrangeiro, documento_estrangeiro, pais_documento, email, telefone, funcao, foto_url, ativo, user_id, created_at,
          equipe_membro_embarcacao ( embarcacao ( id, nome ) )`,
       )
       .eq('owner_id', user.id)
@@ -75,6 +79,9 @@ export default async function EquipePage() {
     id: m.id,
     nome_completo: m.nome_completo,
     cpf: m.cpf,
+    tipo_documento_estrangeiro: m.tipo_documento_estrangeiro,
+    documento_estrangeiro: m.documento_estrangeiro,
+    pais_documento: m.pais_documento,
     email: m.email,
     telefone: m.telefone,
     funcao: m.funcao,
@@ -161,12 +168,13 @@ function CartaoGestorCondutor({ membroId, documento }: { membroId: string; docum
       </div>
       <Link
         href={href}
-        className={`shrink-0 rounded-xl px-4 py-2.5 text-center text-sm font-semibold transition-colors ${
+        className={`inline-flex shrink-0 items-center justify-center gap-1.5 rounded-xl px-4 py-2.5 text-center text-sm font-semibold transition-colors ${
           documento && !renovar
             ? 'border border-slate-200 text-slate-600 hover:bg-slate-50'
             : 'bg-[#0B2447] text-white hover:bg-[#0B3D91]'
         }`}
       >
+        <IconeLink />
         {!documento ? 'Enviar minha habilitação' : renovar ? 'Renovar habilitação' : 'Ver em Documentos'}
       </Link>
     </div>

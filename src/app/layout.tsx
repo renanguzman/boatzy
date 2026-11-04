@@ -1,9 +1,11 @@
 import type { Metadata } from "next";
+import { Suspense } from "react";
 import { Inter } from "next/font/google";
 import { NextIntlClientProvider } from "next-intl";
 import { getLocale, getTranslations } from "next-intl/server";
 import "./globals.css";
 import GoogleAnalytics from "@/components/analytics/GoogleAnalytics";
+import BarraProgressoNavegacao from "@/components/ui/BarraProgressoNavegacao";
 import { LOCALE_OPEN_GRAPH, isIdioma, IDIOMA_PADRAO } from "@/i18n/config";
 import { carregarDadosCatalogo } from "@/i18n/catalogo-servidor";
 import { CatalogoProvider } from "@/i18n/CatalogoProvider";
@@ -46,6 +48,9 @@ export default async function RootLayout({
         <NextIntlClientProvider>
           <CatalogoProvider dados={catalogo}>{children}</CatalogoProvider>
         </NextIntlClientProvider>
+        <Suspense fallback={null}>
+          <BarraProgressoNavegacao />
+        </Suspense>
         <GoogleAnalytics />
       </body>
     </html>

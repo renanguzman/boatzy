@@ -561,7 +561,6 @@ export default function EditarEmbarcacaoForm({
         ? 'Alterações salvas e enviadas para análise. A embarcação volta ao site após a aprovação.'
         : 'Embarcação atualizada com sucesso!',
     });
-    setSubmitting(false);
     setTimeout(() => router.push(voltarHref), 1200);
   }
 

@@ -1,7 +1,8 @@
+import { documentoEstrangeiroEquipeRotulo, membroTemDocumento } from '@/lib/equipe-documento';
 import { Eye, FilePlus2, History, UserRound } from 'lucide-react';
 import { formatarData } from '@/lib/datas';
 import { maskCPF } from '@/lib/validators';
-import { formatarTelefoneE164 } from '@/lib/countries';
+import { formatarTelefoneMembro } from '@/lib/telefone-membro';
 import { SeloValidade } from '@/components/painel/documentos/SeloValidade';
 import { SecaoRevisao } from '@/components/publicacao/RevisaoAdmin';
 import type { DocumentoItem } from '@/lib/documentos/server';
@@ -189,10 +190,10 @@ export function EquipeHabilitacoesAdmin({ equipe }: { equipe: MembroComHabilitac
 function CartaoMembro({ m }: { m: MembroComHabilitacoes }) {
   const ativos = m.documentos.filter((d) => !d.arquivado_em);
   const antigos = m.documentos.filter((d) => d.arquivado_em);
-  const incompleto = !m.is_gestor && (!m.cpf || !m.telefone);
+  const incompleto = !m.is_gestor && (!membroTemDocumento(m) || !m.telefone);
   const contato = [
-    m.cpf ? `CPF ${maskCPF(m.cpf)}` : null,
-    m.telefone ? formatarTelefoneE164(m.telefone) : null,
+    m.cpf ? `CPF ${maskCPF(m.cpf)}` : documentoEstrangeiroEquipeRotulo(m),
+    m.telefone ? formatarTelefoneMembro(m.telefone) : null,
     m.email,
   ].filter(Boolean);
 

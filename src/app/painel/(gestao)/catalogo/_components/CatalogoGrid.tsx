@@ -1,5 +1,7 @@
 'use client';
 
+import IconeLink from '@/components/ui/IconeLink';
+import Spinner from '@/components/ui/Spinner';
 import { useState, useMemo, useTransition } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
@@ -197,7 +199,7 @@ export default function CatalogoGrid({ itens }: { itens: CatalogoListItem[] }) {
                       aria-label={`Editar ${item.descricao}`}
                       className="w-10 h-10 flex items-center justify-center rounded-lg text-slate-400 hover:text-[#0B2447] hover:bg-slate-100 transition-colors"
                     >
-                      <Pencil className="w-4 h-4" />
+                      <IconeLink tamanho={16}><Pencil className="w-4 h-4" /></IconeLink>
                     </Link>
                     <button
                       aria-label={`Excluir ${item.descricao}`}
@@ -271,15 +273,16 @@ export default function CatalogoGrid({ itens }: { itens: CatalogoListItem[] }) {
                             title="Editar"
                             className="w-8 h-8 flex items-center justify-center rounded-lg text-slate-400 hover:text-[#0B2447] hover:bg-slate-100 transition-colors"
                           >
-                            <Pencil className="w-4 h-4" />
+                            <IconeLink tamanho={16}><Pencil className="w-4 h-4" /></IconeLink>
                           </Link>
                           <button
                             title="Excluir"
                             disabled={deleting === item.id}
+                            aria-busy={deleting === item.id}
                             onClick={() => handleDelete(item.id, item.descricao)}
                             className="w-8 h-8 flex items-center justify-center rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50 transition-colors disabled:opacity-40"
                           >
-                            <Trash2 className="w-4 h-4" />
+                            {deleting === item.id ? <Spinner /> : <Trash2 className="w-4 h-4" />}
                           </button>
                         </div>
                       </td>

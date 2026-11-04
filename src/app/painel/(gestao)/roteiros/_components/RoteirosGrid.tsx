@@ -1,5 +1,6 @@
 'use client';
 
+import IconeLink from '@/components/ui/IconeLink';
 import { useState, useMemo } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
@@ -203,14 +204,14 @@ export default function RoteirosGrid({ roteiros }: { roteiros: RoteiroListItem[]
                         aria-label={`Preço de ${r.nome}`}
                         className="w-10 h-10 flex items-center justify-center rounded-lg text-slate-400 hover:text-[#0B2447] hover:bg-slate-100 transition-colors"
                       >
-                        <DollarSign className="w-4 h-4" />
+                        <IconeLink tamanho={16}><DollarSign className="w-4 h-4" /></IconeLink>
                       </Link>
                       <Link
                         href={`/painel/roteiros/${r.id}/editar`}
                         aria-label={`Editar ${r.nome}`}
                         className="w-10 h-10 flex items-center justify-center rounded-lg text-slate-400 hover:text-[#0B2447] hover:bg-slate-100 transition-colors"
                       >
-                        <Pencil className="w-4 h-4" />
+                        <IconeLink tamanho={16}><Pencil className="w-4 h-4" /></IconeLink>
                       </Link>
                     </div>
                   </div>
@@ -311,14 +312,14 @@ export default function RoteirosGrid({ roteiros }: { roteiros: RoteiroListItem[]
                             title="Preço"
                             className="w-8 h-8 flex items-center justify-center rounded-lg text-slate-400 hover:text-[#0B2447] hover:bg-slate-100 transition-colors"
                           >
-                            <DollarSign className="w-4 h-4" />
+                            <IconeLink tamanho={16}><DollarSign className="w-4 h-4" /></IconeLink>
                           </Link>
                           <Link
                             href={`/painel/roteiros/${r.id}/editar`}
                             title="Editar"
                             className="w-8 h-8 flex items-center justify-center rounded-lg text-slate-400 hover:text-[#0B2447] hover:bg-slate-100 transition-colors"
                           >
-                            <Pencil className="w-4 h-4" />
+                            <IconeLink tamanho={16}><Pencil className="w-4 h-4" /></IconeLink>
                           </Link>
                           <button
                             title="Excluir"

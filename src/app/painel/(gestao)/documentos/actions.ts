@@ -1,5 +1,6 @@
 'use server';
 
+import { validarDocumentoEquipe } from '@/lib/equipe-documento';
 import { revalidatePath } from 'next/cache';
 import { createClient } from '@/lib/supabase/server';
 import { supabaseAdmin } from '@/lib/supabase';
@@ -115,6 +116,35 @@ async function resolverCondutor(
   const nome = nomeApresentavel(c.nome);
   if (nome.length < 3) return { ok: false, error: 'Informe o nome do condutor.' };
   if (!['marinheiro', 'capitao', 'auxiliar'].includes(c.funcao)) return { ok: false, error: 'Função inválida.' };
+
+  // Estrangeiro sem CPF (SPEC §104): passaporte / registro de identificação no lugar do CPF.
+  if (c.estrangeiro) {
+    const v = validarDocumentoEquipe(c.estrangeiro);
+    if (!v.ok) return { ok: false, error: v.erro };
+    const { data: mesmo } = await supabaseAdmin
+      .from('equipe_membro')
+      .select('id, is_gestor')
+      .eq('owner_id', ownerId)
+      .eq('pais_documento', v.valor.pais)
+      .eq('documento_estrangeiro', v.valor.documento)
+      .maybeSingle();
+    if (mesmo) {
+      if (!mesmo.is_gestor) await vincularMembroEmbarcacoes(mesmo.id, embarcacaoIds);
+      return { ok: true, membroId: mesmo.id, criado: null };
+    }
+    const { data: novoEstrangeiro, error: erroEstrangeiro } = await supabaseAdmin
+      .from('equipe_membro')
+      .insert({
+        owner_id: ownerId, is_gestor: false, nome_completo: nome, cpf: null, telefone: null, funcao: c.funcao, ativo: true,
+        tipo_documento_estrangeiro: v.valor.tipo, documento_estrangeiro: v.valor.documento, pais_documento: v.valor.pais,
+      })
+      .select('id')
+      .single();
+    if (erroEstrangeiro || !novoEstrangeiro) return { ok: false, error: erroEstrangeiro?.message ?? 'Não foi possível cadastrar o condutor na equipe.' };
+    await vincularMembroEmbarcacoes(novoEstrangeiro.id, embarcacaoIds);
+    return { ok: true, membroId: novoEstrangeiro.id, criado: { id: novoEstrangeiro.id, nome } };
+  }
+
   const cpf = isValidCPF(c.cpf) ? onlyDigits(c.cpf) : cpfDocumento;
 
   // Mesmo CPF já na equipe: usa a pessoa existente em vez de duplicar.

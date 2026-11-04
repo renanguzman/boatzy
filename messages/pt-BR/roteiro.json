@@ -9,6 +9,11 @@
       "sem_capitao": "Sem Capitão",
       "opcional": "Capitão Opcional"
     },
+    "cortesias": {
+      "titulo": "Cortesias do passeio",
+      "descricao": "Incluso no passeio, sem custo extra",
+      "contagem": "{count, plural, one {# cortesia} other {# cortesias}}"
+    },
     "aPartirDe": "A partir de",
     "porDiaria": "por diária",
     "porPasseio": "por passeio",

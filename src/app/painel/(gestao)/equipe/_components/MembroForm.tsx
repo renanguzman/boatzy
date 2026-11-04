@@ -1,6 +1,9 @@
 'use client';
 
-import { useState, useRef, useTransition } from 'react';
+import PhoneInput, { type PhoneValue } from '@/components/auth/PhoneInput';
+import { telefoneMembroInternacional } from '@/lib/telefone-membro';
+import { iniciarBarraNavegacao } from '@/components/ui/BarraProgressoNavegacao';
+import { useState, useRef, useTransition, useMemo } from 'react';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import {
@@ -8,6 +11,8 @@ import {
 } from 'lucide-react';
 import { maskCPF, onlyDigits, applyPhoneMask, isValidCPF } from '@/lib/validators';
 import { MAX_IMAGE_SIZE_BYTES, MAX_IMAGE_SIZE_ERROR } from '@/lib/upload';
+import { normalizarDocumentoEstrangeiro, opcoesPaises } from '@/lib/pagamentos/estrangeiro';
+import { ROTULO_TIPO_DOCUMENTO_EQUIPE, TIPOS_DOCUMENTO_EQUIPE, tipoDocumentoEquipeValido, type TipoDocumentoEquipe } from '@/lib/equipe-documento';
 import { FUNCOES_EQUIPE } from '@/lib/documentos/tipos';
 import { SIMILARIDADE_SUGESTAO, similaridadeNomes } from '@/lib/documentos/nomes';
 import type { DocumentoAtual, RascunhoDocumento } from '@/lib/documentos/rascunho';
@@ -31,6 +36,9 @@ export type MembroFormData = {
   id: string;
   nome_completo: string;
   cpf: string | null;
+  tipo_documento_estrangeiro?: string | null;
+  documento_estrangeiro?: string | null;
+  pais_documento?: string | null;
   email: string | null;
   telefone: string | null;
   funcao: EquipeFuncao | null;
@@ -59,8 +67,20 @@ export default function MembroForm({ embarcacoes, membro, habilitacaoAtual = nul
 
   const [nome, setNome] = useState(membro?.nome_completo ?? '');
   const [cpf, setCpf] = useState(membro?.cpf ? maskCPF(membro.cpf) : '');
+  // Estrangeiro sem CPF: passaporte ou registro de identificação + país emissor (SPEC §104).
+  const [semCpf, setSemCpf] = useState(!!membro?.documento_estrangeiro);
+  const [tipoDoc, setTipoDoc] = useState<TipoDocumentoEquipe | ''>(
+    tipoDocumentoEquipeValido(membro?.tipo_documento_estrangeiro) ? membro.tipo_documento_estrangeiro : '',
+  );
+  const [paisDoc, setPaisDoc] = useState(membro?.pais_documento ?? '');
+  const [numeroDoc, setNumeroDoc] = useState(membro?.documento_estrangeiro ?? '');
+  const paises = useMemo(() => opcoesPaises('pt-BR'), []);
   const [email, setEmail] = useState(membro?.email ?? '');
-  const [telefone, setTelefone] = useState(membro?.telefone ? phoneMask(membro.telefone) : '');
+  // Telefone brasileiro (máscara com DDD) ou, para estrangeiro, internacional em E.164 (SPEC §104).
+  const [telefone, setTelefone] = useState(
+    membro?.telefone && !telefoneMembroInternacional(membro.telefone) ? phoneMask(membro.telefone) : '',
+  );
+  const [telIntl, setTelIntl] = useState<PhoneValue | null>(null);
   const [funcao, setFuncao] = useState<EquipeFuncao | ''>(membro?.funcao ?? '');
   const [selEmb, setSelEmb] = useState<string[]>(membro?.embarcacaoIds ?? []);
 
@@ -86,14 +106,19 @@ export default function MembroForm({ embarcacoes, membro, habilitacaoAtual = nul
   function completarComHabilitacao(r: RascunhoDocumento) {
     const titular = r.campos.titular.trim();
     if (titular) setNome((n) => (n.trim() ? n : titular));
-    if (isValidCPF(r.campos.cpf)) setCpf((c) => (onlyDigits(c) ? c : r.campos.cpf));
+    if (!semCpf && isValidCPF(r.campos.cpf)) setCpf((c) => (onlyDigits(c) ? c : r.campos.cpf));
   }
+
+  /** Ponto de partida do campo internacional: o telefone já salvo (E.164) ou o brasileiro digitado (+55). */
+  const telefoneInicialIntl = telefoneMembroInternacional(membro?.telefone)
+    ? (membro?.telefone as string)
+    : onlyDigits(telefone) ? `+55${onlyDigits(telefone)}` : '';
 
   const nomeNaCarteira = habilitacao?.campos.titular.trim() ?? '';
   const cpfNaCarteira = habilitacao?.campos.cpf ?? '';
   const nomeDiverge =
     nomeNaCarteira.length >= 3 && nome.trim().length >= 3 && similaridadeNomes(nomeNaCarteira, nome) < SIMILARIDADE_SUGESTAO;
-  const cpfDiverge = isValidCPF(cpfNaCarteira) && isValidCPF(cpf) && onlyDigits(cpfNaCarteira) !== onlyDigits(cpf);
+  const cpfDiverge = !semCpf && isValidCPF(cpfNaCarteira) && isValidCPF(cpf) && onlyDigits(cpfNaCarteira) !== onlyDigits(cpf);
 
   function toggleEmb(id: string) {
     setSelEmb((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
@@ -155,6 +180,10 @@ export default function MembroForm({ embarcacoes, membro, habilitacaoAtual = nul
       setFeedback({ type: 'error', msg: erroHabilitacao });
       return;
     }
+    if (semCpf && telIntl && !telIntl.valid) {
+      setFeedback({ type: 'error', msg: 'Telefone inválido — confira o país e o número.' });
+      return;
+    }
     setSubmitting(true);
 
     // O arquivo da habilitação sobe antes (bucket privado): se falhar, nada é salvo.
@@ -167,9 +196,10 @@ export default function MembroForm({ embarcacoes, membro, habilitacaoAtual = nul
 
     const payload: MembroFormPayload = {
       nome_completo: nome,
-      cpf,
+      cpf: semCpf ? '' : cpf,
+      estrangeiro: semCpf ? { tipo: tipoDoc, pais: paisDoc, documento: numeroDoc } : null,
       email,
-      telefone,
+      telefone: semCpf ? (telIntl ? telIntl.e164 : telefoneInicialIntl) : telefone,
       funcao,
       embarcacaoIds: selEmb,
       vincularUserId: vinculoId,
@@ -197,7 +227,6 @@ export default function MembroForm({ embarcacoes, membro, habilitacaoAtual = nul
           return;
         }
         setFeedback({ type: 'success', msg: 'Membro atualizado.' });
-        setSubmitting(false);
         setTimeout(() => router.push('/painel/equipe'), 900);
         return;
       }
@@ -216,12 +245,10 @@ export default function MembroForm({ embarcacoes, membro, habilitacaoAtual = nul
       if (docs.falhas.length > 0) {
         // O membro já existe: segue para a edição dele, onde a habilitação pode ser enviada de novo.
         setFeedback({ type: 'error', msg: `Membro cadastrado, mas a habilitação não foi salva (${docs.falhas.join('; ')}). Abrindo o cadastro para você enviar de novo…` });
-        setSubmitting(false);
         setTimeout(() => router.push(`/painel/equipe/${res.membroId}/editar`), 3500);
         return;
       }
       setFeedback({ type: 'success', msg: `Membro "${nome.trim()}" cadastrado.` });
-      setSubmitting(false);
       setTimeout(() => {
         router.push('/painel/equipe');
         router.refresh();
@@ -302,34 +329,91 @@ export default function MembroForm({ embarcacoes, membro, habilitacaoAtual = nul
           />
         </div>
 
-        {/* CPF */}
-        <div>
-          <label className="block text-sm font-medium text-slate-700 mb-1.5">
-            CPF <span className="text-red-500">*</span>
+        {/* CPF — ou, para estrangeiro, passaporte / registro de identificação */}
+        <div className={semCpf ? 'md:col-span-2' : ''}>
+          {!semCpf && (
+            <>
+              <label className="block text-sm font-medium text-slate-700 mb-1.5">
+                CPF <span className="text-red-500">*</span>
+              </label>
+              <input
+                className={inputCls}
+                value={cpf}
+                onChange={(e) => setCpf(maskCPF(e.target.value))}
+                placeholder="000.000.000-00"
+                inputMode="numeric"
+                required
+              />
+            </>
+          )}
+          <label className={`flex items-center gap-2 text-sm text-slate-600 cursor-pointer select-none ${semCpf ? '' : 'mt-2'}`}>
+            <input
+              type="checkbox"
+              checked={semCpf}
+              onChange={(e) => setSemCpf(e.target.checked)}
+              className="h-4 w-4 rounded border-slate-300 text-teal-600 focus:ring-teal-500"
+            />
+            Estrangeiro — não tenho CPF
           </label>
-          <input
-            className={inputCls}
-            value={cpf}
-            onChange={(e) => setCpf(maskCPF(e.target.value))}
-            placeholder="000.000.000-00"
-            inputMode="numeric"
-            required
-          />
+          {semCpf && (
+            <div className="mt-3 grid grid-cols-1 gap-4 sm:grid-cols-3">
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1.5">
+                  Tipo de documento <span className="text-red-500">*</span>
+                </label>
+                <select className={inputCls} value={tipoDoc} onChange={(e) => setTipoDoc(e.target.value as TipoDocumentoEquipe | '')} required>
+                  <option value="">Selecione…</option>
+                  {TIPOS_DOCUMENTO_EQUIPE.map((t) => (
+                    <option key={t} value={t}>{ROTULO_TIPO_DOCUMENTO_EQUIPE[t]}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1.5">
+                  País emissor <span className="text-red-500">*</span>
+                </label>
+                <select className={inputCls} value={paisDoc} onChange={(e) => setPaisDoc(e.target.value)} required>
+                  <option value="">Selecione…</option>
+                  {paises.map((p) => (
+                    <option key={p.codigo} value={p.codigo}>{p.nome}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1.5">
+                  Número do documento <span className="text-red-500">*</span>
+                </label>
+                <input
+                  className={inputCls}
+                  value={numeroDoc}
+                  onChange={(e) => setNumeroDoc(normalizarDocumentoEstrangeiro(e.target.value))}
+                  placeholder="AB123456"
+                  maxLength={20}
+                  autoCapitalize="characters"
+                  required
+                />
+              </div>
+            </div>
+          )}
         </div>
 
-        {/* Telefone */}
+        {/* Telefone — estrangeiro pode informar número internacional */}
         <div>
           <label className="block text-sm font-medium text-slate-700 mb-1.5">
             Telefone <span className="text-red-500">*</span>
           </label>
-          <input
-            className={inputCls}
-            value={telefone}
-            onChange={(e) => setTelefone(phoneMask(e.target.value))}
-            placeholder="(11) 91234-5678"
-            inputMode="numeric"
-            required
-          />
+          {semCpf ? (
+            <PhoneInput key="intl" initialE164={telIntl?.e164 || telefoneInicialIntl} onChange={setTelIntl} />
+          ) : (
+            <input
+              className={inputCls}
+              value={telefone}
+              onChange={(e) => setTelefone(phoneMask(e.target.value))}
+              placeholder="(11) 91234-5678"
+              inputMode="numeric"
+              required
+            />
+          )}
         </div>
 
         {/* Função */}
@@ -486,7 +570,7 @@ export default function MembroForm({ embarcacoes, membro, habilitacaoAtual = nul
         {editMode && (
           <button
             type="button"
-            onClick={() => router.push('/painel/equipe')}
+            onClick={() => { iniciarBarraNavegacao(); router.push('/painel/equipe'); }}
             className="rounded-lg px-5 py-2.5 text-sm font-medium text-slate-600 hover:bg-slate-100"
           >
             Cancelar
