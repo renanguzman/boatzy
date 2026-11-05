@@ -2,6 +2,7 @@ import IconeLink from '@/components/ui/IconeLink';
 import { redirect } from 'next/navigation';
 import Link from 'next/link';
 import { Plus } from 'lucide-react';
+import RascunhosPendentes from '@/components/painel/rascunho/RascunhosPendentes';
 import { createClient } from '@/lib/supabase/server';
 import { supabaseAdmin } from '@/lib/supabase';
 import RoteirosGrid, { type RoteiroListItem } from './_components/RoteirosGrid';
@@ -50,6 +51,9 @@ export default async function RoteirosPage() {
           Novo roteiro
         </Link>
       </div>
+
+      {/* Cadastros não concluídos / edições não salvas guardados neste aparelho (SPEC §107) */}
+      <RascunhosPendentes usuarioId={user.id} entidade="roteiro" />
 
       <RoteirosGrid roteiros={roteiros} />
     </div>

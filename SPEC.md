@@ -708,17 +708,21 @@ Definições e montagem da revisão: `embarcacoes/_components/etapasEmbarcacao.t
 (`ETAPAS_ROTEIRO`, `ETAPA_ROT`, `revisaoRoteiro`).
 
 Componentes compartilhados (`src/components/painel/etapas/`):
-- `useEtapas(total, { todasVisitadas?, ids? })` → `{ atual, visitadas, topoRef, ir, proxima, anterior,
-  ehPrimeira, ehUltima }`. Navegação livre; ao trocar rola até `topoRef`. Na edição todas começam
+- `useEtapas(total, { todasVisitadas?, ids? })` → `{ atual, visitadas, topoRef, ir, restaurar, proxima,
+  anterior, ehPrimeira, ehUltima }`. Navegação livre; ao trocar rola até `topoRef`. Na edição todas começam
   visitadas. `ids` habilita link direto por hash (`/painel/roteiros/[id]/editar#preco` — usado
-  pelo atalho de preço do `RoteirosGrid`).
+  pelo atalho de preço do `RoteirosGrid`) e o **histórico por etapa** (§107.1): `ir(i)` grava `#id`
+  com `history.pushState`, então o voltar do navegador volta de etapa. `ir(i, { historico: false })`
+  só troca a etapa (usado ao seguir o hash). `restaurar({ atual, visitadas })` devolve a etapa de um
+  rascunho (§107).
 - `IndicadorEtapas({ etapas, atual, visitadas, onIr })` — desktop: trilha horizontal clicável
   (✓ concluída, anel = atual, cinza = pendente); celular: etapa atual + barra segmentada + menu
   "Ver etapas".
 - `RodapeEtapas` — rodapé `sticky bottom-0`: progresso, Voltar, Pré-visualizar, Próximo e o único
   `type="submit"`. `modo="novo"`: avança e publica na última etapa ("Publicar embarcação/roteiro").
   `modo="editar"`: **"Salvar alterações" em qualquer etapa** + avançar como botão secundário.
-  No celular, Voltar/Pré-visualizar viram ícones de 48 px.
+  No celular, Voltar/Pré-visualizar viram ícones de 48 px. Prop opcional `status` (ReactNode):
+  linha discreta acima dos botões — usada pelo `StatusRascunho` (§107.4).
 - `RevisaoChecklist({ itens: ItemRevisao[] })` — `status: 'ok' | 'aviso' | 'erro'` + "Editar"
   (vai à etapa). Avisos não bloqueiam (ex.: menos de 5 fotos, sem preço, sem ponto no mapa).
 
@@ -9834,3 +9838,116 @@ Abas novas **Repasses** e **Relatórios**; `/administrator/financeiro` agora abr
 **Admin:** `/administrator/roteiros/[id]` mostra "Cortesias do passeio" (destacada quando alterada); edição pelo admin reaproveita o form do painel.
 
 Não coberto: cópia de cortesias entre roteiros (`CopiarDadosRoteiro`).
+
+---
+
+## 107. Rascunho automático dos cadastros de embarcação e roteiro (04/11/2026)
+
+Problema: formulários longos (sobretudo no celular) perdiam tudo — dados, fotos e documentos —
+quando o gestor apertava o voltar do navegador ou fechava/recarregava a aba. Dois motivos: as
+etapas do wizard não criavam entradas no histórico (o voltar saía do cadastro) e todo o estado
+vivia só em `useState` (os `File` só sobem ao enviar). No Android, abrir câmera/galeria também pode
+descartar a aba em segundo plano.
+
+Vale para `NovaEmbarcacaoForm`, `EditarEmbarcacaoForm`, `NovoRoteiroForm` e `EditarRoteiroForm`
+(painel e edição pelo admin). Sem mudança de banco, endpoints ou dependências.
+
+### 107.1 Voltar do navegador = etapa anterior
+- `useEtapas.ir()` grava `#<id-da-etapa>` com `window.history.pushState` (integrado ao router do
+  Next — o `popstate` restaura a mesma árvore, sem recarregar nem perder estado).
+- Listeners `popstate` + `hashchange`: abre a etapa do hash sem gravar de novo; hash vazio = 1ª etapa.
+  O voltar só sai do cadastro a partir da entrada inicial.
+- Após enviar/salvar com sucesso, os forms usam `router.replace` (antes `push`): o voltar não cai
+  num formulário vazio.
+
+### 107.2 Armazenamento e hook
+**`src/lib/rascunhos/armazenamento.ts`** (só navegador; falha vira resultado, nunca exceção):
+- IndexedDB `boatzy-rascunhos` v1 com duas lojas: `rascunhos` (keyPath `chave`; o JSON do formulário,
+  regravado a cada mudança) e `arquivos` (keyPath `id = "{chave}|{idArquivo}"`, índice `chave`; cada
+  `File` gravado **uma vez** quando entra e apagado quando sai — nunca regravado a cada letra).
+- `RegistroRascunho<D> = { chave, versao, dados, etapa: { atual, visitadas }, base, arquivos: string[],
+  atualizadoEm, criadoId?, resumo: { titulo, fotos } }`.
+- `chaveRascunho(usuarioId, 'embarcacao' | 'roteiro', 'novo' | id)` → `"{usuarioId}:{entidade}:{alvo}"`
+  (separa gestor e admin no mesmo navegador).
+- `gravarRascunho(registro, novos, remover)`: uma transação (arquivos novos + remoções + JSON). Sem
+  espaço/Blob recusado → regrava só o JSON (`'sem-arquivos'`); sem IndexedDB (ou `open` sem resposta
+  em 3 s) → **plano B** no `localStorage` (`boatzy-rascunho:{chave}`, só JSON). `lerRascunho` usa o
+  JSON mais recente entre os dois.
+- `apagarRascunho`, `listarRascunhos(prefixo)`, `apagarTodosRascunhos()` (logout),
+  `limparRascunhosVencidos()` (validade `VALIDADE_RASCUNHO_MS` = 30 dias, 1× por carregamento),
+  `pedirArmazenamentoPersistente()` (`navigator.storage.persist()` ao guardar o 1º arquivo).
+
+**`src/lib/rascunhos/useRascunhoCadastro.ts`** —
+`useRascunhoCadastro({ chave, versao, dados, arquivos, etapa, resumo, conferirServidor?, aplicar })` →
+`{ status, salvoEm, aviso, carregando, descartar, usarRascunho, fecharAviso, limpar, marcarCriado }`.
+- `dados` = estado serializável (JSON); `arquivos` = `Record<idArquivo, File>`; `aplicar(dados,
+  arquivos, etapa | null)` devolve o estado ao formulário e retorna quantos arquivos não voltaram.
+- Ao abrir: lê o rascunho. Versão diferente ou vencido → apaga. `criadoId` → apaga e avisa
+  `{ tipo: 'criado' }`. Edição (`conferirServidor`) com `base` diferente → `{ tipo: 'conflito' }`
+  e **não grava** até o gestor decidir. Senão aplica e avisa `{ tipo: 'restaurado', perdidos }`.
+- `base` = assinatura (FNV-1a do JSON, `assinatura()`) do **estado inicial do formulário**, que vem
+  só do servidor — cobre exatamente os campos editáveis (status de aprovação etc. não contam). Por
+  isso a serialização não pode ter nada aleatório.
+- Grava 600 ms após a última mudança; **na hora** ao trocar de etapa, em `visibilitychange: hidden`,
+  `pagehide`, `beforeunload` e ao desmontar (link do painel). Fila: nunca duas gravações juntas.
+  Igual ao estado inicial → não grava (e apaga o rascunho, se o gestor desfez tudo).
+- `beforeunload` só segura a saída quando algo **não** ficou guardado (`status` `erro`/`sem-arquivos`).
+- `status`: `carregando | limpo | salvando | salvo | sem-arquivos | erro`.
+- `descartar()`: apaga e reaplica o estado inicial (na edição, os dados do servidor).
+  `usarRascunho()`: conflito → aplica mesmo assim. `limpar()`: envio concluído — apaga e para de
+  gravar. `marcarCriado(id)`: cadastro novo já criado no servidor (passos seguintes ainda podem falhar).
+
+**`src/lib/rascunhos/arquivos.ts`**: `galeriaParaRascunho` / `galeriaDoRascunho` (`ImagemRascunho
+= { key, id?, url?, titulo, principal, urlEnviada? }`; arquivo `foto:{key}`; fotos salvas que não
+existem mais no servidor são ignoradas; progresso/status não entram, `urlEnviada` sim — foto que já
+subiu numa tentativa não sobe de novo) e `documentoParaRascunho` / `documentoDoRascunho`
+(`RascunhoDocumento` sem `arquivo`; arquivo `doc:{id}`).
+
+### 107.3 O que cada cadastro guarda
+- **Embarcação** — `embarcacoes/_components/rascunhoEmbarcacao.ts` (`VERSAO_RASCUNHO_EMBARCACAO = 1`,
+  `rascunhoDaEmbarcacao`, `embarcacaoDoRascunho`): `form`, regras a bordo, equipamentos, acessórios,
+  comodidades (filtrados pelos itens ativos ao restaurar), fotos, documentos (TIE/TIEM/PRPM e DPEM,
+  com o arquivo) e `novoId`.
+- **Roteiro** — `roteiros/_components/rascunhoRoteiro.ts` (`VERSAO_RASCUNHO_ROTEIRO = 1`,
+  `rascunhoDoRoteiro`, `roteiroDoRascunho`, `aplicarFechamentos`): `form`, cortesias, paradas (só os
+  nomes), parada sendo digitada, regras novas, regras salvas marcadas para excluir (edição), preços
+  por data (`ajustes`), dias de operação, janela, dias abertos/fechados, extras do catálogo
+  (filtrados pelos existentes), fotos, `novoId` e a **diferença** dos dias fechados do barco
+  (`{ embarcacaoId, adicionar, remover }` — aplicada sobre a agenda quando ela carrega). Embarcação
+  que não existe mais volta vazia. A `EtapaPreco` é remontada (`copiasPreco`).
+- Não entram (recarregados/recalculados): municípios (recarregados pelo `estado_id`), agenda/ocupação
+  do barco, consulta de CEP, mensagens, prévia.
+- `novoIdRef` virou estado `novoId` nos forms novos (entra no rascunho: a pasta das fotos já
+  enviadas continua a mesma).
+- Envio: após `criarEmbarcacao`/`criarRoteiro` ok → `marcarCriado(id)`; sucesso final → `limpar()`
+  (embarcação com falha no documento: `limpar()` antes de ir à edição). Edição: `limpar()` no sucesso.
+  Falhas parciais mantêm o rascunho.
+- Mudou o formato de `dados`? Suba a versão (rascunhos antigos são descartados).
+
+### 107.4 Interface
+- `src/components/painel/rascunho/AvisoRascunho.tsx` — `{ rascunho, modo, entidade, artigo,
+  hrefCriado? }`, logo abaixo do `IndicadorEtapas`:
+  - restaurado (novo): "Continuamos de onde você parou (hoje às 14:32)" + "Começar do zero";
+  - restaurado (edição): "Recuperamos alterações que você ainda não tinha salvado" + "Descartar
+    alterações" — ambos com confirmação; aviso de fotos/documentos não recuperados;
+  - conflito: "Usar minhas alterações" / "Descartar e ver a versão atual";
+  - criado: "Seu roteiro / Sua embarcação já foi enviada…" + "Abrir a edição".
+- `StatusRascunho.tsx` (no `RodapeEtapas`, prop `status`): "Rascunho salvo neste aparelho · 14:32";
+  durante a gravação mantém o horário anterior (não pisca); `sem-arquivos` e `erro` em âmbar/vermelho.
+- `RascunhosPendentes.tsx` (`{ usuarioId, entidade }`) no topo de `/painel/embarcacoes` e
+  `/painel/roteiros`: "Cadastro não concluído: <nome>" / "Alterações não salvas: <nome>", quando,
+  nº de fotos, "Continuar" (→ `/novo` ou `/[id]/editar`) e "Descartar" (com confirmação).
+- `quando.ts` → `quandoRascunho(ms)`: "hoje às", "ontem às", "dd/mm às" (fuso de Brasília).
+- Páginas (painel e admin) passam `usuarioId={user.id}` aos quatro forms (sem ele, desligado).
+
+### 107.5 Privacidade e limites
+- Fica **só neste aparelho/navegador** (não sincroniza entre aparelhos).
+- Logout apaga todos os rascunhos do aparelho (`apagarTodosRascunhos` em `Sidebar`, `SignOutLink`,
+  `AdminSidebar`, `Header` e "trocar de conta" do `AcessoGestorForm`) — documentos têm dados pessoais.
+- Duas abas no mesmo cadastro: vale a última gravação.
+- Fotos que estavam sendo escolhidas no instante em que o Android descartou a aba não voltam (nunca
+  chegaram à página).
+- Verificado em Chromium headless com um formulário de teste usando o mesmo hook/armazenamento/
+  `useEtapas`: gravação, restauração com fotos (inclusive 3 MB), voltar entre etapas, recarga
+  imediata (< 600 ms), remoção de foto, descartar, desfazer manual, `limpar`, conflito na edição,
+  `criado` e logout. Ainda não testado em iPhone/Android reais nem nas telas logadas do painel.

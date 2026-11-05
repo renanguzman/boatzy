@@ -16,6 +16,7 @@ import SeletorIdioma from './SeletorIdioma';
 import SinoNotificacoes from '@/components/notificacoes/SinoNotificacoes';
 import { rastrear } from '@/lib/analytics';
 import { isRotaInterna } from '@/i18n/config';
+import { apagarTodosRascunhos } from '@/lib/rascunhos/armazenamento';
 
 export default function Header() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -118,7 +119,8 @@ export default function Header() {
   }, [user]);
 
   async function handleSignOut() {
-    await supabase.auth.signOut();
+    // Rascunhos dos cadastros do painel têm dados (e documentos) do usuário (SPEC §107).
+    await Promise.all([supabase.auth.signOut(), apagarTodosRascunhos()]);
     router.refresh();
   }
 

@@ -36,6 +36,7 @@ export default async function NovaEmbarcacaoPage() {
       </div>
 
       <NovaEmbarcacaoForm
+        usuarioId={user.id}
         tipos={tipos ?? []}
         estados={estados ?? []}
         comodidades={comodidades ?? []}

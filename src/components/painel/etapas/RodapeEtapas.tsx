@@ -20,6 +20,8 @@ type Props = {
   onPreview: () => void;
   submitting: boolean;
   podeSalvar: boolean;
+  /** Situação do rascunho automático (`StatusRascunho`), numa linha discreta acima dos botões. */
+  status?: React.ReactNode;
 };
 
 /**
@@ -29,7 +31,7 @@ type Props = {
  */
 export default function RodapeEtapas({
   atual, total, labelAtual, proximoLabel, modo, rotuloSalvar,
-  onVoltar, onProximo, onPreview, submitting, podeSalvar,
+  onVoltar, onProximo, onPreview, submitting, podeSalvar, status,
 }: Props) {
   const ultima = proximoLabel == null;
   const mostrarSalvar = modo === 'editar' || ultima;
@@ -40,6 +42,9 @@ export default function RodapeEtapas({
 
   return (
     <div className="sticky bottom-0 z-20 -mx-1 px-1 pt-3 pb-4 bg-gradient-to-t from-[#F8F9FB] via-[#F8F9FB] to-[#F8F9FB]/0">
+      {status && (
+        <div className="flex justify-end px-2 pb-1.5 text-[11px] leading-4 sm:text-xs" aria-live="polite">{status}</div>
+      )}
       <div className="flex items-center gap-2 md:gap-3 rounded-2xl border border-slate-200 bg-white px-3 py-3 md:px-5 shadow-lg shadow-slate-900/5">
 
         {/* Progresso (desktop) */}

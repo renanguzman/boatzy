@@ -136,6 +136,7 @@ export default async function EditarRoteiroPage({
       </div>
 
       <EditarRoteiroForm
+        usuarioId={user.id}
         roteiro={{
           ...roteiro,
           estado_id: estadoId,

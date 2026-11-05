@@ -55,6 +55,13 @@ import { normalizarRegras } from '@/lib/embarcacao-regras';
 import RegrasInput from '@/components/painel/RegrasInput';
 import AssistenteDescricao from '@/components/painel/descricao/AssistenteDescricao';
 import { avisoDescricaoRoteiro, fatosRoteiro } from '../../../_components/descricaoRoteiro';
+import { useRascunhoCadastro } from '@/lib/rascunhos/useRascunhoCadastro';
+import { chaveRascunho } from '@/lib/rascunhos/armazenamento';
+import AvisoRascunho from '@/components/painel/rascunho/AvisoRascunho';
+import StatusRascunho from '@/components/painel/rascunho/StatusRascunho';
+import {
+  VERSAO_RASCUNHO_ROTEIRO, aplicarFechamentos, rascunhoDoRoteiro, roteiroDoRascunho, type FechamentosRascunho,
+} from '../../../_components/rascunhoRoteiro';
 
 // ─── Tipos ────────────────────────────────────────────────────────────────────
 
@@ -149,6 +156,8 @@ type Props = {
   pedidosPendentes: Record<string, number>;
   /** Outros roteiros do gestor (sem este) — origem do "copiar de outro roteiro" nas etapas Localização/Preço. */
   roteirosParaCopiar?: RoteiroCopiavel[];
+  /** Usuário logado — chave do rascunho automático neste aparelho (SPEC §107). Sem ele, desligado. */
+  usuarioId?: string;
 };
 
 // ─── Helpers de UI ────────────────────────────────────────────────────────────
@@ -190,7 +199,7 @@ function Field({ label, required, hint, children }: {
 
 // ─── Componente principal ─────────────────────────────────────────────────────
 
-export default function EditarRoteiroForm({ roteiro, estados, municipiosIniciais, embarcacoes, catalogo: catalogoInicial, catalogoIniciais, disponibilidadeInicial, fechamentosBarcoIniciais, paradasIniciais, voltarHref = '/painel/roteiros', avisarNovaAnalise = false, taxaPercent, ocupacaoInicial, pedidosPendentes, roteirosParaCopiar = [] }: Props) {
+export default function EditarRoteiroForm({ roteiro, estados, municipiosIniciais, embarcacoes, catalogo: catalogoInicial, catalogoIniciais, disponibilidadeInicial, fechamentosBarcoIniciais, paradasIniciais, voltarHref = '/painel/roteiros', avisarNovaAnalise = false, taxaPercent, ocupacaoInicial, pedidosPendentes, roteirosParaCopiar = [], usuarioId }: Props) {
   const router = useRouter();
   const [, startTransition] = useTransition();
   const numeroInputRef = useRef<HTMLInputElement>(null);
@@ -271,6 +280,8 @@ export default function EditarRoteiroForm({ roteiro, estados, municipiosIniciais
     embarcacaoId: roteiro.embarcacao_id ?? '',
     base: fechamentosBarcoIniciais, fechamentos: fechamentosBarcoIniciais, ocupacao: ocupacaoInicial,
   });
+  // Rascunho restaurado com outro barco: a diferença dos fechamentos entra quando a agenda dele chegar.
+  const fechamentosPendentesRef = useRef<FechamentosRascunho | null>(null);
   // Trocou a embarcação: carrega a agenda do barco novo (reservas e fechamentos).
   useEffect(() => {
     const id = form.embarcacao_id;
@@ -280,8 +291,13 @@ export default function EditarRoteiroForm({ roteiro, estados, municipiosIniciais
     if (!id) { setAgendaBarco(vazia); return; }
     carregarAgendaEmbarcacao(id, roteiro.id).then(agenda => {
       if (cancelado) return;
+      const pendentes = fechamentosPendentesRef.current?.embarcacaoId === id ? fechamentosPendentesRef.current : null;
+      if (pendentes) fechamentosPendentesRef.current = null;
       setAgendaBarco(agenda
-        ? { embarcacaoId: id, base: agenda.fechamentosBarco, fechamentos: agenda.fechamentosBarco, ocupacao: agenda.ocupacao }
+        ? {
+            embarcacaoId: id, base: agenda.fechamentosBarco, ocupacao: agenda.ocupacao,
+            fechamentos: pendentes ? aplicarFechamentos(agenda.fechamentosBarco, pendentes) : agenda.fechamentosBarco,
+          }
         : vazia);
     });
     return () => { cancelado = true; };
@@ -308,6 +324,55 @@ export default function EditarRoteiroForm({ roteiro, estados, municipiosIniciais
 
   // ── Etapas (wizard) ─────────────────────────────────────────────────────────
   const etapas = useEtapas(ETAPAS_ROTEIRO.length, { todasVisitadas: true, ids: ETAPAS_ROTEIRO.map(e => e.id) });
+
+  // ── Rascunho automático neste aparelho (SPEC §107) — alterações ainda não salvas ──
+  const rascunho = useRascunhoCadastro({
+    chave: usuarioId ? chaveRascunho(usuarioId, 'roteiro', roteiro.id) : null,
+    versao: VERSAO_RASCUNHO_ROTEIRO,
+    conferirServidor: true,
+    ...rascunhoDoRoteiro({
+      form, cortesias, paradas, novaParada, regrasNovas: novasRegras,
+      regrasExcluir: regrasExistentes.filter(r => r.markedForDelete).map(r => r.id),
+      ajustes, diasOperacao, janelaMeses, diasRoteiro, agendaBarco, itensCatalogo, imagens,
+    }),
+    etapa: { atual: etapas.atual, visitadas: etapas.visitadas },
+    aplicar: (dados, arquivos, etapa) => {
+      const r = roteiroDoRascunho(dados, arquivos, {
+        embarcacoes, catalogo, idsImagens: new Set(roteiro.roteiro_imagens.map(i => i.id)),
+      });
+      const excluir = new Set(r.regrasExcluir);
+      setForm(f => ({ ...f, ...r.form }));
+      setCortesias(r.cortesias);
+      setParadas(r.paradas);
+      setNovaParada(r.novaParada);
+      setNovasRegras(r.regrasNovas);
+      setRegrasExistentes(prev => prev.map(x => ({ ...x, markedForDelete: excluir.has(x.id) })));
+      setAjustes(r.ajustes);
+      setDiasOperacao(r.diasOperacao);
+      setJanelaMeses(r.janelaMeses);
+      setDiasRoteiro(r.diasRoteiro);
+      setItensCatalogo(r.itensCatalogo);
+      setImagens(r.imagens);
+      // Barco fechado: aplica a diferença agora (agenda já carregada) ou quando carregar.
+      const f = r.fechamentosBarco;
+      if (f && agendaBarco.embarcacaoId === f.embarcacaoId) {
+        fechamentosPendentesRef.current = null;
+        setAgendaBarco(a => ({ ...a, fechamentos: aplicarFechamentos(a.base, f) }));
+      } else {
+        fechamentosPendentesRef.current = f;
+        if (!f) setAgendaBarco(a => ({ ...a, fechamentos: a.base }));
+      }
+      setCepError(null);
+      setFeedback(null);
+      const estadoId = r.form.estado_id;
+      if (!estadoId) setMunicipios([]);
+      else if (estadoId !== form.estado_id) void carregarMunicipios(parseInt(estadoId, 10));
+      // Remonta a EtapaPreco: os passos já preenchidos aparecem como concluídos.
+      setCopiasPreco(n => n + 1);
+      if (etapa) etapas.restaurar(etapa);
+      return r.perdidos;
+    },
+  });
   // Preço e disponibilidade ainda não salvos — alimentam o card da Revisão e a
   // prévia da página (o mesmo calendário que o cliente verá).
   const agendaPreview: AgendaPreview = {
@@ -695,13 +760,14 @@ export default function EditarRoteiroForm({ roteiro, estados, municipiosIniciais
       return;
     }
 
+    void rascunho.limpar();
     setFeedback({
       type: 'success',
       msg: enviandoParaAnalise
         ? 'Alterações salvas e enviadas para análise. O roteiro volta ao site após a aprovação.'
         : 'Roteiro atualizado com sucesso!',
     });
-    setTimeout(() => router.push(voltarHref), 1200);
+    setTimeout(() => router.replace(voltarHref), 1200);
   }
 
   // ─── Render ───────────────────────────────────────────────────────────────
@@ -713,6 +779,8 @@ export default function EditarRoteiroForm({ roteiro, estados, municipiosIniciais
       <div ref={etapas.topoRef} className="scroll-mt-6">
         <IndicadorEtapas etapas={ETAPAS_ROTEIRO} atual={etapas.atual} visitadas={etapas.visitadas} onIr={etapas.ir} />
       </div>
+
+      <AvisoRascunho rascunho={rascunho} modo="editar" entidade="roteiro" artigo="o" />
 
       <div hidden={etapas.atual !== ETAPA_ROT.informacoes} className="space-y-6">
       {/* ── 1. Informações gerais ────────────────────────────────────────── */}
@@ -1051,6 +1119,7 @@ export default function EditarRoteiroForm({ roteiro, estados, municipiosIniciais
         onPreview={() => setPreviewAberto(true)}
         submitting={submitting}
         podeSalvar
+        status={<StatusRascunho rascunho={rascunho} />}
       />
 
       <PreviewPublicacaoModal

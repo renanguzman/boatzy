@@ -44,6 +44,7 @@ export default async function NovoRoteiroPage({
       </div>
 
       <NovoRoteiroForm
+        usuarioId={user.id}
         estados={estados ?? []}
         embarcacoes={embarcacoes ?? []}
         embarcacaoInicialId={embarcacaoInicialId}

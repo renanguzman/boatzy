@@ -36,6 +36,11 @@ import EtapaDocumentacao, { RASCUNHOS_VAZIOS, type RascunhosEmbarcacao } from '.
 import AssistenteDescricao from '@/components/painel/descricao/AssistenteDescricao';
 import { avisoDescricaoEmbarcacao, fatosEmbarcacao } from '../../_components/descricaoEmbarcacao';
 import { enviarArquivosDosRascunhos, erroDosRascunhos, registrarRascunhos } from '../../../documentos/_lib/rascunhos';
+import { useRascunhoCadastro } from '@/lib/rascunhos/useRascunhoCadastro';
+import { chaveRascunho } from '@/lib/rascunhos/armazenamento';
+import AvisoRascunho from '@/components/painel/rascunho/AvisoRascunho';
+import StatusRascunho from '@/components/painel/rascunho/StatusRascunho';
+import { VERSAO_RASCUNHO_EMBARCACAO, embarcacaoDoRascunho, rascunhoDaEmbarcacao } from '../../_components/rascunhoEmbarcacao';
 
 // ─── Tipos ────────────────────────────────────────────────────────────────────
 
@@ -57,6 +62,8 @@ type Props = {
   embarcacoesParaCopiar?: EmbarcacaoCopiavel[];
   /** Nome do gestor — proprietário sugerido no TIE (a frente do documento não traz). */
   proprietarioSugerido?: string;
+  /** Usuário logado — chave do rascunho automático neste aparelho (SPEC §107). Sem ele, desligado. */
+  usuarioId?: string;
 };
 
 // ─── Helpers de UI ────────────────────────────────────────────────────────────
@@ -101,6 +108,7 @@ function Field({ label, required, hint, className, children }: {
 
 export default function NovaEmbarcacaoForm({
   tipos, estados, comodidades, equipamentosSeguranca, acessorios, embarcacoesParaCopiar = [], proprietarioSugerido = '',
+  usuarioId,
 }: Props) {
   const router = useRouter();
   const [, startTransition] = useTransition();
@@ -170,8 +178,41 @@ export default function NovaEmbarcacaoForm({
   // ── Pré-visualização (mesmo layout da página pública) ──────────────────────
   const [previewAberto, setPreviewAberto] = useState(false);
 
+  // Id da nova embarcação, gerado no 1º salvar e mantido nas novas tentativas (e no
+  // rascunho): as fotos sobem para a pasta dela ANTES de o registro existir.
+  const [novoId, setNovoId] = useState<string | null>(null);
+
   // ── Etapas (wizard) ─────────────────────────────────────────────────────────
   const etapas = useEtapas(ETAPAS_EMBARCACAO.length, { ids: ETAPAS_EMBARCACAO.map(e => e.id) });
+
+  // ── Rascunho automático neste aparelho (SPEC §107) ──────────────────────────
+  const rascunho = useRascunhoCadastro({
+    chave: usuarioId ? chaveRascunho(usuarioId, 'embarcacao', 'novo') : null,
+    versao: VERSAO_RASCUNHO_EMBARCACAO,
+    ...rascunhoDaEmbarcacao({
+      form, regras, equipamentos: equipamentosSelecionados, acessorios: acessoriosSelecionados,
+      comodidades: comodidadesSelecionadas, imagens, documentos, novoId,
+    }),
+    etapa: { atual: etapas.atual, visitadas: etapas.visitadas },
+    aplicar: (dados, arquivos, etapa) => {
+      const r = embarcacaoDoRascunho(dados, arquivos, { equipamentos: equipamentosSeguranca, acessorios, comodidades });
+      setForm(f => ({ ...f, ...r.form }));
+      setRegras(r.regras);
+      setEquipamentosSelecionados(r.equipamentos);
+      setAcessoriosSelecionados(r.acessorios);
+      setComodidadesSelecionadas(r.comodidades);
+      setImagens(r.imagens);
+      setDocumentos(r.documentos);
+      setNovoId(r.novoId ?? null);
+      setCepError(null);
+      setFeedback(null);
+      const estadoId = r.form.estado_id;
+      if (!estadoId) setMunicipios([]);
+      else if (estadoId !== form.estado_id || municipios.length === 0) void carregarMunicipios(parseInt(estadoId, 10));
+      if (etapa) etapas.restaurar(etapa);
+      return r.perdidos;
+    },
+  });
   const revisao = revisaoEmbarcacao({
     form, tipos, estados, municipios, comodidadesSelecionadas, imagens,
     documentacao: { inscricao: docRevisao(documentos.inscricao, null), dpem: docRevisao(documentos.dpem, null) },
@@ -317,10 +358,6 @@ export default function NovaEmbarcacaoForm({
 
   // ─── Imagens ──────────────────────────────────────────────────────────────
 
-  // Id da nova embarcação, gerado no 1º salvar e mantido nas novas tentativas:
-  // as fotos sobem para a pasta dela ANTES de o registro existir.
-  const novoIdRef = useRef<string | null>(null);
-
   function atualizarImagem(key: string, patch: Partial<GaleriaItem>) {
     setImagens(prev => prev.map(it => (it.key === key ? { ...it, ...patch } : it)));
   }
@@ -353,8 +390,8 @@ export default function NovaEmbarcacaoForm({
       return;
     }
     setSubmitting(true);
-    novoIdRef.current ??= crypto.randomUUID();
-    const embarcacaoIdNovo = novoIdRef.current;
+    const embarcacaoIdNovo = novoId ?? crypto.randomUUID();
+    if (!novoId) setNovoId(embarcacaoIdNovo);
 
     // 1. Envia as fotos primeiro: se alguma falhar, nada é salvo.
     const envio = await enviarFotosNovas({
@@ -402,6 +439,8 @@ export default function NovaEmbarcacaoForm({
     }
 
     const { embarcacaoId } = result;
+    // Daqui em diante o registro existe: rascunho reaberto não envia de novo (leva à edição).
+    void rascunho.marcarCriado(embarcacaoId);
 
     // 3. Salvar equipamentos de segurança
     if (equipamentosSelecionados.length > 0) {
@@ -421,15 +460,17 @@ export default function NovaEmbarcacaoForm({
     // 6. Documentos da embarcação (arquivos já enviados no passo 1b)
     const { falhas: falhasDocs } = await registrarRascunhos([documentos.inscricao, documentos.dpem], { embarcacaoId });
     if (falhasDocs.length > 0) {
+      void rascunho.limpar();
       // A embarcação já existe: leva à edição, na etapa Documentos, para enviar de novo.
       setFeedback({
         type: 'error',
         msg: `Embarcação enviada para análise, mas o documento não foi salvo (${falhasDocs.join('; ')}). Abrindo a edição para você enviar de novo…`,
       });
-      setTimeout(() => router.push(`/painel/embarcacoes/${embarcacaoId}/editar#documentacao`), 3500);
+      setTimeout(() => router.replace(`/painel/embarcacoes/${embarcacaoId}/editar#documentacao`), 3500);
       return;
     }
 
+    void rascunho.limpar();
     setFeedback({
       type: 'success',
       msg: documentos.inscricao
@@ -437,7 +478,7 @@ export default function NovaEmbarcacaoForm({
         : 'Embarcação salva e enviada para análise. Falta o documento (TIE): sem ele, a equipe Boatzy não consegue aprovar.',
     });
     // Primeira embarcação: volta ao Início, que mostra o próximo passo.
-    setTimeout(() => router.push(embarcacoesParaCopiar.length === 0 ? '/painel' : '/painel/embarcacoes'), documentos.inscricao ? 1200 : 2500);
+    setTimeout(() => router.replace(embarcacoesParaCopiar.length === 0 ? '/painel' : '/painel/embarcacoes'), documentos.inscricao ? 1200 : 2500);
   }
 
   // ─── Render ───────────────────────────────────────────────────────────────
@@ -447,6 +488,9 @@ export default function NovaEmbarcacaoForm({
       <div ref={etapas.topoRef} className="scroll-mt-6">
         <IndicadorEtapas etapas={ETAPAS_EMBARCACAO} atual={etapas.atual} visitadas={etapas.visitadas} onIr={etapas.ir} />
       </div>
+
+      <AvisoRascunho rascunho={rascunho} modo="novo" entidade="embarcação" artigo="a"
+        hrefCriado={id => `/painel/embarcacoes/${id}/editar`} />
 
 
       <div hidden={etapas.atual !== ETAPA_EMB.informacoes} className="space-y-6">
@@ -812,6 +856,7 @@ export default function NovaEmbarcacaoForm({
         onPreview={() => setPreviewAberto(true)}
         submitting={submitting}
         podeSalvar
+        status={<StatusRascunho rascunho={rascunho} />}
       />
 
       <PreviewPublicacaoModal

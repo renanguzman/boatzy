@@ -31,6 +31,7 @@ import { useMenuMobile } from './MenuMobile';
 import Spinner from '@/components/ui/Spinner';
 import { iniciarBarraNavegacao } from '@/components/ui/BarraProgressoNavegacao';
 import { EVENTO_AVISO_GESTOR } from './NotificacoesBell';
+import { apagarTodosRascunhos } from '@/lib/rascunhos/armazenamento';
 
 type ItemMenu = { href: string; label: string; icon: typeof House; exact: boolean; tour: string };
 
@@ -157,7 +158,8 @@ export default function Sidebar({
     if (saindo) return;
     setSaindo(true);
     iniciarBarraNavegacao();
-    await supabaseRef.current.auth.signOut();
+    // Rascunhos dos cadastros têm dados (e documentos) do usuário que está saindo (SPEC §107).
+    await Promise.all([supabaseRef.current.auth.signOut(), apagarTodosRascunhos()]);
     router.push('/painel/login');
   }
 

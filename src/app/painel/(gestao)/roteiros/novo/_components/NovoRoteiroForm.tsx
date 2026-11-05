@@ -44,6 +44,13 @@ import CopiarDadosRoteiro, { type RoteiroCopiavel } from '../../_components/Copi
 import RegrasInput from '@/components/painel/RegrasInput';
 import AssistenteDescricao from '@/components/painel/descricao/AssistenteDescricao';
 import { avisoDescricaoRoteiro, fatosRoteiro } from '../../_components/descricaoRoteiro';
+import { useRascunhoCadastro } from '@/lib/rascunhos/useRascunhoCadastro';
+import { chaveRascunho } from '@/lib/rascunhos/armazenamento';
+import AvisoRascunho from '@/components/painel/rascunho/AvisoRascunho';
+import StatusRascunho from '@/components/painel/rascunho/StatusRascunho';
+import {
+  VERSAO_RASCUNHO_ROTEIRO, aplicarFechamentos, rascunhoDoRoteiro, roteiroDoRascunho, type FechamentosRascunho,
+} from '../../_components/rascunhoRoteiro';
 
 // ─── Tipos ────────────────────────────────────────────────────────────────────
 
@@ -65,6 +72,8 @@ type Props = {
   taxaPercent: number;
   /** Outros roteiros do gestor — origem do "copiar de outro roteiro" nas etapas Localização/Preço. */
   roteirosParaCopiar?: RoteiroCopiavel[];
+  /** Usuário logado — chave do rascunho automático neste aparelho (SPEC §107). Sem ele, desligado. */
+  usuarioId?: string;
 };
 
 // ─── Helpers de UI ────────────────────────────────────────────────────────────
@@ -108,6 +117,7 @@ function Field({ label, required, hint, children }: {
 
 export default function NovoRoteiroForm({
   estados, embarcacoes, catalogo: catalogoInicial, embarcacaoInicialId, taxaPercent, roteirosParaCopiar = [],
+  usuarioId,
 }: Props) {
   const embarcacaoInicial = embarcacoes.find(e => e.id === embarcacaoInicialId);
   const router = useRouter();
@@ -155,6 +165,8 @@ export default function NovoRoteiroForm({
   const [agendaBarco, setAgendaBarco] = useState<{
     embarcacaoId: string; base: string[]; fechamentos: string[]; ocupacao: OcupacaoDia[];
   }>({ embarcacaoId: '', base: [], fechamentos: [], ocupacao: [] });
+  // Rascunho restaurado antes de a agenda do barco carregar: a diferença entra quando ela chegar.
+  const fechamentosPendentesRef = useRef<FechamentosRascunho | null>(null);
   useEffect(() => {
     const id = form.embarcacao_id;
     if (id === agendaBarco.embarcacaoId) return;
@@ -163,8 +175,13 @@ export default function NovoRoteiroForm({
     if (!id) { setAgendaBarco(vazia); return; }
     carregarAgendaEmbarcacao(id, null).then(agenda => {
       if (cancelado) return;
+      const pendentes = fechamentosPendentesRef.current?.embarcacaoId === id ? fechamentosPendentesRef.current : null;
+      if (pendentes) fechamentosPendentesRef.current = null;
       setAgendaBarco(agenda
-        ? { embarcacaoId: id, base: agenda.fechamentosBarco, fechamentos: agenda.fechamentosBarco, ocupacao: agenda.ocupacao }
+        ? {
+            embarcacaoId: id, base: agenda.fechamentosBarco, ocupacao: agenda.ocupacao,
+            fechamentos: pendentes ? aplicarFechamentos(agenda.fechamentosBarco, pendentes) : agenda.fechamentosBarco,
+          }
         : vazia);
     });
     return () => { cancelado = true; };
@@ -189,8 +206,56 @@ export default function NovoRoteiroForm({
   // ── Pré-visualização (mesmo layout da página pública) ──────────────────────
   const [previewAberto, setPreviewAberto] = useState(false);
 
+  // Id do novo roteiro, gerado no 1º salvar e mantido nas novas tentativas (e no
+  // rascunho): as fotos sobem para a pasta dele ANTES de o registro existir.
+  const [novoId, setNovoId] = useState<string | null>(null);
+
   // ── Etapas (wizard) ─────────────────────────────────────────────────────────
   const etapas = useEtapas(ETAPAS_ROTEIRO.length, { ids: ETAPAS_ROTEIRO.map(e => e.id) });
+
+  // ── Rascunho automático neste aparelho (SPEC §107) ──────────────────────────
+  const rascunho = useRascunhoCadastro({
+    chave: usuarioId ? chaveRascunho(usuarioId, 'roteiro', 'novo') : null,
+    versao: VERSAO_RASCUNHO_ROTEIRO,
+    ...rascunhoDoRoteiro({
+      form, cortesias, paradas, novaParada, regrasNovas: regras, regrasExcluir: [], ajustes,
+      diasOperacao, janelaMeses, diasRoteiro, agendaBarco, itensCatalogo, imagens, novoId,
+    }),
+    etapa: { atual: etapas.atual, visitadas: etapas.visitadas },
+    aplicar: (dados, arquivos, etapa) => {
+      const r = roteiroDoRascunho(dados, arquivos, { embarcacoes, catalogo });
+      setForm(f => ({ ...f, ...r.form }));
+      setCortesias(r.cortesias);
+      setParadas(r.paradas);
+      setNovaParada(r.novaParada);
+      setRegras(r.regrasNovas);
+      setAjustes(r.ajustes);
+      setDiasOperacao(r.diasOperacao);
+      setJanelaMeses(r.janelaMeses);
+      setDiasRoteiro(r.diasRoteiro);
+      setItensCatalogo(r.itensCatalogo);
+      setImagens(r.imagens);
+      setNovoId(r.novoId ?? null);
+      // Barco fechado: aplica a diferença agora (agenda já carregada) ou quando carregar.
+      const f = r.fechamentosBarco;
+      if (f && agendaBarco.embarcacaoId === f.embarcacaoId) {
+        fechamentosPendentesRef.current = null;
+        setAgendaBarco(a => ({ ...a, fechamentos: aplicarFechamentos(a.base, f) }));
+      } else {
+        fechamentosPendentesRef.current = f;
+        if (!f) setAgendaBarco(a => ({ ...a, fechamentos: a.base }));
+      }
+      setCepError(null);
+      setFeedback(null);
+      const estadoId = r.form.estado_id;
+      if (!estadoId) setMunicipios([]);
+      else if (estadoId !== form.estado_id || municipios.length === 0) void carregarMunicipios(parseInt(estadoId, 10));
+      // Remonta a EtapaPreco: os passos já preenchidos aparecem como concluídos.
+      setCopiasPreco(n => n + 1);
+      if (etapa) etapas.restaurar(etapa);
+      return r.perdidos;
+    },
+  });
   // Preço e disponibilidade ainda não salvos — alimentam o card da Revisão e a
   // prévia da página (o mesmo calendário que o cliente verá).
   const agendaPreview: AgendaPreview = {
@@ -378,10 +443,6 @@ export default function NovoRoteiroForm({
 
   // ─── Imagens ──────────────────────────────────────────────────────────────
 
-  // Id do novo roteiro, gerado no 1º salvar e mantido nas novas tentativas:
-  // as fotos sobem para a pasta dele ANTES de o registro existir.
-  const novoIdRef = useRef<string | null>(null);
-
   function atualizarImagem(key: string, patch: Partial<GaleriaItem>) {
     setImagens(prev => prev.map(it => (it.key === key ? { ...it, ...patch } : it)));
   }
@@ -403,8 +464,8 @@ export default function NovoRoteiroForm({
       return;
     }
     setSubmitting(true);
-    novoIdRef.current ??= crypto.randomUUID();
-    const roteiroIdNovo = novoIdRef.current;
+    const roteiroIdNovo = novoId ?? crypto.randomUUID();
+    if (!novoId) setNovoId(roteiroIdNovo);
 
     // Envia as fotos primeiro: se alguma falhar, nada é salvo.
     const envio = await enviarFotosNovas({
@@ -455,6 +516,8 @@ export default function NovoRoteiroForm({
     }
 
     const { roteiroId } = result;
+    // Daqui em diante o registro existe: rascunho reaberto não envia de novo (leva à edição).
+    void rascunho.marcarCriado(roteiroId);
 
     // Disponibilidade: dias fechados/abertos do roteiro e barco fechado (só a
     // diferença — o barco é compartilhado com outros roteiros).
@@ -509,9 +572,10 @@ export default function NovoRoteiroForm({
       );
     }
 
+    void rascunho.limpar();
     setFeedback({ type: 'success', msg: 'Roteiro enviado para análise! Ele aparece no site assim que a equipe Boatzy aprovar o roteiro e a embarcação.' });
     // Primeiro roteiro: volta ao Início, que mostra os próximos passos (aprovação).
-    setTimeout(() => router.push(roteirosParaCopiar.length === 0 ? '/painel' : '/painel/roteiros'), 1200);
+    setTimeout(() => router.replace(roteirosParaCopiar.length === 0 ? '/painel' : '/painel/roteiros'), 1200);
   }
 
   // ─── Render ───────────────────────────────────────────────────────────────
@@ -523,6 +587,9 @@ export default function NovoRoteiroForm({
       <div ref={etapas.topoRef} className="scroll-mt-6">
         <IndicadorEtapas etapas={ETAPAS_ROTEIRO} atual={etapas.atual} visitadas={etapas.visitadas} onIr={etapas.ir} />
       </div>
+
+      <AvisoRascunho rascunho={rascunho} modo="novo" entidade="roteiro" artigo="o"
+        hrefCriado={id => `/painel/roteiros/${id}/editar`} />
 
       <div hidden={etapas.atual !== ETAPA_ROT.informacoes} className="space-y-6">
       {/* ── 1. Informações gerais ────────────────────────────────────────── */}
@@ -860,6 +927,7 @@ export default function NovoRoteiroForm({
         onPreview={() => setPreviewAberto(true)}
         submitting={submitting}
         podeSalvar
+        status={<StatusRascunho rascunho={rascunho} />}
       />
 
       <PreviewPublicacaoModal

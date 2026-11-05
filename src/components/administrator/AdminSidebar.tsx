@@ -25,6 +25,7 @@ import {
   UserCheck,
 } from 'lucide-react';
 import clsx from 'clsx';
+import { apagarTodosRascunhos } from '@/lib/rascunhos/armazenamento';
 
 const navItems = [
   { href: '/administrator', label: 'DASHBOARD', icon: LayoutDashboard, exact: true },
@@ -66,7 +67,8 @@ export default function AdminSidebar({ pendentes }: {
 
   async function handleSignOut() {
     const supabase = createClient();
-    await supabase.auth.signOut();
+    // Rascunhos das edições têm dados do usuário que está saindo (SPEC §107).
+    await Promise.all([supabase.auth.signOut(), apagarTodosRascunhos()]);
     router.push('/administrator/login');
   }
 

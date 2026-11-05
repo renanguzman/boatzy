@@ -3598,3 +3598,18 @@ O MVP será considerado validado quando:
 - Excluídos por não terem uso nem lugar no catálogo: "Prancha" (genérico) e "Mesa de Ping Pong".
 - No site, o bloco "O que esta embarcação possui" ganhou ícones para os itens novos.
 - **Implantação:** aplicar a migration `20261107_revisao_catalogos_embarcacao.sql` no Supabase (idempotente). Detalhes: SPEC §17.3.
+
+## Salvamento automático dos cadastros de embarcação e roteiro (04/11/2026) — implementado
+- **Problema:** nos testes, gestores (principalmente no celular) apertavam o voltar do navegador ou fechavam a aba no meio do cadastro e perdiam tudo o que tinham preenchido, inclusive fotos e documentos.
+- **Voltar = etapa anterior:** em Embarcação e Roteiro (cadastro e edição), o voltar do navegador/celular agora volta para a etapa anterior do cadastro, em vez de sair da página. Depois de enviar, o voltar não reabre um formulário vazio.
+- **Rascunho automático neste aparelho:** tudo o que é preenchido (campos, fotos, documentos TIE/DPEM, preços, disponibilidade, paradas, extras e a etapa onde o gestor estava) é guardado automaticamente no próprio navegador, sem gastar internet. O rodapé mostra "Rascunho salvo neste aparelho · 14:32".
+  - **Cadastro novo:** ao voltar, o formulário reabre de onde o gestor parou, com o aviso "Continuamos de onde você parou" e a opção "Começar do zero" (com confirmação).
+  - **Edição:** as alterações não salvas voltam com o aviso "Recuperamos alterações que você ainda não tinha salvado" e a opção "Descartar alterações". Se a embarcação/roteiro mudou depois do rascunho (em outro aparelho ou pela equipe Boatzy), o gestor escolhe entre "Usar minhas alterações" e "Descartar e ver a versão atual".
+  - **Listagens** de Embarcações e Roteiros mostram "Cadastro não concluído" / "Alterações não salvas" com "Continuar" e "Descartar".
+  - **Envio interrompido** depois de a embarcação/roteiro já ter sido criado: o formulário avisa e leva à edição, sem duplicar o cadastro. Fotos que já tinham subido não sobem de novo.
+- **Decisões:**
+  - O rascunho fica só no aparelho/navegador onde foi feito: não continua em outro aparelho. Sincronizar pelo servidor ficou fora do escopo (exigiria subir as fotos na hora e limpar as abandonadas).
+  - Na edição, a restauração é automática, com "Descartar alterações" em destaque. O plano previa perguntar antes, mas perguntar deixaria as novas alterações sem proteção enquanto o gestor não respondesse. Só há pergunta quando os dados mudaram no servidor.
+  - Rascunhos são apagados ao enviar com sucesso, ao sair da conta (há documentos com dados pessoais) e depois de 30 dias.
+  - Sem espaço no aparelho para as fotos, o texto é guardado e o rodapé avisa "Rascunho salvo sem as fotos". Nesse caso, fechar a aba pede confirmação.
+- **Pendente:** testar em iPhone (Safari) e Android (Chrome) reais. Detalhes técnicos: SPEC §107.

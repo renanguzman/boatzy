@@ -5,6 +5,7 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Spinner from '@/components/ui/Spinner';
 import { iniciarBarraNavegacao } from '@/components/ui/BarraProgressoNavegacao';
+import { apagarTodosRascunhos } from '@/lib/rascunhos/armazenamento';
 
 interface Props {
   redirectUrl?: string;
@@ -25,7 +26,8 @@ export default function SignOutLink({
     setSaindo(true);
     iniciarBarraNavegacao();
     const supabase = createClient();
-    await supabase.auth.signOut();
+    // Rascunhos dos cadastros têm dados (e documentos) do usuário que está saindo (SPEC §107).
+    await Promise.all([supabase.auth.signOut(), apagarTodosRascunhos()]);
     router.push(redirectUrl);
   }
 

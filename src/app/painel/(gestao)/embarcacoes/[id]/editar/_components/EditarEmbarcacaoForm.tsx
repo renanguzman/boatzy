@@ -46,6 +46,11 @@ import EtapaDocumentacao, {
 import { enviarArquivosDosRascunhos, erroDosRascunhos, registrarRascunhos } from '../../../../documentos/_lib/rascunhos';
 import AssistenteDescricao from '@/components/painel/descricao/AssistenteDescricao';
 import { avisoDescricaoEmbarcacao, fatosEmbarcacao } from '../../../_components/descricaoEmbarcacao';
+import { useRascunhoCadastro } from '@/lib/rascunhos/useRascunhoCadastro';
+import { chaveRascunho } from '@/lib/rascunhos/armazenamento';
+import AvisoRascunho from '@/components/painel/rascunho/AvisoRascunho';
+import StatusRascunho from '@/components/painel/rascunho/StatusRascunho';
+import { VERSAO_RASCUNHO_EMBARCACAO, embarcacaoDoRascunho, rascunhoDaEmbarcacao } from '../../../_components/rascunhoEmbarcacao';
 
 // ─── Tipos locais ─────────────────────────────────────────────────────────────
 
@@ -100,6 +105,8 @@ type Props = {
    */
   documentacao?: { atuais: DocumentosEmbarcacaoAtuais; proprietarioSugerido: string };
   hrefDocumentacao?: string;
+  /** Usuário logado — chave do rascunho automático neste aparelho (SPEC §107). Sem ele, desligado. */
+  usuarioId?: string;
 };
 
 // ─── Helpers de UI ────────────────────────────────────────────────────────────
@@ -152,6 +159,7 @@ export default function EditarEmbarcacaoForm({
   embarcacoesParaCopiar = [],
   documentacao,
   hrefDocumentacao,
+  usuarioId,
 }: Props) {
   const router = useRouter();
   const [, startTransition] = useTransition();
@@ -236,6 +244,38 @@ export default function EditarEmbarcacaoForm({
 
   // ── Etapas (wizard) ─────────────────────────────────────────────────────────
   const etapas = useEtapas(ETAPAS_EMBARCACAO.length, { todasVisitadas: true, ids: ETAPAS_EMBARCACAO.map(e => e.id) });
+
+  // ── Rascunho automático neste aparelho (SPEC §107) — alterações ainda não salvas ──
+  const rascunho = useRascunhoCadastro({
+    chave: usuarioId ? chaveRascunho(usuarioId, 'embarcacao', embarcacao.id) : null,
+    versao: VERSAO_RASCUNHO_EMBARCACAO,
+    conferirServidor: true,
+    ...rascunhoDaEmbarcacao({
+      form, regras, equipamentos: equipamentosSelecionados, acessorios: acessoriosSelecionados,
+      comodidades: comodidadesSelecionadas, imagens, documentos,
+    }),
+    etapa: { atual: etapas.atual, visitadas: etapas.visitadas },
+    aplicar: (dados, arquivos, etapa) => {
+      const r = embarcacaoDoRascunho(dados, arquivos, {
+        equipamentos: equipamentosSeguranca, acessorios, comodidades,
+        idsImagens: new Set(embarcacao.embarcacao_imagens.map(i => i.id)),
+      });
+      setForm(f => ({ ...f, ...r.form }));
+      setRegras(r.regras);
+      setEquipamentosSelecionados(r.equipamentos);
+      setAcessoriosSelecionados(r.acessorios);
+      setComodidadesSelecionadas(r.comodidades);
+      setImagens(r.imagens);
+      setDocumentos(r.documentos);
+      setCepError(null);
+      setFeedback(null);
+      const estadoId = r.form.estado_id;
+      if (!estadoId) setMunicipios([]);
+      else if (estadoId !== form.estado_id) void carregarMunicipios(parseInt(estadoId, 10));
+      if (etapa) etapas.restaurar(etapa);
+      return r.perdidos;
+    },
+  });
   const revisao = revisaoEmbarcacao({
     form, tipos, estados, municipios, comodidadesSelecionadas, imagens,
     documentacao: documentacao
@@ -555,13 +595,14 @@ export default function EditarEmbarcacaoForm({
       return;
     }
 
+    void rascunho.limpar();
     setFeedback({
       type: 'success',
       msg: enviandoParaAnalise
         ? 'Alterações salvas e enviadas para análise. A embarcação volta ao site após a aprovação.'
         : 'Embarcação atualizada com sucesso!',
     });
-    setTimeout(() => router.push(voltarHref), 1200);
+    setTimeout(() => router.replace(voltarHref), 1200);
   }
 
   // ─── Render ────────────────────────────────────────────────────────────────
@@ -571,6 +612,8 @@ export default function EditarEmbarcacaoForm({
       <div ref={etapas.topoRef} className="scroll-mt-6">
         <IndicadorEtapas etapas={ETAPAS_EMBARCACAO} atual={etapas.atual} visitadas={etapas.visitadas} onIr={etapas.ir} />
       </div>
+
+      <AvisoRascunho rascunho={rascunho} modo="editar" entidade="embarcação" artigo="a" />
 
 
       <div hidden={etapas.atual !== ETAPA_EMB.informacoes} className="space-y-6">
@@ -936,6 +979,7 @@ export default function EditarEmbarcacaoForm({
         onPreview={() => setPreviewAberto(true)}
         submitting={submitting}
         podeSalvar
+        status={<StatusRascunho rascunho={rascunho} />}
       />
 
       <PreviewPublicacaoModal

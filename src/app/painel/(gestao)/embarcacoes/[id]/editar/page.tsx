@@ -115,6 +115,7 @@ export default async function EditarEmbarcacaoPage({
       </div>
 
       <EditarEmbarcacaoForm
+        usuarioId={user.id}
         embarcacao={{
           ...emb,
           estado_id: estadoId,

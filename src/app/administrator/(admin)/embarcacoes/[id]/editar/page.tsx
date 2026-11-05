@@ -96,6 +96,7 @@ export default async function AdminEditarEmbarcacaoPage({
       </div>
 
       <EditarEmbarcacaoForm
+        usuarioId={user.id}
         embarcacao={{
           ...emb,
           estado_id: estadoId,

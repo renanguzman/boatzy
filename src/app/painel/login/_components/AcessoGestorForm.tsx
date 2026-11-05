@@ -8,6 +8,7 @@ import SocialLoginButtons, { type OAuthProvider } from '@/components/auth/Social
 import { COOKIE_DESTINO_PAINEL, destinoPainelSeguro } from '@/lib/painel-destino';
 import { rastrear } from '@/lib/analytics';
 import { aoAbrirAcesso, lembrarQueJaEntrou, type AbaAcesso } from '../_lib/acesso';
+import { apagarTodosRascunhos } from '@/lib/rascunhos/armazenamento';
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? '';
 
@@ -133,7 +134,8 @@ export default function AcessoGestorForm({ abaInicial, usuario }: Props) {
   }
 
   async function trocarDeConta() {
-    await supabase.auth.signOut();
+    // Rascunhos dos cadastros têm dados (e documentos) do usuário que está saindo (SPEC §107).
+    await Promise.all([supabase.auth.signOut(), apagarTodosRascunhos()]);
     window.location.assign('/painel/login?aba=entrar');
   }
 
