@@ -10,6 +10,7 @@ import { createClient } from '@/lib/supabase/client';
 import SocialLoginButtons, { type OAuthProvider } from '@/components/auth/SocialLoginButtons';
 import PhoneInput, { type PhoneValue } from '@/components/auth/PhoneInput';
 import PasswordRequirements from '@/components/auth/PasswordRequirements';
+import { detalharErro, logAuth, mascararEmail } from '@/lib/log-auth';
 import { isStrongPassword, isValidCPF, maskCPF, onlyDigits } from '@/lib/validators';
 
 function EntrarForm() {
@@ -67,10 +68,12 @@ function EntrarForm() {
     const { error: authError } = await supabase.auth.signInWithPassword({ email, password });
 
     if (authError) {
+      logAuth('login:senha:erro', 'error', { email: mascararEmail(email), ...detalharErro(authError) });
       setError(tRaiz(translateError(authError.message)));
       setLoading(false);
       return;
     }
+    logAuth('login:senha:ok', 'info', { email: mascararEmail(email) });
 
     // setup-cliente garante o registro no DB com role cliente e redireciona de volta
     const setupUrl = `/api/auth/setup-cliente?redirect_to=${encodeURIComponent(redirectTo)}`;
@@ -101,8 +104,9 @@ function EntrarForm() {
     }
 
     setLoading(true);
+    logAuth('cadastro:signUp:inicio', 'info', { email: mascararEmail(email), semCpf, locale });
 
-    const { error: authError } = await supabase.auth.signUp({
+    const { data: signUpData, error: authError } = await supabase.auth.signUp({
       email,
       password,
       options: {
@@ -121,11 +125,22 @@ function EntrarForm() {
     });
 
     if (authError) {
+      logAuth('cadastro:signUp:erro', 'error', { email: mascararEmail(email), ...detalharErro(authError) });
       setError(tRaiz(translateError(authError.message)));
       setLoading(false);
       return;
     }
 
+    logAuth('cadastro:signUp:ok', 'info', {
+      userId: signUpData.user?.id,
+      sessaoCriada: !!signUpData.session,
+      identidades: signUpData.user?.identities?.length,
+      emailConfirmadoEm: signUpData.user?.email_confirmed_at ?? null,
+    });
+    // identities vazio = e-mail já existe (o Supabase não devolve erro por segurança).
+    if (signUpData.user && signUpData.user.identities?.length === 0) {
+      logAuth('cadastro:signUp:email-ja-existe', 'warn', { email: mascararEmail(email) });
+    }
     setSuccess(true);
     setLoading(false);
   }
@@ -135,6 +150,7 @@ function EntrarForm() {
 
     // Reaproveita o callback do site e o setup-cliente — garantindo a role `cliente`.
     const next = `/api/auth/setup-cliente?redirect_to=${encodeURIComponent(redirectTo)}`;
+    logAuth('social:inicio', 'info', { provider });
     const { error: authError } = await supabase.auth.signInWithOAuth({
       provider,
       options: {
@@ -143,6 +159,7 @@ function EntrarForm() {
     });
 
     if (authError) {
+      logAuth('social:erro', 'error', { provider, ...detalharErro(authError) });
       setError(tRaiz(translateError(authError.message)));
       throw authError; // sinaliza falha ao SocialLoginButtons para limpar o loading
     }

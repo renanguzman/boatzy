@@ -9951,3 +9951,14 @@ subiu numa tentativa não sobe de novo) e `documentoParaRascunho` / `documentoDo
   `useEtapas`: gravação, restauração com fotos (inclusive 3 MB), voltar entre etapas, recarga
   imediata (< 600 ms), remoção de foto, descartar, desfazer manual, `limpar`, conflito na edição,
   `criado` e logout. Ainda não testado em iPhone/Android reais nem nas telas logadas do painel.
+
+## 108. Logs do fluxo de cadastro/login (22/11/2026)
+
+- Helper `src/lib/log-auth.ts`: `logAuth(etapa, nivel, dados)`, `detalharErro(err)` e `mascararEmail(email)`. Todo log tem o prefixo `[auth]` (filtrável no terminal, no console do navegador e nos logs da Vercel). Nunca registra senha, token, CPF nem e-mail completo.
+- Pontos instrumentados:
+  - `/entrar` (cliente): `cadastro:signUp:inicio|ok|erro|email-ja-existe`, `login:senha:ok|erro`, `social:inicio|erro`. O `ok` do cadastro traz `userId`, `sessaoCriada` e `identidades`; `identidades` vazio indica e-mail já cadastrado (o Supabase não devolve erro nesse caso).
+  - `/auth/callback`: `callback:erro-do-provedor` (`error`/`error_description` na URL, ex.: Apple/Facebook mal configurados ou hook de e-mail falhando), `callback:sem-code`, `callback:exchange-erro`, `callback:ok`.
+  - `/api/auth/setup-cliente`: `setup-cliente:inicio` (provedor, userId), `users:busca-erro|insert-erro|update-erro|criado`, `role-erro`, `fim`. Antes, os erros de insert/upsert eram descartados em silêncio.
+  - `/api/auth/email-hook`: `email-hook:recebido` (indica se `SEND_EMAIL_HOOK_SECRET` e `RESEND_API_KEY` estão configurados), `assinatura-invalida`, `payload-invalido`, `processando`, `enviado`, além dos erros de envio já existentes.
+  - `addRole` (`src/lib/roles.ts`) passa a registrar falha do upsert.
+- Não há mudança de contrato nem de comportamento.

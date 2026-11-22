@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { sendEmail } from '@/lib/email';
 import { enviosDoHook } from '@/lib/emails/conta';
+import { logAuth, mascararEmail } from '@/lib/log-auth';
 import { verificarAssinaturaHook, type PayloadEmailHook } from '@/lib/supabase/email-hook';
 
 // Send Email Hook do Supabase Auth (SPEC §98): com o hook ligado (Dashboard → Authentication → Hooks →
@@ -17,6 +18,12 @@ function erro(status: number, message: string) {
 }
 
 export async function POST(request: Request) {
+  logAuth('email-hook:recebido', 'info', {
+    temWebhookId: !!request.headers.get('webhook-id'),
+    temAssinatura: !!request.headers.get('webhook-signature'),
+    segredoConfigurado: !!process.env.SEND_EMAIL_HOOK_SECRET,
+    resendConfigurado: !!process.env.RESEND_API_KEY,
+  });
   const segredo = process.env.SEND_EMAIL_HOOK_SECRET;
   if (!segredo) {
     console.error('[auth/email-hook] SEND_EMAIL_HOOK_SECRET ausente');
@@ -24,16 +31,23 @@ export async function POST(request: Request) {
   }
 
   const corpo = await request.text();
-  if (!verificarAssinaturaHook(corpo, request.headers, segredo)) return erro(401, 'Assinatura inválida.');
+  if (!verificarAssinaturaHook(corpo, request.headers, segredo)) {
+    logAuth('email-hook:assinatura-invalida', 'error', { dica: 'SEND_EMAIL_HOOK_SECRET diferente do segredo no Dashboard, ou relógio fora de 5 min' });
+    return erro(401, 'Assinatura inválida.');
+  }
 
   let payload: PayloadEmailHook;
   try {
     payload = JSON.parse(corpo) as PayloadEmailHook;
     if (!payload?.user?.email || !payload?.email_data?.email_action_type) throw new Error('payload incompleto');
-  } catch {
+  } catch (err) {
+    logAuth('email-hook:payload-invalido', 'error', { mensagem: err instanceof Error ? err.message : String(err) });
     return erro(400, 'Payload inválido.');
   }
 
+  logAuth('email-hook:processando', 'info', {
+    acao: payload.email_data.email_action_type, para: mascararEmail(payload.user.email), redirectTo: payload.email_data.redirect_to,
+  });
   try {
     const envios = await enviosDoHook(payload);
     for (const e of envios) {
@@ -43,9 +57,10 @@ export async function POST(request: Request) {
         return erro(500, 'Não foi possível enviar o e-mail agora.');
       }
     }
+    logAuth('email-hook:enviado', 'info', { acao: payload.email_data.email_action_type, qtd: envios.length });
     return NextResponse.json({});
   } catch (err) {
-    console.error('[auth/email-hook] falha:', err instanceof Error ? err.message : err);
+    console.error('[auth/email-hook] falha:', err instanceof Error ? err.stack ?? err.message : err);
     return erro(500, 'Não foi possível enviar o e-mail agora.');
   }
 }

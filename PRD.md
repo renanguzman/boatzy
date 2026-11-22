@@ -3613,3 +3613,7 @@ O MVP será considerado validado quando:
   - Rascunhos são apagados ao enviar com sucesso, ao sair da conta (há documentos com dados pessoais) e depois de 30 dias.
   - Sem espaço no aparelho para as fotos, o texto é guardado e o rodapé avisa "Rascunho salvo sem as fotos". Nesse caso, fechar a aba pede confirmação.
 - **Pendente:** testar em iPhone (Safari) e Android (Chrome) reais. Detalhes técnicos: SPEC §107.
+
+## Diagnóstico do cadastro de cliente (22/11/2026)
+- **Status:** logs de diagnóstico implementados (SPEC §108) para investigar falha no cadastro por e-mail/senha, e para validar Google, Facebook, Apple e cadastro direto.
+- Sem mudança de escopo ou de comportamento para o usuário. A causa raiz ainda será confirmada com os logs.

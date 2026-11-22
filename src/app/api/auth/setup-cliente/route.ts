@@ -4,6 +4,7 @@ import { supabaseAdmin } from '@/lib/supabase';
 import { NextResponse } from 'next/server';
 import { COOKIE_IDIOMA, OPCOES_COOKIE_IDIOMA, isIdioma } from '@/i18n/config';
 import { addRole } from '@/lib/roles';
+import { detalharErro, logAuth, mascararEmail } from '@/lib/log-auth';
 import type { Database } from '@/types/supabase';
 
 export const dynamic = 'force-dynamic';
@@ -21,9 +22,15 @@ export async function GET(request: Request) {
   const { data: { user } } = await supabase.auth.getUser();
 
   if (!user) {
+    logAuth('setup-cliente:sem-sessao', 'warn', { dica: 'cookie de sessão ausente após login/callback' });
     return NextResponse.redirect(new URL('/', APP_URL));
   }
 
+  const provedor = user.app_metadata?.provider ?? 'desconhecido';
+  logAuth('setup-cliente:inicio', 'info', {
+    userId: user.id, provedor, email: mascararEmail(user.email),
+    temCpf: !!user.user_metadata?.cpf, temTelefone: !!user.user_metadata?.phone,
+  });
   const email = user.email ?? '';
   const name =
     (user.user_metadata?.full_name as string | undefined) ??
@@ -41,11 +48,12 @@ export async function GET(request: Request) {
   const phone = (user.user_metadata?.phone as string | undefined) ?? null;
 
   // Upsert do usuário — o id coincide com auth.users.id
-  const { data: existing } = await supabaseAdmin
+  const { data: existing, error: erroBusca } = await supabaseAdmin
     .from('users')
     .select('id')
     .eq('id', user.id)
     .maybeSingle();
+  if (erroBusca) logAuth('setup-cliente:users:busca-erro', 'error', { userId: user.id, ...detalharErro(erroBusca) });
 
   if (!existing) {
     const userData: UserInsert = {
@@ -56,16 +64,24 @@ export async function GET(request: Request) {
       cpf_cnpj: cpf,
       phone,
     };
-    await supabaseAdmin.from('users').insert(userData);
+    const { error: erroInsert } = await supabaseAdmin.from('users').insert(userData);
+    if (erroInsert) logAuth('setup-cliente:users:insert-erro', 'error', { userId: user.id, provedor, ...detalharErro(erroInsert) });
+    else logAuth('setup-cliente:users:criado', 'info', { userId: user.id, provedor });
   } else {
-    await supabaseAdmin
+    const { error: erroUpdate } = await supabaseAdmin
       .from('users')
       .update({ avatar_url: avatarUrl, name })
       .eq('id', user.id);
+    if (erroUpdate) logAuth('setup-cliente:users:update-erro', 'error', { userId: user.id, ...detalharErro(erroUpdate) });
   }
 
-  await addRole(user.id, 'cliente');
+  try {
+    await addRole(user.id, 'cliente');
+  } catch (err) {
+    logAuth('setup-cliente:role-erro', 'error', { userId: user.id, ...detalharErro(err) });
+  }
   await sincronizarIdioma(user.id);
+  logAuth('setup-cliente:fim', 'info', { userId: user.id, redirectTo });
 
   return NextResponse.redirect(new URL(redirectTo, APP_URL));
 }

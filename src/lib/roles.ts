@@ -20,9 +20,12 @@ export async function getRolesFromDb(userId: string): Promise<UserRole[]> {
  * O `userId` é o auth.users.id que coincide com users.id.
  */
 export async function addRole(userId: string, role: UserRole): Promise<void> {
-  await supabaseAdmin
+  const { error } = await supabaseAdmin
     .from('user_roles')
     .upsert({ user_id: userId, role }, { onConflict: 'user_id,role' });
+  if (error) {
+    console.error('[auth] addRole:erro', { userId, role, mensagem: error.message, codigo: error.code, detalhes: error.details });
+  }
 }
 
 /**
