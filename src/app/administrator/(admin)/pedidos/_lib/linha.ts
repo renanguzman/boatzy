@@ -3,6 +3,7 @@
 import type {
   AsaasAmbienteDb,
   FormaPagamentoCodigo,
+  GatewayPagamento,
   PagamentoStatus,
   PedidoItemTipo,
   PedidoStatus,
@@ -23,6 +24,12 @@ export type PagamentoLinha = {
   valor_tarifa: number | null;
   valor_liquido: number | null;
   asaas_payment_id: string | null;
+  /** Gateway da tentativa e ids da Pagar.me (SPEC §109). */
+  gateway: GatewayPagamento;
+  gateway_pedido_id: string | null;
+  gateway_cobranca_id: string | null;
+  /** Juros do parcelado pagos pelo cliente (cartão Pagar.me). */
+  valor_juros: number;
   criado_em: string;
   recebido_em: string | null;
   credito_previsto_em: string | null;
@@ -80,4 +87,9 @@ export function cartaoDe(pg: PagamentoLinha | null): string | null {
   if (!pg?.pagamento_cartao) return null;
   const c = Array.isArray(pg.pagamento_cartao) ? pg.pagamento_cartao[0] : pg.pagamento_cartao;
   return c ? `${c.bandeira} •••• ${c.ultimos_digitos}` : null;
+}
+
+/** Id da cobrança no gateway da tentativa (pay_… no Asaas, ch_… na Pagar.me). */
+export function idCobrancaGateway(pg: PagamentoLinha | null): string | null {
+  return pg ? (pg.gateway === 'pagarme' ? pg.gateway_cobranca_id : pg.asaas_payment_id) : null;
 }

@@ -62,14 +62,16 @@ const SELECT = `id, numero, tipo, status, criado_em, expira_em, pago_em, cancela
   pedido_avulso ( titulo, valor_ajuste, motivo_ajuste, formas_permitidas, parcelas_max, reserva:reserva_id ( ${RESERVA_LINHA} ) ),
   pedido_item ( descricao, quantidade, valor_total, tipo, ordem ),
   pagamento ( id, forma_pagamento, status, numero_parcelas, ambiente, valor_tarifa, valor_liquido,
-              asaas_payment_id, criado_em, recebido_em, credito_previsto_em,
+              asaas_payment_id, gateway, gateway_pedido_id, gateway_cobranca_id, valor_juros,
+              criado_em, recebido_em, credito_previsto_em,
               pagamento_cartao ( bandeira, ultimos_digitos ) ),
   pedido_desconto ( cupom_codigo )`;
 
 /**
  * Traduz a busca livre em cláusulas do or(): nº do pedido, ids (pedido,
  * reserva, cliente, gestor), nome/e-mail de cliente ou gestor, item, ids do
- * Asaas (pay_/cus_/parcelamento) e código de cupom. `[]` = nada encontrado.
+ * Asaas (pay_/cus_/parcelamento) e da Pagar.me (or_/ch_/cus_), NSU/autorização
+ * do cartão e código de cupom. `[]` = nada encontrado.
  */
 async function clausulasDaBusca(q: string): Promise<string[]> {
   const clausulas: string[] = [];
@@ -84,17 +86,26 @@ async function clausulasDaBusca(q: string): Promise<string[]> {
   }
   if (q.length < 2) return clausulas;
 
-  const [usuarios, reservas, pagamentos, descontos, titulos, itens] = await Promise.all([
+  const [usuarios, reservas, pagamentos, descontos, titulos, itens, cartoes] = await Promise.all([
     supabaseAdmin.from('users').select('id').or(`name.ilike.%${q}%,email.ilike.%${q}%`).limit(200),
     supabaseAdmin.from('reserva').select('id').ilike('item_nome', `%${q}%`).limit(300),
     supabaseAdmin
       .from('pagamento')
       .select('pedido_id')
-      .or(`asaas_payment_id.ilike.%${q}%,asaas_customer_id.ilike.%${q}%,asaas_parcelamento_id.ilike.%${q}%`)
+      .or([
+        `asaas_payment_id.ilike.%${q}%`, `asaas_customer_id.ilike.%${q}%`, `asaas_parcelamento_id.ilike.%${q}%`,
+        `gateway_pedido_id.ilike.%${q}%`, `gateway_cobranca_id.ilike.%${q}%`, `gateway_customer_id.ilike.%${q}%`,
+      ].join(','))
       .limit(200),
     supabaseAdmin.from('pedido_desconto').select('pedido_id').ilike('cupom_codigo', `%${q}%`).limit(200),
     supabaseAdmin.from('pedido_avulso').select('pedido_id').ilike('titulo', `%${q}%`).limit(200),
     supabaseAdmin.from('pedido_item').select('pedido_id').ilike('descricao', `%${q}%`).limit(200),
+    // NSU / código de autorização do cartão (Pagar.me).
+    supabaseAdmin
+      .from('pagamento_cartao')
+      .select('pagamento:pagamento_id ( pedido_id )')
+      .or(`adquirente_nsu.eq.${q},codigo_autorizacao.eq.${q}`)
+      .limit(50),
   ]);
 
   const idsUsuarios = (usuarios.data ?? []).map((u) => u.id);
@@ -109,8 +120,11 @@ async function clausulasDaBusca(q: string): Promise<string[]> {
     avulsasDasReservas = data ?? [];
   }
   const idsPedidos = [...new Set(
-    [...(pagamentos.data ?? []), ...(descontos.data ?? []), ...(titulos.data ?? []), ...(itens.data ?? []), ...avulsasDasReservas]
-      .map((p) => p.pedido_id),
+    [
+      ...(pagamentos.data ?? []), ...(descontos.data ?? []), ...(titulos.data ?? []), ...(itens.data ?? []), ...avulsasDasReservas,
+      ...((cartoes.data ?? []) as unknown as { pagamento: { pedido_id: string } | null }[])
+        .map((c) => c.pagamento).filter((p): p is { pedido_id: string } => !!p),
+    ].map((p) => p.pedido_id),
   )];
   if (idsPedidos.length) clausulas.push(`id.in.(${idsPedidos.join(',')})`);
   return clausulas;
@@ -122,8 +136,10 @@ export type IndicadoresPedidos = {
   pagos: { qtd: number; valor: number };
   encerrados: number; // expirados + cancelados
   comissaoLiquida: number; // comissão − desconto dos pagos
-  tarifas: number; // tarifa do Asaas dos pagamentos pagos
-  margem: number; // comissão líquida − tarifas
+  tarifas: number; // tarifas dos gateways (Asaas + Stone/Pagar.me) dos pagamentos pagos
+  tarifasPorGateway: { asaas: number; pagarme: number };
+  juros: number; // juros do parcelado pagos pelos clientes (cartão Pagar.me)
+  margem: number; // comissão líquida + juros − tarifas
   aRepassar: number; // valor dos itens dos pagos (gestores)
   avulsas: { qtd: number; pagas: number; valorPago: number }; // cobranças avulsas (SPEC §34.16)
 };
@@ -138,6 +154,8 @@ function calcularIndicadores(linhas: PedidoLinha[]): IndicadoresPedidos {
     encerrados: 0,
     comissaoLiquida: 0,
     tarifas: 0,
+    tarifasPorGateway: { asaas: 0, pagarme: 0 },
+    juros: 0,
     margem: 0,
     aRepassar: 0,
     avulsas: { qtd: 0, pagas: 0, valorPago: 0 },
@@ -158,14 +176,17 @@ function calcularIndicadores(linhas: PedidoLinha[]): IndicadoresPedidos {
       r.pagos.valor += Number(p.valor_total);
       r.comissaoLiquida += Number(p.valor_comissao) - Number(p.valor_desconto);
       r.aRepassar += Number(p.valor_itens);
-      r.tarifas += p.pagamento
-        .filter((pg) => PAGAMENTO_COM_DINHEIRO.includes(pg.status))
-        .reduce((s, pg) => s + Number(pg.valor_tarifa ?? 0), 0);
+      for (const pg of p.pagamento.filter((x) => PAGAMENTO_COM_DINHEIRO.includes(x.status))) {
+        const tarifa = Number(pg.valor_tarifa ?? 0);
+        r.tarifas += tarifa;
+        r.tarifasPorGateway[pg.gateway] += tarifa;
+        r.juros += Number(pg.valor_juros ?? 0);
+      }
     } else if (p.status === 'expirado' || p.status === 'cancelado') {
       r.encerrados++;
     }
   }
-  r.margem = r.comissaoLiquida - r.tarifas;
+  r.margem = r.comissaoLiquida + r.juros - r.tarifas;
   return r;
 }
 

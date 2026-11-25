@@ -51,7 +51,7 @@ export default async function AdminPedidosPage({ searchParams }: { searchParams:
         <div>
           <h1 className="text-2xl font-bold text-[#0B2447]">Pedidos</h1>
           <p className="text-sm text-slate-500">
-            Todos os pedidos da plataforma — de reserva e cobranças avulsas dos gestores —, com cliente, gestor, reserva, pagamentos e transações no Asaas.
+            Todos os pedidos da plataforma — de reserva e cobranças avulsas dos gestores —, com cliente, gestor, reserva, pagamentos e transações nos gateways (Pix no Asaas, cartão na Stone/Pagar.me).
             Os indicadores seguem os filtros aplicados.
           </p>
         </div>
@@ -67,14 +67,26 @@ export default async function AdminPedidosPage({ searchParams }: { searchParams:
         />
         <Indicador label="Aguardando" valor={String(k.aguardando.qtd)} sub={brl(k.aguardando.valor)} icon={Hourglass} cor="text-violet-500" />
         <Indicador label="Pagos" valor={String(k.pagos.qtd)} sub="pago, reembolso parcial ou disputa" icon={BadgeCheck} cor="text-emerald-500" />
-        <Indicador label="Recebido (GMV)" valor={brl(k.pagos.valor)} sub="total pago pelos clientes" icon={TrendingUp} cor="text-emerald-500" />
+        <Indicador
+          label="Recebido (GMV)"
+          valor={brl(k.pagos.valor)}
+          sub={k.juros > 0 ? `total dos pedidos pagos · + ${brl(k.juros)} de juros do parcelado` : 'total pago pelos clientes'}
+          icon={TrendingUp}
+          cor="text-emerald-500"
+        />
         <Indicador label="Dos gestores" valor={brl(k.aRepassar)} sub="valor dos itens dos pagos" icon={Landmark} cor="text-sky-500" />
         <Indicador label="Comissão líquida" valor={brl(k.comissaoLiquida)} sub="comissão − descontos" icon={Percent} cor="text-[#0B3D91]" />
-        <Indicador label="Tarifas Asaas" valor={brl(k.tarifas)} sub="absorvidas pelo Boatzy" icon={Wallet} cor="text-amber-500" />
+        <Indicador
+          label="Tarifas dos gateways"
+          valor={brl(k.tarifas)}
+          sub={`Asaas ${brl(k.tarifasPorGateway.asaas)} · Stone ${brl(k.tarifasPorGateway.pagarme)} · absorvidas`}
+          icon={Wallet}
+          cor="text-amber-500"
+        />
         <Indicador
           label="Margem Boatzy"
           valor={brl(k.margem)}
-          sub="comissão líquida − tarifas"
+          sub="comissão líquida + juros − tarifas"
           icon={k.margem < 0 ? TimerOff : TrendingUp}
           cor={k.margem < 0 ? 'text-red-500' : 'text-emerald-600'}
         />

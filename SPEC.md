@@ -10058,6 +10058,25 @@ estorno). **F4 pendente** (liquidação/tarifa da conta Gateway → `recebido` +
 - **Admin → Pedidos → detalhe**: selo do gateway, ids `or_`/`ch_`/`cus_`, adquirente/NSU/autorização/retorno, juros,
   **Estornar** (`EstornarPagamentoButton` → `estornarPagamento(pagamentoId, valor, motivo)`, auditoria `pagamento.estornar`).
 
+### 109.6.1 Admin ciente do gateway em pedidos, repasses e relatórios (26/11/2026)
+- Rótulos: `GATEWAY_INFO` + `formaComGateway()` (`pedidos/_lib/rotulos.ts`); `GATEWAY_LABEL` (`lib/repasses/rotulos.ts`);
+  situação `aguardando_recebimento` virou **"Aguardando liquidação"** (o detalhe e a fila acrescentam "· Asaas" / "· Stone/Pagar.me").
+- **Lista de pedidos**: `PagamentoLinha` ganhou `gateway`, `gateway_pedido_id`, `gateway_cobranca_id`, `valor_juros`; selo do
+  gateway na coluna de pagamento; "+ juros" e "Tarifa Asaas|Stone" nos valores; busca por `or_`/`ch_`/`cus_` da Pagar.me e por
+  NSU/código de autorização; indicadores `tarifas` (com `tarifasPorGateway`), `juros` e margem = comissão líquida + juros − tarifas;
+  exportação com Gateway, juros, total cobrado no gateway, id da cobrança no gateway e id do pedido Pagar.me (`idCobrancaGateway`).
+- **Detalhe do pedido**: resumo com "Forma · gateway", líquido/tarifa do gateway do pagamento ("a apurar na liquidação" na Stone
+  enquanto não liquida; tarifa = MDR + antecipação), juros (linhas "Juros do parcelado" e "Total cobrado no cartão"; receita de
+  juros entra na margem), crédito previsto "Antecipação automática (Stone) — a confirmar"; tentativa da Pagar.me sem
+  Vencimento/Nº da fatura, com "Autorizado e capturado em" / "Liquidado em"; movimentos com `status_gateway` e link para o evento
+  da Pagar.me; card de eventos com os dois webhooks (`EventoGatewayDetalhe`, selo por gateway); cliente na Stone/Pagar.me
+  (`gateway_customer_id`); botão "Sincronizar com o Asaas | a Stone/Pagar.me | os gateways" (`PedidoAcoes.gateways`).
+  `sincronizarPedidoComAsaas` → `sincronizarPedidoComGateways`.
+- **Repasses**: `PedidoFila.gateway` (lido de `pagamento`); "Aguardando <gateway>" / "<gateway> credita em …".
+- **Relatórios**: conciliação "líquido × ledger" soma 1.1.01 (Asaas) + 1.1.03 (Stone/Pagar.me); detalhe por pedido com forma,
+  gateway e juros (receita líquida = comissão − desconto + juros − tarifa). Migration `20261126_relatorios_gateways.sql`:
+  `demonstrativo_gestores` soma caixa/tarifa das contas dos dois gateways (1.1.01/3.1.01 + 1.1.03/3.1.03).
+
 ### 109.7 Pendências
 - **F4**: liquidação/tarifa na conta Gateway (`/payables` ou API de conciliação da Stone; senão tabela de MDR +
   "captura + N dias") → `valor_liquido`, `recebido`, `pagamento_parcela`, `lancarRecebimento`. Até lá, pagamentos de
@@ -10065,4 +10084,4 @@ estorno). **F4 pendente** (liquidação/tarifa da conta Gateway → `recebido` +
 - Estorno contábil (ledger) e ajuste de repasse após estorno: Fase 2 (cancelamentos).
 - Validar no sandbox: endpoint de tokens (`/tokens?appId=`), `billing_address` dentro de `card` com `card_token`,
   `PASSPORT` com DNI/cédula, códigos de recusa, formato dos webhooks.
-- Filtro por gateway e colunas Pagar.me na listagem/exportação de Pedidos; relatórios/conciliação por gateway.
+- Filtro por gateway na lista de Pedidos (a forma de pagamento já separa Pix × cartão).

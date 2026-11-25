@@ -9,13 +9,17 @@ export const SITUACAO_ADMIN: Record<SituacaoRepasse, Rotulo & { dica: string }> 
   a_repassar: { label: 'A repassar', cls: 'bg-emerald-50 text-emerald-700', dica: 'Liberado: já pode ser pago ao gestor.' },
   aguardando_prazo: { label: 'Aguardando prazo', cls: 'bg-sky-50 text-sky-700', dica: 'Passeio realizado; dentro do prazo de espera antes do repasse.' },
   aguardando_passeio: { label: 'Aguardando passeio', cls: 'bg-slate-100 text-slate-600', dica: 'Pago, mas o passeio ainda não aconteceu.' },
-  aguardando_recebimento: { label: 'Aguardando o Asaas', cls: 'bg-amber-50 text-amber-700', dica: 'Pago pelo cliente, mas o Asaas ainda não liquidou o valor (cartão ~D+32).' },
+  aguardando_recebimento: {
+    label: 'Aguardando liquidação',
+    cls: 'bg-amber-50 text-amber-700',
+    dica: 'Pago pelo cliente, mas o gateway ainda não liquidou o valor (Pix no Asaas; cartão na Stone/Pagar.me, com antecipação automática — ou no Asaas, ~D+32, nos cartões antigos).',
+  },
   retido: { label: 'Retido', cls: 'bg-red-50 text-red-700', dica: 'Disputa, reembolso parcial ou reserva encerrada: não repassar sem conferir.' },
   reembolsado: { label: 'Reembolsado', cls: 'bg-amber-100 text-amber-800', dica: 'Pagamento devolvido ao cliente: nada a repassar.' },
   repassado: { label: 'Repassado', cls: 'bg-teal-50 text-teal-700', dica: 'Já incluído em um repasse pago.' },
 };
 
-/** Visão do gestor: mais simples, sem falar de Asaas. */
+/** Visão do gestor: mais simples, sem falar de gateway. */
 export const SITUACAO_GESTOR: Record<SituacaoRepasse, Rotulo> = {
   a_repassar: { label: 'Liberado para repasse', cls: 'bg-emerald-50 text-emerald-700' },
   aguardando_prazo: { label: 'Liberação em breve', cls: 'bg-sky-50 text-sky-700' },
@@ -36,3 +40,10 @@ export const ACAO_REPASSE: Record<string, string> = {
   'repasse.cancelar': 'Repasse cancelado',
   'repasse.comprovante': 'Comprovante anexado',
 };
+
+/**
+ * Nome do gateway que processou o pagamento (SPEC §109): Pix sempre no Asaas;
+ * cartão na Stone/Pagar.me (ou no Asaas, nos pagamentos antigos / em rollback).
+ */
+export const GATEWAY_LABEL = { asaas: 'Asaas', pagarme: 'Stone/Pagar.me' } as const;
+export type GatewayNome = keyof typeof GATEWAY_LABEL;

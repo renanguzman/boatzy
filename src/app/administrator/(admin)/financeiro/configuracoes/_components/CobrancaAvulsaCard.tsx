@@ -62,7 +62,7 @@ export default function CobrancaAvulsaCard({ cobrarComissao, prazoPadraoHoras, p
           <span className="block text-[11px] text-slate-500 mt-0.5">
             {comissao
               ? 'A taxa da reserva é somada ao valor do gestor e paga pelo cliente, como no pedido da reserva.'
-              : 'Desligado: o cliente paga só o valor do gestor (o Boatzy absorve a tarifa do Asaas).'}
+              : 'Desligado: o cliente paga só o valor do gestor (o Boatzy absorve a tarifa do gateway).'}
           </span>
         </span>
         <input

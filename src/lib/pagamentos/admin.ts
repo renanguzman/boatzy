@@ -27,12 +27,13 @@ export type AlteracaoSincronizacao = {
 };
 
 /**
- * Consulta no Asaas todas as cobranças do pedido (parcelado: todas as
- * parcelas) e aplica o estado atual — mesma lógica do webhook, sem registrar
- * movimento no histórico. Cobrança que não existe mais no Asaas (404) e ainda
- * estava pendente é marcada como cancelada.
+ * Consulta nos gateways todas as tentativas do pedido e aplica o estado atual —
+ * mesma lógica do webhook, sem registrar movimento no histórico (SPEC §109):
+ * cartão na Stone/Pagar.me (reconsulta o pedido `or_…`) e cobranças do Asaas
+ * (Pix e cartões antigos; parcelado: todas as parcelas). Cobrança que não existe
+ * mais no Asaas (404) e ainda estava pendente é marcada como cancelada.
  */
-export async function sincronizarPedidoComAsaas(
+export async function sincronizarPedidoComGateways(
   pedidoId: string,
 ): Promise<{ consultadas: number; alteracoes: AlteracaoSincronizacao[]; erros: string[] }> {
   const { data: pagamentos } = await supabaseAdmin

@@ -110,7 +110,7 @@ export default async function AdminFinanceiroConfiguracoesPage() {
                 <li>Vale a taxa efetiva do gestor (geral ou específica) no momento da <b>solicitação</b> da reserva.</li>
                 <li>É paga pelo cliente, somada ao preço — o gestor recebe o valor dos itens integral.</li>
                 <li>O cupom de desconto sai só da comissão.</li>
-                <li>A tarifa do Asaas é absorvida pelo Boatzy.</li>
+                <li>As tarifas dos gateways (Asaas no Pix, Stone/Pagar.me no cartão) são absorvidas pelo Boatzy; os juros do cartão parcelado são pagos pelo cliente.</li>
               </ul>
               <Link
                 href="/administrator/taxas"

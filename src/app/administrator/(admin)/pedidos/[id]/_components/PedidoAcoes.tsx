@@ -3,7 +3,7 @@
 import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { RefreshCw, Mail, CalendarClock, TimerOff, StickyNote, Loader2, X, TriangleAlert } from 'lucide-react';
-import type { PedidoStatus } from '@/types/supabase';
+import type { GatewayPagamento, PedidoStatus } from '@/types/supabase';
 import { anotarPedido, expirarPedidoAgora, prorrogarPrazo, reenviarEmail, sincronizarPedido } from '../../actions';
 
 type Modal = 'prorrogar' | 'expirar' | 'anotar' | null;
@@ -13,7 +13,7 @@ const botaoCls =
   'inline-flex items-center gap-2 px-3.5 py-2 rounded-xl text-sm font-semibold transition-colors disabled:opacity-40 disabled:cursor-not-allowed';
 
 /** Barra de ações do admin sobre o pedido. Toda ação fica registrada na auditoria. */
-export default function PedidoAcoes({ pedidoId, status }: { pedidoId: string; status: PedidoStatus }) {
+export default function PedidoAcoes({ pedidoId, status, gateways }: { pedidoId: string; status: PedidoStatus; gateways: GatewayPagamento[] }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [modal, setModal] = useState<Modal>(null);
@@ -54,7 +54,7 @@ export default function PedidoAcoes({ pedidoId, status }: { pedidoId: string; st
         <button type="button" disabled={pending} onClick={() => executar(() => sincronizarPedido(pedidoId))}
           className={`${botaoCls} bg-[#0B2447] text-white hover:bg-[#0B3D91]`}>
           {pending && !modal ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
-          Sincronizar com o Asaas
+          {gateways.length === 1 ? `Sincronizar com ${gateways[0] === 'pagarme' ? 'a Stone/Pagar.me' : 'o Asaas'}` : 'Sincronizar com os gateways'}
         </button>
         <button type="button" disabled={pending || !podeReenviar} onClick={() => executar(() => reenviarEmail(pedidoId))}
           title={podeReenviar ? undefined : 'Só para pedidos aguardando pagamento ou pagos'}
@@ -99,7 +99,7 @@ export default function PedidoAcoes({ pedidoId, status }: { pedidoId: string; st
             {modal === 'expirar' && (
               <p className="flex items-start gap-2 text-sm text-amber-800 bg-amber-50 border border-amber-100 rounded-xl px-3 py-2 mb-4">
                 <TriangleAlert className="w-4 h-4 shrink-0 mt-0.5" />
-                As cobranças pendentes são removidas no Asaas, o pedido expira, a data da reserva é liberada e o cliente
+                As cobranças pendentes são canceladas no gateway (Asaas/Stone), o pedido expira, a data da reserva é liberada e o cliente
                 recebe o e-mail de prazo expirado. Não dá para desfazer.
               </p>
             )}

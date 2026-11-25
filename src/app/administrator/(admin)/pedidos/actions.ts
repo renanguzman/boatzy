@@ -11,10 +11,11 @@ import {
   estornarPagamentoCartao,
   prorrogarPrazoPedido,
   reenviarEmailPedido,
-  sincronizarPedidoComAsaas,
+  sincronizarPedidoComGateways,
 } from '@/lib/pagamentos/admin';
 import { buscarPedidos, cartaoDe, lerFiltros, pagamentoPrincipal } from './_lib/consulta';
-import { FORMA_LABEL, PAGAMENTO_STATUS, PEDIDO_STATUS, formatarDocumento } from './_lib/rotulos';
+import { idCobrancaGateway } from './_lib/linha';
+import { FORMA_LABEL, GATEWAY_INFO, PAGAMENTO_STATUS, PEDIDO_STATUS, formatarDocumento } from './_lib/rotulos';
 
 type Resultado = { ok: true; mensagem?: string } | { ok: false; error: string };
 
@@ -86,13 +87,17 @@ export async function exportarPedidos(
         Cupom: cupom,
         'Total (cliente)': Number(p.valor_total),
         'Forma de pagamento': pg ? FORMA_LABEL[pg.forma_pagamento] : '',
+        Gateway: pg ? GATEWAY_INFO[pg.gateway].label : '',
         Parcelas: pg?.numero_parcelas ?? '',
+        'Juros do parcelado (cliente)': pg ? Number(pg.valor_juros ?? 0) : '',
+        'Total cobrado no gateway': pg ? Math.round((Number(p.valor_total) + Number(pg.valor_juros ?? 0)) * 100) / 100 : '',
         Cartão: cartaoDe(pg) ?? '',
         'Status do pagamento': pg ? PAGAMENTO_STATUS[pg.status].label : '',
         'Tentativas de pagamento': p.pagamento.length,
-        'ID da cobrança (Asaas)': pg?.asaas_payment_id ?? '',
+        'ID da cobrança no gateway': idCobrancaGateway(pg) ?? '',
+        'ID do pedido (Pagar.me)': pg?.gateway_pedido_id ?? '',
         Ambiente: pg?.ambiente === 'sandbox' ? 'Sandbox' : pg ? 'Produção' : '',
-        'Tarifa Asaas': pg?.valor_tarifa != null ? Number(pg.valor_tarifa) : '',
+        'Tarifa do gateway': pg?.valor_tarifa != null ? Number(pg.valor_tarifa) : '',
         'Líquido recebido': pg?.valor_liquido != null ? Number(pg.valor_liquido) : '',
         'Prazo para pagar': dataHora(p.expira_em),
         'Pago em': dataHora(p.pago_em),
@@ -106,7 +111,7 @@ export async function sincronizarPedido(pedidoId: string): Promise<Resultado> {
   const auth = await requireAdmin();
   if (!auth.ok) return auth;
 
-  const r = await sincronizarPedidoComAsaas(pedidoId);
+  const r = await sincronizarPedidoComGateways(pedidoId);
   await registrarAuditoria({
     adminId: auth.userId,
     acao: 'pedido.sincronizar',

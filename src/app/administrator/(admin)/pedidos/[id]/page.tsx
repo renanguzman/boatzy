@@ -14,8 +14,8 @@ import { multiplicadorDaReserva } from '@/lib/pagamentos/valores';
 import type { PagamentoStatus } from '@/types/supabase';
 import { carregarDetalhePedido, type DetalhePedido, type PagamentoDetalhe } from '../_lib/detalhe';
 import {
-  ACAO_LABEL, ESTORNO_STATUS, EVENTO_STATUS, FORMA_LABEL, MODALIDADE_LABEL, PAGAMENTO_STATUS, PARCELA_STATUS,
-  PEDIDO_STATUS, RESERVA_STATUS, TRANSACAO_LABEL, formatarDataCurta, formatarDocumento, formatarTelefone,
+  ACAO_LABEL, ESTORNO_STATUS, EVENTO_STATUS, FORMA_LABEL, GATEWAY_INFO, MODALIDADE_LABEL, PAGAMENTO_STATUS, PARCELA_STATUS,
+  PEDIDO_STATUS, RESERVA_STATUS, TRANSACAO_LABEL, formaComGateway, formatarDataCurta, formatarDocumento, formatarTelefone,
 } from '../_lib/rotulos';
 import PedidoAcoes from './_components/PedidoAcoes';
 import CancelarCobrancaButton from './_components/CancelarCobrancaButton';
@@ -169,7 +169,7 @@ function montarLinhaDoTempo(d: DetalhePedido): ItemTempo[] {
         titulo: `${TRANSACAO_LABEL[t.tipo] ?? t.tipo} — tentativa ${i + 1} (${FORMA_LABEL[pg.forma_pagamento]}${pg.numero_parcelas > 1 ? ` ${pg.numero_parcelas}x` : ''})`,
         detalhe: [
           t.valor != null ? brl(t.valor) : null, t.status_asaas ?? t.status_gateway, pg.asaas_payment_id ?? pg.gateway_cobranca_id,
-          pg.gateway === 'pagarme' ? 'Pagar.me' : 'Asaas',
+          GATEWAY_INFO[pg.gateway].label,
         ].filter(Boolean).join(' · '),
         origem: t.tipo === 'criacao' || t.tipo === 'falha_criacao' ? 'cliente' : 'gateway',
       });
@@ -247,7 +247,9 @@ function PagamentoCard({ pg, indice }: { pg: PagamentoDetalhe; indice: number })
   const cancelavel = PAGAMENTO_CANCELAVEL.includes(pg.status);
   // Cartão na Pagar.me (SPEC §109): ids e dados da adquirente; estorno pelo admin.
   const pagarme = pg.gateway === 'pagarme';
-  const gw = pagarme ? 'Pagar.me' : 'Asaas';
+  const gw = GATEWAY_INFO[pg.gateway].label;
+  // Na Stone/Pagar.me, tarifa e líquido só existem depois da liquidação (antecipação automática).
+  const aApurar = pagarme && pg.valor_liquido == null && ['confirmado', 'estornado_parcial', 'em_disputa'].includes(pg.status);
   const estornado = pg.pagamento_estorno.filter((e) => e.status !== 'cancelado').reduce((s, e) => s + Number(e.valor), 0);
   const maxEstorno = Math.round((Number(pg.valor) - estornado) * 100) / 100;
   const estornavel = pagarme && ['confirmado', 'recebido', 'estornado_parcial'].includes(pg.status) && maxEstorno > 0;
@@ -258,7 +260,7 @@ function PagamentoCard({ pg, indice }: { pg: PagamentoDetalhe; indice: number })
         <div className="flex items-center gap-2 text-sm font-semibold text-[#0B2447]">
           <FormaIcon className="w-4 h-4" />
           Tentativa {indice} · {FORMA_LABEL[pg.forma_pagamento]}
-          <span className={`text-[10px] font-bold uppercase tracking-wide px-2 py-0.5 rounded-full ${pagarme ? 'bg-emerald-50 text-emerald-700' : 'bg-blue-50 text-blue-700'}`}>{gw}</span>
+          <span className={`text-[10px] font-bold uppercase tracking-wide px-2 py-0.5 rounded-full ${GATEWAY_INFO[pg.gateway].cls}`}>{gw}</span>
           {pg.numero_parcelas > 1 && <span className="text-slate-500 font-normal">em {pg.numero_parcelas}x</span>}
           {pg.ambiente === 'sandbox' && (
             <span className="inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-wide text-amber-700 bg-amber-50 px-2 py-0.5 rounded-full">
@@ -274,18 +276,29 @@ function PagamentoCard({ pg, indice }: { pg: PagamentoDetalhe; indice: number })
 
       <div className="p-4 space-y-5">
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <Campo label="Valor cobrado">{brl(pg.valor)}</Campo>
-          <Campo label={`Líquido (${gw})`}>{brl(pg.valor_liquido)}</Campo>
-          <Campo label={`Tarifa ${gw}`}>{brl(pg.valor_tarifa)}</Campo>
-          {Number(pg.valor_juros) > 0 && <Campo label="Juros do parcelado (cliente)">{brl(Number(pg.valor_juros))}</Campo>}
-          <Campo label="Parcelas">{pg.numero_parcelas}x</Campo>
+          <Campo label={Number(pg.valor_juros) > 0 ? 'Valor cobrado (com juros)' : 'Valor cobrado'}>{brl(pg.valor)}</Campo>
+          {Number(pg.valor_juros) > 0 && (
+            <>
+              <Campo label="Valor do pedido">{brl(Number(pg.valor) - Number(pg.valor_juros))}</Campo>
+              <Campo label="Juros do parcelado (cliente)">{brl(Number(pg.valor_juros))}</Campo>
+            </>
+          )}
+          <Campo label={`Líquido (${gw})`}>{aApurar ? <span className="text-slate-400">a apurar na liquidação</span> : brl(pg.valor_liquido)}</Campo>
+          <Campo label={pagarme ? `Tarifa ${gw} (MDR + antecipação)` : `Tarifa ${gw}`}>
+            {aApurar ? <span className="text-slate-400">a apurar na liquidação</span> : brl(pg.valor_tarifa)}
+          </Campo>
+          {pg.forma_pagamento === 'cartao_credito' && <Campo label="Parcelas">{pg.numero_parcelas === 1 ? 'À vista (1x)' : `${pg.numero_parcelas}x`}</Campo>}
           <Campo label="Criada em">{dh(pg.criado_em)}</Campo>
-          <Campo label="Vencimento">{formatarDataCurta(pg.vencimento)}</Campo>
-          <Campo label="Confirmado em">{dh(pg.confirmado_em)}</Campo>
-          <Campo label="Recebido em">{dh(pg.recebido_em)}</Campo>
-          <Campo label="Crédito previsto">{formatarDataCurta(pg.credito_previsto_em)}</Campo>
+          {!pagarme && <Campo label="Vencimento">{formatarDataCurta(pg.vencimento)}</Campo>}
+          <Campo label={pagarme ? 'Autorizado e capturado em' : 'Confirmado em'}>{dh(pg.confirmado_em)}</Campo>
+          <Campo label={pagarme ? 'Liquidado em' : 'Recebido em'}>{dh(pg.recebido_em)}</Campo>
+          <Campo label="Crédito previsto">
+            {pg.credito_previsto_em
+              ? formatarDataCurta(pg.credito_previsto_em)
+              : aApurar ? <span className="text-slate-400">antecipação automática — a confirmar</span> : '—'}
+          </Campo>
           <Campo label="Atualizado em">{dh(pg.atualizado_em)}</Campo>
-          <Campo label="Nº da fatura">{pg.numero_fatura ?? '—'}</Campo>
+          {!pagarme && <Campo label="Nº da fatura">{pg.numero_fatura ?? '—'}</Campo>}
           <Campo label="Ambiente">{pg.ambiente === 'sandbox' ? 'Sandbox' : 'Produção'}</Campo>
         </div>
 
@@ -371,7 +384,7 @@ function PagamentoCard({ pg, indice }: { pg: PagamentoDetalhe; indice: number })
                   {pg.pagamento_parcela.map((pp) => (
                     <tr key={pp.id} className="border-b border-slate-50 last:border-0">
                       <td className="py-1.5 pr-3">{pp.numero}/{pp.total}</td>
-                      <td className="py-1.5 pr-3 font-mono">{pp.asaas_payment_id ?? '—'}</td>
+                      <td className="py-1.5 pr-3 font-mono">{pp.asaas_payment_id ?? pp.gateway_recebivel_id ?? '—'}</td>
                       <td className="py-1.5 pr-3">{brl(pp.valor)}</td>
                       <td className="py-1.5 pr-3">{brl(pp.valor_liquido)}</td>
                       <td className="py-1.5 pr-3"><Badge cls={PARCELA_STATUS[pp.status].cls}>{PARCELA_STATUS[pp.status].label}</Badge></td>
@@ -400,10 +413,15 @@ function PagamentoCard({ pg, indice }: { pg: PagamentoDetalhe; indice: number })
                   </div>
                   <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mt-1 text-[11px] text-slate-500">
                     {t.valor != null && <span>{brl(t.valor)}</span>}
-                    {t.status_asaas && <span className="font-mono">{t.status_asaas}</span>}
+                    {(t.status_asaas ?? t.status_gateway) && <span className="font-mono">{t.status_asaas ?? t.status_gateway}</span>}
                     {t.asaas_evento_id && (
                       <Link href={`/administrator/financeiro/integracao?q=${encodeURIComponent(t.asaas_evento_id)}`} className="font-mono text-[#0B3D91] hover:underline">
                         evento {t.asaas_evento_id.slice(0, 18)}…
+                      </Link>
+                    )}
+                    {t.gateway_evento_id && (
+                      <Link href={`/administrator/financeiro/integracao?gateway=pagarme&q=${encodeURIComponent(t.gateway_evento_id)}`} className="font-mono text-[#0B3D91] hover:underline">
+                        evento {t.gateway_evento_id.slice(0, 18)}…
                       </Link>
                     )}
                   </div>
@@ -452,9 +470,19 @@ export default async function AdminPedidoDetalhePage({ params }: { params: Promi
 
   const { pedido: p, reserva: r } = d;
   const pagamentoPago = [...d.pagamentos].reverse().find((pg) => PAGO.includes(pg.status)) ?? null;
+  // Gateway/forma que valem para o resumo: o do pagamento pago, senão o da última tentativa (SPEC §109).
+  const pagamentoRef = pagamentoPago ?? d.pagamentos[d.pagamentos.length - 1] ?? null;
+  const gwPago = pagamentoRef ? GATEWAY_INFO[pagamentoRef.gateway].label : null;
+  const pagoNaPagarme = pagamentoPago?.gateway === 'pagarme';
+  const juros = Number(pagamentoPago?.valor_juros ?? 0);
   const tarifa = pagamentoPago?.valor_tarifa != null ? Number(pagamentoPago.valor_tarifa) : null;
   const receitaBoatzy = Number(p.valor_comissao) - Number(p.valor_desconto);
-  const margem = tarifa != null ? receitaBoatzy - tarifa : null;
+  const margem = tarifa != null ? receitaBoatzy + juros - tarifa : null;
+  const aguardandoLiquidacao = !!pagamentoPago && pagamentoPago.valor_liquido == null;
+  const gateways = [...new Set(d.pagamentos.map((pg) => pg.gateway))];
+  const clientesPagarme = [...new Map(
+    d.pagamentos.filter((pg) => pg.gateway === 'pagarme' && pg.gateway_customer_id).map((pg) => [`${pg.ambiente}:${pg.gateway_customer_id}`, pg]),
+  ).values()];
   const multiplicador = r ? multiplicadorDaReserva(r) : 1;
   const localidade = r?.roteiro?.municipios
     ? `${r.roteiro.municipios.nome}${r.roteiro.municipios.estados ? `, ${r.roteiro.municipios.estados.uf}` : ''}`
@@ -492,7 +520,7 @@ export default async function AdminPedidoDetalhePage({ params }: { params: Promi
             </p>
           </div>
         </div>
-        <PedidoAcoes pedidoId={p.id} status={p.status} />
+        <PedidoAcoes pedidoId={p.id} status={p.status} gateways={gateways} />
       </div>
 
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
@@ -575,16 +603,36 @@ export default async function AdminPedidoDetalhePage({ params }: { params: Promi
                 <Linha label={`Taxa de serviço (${Number(p.comissao_percentual).toLocaleString('pt-BR', { maximumFractionDigits: 2 })}%)`} valor={brl(p.valor_comissao)} />
                 {Number(p.valor_desconto) > 0 && <Linha label="Desconto (cupom)" valor={`−${brl(p.valor_desconto)}`} cor="text-emerald-600" />}
                 <Linha label="Total do pedido" valor={brl(p.valor_total)} destaque />
+                {juros > 0 && pagamentoPago && (
+                  <>
+                    <Linha label={`Juros do parcelado (${pagamentoPago.numero_parcelas}x, pagos pelo cliente)`} valor={`+${brl(juros)}`} />
+                    <Linha label="Total cobrado no cartão" valor={brl(pagamentoPago.valor)} destaque />
+                  </>
+                )}
               </div>
               <div>
                 <p className="text-[10px] font-bold text-slate-400 tracking-wider uppercase mb-1">Resultado</p>
-                <Linha label="Recebido no Asaas (líquido)" valor={brl(pagamentoPago?.valor_liquido)} />
-                <Linha label="Tarifa Asaas (absorvida)" valor={tarifa != null ? `−${brl(tarifa)}` : '—'} cor="text-amber-600" />
+                {pagamentoRef && (
+                  <Linha
+                    label="Forma · gateway"
+                    valor={`${formaComGateway(pagamentoRef)}${pagamentoRef.forma_pagamento === 'cartao_credito' ? ` · ${pagamentoRef.numero_parcelas}x` : ''}`}
+                  />
+                )}
+                <Linha
+                  label={`Recebido ${gwPago ? `no ${gwPago}` : 'no gateway'} (líquido)`}
+                  valor={aguardandoLiquidacao ? 'a apurar na liquidação' : brl(pagamentoPago?.valor_liquido)}
+                />
+                <Linha
+                  label={`Tarifa ${gwPago ?? 'do gateway'}${pagoNaPagarme ? ' (MDR + antecipação)' : ''} — absorvida`}
+                  valor={tarifa != null ? `−${brl(tarifa)}` : aguardandoLiquidacao ? 'a apurar' : '—'}
+                  cor="text-amber-600"
+                />
                 <Linha label="Repasse ao gestor" valor={brl(p.valor_itens)} cor="text-sky-700" />
                 <Linha label="Receita Boatzy (comissão − desconto)" valor={brl(receitaBoatzy)} />
+                {juros > 0 && <Linha label="Juros do parcelado (receita)" valor={`+${brl(juros)}`} />}
                 <Linha
-                  label="Margem Boatzy (− tarifa)"
-                  valor={margem != null ? brl(margem) : 'após o pagamento'}
+                  label={juros > 0 ? 'Margem Boatzy (+ juros − tarifa)' : 'Margem Boatzy (− tarifa)'}
+                  valor={margem != null ? brl(margem) : pagamentoPago ? 'após a liquidação' : 'após o pagamento'}
                   destaque
                 />
                 {margem != null && margem < 0 && <p className="text-xs text-red-600 mt-1">Margem negativa neste pedido.</p>}
@@ -594,7 +642,11 @@ export default async function AdminPedidoDetalhePage({ params }: { params: Promi
               <Campo label="Prazo para pagar">{dh(p.expira_em)}</Campo>
               <Campo label="Pago em">{dh(p.pago_em)}</Campo>
               <Campo label="Encerrado em">{dh(p.cancelado_em)}</Campo>
-              <Campo label="Crédito previsto">{formatarDataCurta(pagamentoPago?.credito_previsto_em)}</Campo>
+              <Campo label="Crédito previsto">
+                {pagamentoPago?.credito_previsto_em
+                  ? formatarDataCurta(pagamentoPago.credito_previsto_em)
+                  : pagoNaPagarme && aguardandoLiquidacao ? 'Antecipação automática (Stone) — a confirmar' : '—'}
+              </Campo>
               {p.motivo_cancelamento && <div className="col-span-2 md:col-span-4"><Campo label="Motivo do encerramento">{p.motivo_cancelamento}</Campo></div>}
               <div className="col-span-2 md:col-span-4 text-xs text-slate-500">
                 {d.avulso ? 'Taxa da reserva aplicada à cobrança' : 'Taxa congelada na solicitação'}: <b>{Number(p.comissao_percentual).toLocaleString('pt-BR')}%</b>
@@ -612,7 +664,9 @@ export default async function AdminPedidoDetalhePage({ params }: { params: Promi
                 <div className="mt-5 pt-4 border-t border-slate-100">
                   <p className="text-[10px] font-bold text-slate-400 tracking-wider uppercase mb-2">Repasse ao gestor</p>
                   <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
-                    <span title={sit.dica} className={`inline-block text-[11px] font-semibold px-2.5 py-1 rounded-full ${sit.cls}`}>{sit.label}</span>
+                    <span title={sit.dica} className={`inline-block text-[11px] font-semibold px-2.5 py-1 rounded-full ${sit.cls}`}>
+                      {sit.label}{rp.situacao === 'aguardando_recebimento' && gwPago ? ` · ${gwPago}` : ''}
+                    </span>
                     {rp.repasse_id && rp.repasse_numero != null ? (
                       <Link href={`/administrator/financeiro/repasses/${rp.repasse_id}`} className="text-xs font-semibold text-[#0B3D91] hover:underline">
                         Repasse #{rp.repasse_numero}{rp.repasse_pago_em ? ` · pago em ${dh(rp.repasse_pago_em)}` : ''}
@@ -672,22 +726,32 @@ export default async function AdminPedidoDetalhePage({ params }: { params: Promi
 
           {/* Eventos do webhook */}
           <Card
-            titulo={`Eventos recebidos do Asaas (${d.eventos.length})`}
+            titulo={`Eventos recebidos dos gateways (${d.eventos.length})`}
             icon={Webhook}
-            extra={<Link href="/administrator/financeiro/integracao" className="text-xs font-semibold text-[#0B3D91] hover:underline">Fila de eventos</Link>}
+            extra={
+              <Link
+                href={gateways.length === 1 && gateways[0] === 'pagarme' ? '/administrator/financeiro/integracao?gateway=pagarme' : '/administrator/financeiro/integracao'}
+                className="text-xs font-semibold text-[#0B3D91] hover:underline"
+              >
+                Fila de eventos
+              </Link>
+            }
           >
             {d.eventos.length === 0 ? (
-              <p className="text-sm text-slate-400">Nenhum evento de webhook para as cobranças deste pedido.</p>
+              <p className="text-sm text-slate-400">Nenhum evento de webhook (Asaas ou Stone/Pagar.me) para as cobranças deste pedido.</p>
             ) : (
               <ul className="space-y-2">
                 {d.eventos.map((e) => (
                   <li key={e.id} className="rounded-lg border border-slate-100 px-3 py-2">
                     <div className="flex flex-wrap items-center justify-between gap-2">
-                      <span className="font-mono text-xs font-semibold text-[#0B2447]">{e.evento}</span>
+                      <span className="flex items-center gap-2">
+                        <span className={`text-[9px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded ${GATEWAY_INFO[e.gateway].cls}`}>{GATEWAY_INFO[e.gateway].label}</span>
+                        <span className="font-mono text-xs font-semibold text-[#0B2447]">{e.evento}</span>
+                      </span>
                       <Badge cls={EVENTO_STATUS[e.status].cls}>{EVENTO_STATUS[e.status].label}</Badge>
                     </div>
                     <div className="flex flex-wrap gap-x-4 gap-y-1 mt-1 text-[11px] text-slate-500">
-                      <span>Criado no Asaas {dh(e.criado_asaas_em)}</span>
+                      <span>Criado no {GATEWAY_INFO[e.gateway].label} {dh(e.criado_gateway_em)}</span>
                       <span>Recebido {dh(e.recebido_em)}</span>
                       <span>Processado {dh(e.processado_em)}</span>
                       <span>{e.tentativas} tentativa(s)</span>
@@ -719,6 +783,15 @@ export default async function AdminPedidoDetalhePage({ params }: { params: Promi
                 {d.clienteAsaas.map((c) => (
                   <Campo key={c.ambiente} label={`Cliente no Asaas (${c.ambiente === 'sandbox' ? 'sandbox' : 'produção'})`}>
                     <CopiarValor valor={c.asaas_customer_id} />
+                  </Campo>
+                ))}
+              </div>
+            )}
+            {clientesPagarme.length > 0 && (
+              <div className="mt-4 pt-3 border-t border-slate-100 space-y-2">
+                {clientesPagarme.map((pg) => (
+                  <Campo key={`${pg.ambiente}:${pg.gateway_customer_id}`} label={`Cliente na Stone/Pagar.me (${pg.ambiente === 'sandbox' ? 'sandbox' : 'produção'})`}>
+                    <CopiarValor valor={pg.gateway_customer_id!} />
                   </Campo>
                 ))}
               </div>

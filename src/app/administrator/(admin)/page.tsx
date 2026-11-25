@@ -108,7 +108,7 @@ export default async function AdministratorDashboardPage() {
     {
       href: '/administrator/pedidos',
       titulo: 'Pedidos',
-      descricao: 'Todos os pedidos com pagamentos, transações no Asaas, linha do tempo e controle manual.',
+      descricao: 'Todos os pedidos com pagamentos (Pix no Asaas, cartão na Stone/Pagar.me), linha do tempo e controle manual.',
       icon: Receipt,
     },
     {

@@ -27,6 +27,8 @@ export type PedidoFila = LinhaView & {
   gestor_nome: string;
   cliente_nome: string;
   item_nome: string;
+  /** Gateway que liquida o pagamento (Pix: Asaas; cartão: Stone/Pagar.me ou Asaas nos antigos) — SPEC §109. */
+  gateway: 'asaas' | 'pagarme' | null;
 };
 
 export type GestorResumo = {
@@ -85,12 +87,17 @@ async function enriquecer(linhas: LinhaView[]): Promise<PedidoFila[]> {
   if (linhas.length === 0) return [];
   const usuarios = [...new Set(linhas.flatMap((l) => [l.gestor_id, l.cliente_id]))];
   const reservas = [...new Set(linhas.map((l) => l.reserva_id).filter((x): x is string => !!x))];
-  const [{ data: us }, { data: rs }] = await Promise.all([
+  const pagamentos = [...new Set(linhas.map((l) => l.pagamento_id).filter((x): x is string => !!x))];
+  const [{ data: us }, { data: rs }, { data: pgs }] = await Promise.all([
     supabaseAdmin.from('users').select('id, name').in('id', usuarios),
     reservas.length
       ? supabaseAdmin.from('reserva').select('id, item_nome').in('id', reservas)
       : Promise.resolve({ data: [] as { id: string; item_nome: string }[] }),
+    pagamentos.length
+      ? supabaseAdmin.from('pagamento').select('id, gateway').in('id', pagamentos)
+      : Promise.resolve({ data: [] as { id: string; gateway: 'asaas' | 'pagarme' }[] }),
   ]);
+  const gatewayDe = new Map((pgs ?? []).map((p) => [p.id, p.gateway]));
   const nome = new Map((us ?? []).map((u) => [u.id, u.name ?? '—']));
   const item = new Map((rs ?? []).map((r) => [r.id, r.item_nome]));
   return linhas.map((l) => ({
@@ -98,6 +105,7 @@ async function enriquecer(linhas: LinhaView[]): Promise<PedidoFila[]> {
     gestor_nome: nome.get(l.gestor_id) ?? '—',
     cliente_nome: nome.get(l.cliente_id) ?? '—',
     item_nome: (l.reserva_id && item.get(l.reserva_id)) || '—',
+    gateway: (l.pagamento_id && gatewayDe.get(l.pagamento_id)) || null,
   }));
 }
 

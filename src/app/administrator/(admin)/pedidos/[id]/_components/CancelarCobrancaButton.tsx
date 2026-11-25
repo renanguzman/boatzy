@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { Ban, Loader2 } from 'lucide-react';
 import { cancelarCobranca } from '../../actions';
 
-/** Remove no Asaas uma cobrança ainda não paga (ex.: tentativa duplicada). Exige motivo; vai para a auditoria. */
+/** Cancela no gateway (Asaas ou Stone/Pagar.me) uma cobrança ainda não paga (ex.: tentativa duplicada). Exige motivo; vai para a auditoria. */
 export default function CancelarCobrancaButton({ pagamentoId }: { pagamentoId: string }) {
   const router = useRouter();
   const [aberto, setAberto] = useState(false);

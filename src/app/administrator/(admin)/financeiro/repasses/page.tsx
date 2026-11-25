@@ -5,7 +5,7 @@ import { createClient } from '@/lib/supabase/server';
 import { formatCurrencyPrecise } from '@/lib/utils';
 import { formatarData } from '@/lib/datas';
 import { getFinanceiroConfig } from '@/lib/financeiro/config';
-import { SITUACAO_ADMIN, METODO_REPASSE, METODOS_REPASSE } from '@/lib/repasses/rotulos';
+import { GATEWAY_LABEL, SITUACAO_ADMIN, METODO_REPASSE, METODOS_REPASSE } from '@/lib/repasses/rotulos';
 import { resumoDestino } from '@/lib/recebimento-tipos';
 import FinanceiroAbas from '../_components/FinanceiroAbas';
 import ExportarPlanilha from '../_components/ExportarPlanilha';
@@ -73,8 +73,9 @@ export default async function AdminRepassesPage({ searchParams }: { searchParams
         <div>
           <h1 className="text-2xl font-bold text-[#0B2447]">Financeiro</h1>
           <p className="text-sm text-slate-500">
-            Repasses aos gestores: o que está liberado, o que aguarda e o que já foi pago, com comprovante. Um pedido é liberado quando o Asaas
-            liquida o pagamento, o passeio acontece e passam {config.horas_repasse_apos_passeio}h.
+            Repasses aos gestores: o que está liberado, o que aguarda e o que já foi pago, com comprovante. Um pedido é liberado quando o gateway
+            liquida o pagamento (Pix no Asaas; cartão na Stone/Pagar.me, com antecipação automática), o passeio acontece e passam{' '}
+            {config.horas_repasse_apos_passeio}h.
           </p>
         </div>
       </div>
@@ -83,7 +84,7 @@ export default async function AdminRepassesPage({ searchParams }: { searchParams
 
       <div className="mb-6 grid grid-cols-2 gap-3 xl:grid-cols-4">
         <Indicador label="A repassar agora" valor={brl(k.aRepassar.valor)} sub={`${k.aRepassar.pedidos} pedido(s) · ${k.aRepassar.gestores} gestor(es)`} icon={HandCoins} cor="text-emerald-500" />
-        <Indicador label="Aguardando liberação" valor={brl(k.aguardando.valor)} sub={`${k.aguardando.pedidos} pedido(s): passeio, prazo ou Asaas`} icon={Clock} cor="text-sky-500" />
+        <Indicador label="Aguardando liberação" valor={brl(k.aguardando.valor)} sub={`${k.aguardando.pedidos} pedido(s): passeio, prazo ou liquidação`} icon={Clock} cor="text-sky-500" />
         <Indicador label="Retido" valor={brl(k.retido.valor)} sub={`${k.retido.pedidos} pedido(s): disputa ou reembolso`} icon={ShieldAlert} cor={k.retido.pedidos ? 'text-red-500' : 'text-slate-300'} />
         <Indicador label="Repassado no mês" valor={brl(k.repassadoMes.valor)} sub={`${k.repassadoMes.repasses} repasse(s)`} icon={BadgeCheck} cor="text-teal-600" />
       </div>
@@ -181,7 +182,9 @@ export default async function AdminRepassesPage({ searchParams }: { searchParams
                     <td className="px-4 py-3"><span title={s.dica} className={`inline-block rounded-full px-2.5 py-1 text-[11px] font-semibold ${s.cls}`}>{s.label}</span></td>
                     <td className="px-4 py-3 text-slate-500">
                       {p.situacao === 'aguardando_recebimento'
-                        ? (p.credito_previsto_em ? `Asaas credita em ${formatarData(p.credito_previsto_em)}` : 'Aguardando o Asaas')
+                        ? (p.credito_previsto_em
+                          ? `${p.gateway ? GATEWAY_LABEL[p.gateway] : 'Gateway'} credita em ${formatarData(p.credito_previsto_em)}`
+                          : `Aguardando ${p.gateway ? GATEWAY_LABEL[p.gateway] : 'o gateway'}`)
                         : p.liberado_em ? formatarData(p.liberado_em) : '—'}
                     </td>
                     <td className="px-4 py-3 text-right font-semibold text-[#0B2447]">{brl(Number(p.valor_repassar))}</td>

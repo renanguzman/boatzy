@@ -189,7 +189,7 @@ export async function razaoCompleto(f: FiltrosRelatorio): Promise<LinhaRazao[]> 
 // ─── Detalhe por pedido (planilha para o contador) ────────────────────────
 
 export async function detalhePedidosPeriodo(f: FiltrosRelatorio) {
-  // Competência = data do passeio; caixa = data em que o Asaas liquidou.
+  // Competência = data do passeio; caixa = data em que o gateway (Asaas / Stone) liquidou.
   let q = supabaseAdmin.from('pedido_repasse_situacao').select('*').limit(LIMITE_EXPORT);
   if (f.gestor) q = q.eq('gestor_id', f.gestor);
   q = f.base === 'caixa'
@@ -200,17 +200,23 @@ export async function detalhePedidosPeriodo(f: FiltrosRelatorio) {
   const linhas = data ?? [];
   const usuarios = [...new Set(linhas.flatMap((l) => [l.gestor_id, l.cliente_id]))];
   const reservas = [...new Set(linhas.map((l) => l.reserva_id).filter((x): x is string => !!x))];
-  const [nomes, { data: rs }, { data: us }] = await Promise.all([
+  const pagamentos = [...new Set(linhas.map((l) => l.pagamento_id).filter((x): x is string => !!x))];
+  const [nomes, { data: rs }, { data: us }, { data: pgs }] = await Promise.all([
     nomesDosGestores(usuarios),
     reservas.length ? supabaseAdmin.from('reserva').select('id, item_nome').in('id', reservas) : Promise.resolve({ data: [] as { id: string; item_nome: string }[] }),
     usuarios.length ? supabaseAdmin.from('users').select('id, email').in('id', usuarios) : Promise.resolve({ data: [] as { id: string; email: string | null }[] }),
+    pagamentos.length
+      ? supabaseAdmin.from('pagamento').select('id, gateway').in('id', pagamentos)
+      : Promise.resolve({ data: [] as { id: string; gateway: 'asaas' | 'pagarme' }[] }),
   ]);
+  const gatewayDe = new Map((pgs ?? []).map((p) => [p.id, p.gateway]));
   const item = new Map((rs ?? []).map((r) => [r.id, r.item_nome]));
   const email = new Map((us ?? []).map((u) => [u.id, u.email ?? '']));
   return linhas
     .sort((a, b) => a.numero - b.numero)
     .map((l) => ({
       ...l,
+      gateway: (l.pagamento_id && gatewayDe.get(l.pagamento_id)) || 'asaas',
       gestor_nome: nomes.get(l.gestor_id)?.nome ?? '—',
       gestor_documento: nomes.get(l.gestor_id)?.documento ?? null,
       cliente_nome: nomes.get(l.cliente_id)?.nome ?? '—',
@@ -268,7 +274,7 @@ export async function carregarConciliacao(): Promise<ItemConciliacao[]> {
     titulo: 'Pagamentos recebidos sem lançamento contábil',
     ok: semLancamento.length === 0,
     resumo: semLancamento.length === 0
-      ? 'Todo pagamento recebido no Asaas tem o seu lançamento.'
+      ? 'Todo pagamento recebido (Asaas e Stone/Pagar.me) tem o seu lançamento.'
       : `${semLancamento.length} pagamento(s) recebido(s) ainda sem lançamento (pedido encerrado, valor líquido ausente ou falha no webhook). Sincronize o pedido para tentar de novo.`,
     itens: semLancamento.slice(0, 50).map((p) => {
       const ped = pedidoSem.get(p.pedido_id);
@@ -280,14 +286,17 @@ export async function carregarConciliacao(): Promise<ItemConciliacao[]> {
     }),
   });
 
-  // 2. Líquido recebido × saldo no Asaas do ledger.
-  const liquidoPagamentos = (pagRec ?? []).filter((p) => lancados.has(p.id)).reduce((s, p) => s + Number(p.valor_liquido ?? 0), 0);
-  const liquidoLedger = Number(conta.get('1.1.01')?.debitos ?? 0);
+  // 2. Líquido recebido × saldo dos gateways no ledger (1.1.01 Asaas + 1.1.03 Stone/Pagar.me — SPEC §109).
+  const lancadosRec = (pagRec ?? []).filter((p) => lancados.has(p.id));
+  const liquidoPagamentos = lancadosRec.reduce((s, p) => s + Number(p.valor_liquido ?? 0), 0);
+  const liquidoAsaas = Number(conta.get('1.1.01')?.debitos ?? 0);
+  const liquidoStone = Number(conta.get('1.1.03')?.debitos ?? 0);
+  const liquidoLedger = liquidoAsaas + liquidoStone;
   itens.push({
     chave: 'liquido',
     titulo: 'Valor líquido recebido (pagamentos × ledger)',
     ok: centavos(liquidoPagamentos) === centavos(liquidoLedger),
-    resumo: `Pagamentos: R$ ${liquidoPagamentos.toFixed(2)} · ledger (Saldo Asaas, débitos): R$ ${liquidoLedger.toFixed(2)}.`,
+    resumo: `Pagamentos: R$ ${liquidoPagamentos.toFixed(2)} · ledger (débitos): Saldo Asaas R$ ${liquidoAsaas.toFixed(2)} + Saldo Stone/Pagar.me R$ ${liquidoStone.toFixed(2)} = R$ ${liquidoLedger.toFixed(2)}.`,
     itens: [],
   });
 

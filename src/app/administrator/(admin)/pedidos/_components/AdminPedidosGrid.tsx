@@ -11,7 +11,7 @@ import {
 import { formatCurrencyPrecise } from '@/lib/utils';
 import { formatarDataHoraBR } from '@/lib/termos/formato';
 import { cartaoDe, pagamentoPrincipal, type PedidoLinha } from '../_lib/linha';
-import { FORMA_LABEL, PAGAMENTO_STATUS, PEDIDO_STATUS, formatarDataCurta } from '../_lib/rotulos';
+import { FORMA_LABEL, GATEWAY_INFO, PAGAMENTO_STATUS, PEDIDO_STATUS, formatarDataCurta } from '../_lib/rotulos';
 import { exportarPedidos } from '../actions';
 import { hojeISO } from '@/lib/datas';
 
@@ -128,7 +128,7 @@ export default function AdminPedidosGrid({ pedidos, total, page, perPage, pageSi
           )}
           <input
             type="text"
-            placeholder="Nº do pedido, cliente, gestor, e-mail, item, cobrança avulsa, cupom, id do Asaas (pay_, cus_)…"
+            placeholder="Nº do pedido, cliente, gestor, e-mail, item, cobrança avulsa, cupom, ids do Asaas (pay_, cus_) ou da Pagar.me (or_, ch_), NSU…"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             className={`w-full pl-10 pr-4 ${controleCls} placeholder:text-slate-400`}
@@ -253,6 +253,9 @@ export default function AdminPedidosGrid({ pedidos, total, page, perPage, pageSi
                               {pg.numero_parcelas > 1 && <span className="text-slate-400">· {pg.numero_parcelas}x</span>}
                               {pg.ambiente === 'sandbox' && <FlaskConical className="w-3.5 h-3.5 text-amber-500" aria-label="Sandbox" />}
                             </p>
+                            <span className={`inline-block mt-0.5 text-[9px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded ${GATEWAY_INFO[pg.gateway].cls}`}>
+                              {GATEWAY_INFO[pg.gateway].label}
+                            </span>
                             {cartao && <p className="text-[11px] text-slate-500 font-mono">{cartao}</p>}
                             <p className="text-[11px] text-slate-400">
                               {p.pagamento.length} tentativa{p.pagamento.length > 1 ? 's' : ''}
@@ -270,7 +273,12 @@ export default function AdminPedidosGrid({ pedidos, total, page, perPage, pageSi
                         {Number(p.valor_desconto) > 0 && (
                           <p className="text-[11px] text-emerald-600">−{formatCurrencyPrecise(Number(p.valor_desconto))}{cupom ? ` (${cupom})` : ''}</p>
                         )}
-                        {pg?.valor_tarifa != null && <p className="text-[11px] text-amber-600">Tarifa {formatCurrencyPrecise(Number(pg.valor_tarifa))}</p>}
+                        {Number(pg?.valor_juros ?? 0) > 0 && (
+                          <p className="text-[11px] text-slate-500">+ juros {formatCurrencyPrecise(Number(pg!.valor_juros))} (cliente)</p>
+                        )}
+                        {pg?.valor_tarifa != null && (
+                          <p className="text-[11px] text-amber-600">Tarifa {GATEWAY_INFO[pg.gateway].curto} {formatCurrencyPrecise(Number(pg.valor_tarifa))}</p>
+                        )}
                       </td>
                       <td className="py-4 px-3">
                         <span className={`inline-block text-[11px] font-semibold px-2.5 py-1 rounded-full whitespace-nowrap ${PEDIDO_STATUS[p.status].cls}`}>

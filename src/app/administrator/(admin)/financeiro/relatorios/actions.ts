@@ -86,7 +86,7 @@ export async function exportarDemonstrativo(querystring: string): Promise<Result
       'CPF/CNPJ': l.documento ?? '',
       Pedidos: l.pedidos,
       'Bruto pago pelos clientes (R$)': l.bruto,
-      'Tarifa Asaas (R$)': l.tarifa,
+      'Tarifas dos gateways (R$)': l.tarifa,
       'Descontos/cupons (R$)': l.desconto,
       'Comissão Boatzy (R$)': l.comissao,
       'Devido ao gestor (R$)': l.devido,
@@ -98,7 +98,7 @@ export async function exportarDemonstrativo(querystring: string): Promise<Result
   };
 }
 
-/** Uma linha por pedido pago: a divisão Asaas / gestor / Boatzy e a situação do repasse. */
+/** Uma linha por pedido pago: a divisão gateway / gestor / Boatzy e a situação do repasse. */
 export async function exportarDetalhePedidos(querystring: string): Promise<Resultado> {
   const auth = await requireAdmin();
   if (!auth.ok) return auth;
@@ -108,8 +108,10 @@ export async function exportarDetalhePedidos(querystring: string): Promise<Resul
     ok: true,
     linhas: pedidos.map((p) => {
       const tarifa = p.valor_tarifa != null ? Number(p.valor_tarifa) : '';
+      // Juros do parcelado (cartão Stone/Pagar.me) = cobrado − total do pedido; são receita do Boatzy (SPEC §109).
+      const juros = Math.max(0, Math.round((Number(p.pagamento_valor) - Number(p.valor_total)) * 100) / 100);
       const receitaLiquida = p.valor_tarifa != null
-        ? Math.round((Number(p.valor_comissao) - Number(p.valor_desconto) - Number(p.valor_tarifa)) * 100) / 100
+        ? Math.round((Number(p.valor_comissao) - Number(p.valor_desconto) + juros - Number(p.valor_tarifa)) * 100) / 100
         : '';
       return {
         Pedido: p.numero,
@@ -122,8 +124,11 @@ export async function exportarDetalhePedidos(querystring: string): Promise<Resul
         'E-mail do cliente': p.cliente_email,
         Gestor: p.gestor_nome,
         'CPF/CNPJ do gestor': p.gestor_documento ?? '',
+        'Forma de pagamento': p.forma_pagamento === 'pix' ? 'Pix' : 'Cartão de crédito',
+        Gateway: p.gateway === 'pagarme' ? 'Stone/Pagar.me' : 'Asaas',
         'Bruto pago (R$)': Number(p.pagamento_valor),
-        'Tarifa Asaas (R$)': tarifa,
+        'Juros do parcelado (R$)': juros,
+        'Tarifa do gateway (R$)': tarifa,
         'Líquido recebido (R$)': p.valor_liquido != null ? Number(p.valor_liquido) : '',
         'Valor do gestor (R$)': Number(p.valor_itens),
         'Comissão Boatzy (R$)': Number(p.valor_comissao),

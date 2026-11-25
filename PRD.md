@@ -732,9 +732,14 @@ Pedido, reserva, ledger e repasses continuam únicos.
     parcial, com motivo e auditoria); alerta na linha do tempo quando um pagamento chega depois do pedido encerrado.
   - **Contabilidade:** contas novas (saldo Stone/Pagar.me, tarifas de cartão, receita de juros) e lançamento do
     recebimento pelo gateway.
+- **✅ Ajuste (26/11/2026) — admin identifica o gateway de cada pagamento:** pedidos pagos com cartão mostram Stone/Pagar.me
+  (e não Asaas) em todo o detalhe — forma e gateway, ids da Stone, tarifa/líquido "a apurar na liquidação" até a Stone
+  liquidar, crédito por antecipação automática, juros do parcelado (cobrados do cliente e somados à margem), eventos dos dois
+  webhooks e botão de sincronizar com o gateway certo. A lista de pedidos mostra o selo do gateway, juros e tarifa por gateway
+  (indicadores e exportação), e busca pelos ids da Stone e pelo NSU/autorização. Repasses dizem "Aguardando liquidação" com o
+  gateway; relatórios e conciliação somam as contas do Asaas e da Stone. Aplicar `20261126_relatorios_gateways.sql`.
 - **Falta:** liquidação e tarifa do cartão (depende da resposta da Stone) — até lá o pagamento fica "confirmado" e o
-  repasse ao gestor "aguardando recebimento"; estorno contábil (Fase 2); filtros por gateway na lista de Pedidos e
-  relatórios por gateway. Aplicar a migration `20261125_pagarme_cartao.sql` e configurar as variáveis `PAGARME_*`.
+  repasse ao gestor "aguardando liquidação"; estorno contábil (Fase 2); filtro por gateway na lista de Pedidos. Aplicar a migration `20261125_pagarme_cartao.sql` e configurar as variáveis `PAGARME_*`.
 - Planejamento completo: `docs/planejamento-pagamentos-stone.md`. Detalhes técnicos: SPEC §109.
 
 #### 🔜 Próximas etapas

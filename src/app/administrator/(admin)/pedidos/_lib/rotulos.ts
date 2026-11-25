@@ -4,6 +4,7 @@ import { formatarTelefoneMembro, telefoneMembroInternacional } from '@/lib/telef
 import type {
   AsaasWebhookEventoStatus,
   FormaPagamentoCodigo,
+  GatewayPagamento,
   PagamentoEstornoStatus,
   PagamentoParcelaStatus,
   PagamentoStatus,
@@ -76,6 +77,17 @@ export const FORMA_LABEL: Record<FormaPagamentoCodigo, string> = {
   cartao_credito: 'Cartão de crédito',
 };
 
+/** Gateway de cada tentativa (SPEC §109) — Pix no Asaas; cartão na Stone/Pagar.me (Asaas nos antigos). */
+export const GATEWAY_INFO: Record<GatewayPagamento, Rotulo & { curto: string }> = {
+  asaas: { label: 'Asaas', curto: 'Asaas', cls: 'bg-blue-50 text-blue-700' },
+  pagarme: { label: 'Stone/Pagar.me', curto: 'Stone', cls: 'bg-emerald-50 text-emerald-700' },
+};
+
+/** "Cartão de crédito · Stone/Pagar.me" / "Pix · Asaas". */
+export function formaComGateway(pg: { forma_pagamento: FormaPagamentoCodigo; gateway: GatewayPagamento }): string {
+  return `${FORMA_LABEL[pg.forma_pagamento]} · ${GATEWAY_INFO[pg.gateway].label}`;
+}
+
 export const MODALIDADE_LABEL: Record<string, string> = {
   roteiro: 'Roteiro (diária única)',
   diaria: 'Por diária',
@@ -107,12 +119,13 @@ export const TRANSACAO_LABEL: Record<string, string> = {
 
 /** Ações do admin em `financeiro_auditoria` (entidade 'pedido'). */
 export const ACAO_LABEL: Record<string, string> = {
-  'pedido.sincronizar': 'Sincronizou com o Asaas',
+  'pedido.sincronizar': 'Sincronizou com o gateway',
   'pedido.prorrogar': 'Prorrogou o prazo de pagamento',
   'pedido.expirar': 'Expirou o pedido manualmente',
   'pedido.reenviar_email': 'Reenviou e-mail ao cliente',
   'pedido.anotacao': 'Anotação interna',
   'pagamento.cancelar': 'Cancelou uma cobrança pendente',
+  'pagamento.estornar': 'Estornou o pagamento',
 };
 
 /** CPF/CNPJ só dígitos → formatado. */

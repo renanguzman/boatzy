@@ -7,7 +7,7 @@ import type { Database, ReservaModalidadePreco, ReservaStatus, ReservaTipo } fro
  * Carrega TUDO o que se relaciona a um pedido para a tela de detalhe do admin:
  * pedido, cliente, gestor, reserva (com adicionais, atendentes, aceite do
  * termo), descontos/cupom, cada tentativa de pagamento com cartão, parcelas,
- * movimentos e estornos, os eventos crus do webhook do Asaas e a auditoria.
+ * movimentos e estornos, os eventos crus dos webhooks (Asaas e Stone/Pagar.me) e a auditoria.
  * Cobrança avulsa (SPEC §34.16): configuração do gestor, itens, pedido da
  * reserva de origem; no pedido da reserva, as avulsas vinculadas.
  */
@@ -92,6 +92,20 @@ export type AvulsaVinculada = {
   pago_em: string | null;
 };
 
+export type EventoGatewayDetalhe = {
+  gateway: 'asaas' | 'pagarme';
+  id: string;
+  evento: string;
+  status: Tabela<'asaas_webhook_evento'>['status'];
+  criado_gateway_em: string | null;
+  recebido_em: string;
+  processado_em: string | null;
+  tentativas: number;
+  recurso_id: string | null;
+  erro: string | null;
+  payload: Tabela<'asaas_webhook_evento'>['payload'];
+};
+
 export type DetalhePedido = {
   pedido: Tabela<'pedido'>;
   cliente: UsuarioDetalhe | null;
@@ -99,7 +113,8 @@ export type DetalhePedido = {
   descontos: Tabela<'pedido_desconto'>[];
   reserva: ReservaDetalhe | null;
   pagamentos: PagamentoDetalhe[];
-  eventos: Tabela<'asaas_webhook_evento'>[];
+  /** Eventos crus dos webhooks — Asaas (Pix) e Pagar.me (cartão), em ordem de chegada (SPEC §109). */
+  eventos: EventoGatewayDetalhe[];
   auditoria: AuditoriaDetalhe[];
   clienteAsaas: Tabela<'cliente_asaas'>[];
   aceites: { id: string; evidencia_hash: string; aceito_em: string; termo_versao: number; termo_identificador: string }[];
@@ -212,9 +227,34 @@ export async function carregarDetalhePedido(id: string): Promise<DetalhePedido |
       pagamentos.flatMap((p) => [p.asaas_payment_id, ...p.pagamento_parcela.map((pp) => pp.asaas_payment_id)]).filter((v): v is string => !!v),
     ),
   ];
-  const { data: eventos } = idsAsaas.length
-    ? await supabaseAdmin.from('asaas_webhook_evento').select('*').in('recurso_id', idsAsaas).order('recebido_em', { ascending: true })
-    : { data: [] as Tabela<'asaas_webhook_evento'>[] };
+  // Pagar.me: pelo pedido (or_) e pela cobrança (ch_) e pelos eventos já ligados aos movimentos.
+  const idsPagarme = [...new Set(pagamentos.flatMap((p) => [p.gateway_pedido_id, p.gateway_cobranca_id]).filter((v): v is string => !!v))];
+  const idsEventosPagarme = [...new Set(
+    pagamentos.flatMap((p) => p.pagamento_transacao.map((t) => t.gateway_evento_id)).filter((v): v is string => !!v),
+  )];
+  const [asaasRes, pagarmeRecursoRes, pagarmeIdRes] = await Promise.all([
+    idsAsaas.length
+      ? supabaseAdmin.from('asaas_webhook_evento').select('*').in('recurso_id', idsAsaas)
+      : Promise.resolve({ data: [] as Tabela<'asaas_webhook_evento'>[] }),
+    idsPagarme.length
+      ? supabaseAdmin.from('pagarme_webhook_evento').select('*').in('recurso_id', idsPagarme)
+      : Promise.resolve({ data: [] as Tabela<'pagarme_webhook_evento'>[] }),
+    idsEventosPagarme.length
+      ? supabaseAdmin.from('pagarme_webhook_evento').select('*').in('id', idsEventosPagarme)
+      : Promise.resolve({ data: [] as Tabela<'pagarme_webhook_evento'>[] }),
+  ]);
+  const eventosPagarme = new Map(
+    [...(pagarmeRecursoRes.data ?? []), ...(pagarmeIdRes.data ?? [])].map((e) => [e.id, e]),
+  );
+  type EventoBase = Omit<EventoGatewayDetalhe, 'gateway' | 'criado_gateway_em'>;
+  const base = (e: EventoBase): EventoBase => ({
+    id: e.id, evento: e.evento, status: e.status, recebido_em: e.recebido_em, processado_em: e.processado_em,
+    tentativas: e.tentativas, recurso_id: e.recurso_id, erro: e.erro, payload: e.payload,
+  });
+  const eventos: EventoGatewayDetalhe[] = [
+    ...(asaasRes.data ?? []).map((e) => ({ ...base(e), gateway: 'asaas' as const, criado_gateway_em: e.criado_asaas_em })),
+    ...[...eventosPagarme.values()].map((e) => ({ ...base(e), gateway: 'pagarme' as const, criado_gateway_em: e.criado_gateway_em })),
+  ].sort((a, b) => a.recebido_em.localeCompare(b.recebido_em));
 
   // Nome dos admins da auditoria.
   const auditoriaBruta = (auditoriaRes.data ?? []) as Tabela<'financeiro_auditoria'>[];
@@ -294,7 +334,7 @@ export async function carregarDetalhePedido(id: string): Promise<DetalhePedido |
     descontos: pedido_desconto ?? [],
     reserva,
     pagamentos,
-    eventos: eventos ?? [],
+    eventos,
     auditoria: auditoriaBruta.map((a) => ({ ...a, admin: a.admin_id ? adminPorId.get(a.admin_id) ?? null : null })),
     clienteAsaas: (clienteAsaasRes.data ?? []) as Tabela<'cliente_asaas'>[],
     aceites: aceitesRes.data ?? [],

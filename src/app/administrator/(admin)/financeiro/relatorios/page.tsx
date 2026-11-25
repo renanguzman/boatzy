@@ -141,7 +141,7 @@ export default async function AdminRelatoriosPage({ searchParams }: { searchPara
             <table className="w-full min-w-[960px] text-left text-sm">
               <thead><tr className="border-b border-slate-100">
                 <th className={th}>Gestor</th><th className={`${th} text-right`}>Pedidos</th><th className={`${th} text-right`}>Bruto</th>
-                <th className={`${th} text-right`}>Tarifa Asaas</th><th className={`${th} text-right`}>Descontos</th>
+                <th className={`${th} text-right`}>Tarifas (Asaas + Stone)</th><th className={`${th} text-right`}>Descontos</th>
                 <th className={`${th} text-right`}>Comissão</th><th className={`${th} text-right`}>Devido ao gestor</th>
                 <th className={`${th} text-right`}>Repassado</th><th className={`${th} text-right`}>Saldo do período</th>
               </tr></thead>

@@ -23,7 +23,7 @@ export default function FilaLiberados({ grupos }: { grupos: GrupoGestor[] }) {
         <HandCoins className="mx-auto h-8 w-8 text-slate-300" />
         <p className="mt-3 text-sm font-semibold text-[#0B2447]">Nenhum repasse liberado agora</p>
         <p className="mt-1 text-xs text-slate-500">
-          Um pedido aparece aqui quando o Asaas liquida o pagamento, o passeio já aconteceu e o prazo de espera terminou. Veja o que está a caminho em “Aguardando”.
+          Um pedido aparece aqui quando o gateway (Asaas no Pix, Stone/Pagar.me no cartão) liquida o pagamento, o passeio já aconteceu e o prazo de espera terminou. Veja o que está a caminho em “Aguardando”.
         </p>
       </div>
     );
