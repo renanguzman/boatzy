@@ -5,7 +5,8 @@ import { createClient } from '@/lib/supabase/server';
 import { supabaseAdmin } from '@/lib/supabase';
 import { checkRoleInDb } from '@/lib/roles';
 import { registrarAuditoria } from '@/lib/financeiro/auditoria';
-import type { FormaPagamentoCodigo } from '@/types/supabase';
+import type { FormaPagamentoCodigo, GatewayPagamento } from '@/types/supabase';
+import { lerPagarmeConfig } from '@/lib/pagarme/config';
 
 type ActionResult = { ok: true } | { ok: false; error: string };
 
@@ -34,6 +35,8 @@ export type FormaPagamentoPayload = {
   ativo: boolean;
   parcelasMax: number;
   valorMinimoParcela: string; // '' = sem mínimo
+  /** Só no cartão: Pagar.me (padrão) ou Asaas (rollback) — SPEC §109. O Pix fica sempre no Asaas. */
+  gateway?: GatewayPagamento;
 };
 
 /**
@@ -63,6 +66,11 @@ export async function salvarFormaPagamento(payload: FormaPagamentoPayload): Prom
     return { ok: false, error: 'O valor mínimo por parcela deve ser maior que zero (ou vazio).' };
   }
 
+  const gateway: GatewayPagamento = ehCartao && payload.gateway === 'pagarme' ? 'pagarme' : ehCartao && payload.gateway === 'asaas' ? 'asaas' : antes.gateway;
+  if (gateway === 'pagarme' && antes.gateway !== 'pagarme' && !lerPagarmeConfig().ok) {
+    return { ok: false, error: 'A Pagar.me não está configurada neste ambiente (variáveis PAGARME_*). Configure antes de ligar o cartão nela.' };
+  }
+
   if (!payload.ativo && antes.ativo) {
     const { count } = await supabaseAdmin
       .from('forma_pagamento')
@@ -74,7 +82,7 @@ export async function salvarFormaPagamento(payload: FormaPagamentoPayload): Prom
 
   const { data: depois, error } = await supabaseAdmin
     .from('forma_pagamento')
-    .update({ ativo: payload.ativo, parcelas_max: parcelasMax, valor_minimo_parcela: valorMinimo })
+    .update({ ativo: payload.ativo, parcelas_max: parcelasMax, valor_minimo_parcela: valorMinimo, gateway })
     .eq('codigo', payload.codigo)
     .select('*')
     .single();
@@ -87,6 +95,47 @@ export async function salvarFormaPagamento(payload: FormaPagamentoPayload): Prom
     entidadeId: payload.codigo,
     antes,
     depois,
+  });
+
+  revalidatePath(CAMINHO);
+  return { ok: true };
+}
+
+/**
+ * Tabela de juros do cartão (Pagar.me): acréscimo (%) sobre o valor à vista para
+ * cada nº de parcelas, 100% pago pelo cliente (D-S5, SPEC §109). Vale para os
+ * pagamentos feitos a partir da alteração.
+ */
+export async function salvarTabelaJuros(tabela: Record<number, string>): Promise<ActionResult> {
+  const auth = await requireAdmin();
+  if (!auth.ok) return auth;
+
+  const linhas: { parcelas: number; acrescimo_percentual: number; atualizado_por: string }[] = [];
+  for (let n = 2; n <= 12; n++) {
+    const bruto = tabela[n];
+    const valor = bruto === undefined || bruto === '' ? 0 : paraNumero(String(bruto));
+    if (valor === null || valor < 0 || valor > 100) {
+      return { ok: false, error: `Acréscimo inválido em ${n}x: use um percentual de 0 a 100.` };
+    }
+    linhas.push({ parcelas: n, acrescimo_percentual: Math.round(valor * 1000) / 1000, atualizado_por: auth.userId });
+  }
+  for (let i = 1; i < linhas.length; i++) {
+    if (linhas[i].acrescimo_percentual < linhas[i - 1].acrescimo_percentual) {
+      return { ok: false, error: `O acréscimo de ${linhas[i].parcelas}x não pode ser menor que o de ${linhas[i - 1].parcelas}x.` };
+    }
+  }
+
+  const { data: antes } = await supabaseAdmin.from('forma_pagamento_juros').select('parcelas, acrescimo_percentual').order('parcelas');
+  const { error } = await supabaseAdmin.from('forma_pagamento_juros').upsert(linhas, { onConflict: 'parcelas' });
+  if (error) return { ok: false, error: error.message };
+
+  await registrarAuditoria({
+    adminId: auth.userId,
+    acao: 'forma_pagamento.juros',
+    entidade: 'forma_pagamento_juros',
+    entidadeId: 'cartao_credito',
+    antes,
+    depois: linhas.map(({ parcelas, acrescimo_percentual }) => ({ parcelas, acrescimo_percentual })),
   });
 
   revalidatePath(CAMINHO);

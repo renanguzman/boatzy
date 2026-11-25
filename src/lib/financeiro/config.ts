@@ -19,3 +19,10 @@ export async function getFinanceiroConfig(): Promise<FinanceiroConfig> {
   if (error || !data) throw new Error(`Falha ao ler financeiro_config: ${error?.message ?? 'sem registro'}`);
   return data;
 }
+
+/** Acréscimo (%) por nº de parcelas — juros do cartão pagos pelo cliente (SPEC §109). */
+export async function getTabelaJuros(): Promise<Record<number, number>> {
+  const { data, error } = await supabaseAdmin.from('forma_pagamento_juros').select('parcelas, acrescimo_percentual');
+  if (error) throw new Error(`Falha ao ler a tabela de juros: ${error.message}`);
+  return Object.fromEntries((data ?? []).map((l) => [l.parcelas, Number(l.acrescimo_percentual)]));
+}

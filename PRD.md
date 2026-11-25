@@ -703,6 +703,40 @@ O Boatzy recebe o pagamento do cliente e **repassa ao gestor o valor dos itens**
   automática via API (D1/D4); confirmação de realização pelo gestor (D6); estorno contábil de reembolsos (Fase 2).
 - Detalhes técnicos: SPEC §101.
 
+#### 🚧 Em implantação — Cartão de crédito via Stone (Pagar.me) e Pix no Asaas (25/11/2026)
+
+O Boatzy passa a ter **dois gateways**: **Pix continua no Asaas** e **cartão de crédito vai para a Stone
+(Pagar.me v5)**, com o formulário do cartão dentro do site (pt-BR, inglês e espanhol) e resultado na hora.
+Pedido, reserva, ledger e repasses continuam únicos.
+
+- **Decisões (25/11/2026):** conta Pagar.me **Gateway** (sem split); **custódia Boatzy** com repasse ao gestor,
+  como no Pix; **cartões emitidos no exterior** (turistas) — aceite e taxa a confirmar com a Stone;
+  **antecipação automática** da liquidação; parcelamento **com juros, 100% pagos pelo cliente** (à vista sem
+  juros; tabela de acréscimo por nº de parcelas no admin; total a prazo informado no checkout); **antifraude
+  ligado** (3DS depois); webhook com **Basic Auth**; **estorno total/parcial pelo admin** nesta entrega.
+- **Estrangeiros:** pagam só com cartão (como hoje); o documento vai para a Stone como passaporte; a liberação
+  de "pagadores estrangeiros" no Asaas de produção deixa de ser necessária.
+- **Pendente (Stone):** tarifa/liquidação na conta Gateway (recebíveis via API ou tabela de taxas + conciliação
+  pelo extrato), antifraude contratado, cartão estrangeiro, Basic Auth do webhook e domínios da tokenização.
+- **✅ Implementado (25/11/2026), ainda desligado** (o cartão segue no Asaas até o admin trocar o gateway em
+  Financeiro → Configurações, depois de validar no sandbox):
+  - **Cliente:** formulário do cartão no próprio checkout (reserva e cobrança avulsa) — número, nome, validade, CVV,
+    parcelas com juros (mostra valor à vista, parcela e total a prazo), endereço de cobrança do Brasil (com CEP) ou do
+    exterior e celular com código do país. O cartão vai direto para a Stone; o Boatzy recebe só um código de uso único.
+    Aprovado confirma a reserva na hora; em análise, a página acompanha sozinha; recusado mostra o motivo (limite,
+    vencido, CVV, segurança…) e deixa tentar outro cartão. Estrangeiro vê o aviso de cobrança em reais. Até 5
+    tentativas por hora por pedido. Comprovante mostra o código de autorização e os juros. Textos em pt-BR, inglês e espanhol.
+  - **Admin:** Configurações — gateway do cartão (Stone/Pagar.me ou Asaas, para voltar atrás) e **tabela de juros**
+    de 2x a 12x; Integração — aba Stone/Pagar.me (conexão, o que cadastrar no dashboard, fila de eventos do webhook);
+    Pedidos — dados da Stone em cada tentativa (NSU, autorização, retorno), juros, sincronizar e **Estornar** (total ou
+    parcial, com motivo e auditoria); alerta na linha do tempo quando um pagamento chega depois do pedido encerrado.
+  - **Contabilidade:** contas novas (saldo Stone/Pagar.me, tarifas de cartão, receita de juros) e lançamento do
+    recebimento pelo gateway.
+- **Falta:** liquidação e tarifa do cartão (depende da resposta da Stone) — até lá o pagamento fica "confirmado" e o
+  repasse ao gestor "aguardando recebimento"; estorno contábil (Fase 2); filtros por gateway na lista de Pedidos e
+  relatórios por gateway. Aplicar a migration `20261125_pagarme_cartao.sql` e configurar as variáveis `PAGARME_*`.
+- Planejamento completo: `docs/planejamento-pagamentos-stone.md`. Detalhes técnicos: SPEC §109.
+
 #### 🔜 Próximas etapas
 
 1. **Agendador do Supabase** a cada ~10 min para expirar pedidos e reprocessar webhooks (hoje:

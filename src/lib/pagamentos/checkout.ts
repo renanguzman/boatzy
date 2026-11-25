@@ -8,11 +8,12 @@ import { AsaasError, mensagemErroAsaas } from '@/lib/asaas/client';
 import { garantirClienteAsaas, garantirClienteAsaasEstrangeiro, garantirClienteAsaasTomador } from '@/lib/asaas/clientes';
 import { buscarCobrancaPorReferencia, criarCobranca, obterQrCodePix } from '@/lib/asaas/cobrancas';
 import type { AsaasCobranca } from '@/lib/asaas/tipos';
-import { getFormasPagamento, type FormaPagamento } from '@/lib/financeiro/config';
-import type { FormaPagamentoCodigo, Json } from '@/types/supabase';
+import { getFormasPagamento, getTabelaJuros, type FormaPagamento } from '@/lib/financeiro/config';
+import { lerPagarmeConfig } from '@/lib/pagarme/config';
+import type { FormaPagamentoCodigo, GatewayPagamento, Json } from '@/types/supabase';
 import { cancelarCobrancasPendentes, PAGAMENTO_PAGO } from './pedidos';
 import { registrarEventoPedido } from './historico';
-import { opcoesParcelas, VALOR_MINIMO_COBRANCA } from './valores';
+import { opcoesParcelas, VALOR_MINIMO_COBRANCA, type TabelaJuros } from './valores';
 import { FUSO_HORARIO } from '@/lib/datas';
 import { validarDocumentoEstrangeiro } from './estrangeiro';
 import { mesmoTomador, validarTomador, type CampoTomador, type Tomador, type TomadorForm, type TomadorRegistro } from './tomador';
@@ -38,7 +39,15 @@ function dataSaoPaulo(d: Date): string {
   return new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Sao_Paulo' }).format(d);
 }
 
-export type FormaPermitida = { codigo: FormaPagamentoCodigo; nome: string; opcoesParcelas: number[] };
+export type FormaPermitida = {
+  codigo: FormaPagamentoCodigo;
+  nome: string;
+  opcoesParcelas: number[];
+  /** Quem processa: Pix no Asaas; cartão na Pagar.me (ou no Asaas, em rollback) — SPEC §109. */
+  gateway: GatewayPagamento;
+  /** Acréscimo (%) por nº de parcelas — só no cartão da Pagar.me (juros pagos pelo cliente). */
+  juros: TabelaJuros | null;
+};
 
 /**
  * Formas e parcelas que o cliente pode usar neste pedido: as formas ativas na
@@ -48,6 +57,7 @@ export type FormaPermitida = { codigo: FormaPagamentoCodigo; nome: string; opcoe
 export function formasPermitidasDoPedido(
   formas: FormaPagamento[],
   pedido: { valor_total: number; avulso?: { formas_permitidas: FormaPagamentoCodigo[]; parcelas_max: number } | null },
+  juros: TabelaJuros | null = null,
 ): FormaPermitida[] {
   const total = Number(pedido.valor_total);
   return formas
@@ -60,8 +70,75 @@ export function formasPermitidasDoPedido(
         opcoesParcelas: f.codigo === 'cartao_credito'
           ? opcoesParcelas(total, max, f.valor_minimo_parcela != null ? Number(f.valor_minimo_parcela) : null)
           : [1],
+        gateway: f.gateway,
+        juros: f.codigo === 'cartao_credito' && f.gateway === 'pagarme' ? (juros ?? {}) : null,
       };
     });
+}
+
+/**
+ * Formas do checkout deste pedido: as permitidas (`formasPermitidasDoPedido`)
+ * cujo gateway está configurado neste deploy — Asaas fora do ar mostra só o
+ * cartão; Pagar.me fora, só o Pix (SPEC §109).
+ */
+export async function formasDoCheckout(
+  pedido: { valor_total: number; avulso?: { formas_permitidas: FormaPagamentoCodigo[]; parcelas_max: number } | null },
+): Promise<FormaPermitida[]> {
+  const [formas, juros] = await Promise.all([getFormasPagamento(), getTabelaJuros()]);
+  const configurado: Record<GatewayPagamento, boolean> = { asaas: lerAsaasConfig().ok, pagarme: lerPagarmeConfig().ok };
+  return formasPermitidasDoPedido(formas, pedido, juros).filter((f) => configurado[f.gateway]);
+}
+
+type ReservaCheckout = { id: string; item_nome: string; data_reserva: string };
+
+export type PedidoCheckout = {
+  id: string; numero: number; tipo: string; status: string; valor_total: number; expira_em: string;
+  reserva_id: string | null; reserva: ReservaCheckout;
+  avulso: { titulo: string; formas_permitidas: FormaPagamentoCodigo[]; parcelas_max: number } | null;
+};
+
+/**
+ * Pedido do cliente pronto para pagar (reserva ou cobrança avulsa), já
+ * conferido: existe, é dele, aguarda pagamento, prazo vigente e valor acima do
+ * mínimo. Devolve a chave do erro (`Pagamento.erros.*`) quando não dá.
+ */
+export async function carregarPedidoCheckout(
+  pedidoId: string,
+  userId: string,
+): Promise<{ ok: true; pedido: PedidoCheckout } | { ok: false; erro: 'pedidoNaoEncontrado' | 'naoAguardando' | 'prazoTerminou' | 'abaixoMinimo' }> {
+  const { data } = await supabaseAdmin
+    .from('pedido')
+    .select(
+      `id, numero, tipo, status, valor_total, expira_em, reserva_id,
+       reserva:reserva_id ( id, item_nome, data_reserva ),
+       pedido_avulso ( titulo, formas_permitidas, parcelas_max, reserva:reserva_id ( id, item_nome, data_reserva ) )`,
+    )
+    .eq('id', pedidoId)
+    .eq('cliente_id', userId)
+    .maybeSingle();
+  const bruto = data as unknown as {
+    id: string; numero: number; tipo: string; status: string; valor_total: number; expira_em: string | null;
+    reserva_id: string | null; reserva: ReservaCheckout | null;
+    pedido_avulso: {
+      titulo: string; formas_permitidas: FormaPagamentoCodigo[]; parcelas_max: number; reserva: ReservaCheckout | null;
+    } | null;
+  } | null;
+  const avulsoBruto = bruto?.tipo === 'avulso' ? bruto.pedido_avulso : null;
+  const reserva = avulsoBruto ? avulsoBruto.reserva : bruto?.reserva;
+  if (!bruto || !reserva || (bruto.tipo === 'avulso' && !avulsoBruto)) return { ok: false, erro: 'pedidoNaoEncontrado' };
+  if (bruto.status !== 'aguardando_pagamento') return { ok: false, erro: 'naoAguardando' };
+  if (!bruto.expira_em || new Date(bruto.expira_em) <= new Date()) return { ok: false, erro: 'prazoTerminou' };
+  if (Number(bruto.valor_total) < VALOR_MINIMO_COBRANCA) return { ok: false, erro: 'abaixoMinimo' };
+  return {
+    ok: true,
+    pedido: {
+      id: bruto.id, numero: bruto.numero, tipo: bruto.tipo, status: bruto.status, valor_total: Number(bruto.valor_total),
+      expira_em: bruto.expira_em, reserva_id: bruto.reserva_id, reserva,
+      avulso: avulsoBruto
+        ? { titulo: avulsoBruto.titulo, formas_permitidas: avulsoBruto.formas_permitidas, parcelas_max: avulsoBruto.parcelas_max }
+        : null,
+    },
+  };
 }
 
 /** Página de pagamento do pedido: `/reservas/[id]/pagar` (reserva) ou `/cobrancas/[id]` (avulso). */
@@ -116,42 +193,18 @@ export async function iniciarPagamento(input: {
   }
   const ambiente = cfg.config.ambiente;
 
-  type ReservaCheckout = { id: string; item_nome: string; data_reserva: string };
-  const { data } = await supabaseAdmin
-    .from('pedido')
-    .select(
-      `id, numero, tipo, status, valor_total, expira_em, reserva_id,
-       reserva:reserva_id ( id, item_nome, data_reserva ),
-       pedido_avulso ( titulo, formas_permitidas, parcelas_max, reserva:reserva_id ( id, item_nome, data_reserva ) )`,
-    )
-    .eq('id', input.pedidoId)
-    .eq('cliente_id', input.userId)
-    .maybeSingle();
-  const pedido = data as unknown as {
-    id: string; numero: number; tipo: string; status: string; valor_total: number; expira_em: string | null;
-    reserva_id: string | null; reserva: ReservaCheckout | null;
-    pedido_avulso: {
-      titulo: string; formas_permitidas: FormaPagamentoCodigo[]; parcelas_max: number; reserva: ReservaCheckout | null;
-    } | null;
-  } | null;
-  const avulso = pedido?.tipo === 'avulso' ? pedido.pedido_avulso : null;
-  const reserva = avulso ? avulso.reserva : pedido?.reserva;
-  if (!pedido || !reserva || (pedido.tipo === 'avulso' && !avulso)) return { ok: false, error: t('pedidoNaoEncontrado') };
-  if (pedido.status !== 'aguardando_pagamento') return { ok: false, error: t('naoAguardando') };
-  if (!pedido.expira_em || new Date(pedido.expira_em) <= new Date()) {
-    return { ok: false, error: t('prazoTerminou') };
-  }
-
-  const valorTotal = Number(pedido.valor_total);
-  if (valorTotal < VALOR_MINIMO_COBRANCA) {
-    return { ok: false, error: t('abaixoMinimo') };
-  }
+  const carregado = await carregarPedidoCheckout(input.pedidoId, input.userId);
+  if (!carregado.ok) return { ok: false, error: t(carregado.erro) };
+  const pedido = carregado.pedido;
+  const { avulso, reserva } = pedido;
+  const valorTotal = pedido.valor_total;
 
   // Forma e parcelas permitidas pela configuração global (Admin → Financeiro → Configurações)
   // e, na cobrança avulsa, pelo que o gestor liberou.
   const forma = formasPermitidasDoPedido(await getFormasPagamento(), { valor_total: valorTotal, avulso })
     .find((f) => f.codigo === input.forma);
-  if (!forma) return { ok: false, error: t('formaIndisponivel') };
+  // Cartão na Pagar.me não passa por aqui: vai pelo checkout transparente (`pagarComCartao`, SPEC §109).
+  if (!forma || forma.gateway !== 'asaas') return { ok: false, error: t('formaIndisponivel') };
   const parcelas = input.forma === 'cartao_credito' ? Math.trunc(input.parcelas) || 1 : 1;
   if (!forma.opcoesParcelas.includes(parcelas)) return { ok: false, error: t('parcelasIndisponivel') };
 
@@ -194,6 +247,7 @@ export async function iniciarPagamento(input: {
     .eq('forma_pagamento', input.forma)
     .eq('numero_parcelas', parcelas)
     .eq('ambiente', ambiente)
+    .eq('gateway', 'asaas')
     .not('asaas_payment_id', 'is', null)
     .order('criado_em', { ascending: false })
     .limit(1)

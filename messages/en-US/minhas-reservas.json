@@ -164,8 +164,10 @@
       "estornadoEm": "Refunded on {data}",
       "emAndamento": "In progress since {data}",
       "prazoExtrato": "How long it takes to show on your statement depends on your bank or card issuer.",
-      "processado": "Payment processed by Boatzy (Asaas). Receipt issued on {data}.",
-      "operadora": "Processor's receipt"
+      "processado": "Payment processed by Boatzy ({processadora}). Receipt issued on {data}.",
+      "operadora": "Processor's receipt",
+      "autorizacao": "Authorization code",
+      "jurosParcelamento": "Installment interest ({n}x)"
     },
     "selo": {
       "pago": "Payment approved",

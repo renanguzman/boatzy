@@ -164,8 +164,10 @@
       "estornadoEm": "Estornado em {data}",
       "emAndamento": "Em andamento desde {data}",
       "prazoExtrato": "O prazo para o valor aparecer no extrato depende do seu banco ou da operadora do cartão.",
-      "processado": "Pagamento processado pelo Boatzy (Asaas). Comprovante emitido em {data}.",
-      "operadora": "Comprovante da operadora"
+      "processado": "Pagamento processado pelo Boatzy ({processadora}). Comprovante emitido em {data}.",
+      "operadora": "Comprovante da operadora",
+      "autorizacao": "Código de autorização",
+      "jurosParcelamento": "Juros do parcelamento ({n}x)"
     },
     "selo": {
       "pago": "Pagamento aprovado",

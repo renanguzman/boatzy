@@ -8,6 +8,7 @@ import { registrarAuditoria } from '@/lib/financeiro/auditoria';
 import { expirarPedido } from '@/lib/pagamentos/pedidos';
 import {
   cancelarPagamentoPendente,
+  estornarPagamentoCartao,
   prorrogarPrazoPedido,
   reenviarEmailPedido,
   sincronizarPedidoComAsaas,
@@ -153,7 +154,7 @@ export async function expirarPedidoAgora(pedidoId: string, motivo: string): Prom
   const r = await expirarPedido(pedidoId, `Encerrado pelo admin: ${m}`);
   if (r === 'nao_aguardando') return { ok: false, error: 'O pedido não está aguardando pagamento.' };
   if (r === 'cobranca_nao_removida') {
-    return { ok: false, error: 'Não foi possível remover a cobrança no Asaas (pode ter acabado de ser paga). Sincronize e tente de novo.' };
+    return { ok: false, error: 'Não foi possível cancelar a cobrança no gateway (pode ter acabado de ser paga). Sincronize e tente de novo.' };
   }
   await registrarAuditoria({
     adminId: auth.userId,
@@ -187,7 +188,32 @@ export async function cancelarCobranca(pagamentoId: string, motivo: string): Pro
     motivo: m,
   });
   revalidar(r.pedidoId);
-  return { ok: true, mensagem: 'Cobrança removida no Asaas.' };
+  return { ok: true, mensagem: 'Cobrança cancelada no gateway.' };
+}
+
+/** Estorno total (valor vazio) ou parcial de cartão na Pagar.me — D-S8, SPEC §109. Motivo obrigatório; vai para a auditoria. */
+export async function estornarPagamento(pagamentoId: string, valor: string, motivo: string): Promise<Resultado> {
+  const auth = await requireAdmin();
+  if (!auth.ok) return auth;
+  const m = exigirMotivo(motivo);
+  if (!m) return { ok: false, error: 'Informe o motivo (mínimo 5 caracteres).' };
+  // "1.234,56" (pt-BR) ou "1234.56": com vírgula, o ponto é milhar.
+  const bruto = valor.includes(',') ? valor.trim().replace(/\./g, '').replace(',', '.') : valor.trim();
+  const v = bruto ? Number(bruto) : null;
+  if (v !== null && !Number.isFinite(v)) return { ok: false, error: 'Valor inválido.' };
+
+  const r = await estornarPagamentoCartao({ pagamentoId, valor: v, motivo: m, adminId: auth.userId });
+  if (!r.ok) return { ok: false, error: r.erro };
+  await registrarAuditoria({
+    adminId: auth.userId,
+    acao: 'pagamento.estornar',
+    entidade: 'pedido',
+    entidadeId: r.pedidoId,
+    depois: { pagamento_id: pagamentoId, valor: r.valor, status: r.status },
+    motivo: m,
+  });
+  revalidar(r.pedidoId);
+  return { ok: true, mensagem: `Estorno de R$ ${r.valor.toFixed(2).replace('.', ',')} enviado à Pagar.me.` };
 }
 
 export async function reenviarEmail(pedidoId: string): Promise<Resultado> {

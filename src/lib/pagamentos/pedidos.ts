@@ -3,6 +3,8 @@ import 'server-only';
 import { supabaseAdmin } from '@/lib/supabase';
 import { removerCobranca } from '@/lib/asaas/cobrancas';
 import { mensagemErroAsaas } from '@/lib/asaas/client';
+import { estornarCobranca } from '@/lib/pagarme/pedidos';
+import { mensagemErroPagarme, PagarmeError } from '@/lib/pagarme/client';
 import type { PagamentoStatus, PedidoTipo } from '@/types/supabase';
 import {
   emailGestorPedidoExpirado, emailPagamentoConfirmado, emailPedidoExpirado, emailReservaPaga, type DadosPedidoEmail,
@@ -39,7 +41,7 @@ export function calcularExpiracao(agora: Date, horas: number, dataReserva: strin
 }
 
 /**
- * Remove no Asaas as cobranças ainda não pagas do pedido e marca os pagamentos
+ * Remove no gateway (Asaas; Pagar.me se a análise ainda não terminou) as cobranças ainda não pagas do pedido e marca os pagamentos
  * como `cancelado`. Devolve `ok: false` se alguma remoção falhou (ex.: a
  * cobrança acabou de ser paga) — quem chamou não deve encerrar o pedido.
  */
@@ -49,7 +51,7 @@ export async function cancelarCobrancasPendentes(
 ): Promise<{ ok: boolean; erro?: string }> {
   let consulta = supabaseAdmin
     .from('pagamento')
-    .select('id, asaas_payment_id, asaas_parcelamento_id')
+    .select('id, gateway, asaas_payment_id, asaas_parcelamento_id, gateway_cobranca_id')
     .eq('pedido_id', pedidoId)
     .in('status', PAGAMENTO_CANCELAVEL);
   if (opts.excetoPagamentoId) consulta = consulta.neq('id', opts.excetoPagamentoId);
@@ -65,6 +67,18 @@ export async function cancelarCobrancasPendentes(
         erro = mensagemErroAsaas(err);
         console.error('[pagamentos/pedidos] falha ao remover cobrança', p.asaas_payment_id, erro);
         continue;
+      }
+    }
+    // Cartão na Pagar.me ainda em análise/pendente: cancela a cobrança para não ser capturada depois.
+    if (p.gateway === 'pagarme' && p.gateway_cobranca_id) {
+      try {
+        await estornarCobranca(p.gateway_cobranca_id);
+      } catch (err) {
+        if (!(err instanceof PagarmeError && err.status === 404)) {
+          erro = mensagemErroPagarme(err);
+          console.error('[pagamentos/pedidos] falha ao cancelar cobrança Pagar.me', p.gateway_cobranca_id, erro);
+          continue;
+        }
       }
     }
     // O movimento "cancelamento" entra no histórico pelo webhook PAYMENT_DELETED.

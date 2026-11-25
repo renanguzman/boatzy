@@ -15,6 +15,14 @@ import {
   type ResumoReprocessamento,
 } from '@/lib/asaas/eventos';
 import type { AsaasWebhookEventoStatus } from '@/types/supabase';
+import { lerPagarmeConfig, type PagarmeAmbiente } from '@/lib/pagarme/config';
+import { mensagemErroPagarme } from '@/lib/pagarme/client';
+import { testarConexao as testarConexaoPagarmeApi } from '@/lib/pagarme/pedidos';
+import {
+  reprocessarEventoPagarmeManual,
+  reprocessarPendentesPagarme as reprocessarFilaPagarme,
+  type ResumoReprocessamentoPagarme,
+} from '@/lib/pagarme/eventos';
 
 type ActionResult<T = object> = ({ ok: true } & T) | { ok: false; error: string };
 
@@ -199,4 +207,50 @@ export async function criarChavePixAsaas(): Promise<ActionResult> {
 
   revalidatePath(CAMINHO);
   return { ok: true };
+}
+
+// ── Pagar.me (cartão de crédito, SPEC §109) ───────────────────────────────
+
+/** Chamada real à API (lista 1 pedido) — confirma a chave secreta. */
+export async function testarConexaoPagarme(): Promise<ActionResult<{ ambiente: PagarmeAmbiente; latenciaMs: number }>> {
+  const auth = await requireAdmin();
+  if (!auth.ok) return auth;
+
+  const cfg = lerPagarmeConfig();
+  if (!cfg.ok) return { ok: false, error: cfg.erro };
+
+  const inicio = Date.now();
+  try {
+    await testarConexaoPagarmeApi();
+    return { ok: true, ambiente: cfg.config.ambiente, latenciaMs: Date.now() - inicio };
+  } catch (err) {
+    return { ok: false, error: mensagemErroPagarme(err) };
+  }
+}
+
+export async function reprocessarEventoPagarme(id: string): Promise<ActionResult<{ status: AsaasWebhookEventoStatus | null }>> {
+  const auth = await requireAdmin();
+  if (!auth.ok) return auth;
+  if (!id) return { ok: false, error: 'Evento inválido.' };
+
+  try {
+    const status = await reprocessarEventoPagarmeManual(id);
+    revalidatePath(CAMINHO);
+    return { ok: true, status };
+  } catch (err) {
+    return { ok: false, error: err instanceof Error ? err.message : 'Erro ao reprocessar.' };
+  }
+}
+
+export async function reprocessarPendentesPagarme(): Promise<ActionResult<{ resumo: ResumoReprocessamentoPagarme }>> {
+  const auth = await requireAdmin();
+  if (!auth.ok) return auth;
+
+  try {
+    const resumo = await reprocessarFilaPagarme();
+    revalidatePath(CAMINHO);
+    return { ok: true, resumo };
+  } catch (err) {
+    return { ok: false, error: err instanceof Error ? err.message : 'Erro ao reprocessar.' };
+  }
 }

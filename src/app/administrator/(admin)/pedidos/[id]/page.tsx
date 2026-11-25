@@ -19,6 +19,7 @@ import {
 } from '../_lib/rotulos';
 import PedidoAcoes from './_components/PedidoAcoes';
 import CancelarCobrancaButton from './_components/CancelarCobrancaButton';
+import EstornarPagamentoButton from './_components/EstornarPagamentoButton';
 import CopiarValor from './_components/CopiarValor';
 import { enderecoTomador } from '@/lib/pagamentos/tomador';
 import { SITUACAO_ADMIN } from '@/lib/repasses/rotulos';
@@ -118,7 +119,7 @@ const ORIGEM_COR: Record<ItemTempo['origem'], string> = {
   admin: 'bg-amber-500',
 };
 const ORIGEM_LABEL: Record<ItemTempo['origem'], string> = {
-  cliente: 'Cliente', gestor: 'Gestor', gateway: 'Asaas', sistema: 'Sistema', admin: 'Admin',
+  cliente: 'Cliente', gestor: 'Gestor', gateway: 'Gateway', sistema: 'Sistema', admin: 'Admin',
 };
 
 function montarLinhaDoTempo(d: DetalhePedido): ItemTempo[] {
@@ -166,7 +167,10 @@ function montarLinhaDoTempo(d: DetalhePedido): ItemTempo[] {
       itens.push({
         em: t.ocorrido_em,
         titulo: `${TRANSACAO_LABEL[t.tipo] ?? t.tipo} — tentativa ${i + 1} (${FORMA_LABEL[pg.forma_pagamento]}${pg.numero_parcelas > 1 ? ` ${pg.numero_parcelas}x` : ''})`,
-        detalhe: [t.valor != null ? brl(t.valor) : null, t.status_asaas, pg.asaas_payment_id].filter(Boolean).join(' · '),
+        detalhe: [
+          t.valor != null ? brl(t.valor) : null, t.status_asaas ?? t.status_gateway, pg.asaas_payment_id ?? pg.gateway_cobranca_id,
+          pg.gateway === 'pagarme' ? 'Pagar.me' : 'Asaas',
+        ].filter(Boolean).join(' · '),
         origem: t.tipo === 'criacao' || t.tipo === 'falha_criacao' ? 'cliente' : 'gateway',
       });
     }
@@ -203,6 +207,7 @@ const EVENTO_PEDIDO_LABEL: Record<string, string> = {
   visualizado: 'Cliente abriu a página da cobrança',
   email_enviado: 'E-mail da cobrança enviado ao cliente',
   cancelado: 'Gestor cancelou a cobrança',
+  pago_apos_encerramento: 'ATENÇÃO: pagamento confirmado depois do pedido encerrado — estorne ou reative',
 };
 
 const TIPO_ITEM_LABEL: Record<string, string> = { produto: 'Produto', servico: 'Serviço', taxa: 'Taxa', outro: 'Outro' };
@@ -240,6 +245,12 @@ function PagamentoCard({ pg, indice }: { pg: PagamentoDetalhe; indice: number })
   const cartao = Array.isArray(pg.pagamento_cartao) ? pg.pagamento_cartao[0] : pg.pagamento_cartao;
   const FormaIcon = pg.forma_pagamento === 'cartao_credito' ? CreditCard : QrCode;
   const cancelavel = PAGAMENTO_CANCELAVEL.includes(pg.status);
+  // Cartão na Pagar.me (SPEC §109): ids e dados da adquirente; estorno pelo admin.
+  const pagarme = pg.gateway === 'pagarme';
+  const gw = pagarme ? 'Pagar.me' : 'Asaas';
+  const estornado = pg.pagamento_estorno.filter((e) => e.status !== 'cancelado').reduce((s, e) => s + Number(e.valor), 0);
+  const maxEstorno = Math.round((Number(pg.valor) - estornado) * 100) / 100;
+  const estornavel = pagarme && ['confirmado', 'recebido', 'estornado_parcial'].includes(pg.status) && maxEstorno > 0;
 
   return (
     <div className="rounded-xl border border-slate-200 overflow-hidden">
@@ -247,6 +258,7 @@ function PagamentoCard({ pg, indice }: { pg: PagamentoDetalhe; indice: number })
         <div className="flex items-center gap-2 text-sm font-semibold text-[#0B2447]">
           <FormaIcon className="w-4 h-4" />
           Tentativa {indice} · {FORMA_LABEL[pg.forma_pagamento]}
+          <span className={`text-[10px] font-bold uppercase tracking-wide px-2 py-0.5 rounded-full ${pagarme ? 'bg-emerald-50 text-emerald-700' : 'bg-blue-50 text-blue-700'}`}>{gw}</span>
           {pg.numero_parcelas > 1 && <span className="text-slate-500 font-normal">em {pg.numero_parcelas}x</span>}
           {pg.ambiente === 'sandbox' && (
             <span className="inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-wide text-amber-700 bg-amber-50 px-2 py-0.5 rounded-full">
@@ -256,15 +268,16 @@ function PagamentoCard({ pg, indice }: { pg: PagamentoDetalhe; indice: number })
         </div>
         <div className="flex items-center gap-2">
           <Badge cls={PAGAMENTO_STATUS[pg.status].cls}>{PAGAMENTO_STATUS[pg.status].label}</Badge>
-          {pg.status_asaas && <span className="font-mono text-[10px] text-slate-400">{pg.status_asaas}</span>}
+          {(pg.status_asaas ?? pg.status_gateway) && <span className="font-mono text-[10px] text-slate-400">{pg.status_asaas ?? pg.status_gateway}</span>}
         </div>
       </div>
 
       <div className="p-4 space-y-5">
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           <Campo label="Valor cobrado">{brl(pg.valor)}</Campo>
-          <Campo label="Líquido (Asaas)">{brl(pg.valor_liquido)}</Campo>
-          <Campo label="Tarifa Asaas">{brl(pg.valor_tarifa)}</Campo>
+          <Campo label={`Líquido (${gw})`}>{brl(pg.valor_liquido)}</Campo>
+          <Campo label={`Tarifa ${gw}`}>{brl(pg.valor_tarifa)}</Campo>
+          {Number(pg.valor_juros) > 0 && <Campo label="Juros do parcelado (cliente)">{brl(Number(pg.valor_juros))}</Campo>}
           <Campo label="Parcelas">{pg.numero_parcelas}x</Campo>
           <Campo label="Criada em">{dh(pg.criado_em)}</Campo>
           <Campo label="Vencimento">{formatarDataCurta(pg.vencimento)}</Campo>
@@ -277,10 +290,20 @@ function PagamentoCard({ pg, indice }: { pg: PagamentoDetalhe; indice: number })
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <Campo label="ID do pagamento (Boatzy = externalReference)"><CopiarValor valor={pg.id} /></Campo>
-          <Campo label="ID da cobrança (Asaas)">{pg.asaas_payment_id ? <CopiarValor valor={pg.asaas_payment_id} /> : '—'}</Campo>
-          <Campo label="ID do parcelamento (Asaas)">{pg.asaas_parcelamento_id ? <CopiarValor valor={pg.asaas_parcelamento_id} /> : '—'}</Campo>
-          <Campo label="Cliente no Asaas">{pg.asaas_customer_id ? <CopiarValor valor={pg.asaas_customer_id} /> : '—'}</Campo>
+          <Campo label={pagarme ? 'ID do pagamento (Boatzy = code do pedido)' : 'ID do pagamento (Boatzy = externalReference)'}><CopiarValor valor={pg.id} /></Campo>
+          {pagarme ? (
+            <>
+              <Campo label="Pedido (Pagar.me)">{pg.gateway_pedido_id ? <CopiarValor valor={pg.gateway_pedido_id} /> : '—'}</Campo>
+              <Campo label="Cobrança (Pagar.me)">{pg.gateway_cobranca_id ? <CopiarValor valor={pg.gateway_cobranca_id} /> : '—'}</Campo>
+              <Campo label="Cliente na Pagar.me">{pg.gateway_customer_id ? <CopiarValor valor={pg.gateway_customer_id} /> : '—'}</Campo>
+            </>
+          ) : (
+            <>
+              <Campo label="ID da cobrança (Asaas)">{pg.asaas_payment_id ? <CopiarValor valor={pg.asaas_payment_id} /> : '—'}</Campo>
+              <Campo label="ID do parcelamento (Asaas)">{pg.asaas_parcelamento_id ? <CopiarValor valor={pg.asaas_parcelamento_id} /> : '—'}</Campo>
+              <Campo label="Cliente no Asaas">{pg.asaas_customer_id ? <CopiarValor valor={pg.asaas_customer_id} /> : '—'}</Campo>
+            </>
+          )}
           {pg.forma_pagamento === 'pix' && (
             <>
               <Campo label="Transação Pix (Asaas)">{pg.pix_transacao_id ? <CopiarValor valor={pg.pix_transacao_id} curto /> : '—'}</Campo>
@@ -301,6 +324,18 @@ function PagamentoCard({ pg, indice }: { pg: PagamentoDetalhe; indice: number })
             <div>
               <p className="text-sm font-semibold text-slate-700">{cartao.bandeira} •••• {cartao.ultimos_digitos}</p>
               <p className="text-[11px] text-slate-400">Registrado em {dh(cartao.criado_em)} · o Boatzy guarda só a bandeira e os 4 últimos dígitos</p>
+              {(cartao.adquirente_nsu || cartao.codigo_autorizacao || cartao.codigo_retorno) && (
+                <p className="text-[11px] text-slate-500 mt-1">
+                  {[
+                    cartao.nome_portador && `Portador: ${cartao.nome_portador}`,
+                    cartao.adquirente && `Adquirente: ${cartao.adquirente}`,
+                    cartao.adquirente_nsu && `NSU: ${cartao.adquirente_nsu}`,
+                    cartao.codigo_autorizacao && `Autorização: ${cartao.codigo_autorizacao}`,
+                    cartao.adquirente_tid && `TID: ${cartao.adquirente_tid}`,
+                    cartao.codigo_retorno && `Retorno: ${cartao.codigo_retorno}${cartao.mensagem_retorno ? ` — ${cartao.mensagem_retorno}` : ''}`,
+                  ].filter(Boolean).join(' · ')}
+                </p>
+              )}
             </div>
           </div>
         )}
@@ -317,6 +352,7 @@ function PagamentoCard({ pg, indice }: { pg: PagamentoDetalhe; indice: number })
             </a>
           )}
           {cancelavel && <CancelarCobrancaButton pagamentoId={pg.id} />}
+          {estornavel && <EstornarPagamentoButton pagamentoId={pg.id} maximo={maxEstorno} />}
         </div>
 
         {pg.pagamento_parcela.length > 0 && (
@@ -396,7 +432,7 @@ function PagamentoCard({ pg, indice }: { pg: PagamentoDetalhe; indice: number })
           </div>
         )}
 
-        <Json valor={pg.ultimo_payload} titulo="Último estado da cobrança recebido do Asaas (JSON)" />
+        <Json valor={pg.ultimo_payload} titulo={`Último estado da cobrança recebido do ${gw} (JSON)`} />
       </div>
     </div>
   );

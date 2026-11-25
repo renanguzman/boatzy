@@ -4,6 +4,7 @@ import { getTranslations } from 'next-intl/server';
 import { createClient } from '@/lib/supabase/server';
 import { supabaseAdmin } from '@/lib/supabase';
 import { iniciarPagamento, type IniciarPagamentoResultado } from '@/lib/pagamentos/checkout';
+import { pagarComCartao, type PagarComCartaoInput, type PagarComCartaoResultado } from '@/lib/pagamentos/cartao';
 import type { TomadorForm } from '@/lib/pagamentos/tomador';
 import { consultarCnpj, type ConsultaCnpj } from '@/lib/cnpj';
 import type { FormaPagamentoCodigo, PedidoStatus } from '@/types/supabase';
@@ -20,9 +21,9 @@ async function usuarioLogado(): Promise<string | null> {
 }
 
 /**
- * Gera (ou retoma) a cobrança do pedido. Pix devolve o QR Code; cartão
- * devolve a URL da fatura do Asaas, onde o cartão é digitado — o número
- * nunca passa pelo Boatzy. O pedido precisa ser do cliente logado.
+ * Gera (ou retoma) a cobrança do pedido no Asaas. Pix devolve o QR Code; cartão
+ * no Asaas (só em rollback do gateway, SPEC §109) devolve a URL da fatura. O
+ * pedido precisa ser do cliente logado.
  */
 export async function pagarPedido(input: {
   pedidoId: string;
@@ -37,6 +38,16 @@ export async function pagarPedido(input: {
   const userId = await usuarioLogado();
   if (!userId) return { ok: false, error: (await getTranslations('Pagamento'))('sessao') };
   return iniciarPagamento({ ...input, userId });
+}
+
+/**
+ * Paga com cartão pela Pagar.me (SPEC §109). O navegador já tokenizou o cartão
+ * direto na Pagar.me — aqui chega só o token (nunca número, validade ou CVV).
+ */
+export async function pagarPedidoCartao(input: Omit<PagarComCartaoInput, 'userId'>): Promise<PagarComCartaoResultado> {
+  const userId = await usuarioLogado();
+  if (!userId) return { ok: false, error: (await getTranslations('Pagamento'))('sessao') };
+  return pagarComCartao({ ...input, userId });
 }
 
 /**

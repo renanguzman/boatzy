@@ -23,7 +23,7 @@ import { applyPhoneMask, onlyDigits } from '@/lib/validators';
 import { useFormatos, type Formatos } from '@/i18n/formatos';
 import { getFormatos } from '@/i18n/formatos-servidor';
 import type {
-  AvaliacaoStatus, FormaPagamentoCodigo, PagamentoEstornoStatus, PagamentoStatus, PedidoStatus,
+  AvaliacaoStatus, FormaPagamentoCodigo, GatewayPagamento, PagamentoEstornoStatus, PagamentoStatus, PedidoStatus,
   ReservaModalidadePreco, ReservaStatus,
 } from '@/types/supabase';
 import CancelarReservaButton from '../../_components/CancelarReservaButton';
@@ -105,6 +105,8 @@ type ReservaDetalhe = {
   pedido: PedidoDetalhe | PedidoDetalhe[] | null;
 };
 
+type CartaoRecibo = { bandeira: string; ultimos_digitos: string; codigo_autorizacao: string | null };
+
 type PagamentoDetalhe = {
   id: string;
   forma_pagamento: FormaPagamentoCodigo;
@@ -117,9 +119,12 @@ type PagamentoDetalhe = {
   comprovante_url: string | null;
   fatura_url: string | null;
   asaas_payment_id: string | null;
+  gateway: GatewayPagamento;
+  gateway_cobranca_id: string | null;
+  valor_juros: number;
   pix_transacao_id: string | null;
   criado_em: string;
-  pagamento_cartao: { bandeira: string; ultimos_digitos: string } | { bandeira: string; ultimos_digitos: string }[] | null;
+  pagamento_cartao: CartaoRecibo | CartaoRecibo[] | null;
   pagamento_estorno: { valor: number; status: PagamentoEstornoStatus; solicitado_em: string; concluido_em: string | null }[];
   pagamento_tomador: TomadorRegistro | TomadorRegistro[] | null;
 };
@@ -285,8 +290,8 @@ export default async function DetalheReserva({ reservaId: id, clienteId }: { res
           .from('pagamento')
           .select(
             `id, forma_pagamento, numero_parcelas, valor, status, confirmado_em, recebido_em, numero_fatura,
-             comprovante_url, fatura_url, asaas_payment_id, pix_transacao_id, criado_em,
-             pagamento_cartao ( bandeira, ultimos_digitos ),
+             comprovante_url, fatura_url, asaas_payment_id, gateway, gateway_cobranca_id, valor_juros, pix_transacao_id, criado_em,
+             pagamento_cartao ( bandeira, ultimos_digitos, codigo_autorizacao ),
              pagamento_estorno ( valor, status, solicitado_em, concluido_em ),
              pagamento_tomador ( * )`,
           )
@@ -727,7 +732,10 @@ export default async function DetalheReserva({ reservaId: id, clienteId }: { res
                   />
                 )}
                 <LinhaRecibo rotulo={t('comprovante.recebedor')} valor={t('comprovante.recebedorValor')} />
-                {pagamento.asaas_payment_id && <LinhaRecibo rotulo={t('comprovante.idTransacao')} valor={pagamento.asaas_payment_id} mono />}
+                {(pagamento.asaas_payment_id ?? pagamento.gateway_cobranca_id) && (
+                  <LinhaRecibo rotulo={t('comprovante.idTransacao')} valor={(pagamento.asaas_payment_id ?? pagamento.gateway_cobranca_id)!} mono />
+                )}
+                {cartao?.codigo_autorizacao && <LinhaRecibo rotulo={t('comprovante.autorizacao')} valor={cartao.codigo_autorizacao} mono />}
                 {pagamento.pix_transacao_id && <LinhaRecibo rotulo={t('comprovante.idPix')} valor={pagamento.pix_transacao_id} mono />}
                 {pagamento.numero_fatura && <LinhaRecibo rotulo={t('comprovante.numeroFatura')} valor={pagamento.numero_fatura} mono />}
               </dl>
@@ -751,6 +759,9 @@ export default async function DetalheReserva({ reservaId: id, clienteId }: { res
                       <span>{cupom ? tPag('descontoCupom', { cupom }) : tPag('desconto')}</span>
                       <span>-{f.moedaCentavos(Number(pedido.valor_desconto))}</span>
                     </div>
+                  )}
+                  {Number(pagamento.valor_juros) > 0 && (
+                    <Linha rotulo={t('comprovante.jurosParcelamento', { n: pagamento.numero_parcelas })} valor={Number(pagamento.valor_juros)} />
                   )}
                   <div className="flex justify-between font-bold text-marinho">
                     <span>{t('comprovante.totalPago')}</span><span>{f.moedaCentavos(Number(pagamento.valor))}</span>
@@ -800,7 +811,10 @@ export default async function DetalheReserva({ reservaId: id, clienteId }: { res
 
               <div className="mt-6 flex flex-wrap items-center justify-between gap-3 border-t border-dashed border-slate-200 pt-4">
                 <p className="text-[11px] leading-relaxed text-slate-400">
-                  {t('comprovante.processado', { data: f.dataHora(new Date()) })}
+                  {t('comprovante.processado', {
+                    data: f.dataHora(new Date()),
+                    processadora: pagamento.gateway === 'pagarme' ? 'Stone/Pagar.me' : 'Asaas',
+                  })}
                 </p>
                 {urlOperadora && (
                   <a

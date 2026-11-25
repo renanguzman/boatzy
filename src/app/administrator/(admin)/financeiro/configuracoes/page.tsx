@@ -4,7 +4,8 @@ import { Wallet, Percent, ArrowRight, TriangleAlert } from 'lucide-react';
 import { createClient } from '@/lib/supabase/server';
 import { supabaseAdmin } from '@/lib/supabase';
 import { getTaxaGeral } from '@/lib/taxas';
-import { getFinanceiroConfig, getFormasPagamento, type FinanceiroConfig, type FormaPagamento } from '@/lib/financeiro/config';
+import { getFinanceiroConfig, getFormasPagamento, getTabelaJuros, type FinanceiroConfig, type FormaPagamento } from '@/lib/financeiro/config';
+import { lerPagarmeConfig } from '@/lib/pagarme/config';
 import { formatarDataHoraBR } from '@/lib/termos/formato';
 import FinanceiroAbas from '../_components/FinanceiroAbas';
 import FormasPagamentoCard from './_components/FormasPagamentoCard';
@@ -13,6 +14,7 @@ import CobrancaAvulsaCard from './_components/CobrancaAvulsaCard';
 
 const ACAO_LABEL: Record<string, string> = {
   'forma_pagamento.atualizar': 'Forma de pagamento alterada',
+  'forma_pagamento.juros': 'Juros do parcelamento alterados',
   'financeiro_config.atualizar': 'Cobrança e prazos alterados',
   'financeiro_config.cobranca_avulsa': 'Regras da cobrança avulsa alteradas',
 };
@@ -24,9 +26,10 @@ export default async function AdminFinanceiroConfiguracoesPage() {
 
   let formas: FormaPagamento[] = [];
   let config: FinanceiroConfig | null = null;
+  let juros: Record<number, number> = {};
   let erroCarga: string | null = null;
   try {
-    [formas, config] = await Promise.all([getFormasPagamento(), getFinanceiroConfig()]);
+    [formas, config, juros] = await Promise.all([getFormasPagamento(), getFinanceiroConfig(), getTabelaJuros()]);
   } catch (err) {
     erroCarga = err instanceof Error ? err.message : 'Erro ao carregar.';
   }
@@ -72,7 +75,7 @@ export default async function AdminFinanceiroConfiguracoesPage() {
         </div>
       ) : (
         <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
-          <FormasPagamentoCard formas={formas} />
+          <FormasPagamentoCard formas={formas} juros={juros} pagarmeConfigurada={lerPagarmeConfig().ok} />
 
           <div className="space-y-6">
             <PrazosCard

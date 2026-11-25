@@ -112,6 +112,8 @@ export type AsaasWebhookEventoStatus = 'pendente' | 'processando' | 'processado'
 /** Pagamentos — ver SPEC §34.8 (migration 20260930b_pagamentos_modelo). */
 export type AsaasAmbienteDb = 'sandbox' | 'producao';
 export type FormaPagamentoCodigo = 'pix' | 'cartao_credito';
+/** Gateway que processa a forma/tentativa: Pix no Asaas, cartão na Pagar.me (Stone) — SPEC §109. */
+export type GatewayPagamento = 'asaas' | 'pagarme';
 export type PedidoStatus =
   | 'aguardando_pagamento' | 'pago' | 'expirado' | 'cancelado' | 'reembolsado' | 'reembolsado_parcial' | 'em_disputa';
 export type PedidoDescontoTipo = 'cupom' | 'manual' | 'promocional';
@@ -124,7 +126,7 @@ export type PagamentoStatus =
   | 'pendente' | 'em_analise' | 'confirmado' | 'recebido' | 'recusado' | 'vencido' | 'cancelado'
   | 'estorno_em_andamento' | 'estornado' | 'estornado_parcial' | 'em_disputa';
 export type PagamentoParcelaStatus = 'pendente' | 'confirmado' | 'recebido' | 'cancelado' | 'estornado' | 'em_disputa';
-export type PagamentoEstornoOrigem = 'cliente' | 'gestor' | 'admin' | 'chargeback' | 'asaas';
+export type PagamentoEstornoOrigem = 'cliente' | 'gestor' | 'admin' | 'chargeback' | 'asaas' | 'pagarme';
 export type PagamentoEstornoStatus = 'solicitado' | 'em_andamento' | 'concluido' | 'cancelado';
 /** Em nome de quem sai o pagamento: o próprio cliente, outra pessoa (CPF) ou empresa (CNPJ) — SPEC §97. */
 export type PagamentoTomadorTipo = 'proprio' | 'cpf' | 'cnpj';
@@ -2232,6 +2234,7 @@ export type Database = {
           codigo: FormaPagamentoCodigo;
           nome: string;
           codigo_asaas: string;
+          gateway: GatewayPagamento;
           ativo: boolean;
           ordem: number;
           parcelas_max: number;
@@ -2243,6 +2246,7 @@ export type Database = {
           codigo: FormaPagamentoCodigo;
           nome: string;
           codigo_asaas: string;
+          gateway?: GatewayPagamento;
           ativo?: boolean;
           ordem?: number;
           parcelas_max?: number;
@@ -2254,11 +2258,34 @@ export type Database = {
           codigo?: FormaPagamentoCodigo;
           nome?: string;
           codigo_asaas?: string;
+          gateway?: GatewayPagamento;
           ativo?: boolean;
           ordem?: number;
           parcelas_max?: number;
           valor_minimo_parcela?: number | null;
           criado_em?: string;
+          atualizado_em?: string;
+        };
+        Relationships: [];
+      };
+      // Acréscimo (%) por nº de parcelas — juros do cartão pagos pelo cliente (SPEC §109).
+      forma_pagamento_juros: {
+        Row: {
+          parcelas: number;
+          acrescimo_percentual: number;
+          atualizado_por: string | null;
+          atualizado_em: string;
+        };
+        Insert: {
+          parcelas: number;
+          acrescimo_percentual?: number;
+          atualizado_por?: string | null;
+          atualizado_em?: string;
+        };
+        Update: {
+          parcelas?: number;
+          acrescimo_percentual?: number;
+          atualizado_por?: string | null;
           atualizado_em?: string;
         };
         Relationships: [];
@@ -2649,6 +2676,12 @@ export type Database = {
           confirmado_em: string | null;
           recebido_em: string | null;
           credito_previsto_em: string | null;
+          gateway: GatewayPagamento;
+          gateway_pedido_id: string | null;
+          gateway_cobranca_id: string | null;
+          gateway_customer_id: string | null;
+          status_gateway: string | null;
+          valor_juros: number;
           ultimo_payload: Json | null;
           criado_em: string;
           atualizado_em: string;
@@ -2676,6 +2709,12 @@ export type Database = {
           confirmado_em?: string | null;
           recebido_em?: string | null;
           credito_previsto_em?: string | null;
+          gateway?: GatewayPagamento;
+          gateway_pedido_id?: string | null;
+          gateway_cobranca_id?: string | null;
+          gateway_customer_id?: string | null;
+          status_gateway?: string | null;
+          valor_juros?: number;
           ultimo_payload?: Json | null;
           criado_em?: string;
           atualizado_em?: string;
@@ -2703,6 +2742,12 @@ export type Database = {
           confirmado_em?: string | null;
           recebido_em?: string | null;
           credito_previsto_em?: string | null;
+          gateway?: GatewayPagamento;
+          gateway_pedido_id?: string | null;
+          gateway_cobranca_id?: string | null;
+          gateway_customer_id?: string | null;
+          status_gateway?: string | null;
+          valor_juros?: number;
           ultimo_payload?: Json | null;
           criado_em?: string;
           atualizado_em?: string;
@@ -2723,18 +2768,39 @@ export type Database = {
           pagamento_id: string;
           bandeira: string;
           ultimos_digitos: string;
+          nome_portador: string | null;
+          adquirente: string | null;
+          adquirente_nsu: string | null;
+          adquirente_tid: string | null;
+          codigo_autorizacao: string | null;
+          codigo_retorno: string | null;
+          mensagem_retorno: string | null;
           criado_em: string;
         };
         Insert: {
           pagamento_id: string;
           bandeira: string;
           ultimos_digitos: string;
+          nome_portador?: string | null;
+          adquirente?: string | null;
+          adquirente_nsu?: string | null;
+          adquirente_tid?: string | null;
+          codigo_autorizacao?: string | null;
+          codigo_retorno?: string | null;
+          mensagem_retorno?: string | null;
           criado_em?: string;
         };
         Update: {
           pagamento_id?: string;
           bandeira?: string;
           ultimos_digitos?: string;
+          nome_portador?: string | null;
+          adquirente?: string | null;
+          adquirente_nsu?: string | null;
+          adquirente_tid?: string | null;
+          codigo_autorizacao?: string | null;
+          codigo_retorno?: string | null;
+          mensagem_retorno?: string | null;
           criado_em?: string;
         };
         Relationships: [
@@ -2822,6 +2888,7 @@ export type Database = {
           total: number;
           valor: number;
           valor_liquido: number | null;
+          gateway_recebivel_id: string | null;
           asaas_payment_id: string | null;
           status: PagamentoParcelaStatus;
           status_asaas: string | null;
@@ -2838,6 +2905,7 @@ export type Database = {
           total: number;
           valor: number;
           valor_liquido?: number | null;
+          gateway_recebivel_id?: string | null;
           asaas_payment_id?: string | null;
           status?: PagamentoParcelaStatus;
           status_asaas?: string | null;
@@ -2854,6 +2922,7 @@ export type Database = {
           total?: number;
           valor?: number;
           valor_liquido?: number | null;
+          gateway_recebivel_id?: string | null;
           asaas_payment_id?: string | null;
           status?: PagamentoParcelaStatus;
           status_asaas?: string | null;
@@ -2884,6 +2953,9 @@ export type Database = {
           valor: number | null;
           ocorrido_em: string;
           asaas_evento_id: string | null;
+          gateway: GatewayPagamento;
+          status_gateway: string | null;
+          gateway_evento_id: string | null;
           payload: Json | null;
           criado_em: string;
         };
@@ -2896,6 +2968,9 @@ export type Database = {
           valor?: number | null;
           ocorrido_em?: string;
           asaas_evento_id?: string | null;
+          gateway?: GatewayPagamento;
+          status_gateway?: string | null;
+          gateway_evento_id?: string | null;
           payload?: Json | null;
           criado_em?: string;
         };
@@ -2908,6 +2983,9 @@ export type Database = {
           valor?: number | null;
           ocorrido_em?: string;
           asaas_evento_id?: string | null;
+          gateway?: GatewayPagamento;
+          status_gateway?: string | null;
+          gateway_evento_id?: string | null;
           payload?: Json | null;
           criado_em?: string;
         };
@@ -3211,6 +3289,52 @@ export type Database = {
           recurso_id?: string | null;
           payload?: Json;
           criado_asaas_em?: string | null;
+          recebido_em?: string;
+          status?: AsaasWebhookEventoStatus;
+          tentativas?: number;
+          erro?: string | null;
+          processado_em?: string | null;
+          atualizado_em?: string;
+        };
+        Relationships: [];
+      };
+      // Fila de webhooks da Pagar.me (cartão) — SPEC §109.
+      pagarme_webhook_evento: {
+        Row: {
+          id: string;
+          evento: string;
+          recurso_tipo: string | null;
+          recurso_id: string | null;
+          payload: Json;
+          criado_gateway_em: string | null;
+          recebido_em: string;
+          status: AsaasWebhookEventoStatus;
+          tentativas: number;
+          erro: string | null;
+          processado_em: string | null;
+          atualizado_em: string;
+        };
+        Insert: {
+          id: string;
+          evento: string;
+          recurso_tipo?: string | null;
+          recurso_id?: string | null;
+          payload: Json;
+          criado_gateway_em?: string | null;
+          recebido_em?: string;
+          status?: AsaasWebhookEventoStatus;
+          tentativas?: number;
+          erro?: string | null;
+          processado_em?: string | null;
+          atualizado_em?: string;
+        };
+        Update: {
+          id?: string;
+          evento?: string;
+          recurso_tipo?: string | null;
+          recurso_id?: string | null;
+          payload?: Json;
+          criado_gateway_em?: string | null;
           recebido_em?: string;
           status?: AsaasWebhookEventoStatus;
           tentativas?: number;
@@ -3532,6 +3656,10 @@ export type Database = {
       asaas_webhook_evento_reservar: {
         Args: { p_id: string; p_minutos_travado?: number };
         Returns: Database['public']['Tables']['asaas_webhook_evento']['Row'][];
+      };
+      pagarme_webhook_evento_reservar: {
+        Args: { p_id: string; p_minutos_travado?: number };
+        Returns: Database['public']['Tables']['pagarme_webhook_evento']['Row'][];
       };
       buscar_embarcacoes: {
         Args: {

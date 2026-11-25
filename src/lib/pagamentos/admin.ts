@@ -4,11 +4,15 @@ import { supabaseAdmin } from '@/lib/supabase';
 import { AsaasError, mensagemErroAsaas } from '@/lib/asaas/client';
 import { consultarCobranca, listarCobrancasDoParcelamento, removerCobranca } from '@/lib/asaas/cobrancas';
 import type { AsaasCobranca } from '@/lib/asaas/tipos';
-import type { PagamentoStatus, PedidoTipo } from '@/types/supabase';
+import type { Json, PagamentoStatus, PedidoTipo } from '@/types/supabase';
 import { getFinanceiroConfig } from '@/lib/financeiro/config';
 import { emailPagamentoConfirmado, emailPagamentoPendente } from './emails';
 import { baseEmailPedido, dadosParaEmail, PAGAMENTO_CANCELAVEL } from './pedidos';
 import { aplicarCobranca } from './webhook';
+import { sincronizarPagamentoPagarme } from './pagarme';
+import { estornarCobranca } from '@/lib/pagarme/pedidos';
+import { mensagemErroPagarme, PagarmeError, paraCentavos } from '@/lib/pagarme/client';
+import { lerPagarmeConfig } from '@/lib/pagarme/config';
 
 /**
  * Operações manuais do admin sobre um pedido (Admin → Pedidos). Quem chama
@@ -39,6 +43,29 @@ export async function sincronizarPedidoComAsaas(
     .order('criado_em');
 
   const resultado = { consultadas: 0, alteracoes: [] as AlteracaoSincronizacao[], erros: [] as string[] };
+
+  // Cartão na Pagar.me (SPEC §109): reconsulta o pedido de cada tentativa.
+  const { data: tentativasPagarme } = await supabaseAdmin
+    .from('pagamento')
+    .select('id, gateway_pedido_id')
+    .eq('pedido_id', pedidoId)
+    .eq('gateway', 'pagarme')
+    .not('gateway_pedido_id', 'is', null)
+    .order('criado_em');
+  if (tentativasPagarme?.length && !lerPagarmeConfig().ok) resultado.erros.push('Pagar.me não configurada neste ambiente.');
+  else {
+    for (const p of tentativasPagarme ?? []) {
+      try {
+        const r = await sincronizarPagamentoPagarme(p.gateway_pedido_id!);
+        resultado.consultadas++;
+        if (r.resultado === 'processado' && r.statusAnterior !== r.statusNovo) {
+          resultado.alteracoes.push({ pagamentoId: p.id, cobranca: p.gateway_pedido_id!, de: r.statusAnterior ?? null, para: r.statusNovo ?? null });
+        }
+      } catch (err) {
+        resultado.erros.push(`${p.gateway_pedido_id}: ${mensagemErroPagarme(err)}`);
+      }
+    }
+  }
 
   for (const p of pagamentos ?? []) {
     let cobrancas: AsaasCobranca[];
@@ -129,7 +156,7 @@ export async function cancelarPagamentoPendente(
 ): Promise<{ ok: true; pedidoId: string; cobranca: string | null } | { ok: false; erro: string }> {
   const { data: p } = await supabaseAdmin
     .from('pagamento')
-    .select('id, pedido_id, status, asaas_payment_id, asaas_parcelamento_id')
+    .select('id, pedido_id, status, asaas_payment_id, asaas_parcelamento_id, gateway, gateway_cobranca_id')
     .eq('id', pagamentoId)
     .maybeSingle();
   if (!p) return { ok: false, erro: 'Pagamento não encontrado.' };
@@ -143,8 +170,76 @@ export async function cancelarPagamentoPendente(
       return { ok: false, erro: `O Asaas recusou a remoção: ${mensagemErroAsaas(err)}` };
     }
   }
+  if (p.gateway === 'pagarme' && p.gateway_cobranca_id) {
+    try {
+      await estornarCobranca(p.gateway_cobranca_id);
+    } catch (err) {
+      if (!(err instanceof PagarmeError && err.status === 404)) {
+        return { ok: false, erro: `A Pagar.me recusou o cancelamento: ${mensagemErroPagarme(err)}` };
+      }
+    }
+  }
   await supabaseAdmin.from('pagamento').update({ status: 'cancelado' }).eq('id', p.id).in('status', PAGAMENTO_CANCELAVEL);
-  return { ok: true, pedidoId: p.pedido_id, cobranca: p.asaas_payment_id };
+  return { ok: true, pedidoId: p.pedido_id, cobranca: p.asaas_payment_id ?? p.gateway_cobranca_id };
+}
+
+const ESTORNAVEL: PagamentoStatus[] = ['confirmado', 'recebido', 'estornado_parcial'];
+
+/**
+ * Estorno de cartão pela Pagar.me (D-S8, SPEC §109): total (sem valor) ou
+ * parcial. Devolve ao cliente o valor cobrado (com juros, no total). Registra o
+ * estorno, reconsulta o pedido na Pagar.me e aplica (pedido → reembolsado /
+ * reembolsado_parcial, e-mails ao cliente e ao gestor). O estorno contábil do
+ * ledger e o ajuste do repasse entram na Fase 2 (cancelamentos).
+ */
+export async function estornarPagamentoCartao(input: {
+  pagamentoId: string;
+  valor: number | null;
+  motivo: string;
+  adminId: string;
+}): Promise<{ ok: true; pedidoId: string; valor: number; status: PagamentoStatus | null } | { ok: false; erro: string }> {
+  const { data: p } = await supabaseAdmin
+    .from('pagamento')
+    .select('id, pedido_id, status, valor, gateway, gateway_cobranca_id, gateway_pedido_id, pagamento_estorno ( valor, status )')
+    .eq('id', input.pagamentoId)
+    .maybeSingle();
+  if (!p) return { ok: false, erro: 'Pagamento não encontrado.' };
+  if (p.gateway !== 'pagarme' || !p.gateway_cobranca_id || !p.gateway_pedido_id) {
+    return { ok: false, erro: 'O estorno pelo admin vale para cartão na Pagar.me. Pagamentos do Asaas: estorne no painel do Asaas.' };
+  }
+  if (!ESTORNAVEL.includes(p.status as PagamentoStatus)) return { ok: false, erro: 'Só pagamentos confirmados podem ser estornados.' };
+
+  const jaEstornado = ((p.pagamento_estorno ?? []) as { valor: number; status: string }[])
+    .filter((e) => e.status !== 'cancelado')
+    .reduce((s, e) => s + Number(e.valor), 0);
+  const disponivel = Math.round((Number(p.valor) - jaEstornado) * 100) / 100;
+  const valor = input.valor == null ? disponivel : Math.round(input.valor * 100) / 100;
+  if (!(valor > 0) || valor > disponivel) {
+    return { ok: false, erro: `Valor inválido: o máximo estornável é R$ ${disponivel.toFixed(2).replace('.', ',')}.` };
+  }
+
+  let resposta;
+  try {
+    resposta = await estornarCobranca(p.gateway_cobranca_id, valor < disponivel || jaEstornado > 0 ? paraCentavos(valor) : undefined);
+  } catch (err) {
+    return { ok: false, erro: `A Pagar.me recusou o estorno: ${mensagemErroPagarme(err)}` };
+  }
+
+  await supabaseAdmin.from('pagamento_estorno').insert({
+    pagamento_id: p.id,
+    valor,
+    motivo: input.motivo,
+    origem: 'admin',
+    status: 'concluido',
+    solicitado_por: input.adminId,
+    concluido_em: new Date().toISOString(),
+    payload: resposta as unknown as Json,
+  });
+  const r = await sincronizarPagamentoPagarme(p.gateway_pedido_id).catch((err) => {
+    console.error('[pagamentos/admin] estorno feito, mas a sincronização falhou', p.id, mensagemErroPagarme(err));
+    return null;
+  });
+  return { ok: true, pedidoId: p.pedido_id, valor, status: r?.statusNovo ?? null };
 }
 
 /**

@@ -1,10 +1,13 @@
 import { NextResponse } from 'next/server';
 import { reprocessarPendentes } from '@/lib/asaas/eventos';
+import { reprocessarPendentesPagarme } from '@/lib/pagarme/eventos';
+import { lerPagarmeConfig } from '@/lib/pagarme/config';
 import { expirarPedidosVencidos } from '@/lib/pagamentos/pedidos';
 
 // Job agendado dos pagamentos (Vercel Cron, ver vercel.json; futuramente o
 // agendador do Supabase a cada ~10 min):
-//   1) reprocessa eventos de webhook do Asaas pendentes/com erro/travados —
+//   1) reprocessa eventos de webhook do Asaas e da Pagar.me (cartão, SPEC §109)
+//      pendentes/com erro/travados —
 //      antes da expiração, para um pagamento já confirmado não virar "expirado";
 //   2) expira pedidos com prazo de pagamento vencido (remove as cobranças no
 //      Asaas e libera a data).
@@ -27,8 +30,9 @@ async function handler(request: Request) {
 
   try {
     const webhooks = await reprocessarPendentes();
+    const webhooksPagarme = lerPagarmeConfig().ok ? await reprocessarPendentesPagarme() : null;
     const pedidosExpirados = await expirarPedidosVencidos();
-    return NextResponse.json({ ok: true, webhooks, pedidosExpirados });
+    return NextResponse.json({ ok: true, webhooks, webhooksPagarme, pedidosExpirados });
   } catch (err) {
     const message = err instanceof Error ? err.message : 'erro';
     console.error('[cron/pagamentos]', message);

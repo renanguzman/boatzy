@@ -9962,3 +9962,107 @@ subiu numa tentativa não sobe de novo) e `documentoParaRascunho` / `documentoDo
   - `/api/auth/email-hook`: `email-hook:recebido` (indica se `SEND_EMAIL_HOOK_SECRET` e `RESEND_API_KEY` estão configurados), `assinatura-invalida`, `payload-invalido`, `processando`, `enviado`, além dos erros de envio já existentes.
   - `addRole` (`src/lib/roles.ts`) passa a registrar falha do upsert.
 - Não há mudança de contrato nem de comportamento.
+
+---
+
+## 109. Cartão de crédito via Stone / Pagar.me (v5) — Pix continua no Asaas (25/11/2026)
+
+Planejamento, decisões D-S1…D-S8 e pendências com a Stone: `docs/planejamento-pagamentos-stone.md`.
+Status: **F1–F3 implementadas + admin** (fundação, modelo de dados, checkout transparente, webhook, juros,
+estorno). **F4 pendente** (liquidação/tarifa da conta Gateway → `recebido` + ledger), aguardando a Stone.
+
+### 109.1 Variáveis de ambiente
+- `PAGARME_SECRET_KEY` (`sk_test_…` sandbox / `sk_…` produção) e `NEXT_PUBLIC_PAGARME_PUBLIC_KEY`
+  (`pk_test_…` / `pk_…`) — do mesmo ambiente, senão `lerPagarmeConfig()` recusa. `PAGARME_API_URL` opcional
+  (padrão `https://api.pagar.me/core/v5`).
+- `PAGARME_WEBHOOK_USER` / `PAGARME_WEBHOOK_PASSWORD` (≥ 16 caracteres): Basic Auth do webhook (D-S7).
+- Dashboard da Pagar.me: webhook `…/api/webhooks/pagarme` com Basic Auth e os eventos listados em
+  Admin → Financeiro → Integração → aba Stone/Pagar.me; **domínios permitidos** (boatzy.app; `localhost` no sandbox).
+
+### 109.2 Banco — migration `20261125_pagarme_cartao.sql`
+- `forma_pagamento.gateway` (`asaas` | `pagarme`; CHECK pix ⇒ asaas). Nasce `asaas` no cartão — o admin liga a
+  Pagar.me em Configurações (chave de rollback).
+- `forma_pagamento_juros` (nova; `parcelas` 2–12 PK, `acrescimo_percentual` 0–100, `atualizado_por/em`), seed
+  2–12 com 0. RLS + GRANTs; leitura pública.
+- `pagamento`: `gateway` (default `asaas`), `gateway_pedido_id` (`or_`), `gateway_cobranca_id` (`ch_`, UNIQUE),
+  `gateway_customer_id`, `status_gateway` (`<charge.status>/<last_transaction.status>`), `valor_juros`
+  (`valor = pedido.valor_total + valor_juros`; juros só no cartão). CHECK: ids do Asaas só com `gateway=asaas` e
+  ids da Pagar.me só com `gateway=pagarme`.
+- `pagamento_cartao`: `nome_portador`, `adquirente`, `adquirente_nsu`, `adquirente_tid`, `codigo_autorizacao`,
+  `codigo_retorno` (ABECS), `mensagem_retorno`.
+- `pagamento_parcela.gateway_recebivel_id`; `pagamento_transacao.gateway`, `status_gateway`, `gateway_evento_id`
+  (FK `pagarme_webhook_evento`, UNIQUE); `pagamento_estorno.origem` + `pagarme`.
+- `pagarme_webhook_evento` (espelho de `asaas_webhook_evento`: `id` = `hook_…`, `evento`, `recurso_tipo/id`,
+  `payload`, `criado_gateway_em`, `status` pendente|processando|processado|ignorado|erro, `tentativas`…) +
+  RPC `pagarme_webhook_evento_reservar(p_id, p_minutos_travado)` (só service_role).
+- Ledger: contas `1.1.03 Saldo Stone/Pagar.me`, `3.1.03 Tarifas de cartão (MDR)`, `4.1.02 Receita de juros de
+  parcelamento`; `lancar_recebimento_pagamento` escolhe caixa/tarifa pelo gateway e credita `valor_juros` em 4.1.02.
+- Tipos: `GatewayPagamento` e as colunas/tabela novas em `src/types/supabase.ts`.
+
+### 109.3 Módulo `src/lib/pagarme/` (server-only, exceto `tipos.ts`)
+- `config.ts`: `lerPagarmeConfig()`, `lerCredenciaisWebhook()`, `urlWebhookPagarmeSugerida()`.
+- `client.ts`: `pagarmeRequest` (Basic Auth `sk:`; timeout 20 s; `PagarmeError {status, codigo: timeout|rede|config|rate_limit|nao_encontrado}`),
+  `paraCentavos`/`deCentavos`, `mensagemErroPagarme`.
+- `pedidos.ts`: `criarPedidoCartao` (`POST /orders`, `code` = id do `pagamento`, 1 item, `customer` inline,
+  `credit_card { installments, statement_descriptor: 'BOATZY', operation_type: 'auth_and_capture', card_token,
+  card.billing_address }`, timeout 40 s), `consultarPedido`, `consultarCobranca`, `buscarPedidoPorCode`
+  (recuperação de timeout), `estornarCobranca` (`DELETE /charges/{id}`, `amount` = parcial), `testarConexao`.
+- `eventos.ts`: `validarPayloadPagarme`, `registrarEventoPagarme`, `processarEventoPagarme` (prefixos `order.`,
+  `charge.`, `chargeback.`; demais = `ignorado`), `reprocessarPendentesPagarme`, `reprocessarEventoPagarmeManual`.
+
+### 109.4 Camada de pagamentos (`src/lib/pagamentos/`)
+- `checkout.ts`: `FormaPermitida` ganhou `gateway` e `juros` (tabela só no cartão Pagar.me);
+  `formasDoCheckout(pedido)` (formas permitidas cujo gateway está configurado); `carregarPedidoCheckout(pedidoId, userId)`
+  (pedido do cliente, aguardando, no prazo, ≥ mínimo). `iniciarPagamento` agora atende só o Asaas (Pix e cartão em rollback).
+- `cartao.ts` → `pagarComCartao({ pedidoId, userId, cardToken, parcelas, endereco, telefone, cpf?, estrangeiro?, tomador? })`:
+  valida token (`token_…`), pedido, forma/parcelas, endereço de cobrança + celular, titular (terceiro CPF/CNPJ;
+  estrangeiro → `document_type: PASSPORT`; próprio com CPF); bloqueia se já há pago/em análise; **limite 5 tentativas/h
+  por pedido**; cancela Pix pendente; recalcula juros (`valorParcelado`); grava `pagamento` (`gateway=pagarme`) +
+  `pagamento_tomador`; cria o pedido; timeout → `buscarPedidoPorCode`; aplica a resposta síncrona. Retorno
+  `{ ok: true, situacao: 'aprovado' | 'em_analise' }` ou `{ ok: false, error, campo?, motivo? }`.
+- `pagarme.ts`: `statusDaCobrancaPagarme` (paid→confirmado; pending/processing→em_analise; failed→recusado;
+  canceled→cancelado/recusado/estornado; refunded/partial_refunded; chargedback/`chargeback.received`→em_disputa),
+  transições protegidas (pago não volta a análise/recusa; estorno/disputa não voltam a pago), `aplicarPedidoPagarme`
+  (localiza por `gateway_pedido_id` ou `code`; atualiza pagamento, cartão/adquirente, movimento; efeitos no pedido),
+  `tratarEventoPagarme` (reconsulta `/orders` — nunca confia no corpo), `sincronizarPagamentoPagarme`, `motivoRecusa`.
+  `recebido` **não** vem daqui (F4).
+- `webhook.ts`: efeitos no pedido extraídos para `aplicarEfeitosNoPedido` (comum aos gateways). Pagamento confirmado
+  em pedido já encerrado grava `pedido_evento` `pago_apos_encerramento` (alerta na linha do tempo do admin).
+  E-mail de recusa só em recusa assíncrona (webhook).
+- `pedidos.ts` → `cancelarCobrancasPendentes` também cancela cobrança da Pagar.me ainda em análise.
+- `cartao-dados.ts` (puro): `validarDadosCobranca` (BR: CEP 8 dígitos, UF, bairro; exterior: código postal, estado
+  livre), `enderecoParaPagarme` (`line_1` = "número, rua, bairro"), `ddiDoPais`.
+- `valores.ts`: `valorParcelado(valorAVista, parcelas, tabela)` → `{ percentual, juros, total, parcela }` (1x sem juros).
+- `admin.ts`: `sincronizarPedidoComAsaas` sincroniza também as tentativas da Pagar.me; `cancelarPagamentoPendente`
+  cancela na Pagar.me; `estornarPagamentoCartao` (total/parcial; grava `pagamento_estorno` origem `admin`; reconsulta).
+- `financeiro/config.ts`: `getTabelaJuros()`.
+
+### 109.5 Endpoints e jobs
+- `POST /api/webhooks/pagarme`: Basic Auth (comparação por hash em tempo constante) → grava → 200 → `after()`.
+- `/api/cron/pagamentos`: reprocessa também a fila da Pagar.me (`webhooksPagarme` na resposta).
+
+### 109.6 Telas
+- **Checkout** (`/reservas/[id]/pagar`, `/cobrancas/[id]`): `CheckoutPagamento` recebe `pagarmePublicKey` e
+  `telefoneInicial`; no cartão da Pagar.me renderiza `CartaoPagarme` (número com Luhn, nome, validade, CVV, parcelas com
+  juros e total a prazo, endereço de cobrança BR/exterior com ViaCEP, celular com DDI, aviso de cobrança em BRL para
+  endereço no exterior, descritor BOATZY). Tokenização no navegador: `POST https://api.pagar.me/core/v5/tokens?appId=<pk>`
+  → só o token vai para a server action `pagarPedidoCartao`. Aprovado → `router.refresh()`; em análise → tela de
+  acompanhamento (polling do status do pedido). i18n `Pagamento.cartao.*` (pt-BR/en/es).
+- **Comprovante** (`/minhas-reservas/[id]`): id da cobrança Pagar.me, código de autorização, linha "Juros do
+  parcelamento (Nx)" e processadora no rodapé (`comprovante.processado` com `{processadora}`).
+- **Admin → Financeiro → Configurações**: gateway do cartão (Pagar.me | Asaas) e **tabela de juros** 2x–12x
+  (`salvarTabelaJuros`, não decrescente, auditoria `forma_pagamento.juros`).
+- **Admin → Financeiro → Integração**: abas Asaas · Pix / Stone · Cartão (`?gateway=pagarme`): `ConexaoPagarmeCard`
+  (chaves, Basic Auth, cartão ligado, URL do webhook, eventos, domínios, testar conexão) e a fila de eventos
+  (`EventosWebhookGrid` com prop `gateway`).
+- **Admin → Pedidos → detalhe**: selo do gateway, ids `or_`/`ch_`/`cus_`, adquirente/NSU/autorização/retorno, juros,
+  **Estornar** (`EstornarPagamentoButton` → `estornarPagamento(pagamentoId, valor, motivo)`, auditoria `pagamento.estornar`).
+
+### 109.7 Pendências
+- **F4**: liquidação/tarifa na conta Gateway (`/payables` ou API de conciliação da Stone; senão tabela de MDR +
+  "captura + N dias") → `valor_liquido`, `recebido`, `pagamento_parcela`, `lancarRecebimento`. Até lá, pagamentos de
+  cartão da Pagar.me ficam `confirmado` e o repasse em "aguardando recebimento".
+- Estorno contábil (ledger) e ajuste de repasse após estorno: Fase 2 (cancelamentos).
+- Validar no sandbox: endpoint de tokens (`/tokens?appId=`), `billing_address` dentro de `card` com `card_token`,
+  `PASSPORT` com DNI/cédula, códigos de recusa, formato dos webhooks.
+- Filtro por gateway e colunas Pagar.me na listagem/exportação de Pedidos; relatórios/conciliação por gateway.

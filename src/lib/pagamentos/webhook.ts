@@ -258,56 +258,16 @@ export async function aplicarCobranca(
     );
   }
 
-  // Pedido/reserva.
-  if (ehParcelaPrincipal && (novoStatus === 'confirmado' || novoStatus === 'recebido')) {
-    const confirmou = await confirmarPedidoPago(pagamento.pedido_id);
-    if (!confirmou) {
-      const { data: pedido } = await supabaseAdmin.from('pedido').select('status').eq('id', pagamento.pedido_id).single();
-      if (pedido && pedido.status !== 'pago') {
-        // Pagamento chegou para um pedido já encerrado (expirado/cancelado) — precisa de ação do admin (estorno).
-        console.warn('[pagamentos/webhook] pagamento recebido para pedido encerrado', pagamento.pedido_id, pedido.status);
-      }
-    }
-  } else if (ehParcelaPrincipal && novoStatus && STATUS_PEDIDO[novoStatus]) {
-    const novoStatusPedido = STATUS_PEDIDO[novoStatus]!;
-    const { data: antes } = await supabaseAdmin.from('pedido').select('status').eq('id', pagamento.pedido_id).single();
-    const { data: alterado } = await supabaseAdmin
-      .from('pedido')
-      .update({ status: novoStatusPedido })
-      .eq('id', pagamento.pedido_id)
-      .in('status', ['pago', 'reembolsado_parcial', 'em_disputa'])
-      .select('id')
-      .maybeSingle();
-    if (alterado && antes?.status !== novoStatusPedido) {
-      await registrarEventoPedido({ pedidoId: pagamento.pedido_id, evento: novoStatusPedido, dados: { pagamento_id: pagamento.id } });
-    }
-    // Aviso de reembolso ao cliente e ao gestor (o in-app vem do trigger `notificacao_pedido`, SPEC §64/§87).
-    if (alterado && antes?.status !== novoStatusPedido && (novoStatusPedido === 'reembolsado' || novoStatusPedido === 'reembolsado_parcial')) {
-      const parcial = novoStatusPedido === 'reembolsado_parcial';
-      await avisarPorEmail(pagamento.pedido_id, (d, base) =>
-        Promise.all([
-          emailReembolso({ ...base, para: d.cliente?.email ?? '', nome: d.cliente?.name ?? '', parcial }),
-          emailGestorReembolso({
-            ...base, para: d.gestor?.email ?? '', nome: d.gestor?.name ?? '', clienteNome: d.cliente?.name ?? 'O cliente', parcial,
-          }),
-        ]).then(() => undefined),
-      );
-    }
-  }
-
-  // Cartão negado / reprovado na análise: o cliente ainda pode pagar até o prazo (avisa cliente e gestor).
-  if (ehParcelaPrincipal && statusAplicado === 'recusado' && statusAnterior !== 'recusado') {
-    await avisarPorEmail(pagamento.pedido_id, (d, base) =>
-      d.status === 'aguardando_pagamento'
-        ? Promise.all([
-            emailPagamentoRecusado({ ...base, para: d.cliente?.email ?? '', nome: d.cliente?.name ?? '', expiraEm: d.expira_em }),
-            emailGestorPagamentoRecusado({
-              ...base, para: d.gestor?.email ?? '', nome: d.gestor?.name ?? '', clienteNome: d.cliente?.name ?? 'O cliente',
-              expiraEm: d.expira_em,
-            }),
-          ]).then(() => undefined)
-        : Promise.resolve(),
-    );
+  // Pedido/reserva (confirmação, reembolso, disputa) e avisos de recusa — regra comum aos gateways.
+  if (ehParcelaPrincipal) {
+    await aplicarEfeitosNoPedido({
+      pagamentoId: pagamento.id,
+      pedidoId: pagamento.pedido_id,
+      novoStatus,
+      statusAnterior,
+      statusAplicado,
+      avisarRecusa: true,
+    });
   }
 
   // Ledger (SPEC §101): pagamento liquidado vira obrigação com o gestor + comissão + tarifa. Idempotente e
@@ -333,5 +293,78 @@ async function avisarPorEmail(pedidoId: string, enviar: (d: DadosEmailPedido, ba
     await enviar(d, base);
   } catch (err) {
     console.error('[pagamentos/webhook] falha ao enviar e-mail', pedidoId, err instanceof Error ? err.message : err);
+  }
+}
+
+/**
+ * Efeitos do novo status do pagamento no pedido/reserva — comum ao Asaas e à
+ * Pagar.me (SPEC §109): pago confirma o pedido (pago depois de encerrado vira
+ * alerta na linha do tempo); estorno/disputa mudam o pedido e avisam por e-mail;
+ * recusa avisa cliente e gestor (só quando `avisarRecusa` — a recusa síncrona do
+ * cartão aparece na tela e não gera e-mail a cada tentativa).
+ */
+export async function aplicarEfeitosNoPedido(input: {
+  pagamentoId: string;
+  pedidoId: string;
+  novoStatus: PagamentoStatus | null;
+  statusAnterior: PagamentoStatus;
+  statusAplicado: PagamentoStatus;
+  avisarRecusa: boolean;
+}): Promise<void> {
+  const { pagamentoId, pedidoId, novoStatus, statusAnterior, statusAplicado } = input;
+  if (novoStatus === 'confirmado' || novoStatus === 'recebido') {
+    const confirmou = await confirmarPedidoPago(pedidoId);
+    if (!confirmou) {
+      const { data: pedido } = await supabaseAdmin.from('pedido').select('status').eq('id', pedidoId).single();
+      if (pedido && pedido.status !== 'pago') {
+        // Pagamento chegou para um pedido já encerrado (expirado/cancelado) — precisa de ação do admin (estorno).
+        console.warn('[pagamentos/webhook] pagamento recebido para pedido encerrado', pedidoId, pedido.status);
+        if (statusAnterior !== 'confirmado' && statusAnterior !== 'recebido') {
+          await registrarEventoPedido({
+            pedidoId, evento: 'pago_apos_encerramento', dados: { pagamento_id: pagamentoId, status_pedido: pedido.status },
+          });
+        }
+      }
+    }
+  } else if (novoStatus && STATUS_PEDIDO[novoStatus]) {
+    const novoStatusPedido = STATUS_PEDIDO[novoStatus]!;
+    const { data: antes } = await supabaseAdmin.from('pedido').select('status').eq('id', pedidoId).single();
+    const { data: alterado } = await supabaseAdmin
+      .from('pedido')
+      .update({ status: novoStatusPedido })
+      .eq('id', pedidoId)
+      .in('status', ['pago', 'reembolsado_parcial', 'em_disputa'])
+      .select('id')
+      .maybeSingle();
+    if (alterado && antes?.status !== novoStatusPedido) {
+      await registrarEventoPedido({ pedidoId: pedidoId, evento: novoStatusPedido, dados: { pagamento_id: pagamentoId } });
+    }
+    // Aviso de reembolso ao cliente e ao gestor (o in-app vem do trigger `notificacao_pedido`, SPEC §64/§87).
+    if (alterado && antes?.status !== novoStatusPedido && (novoStatusPedido === 'reembolsado' || novoStatusPedido === 'reembolsado_parcial')) {
+      const parcial = novoStatusPedido === 'reembolsado_parcial';
+      await avisarPorEmail(pedidoId, (d, base) =>
+        Promise.all([
+          emailReembolso({ ...base, para: d.cliente?.email ?? '', nome: d.cliente?.name ?? '', parcial }),
+          emailGestorReembolso({
+            ...base, para: d.gestor?.email ?? '', nome: d.gestor?.name ?? '', clienteNome: d.cliente?.name ?? 'O cliente', parcial,
+          }),
+        ]).then(() => undefined),
+      );
+    }
+  }
+
+  // Cartão negado / reprovado na análise: o cliente ainda pode pagar até o prazo (avisa cliente e gestor).
+  if (input.avisarRecusa && statusAplicado === 'recusado' && statusAnterior !== 'recusado') {
+    await avisarPorEmail(pedidoId, (d, base) =>
+      d.status === 'aguardando_pagamento'
+        ? Promise.all([
+            emailPagamentoRecusado({ ...base, para: d.cliente?.email ?? '', nome: d.cliente?.name ?? '', expiraEm: d.expira_em }),
+            emailGestorPagamentoRecusado({
+              ...base, para: d.gestor?.email ?? '', nome: d.gestor?.name ?? '', clienteNome: d.cliente?.name ?? 'O cliente',
+              expiraEm: d.expira_em,
+            }),
+          ]).then(() => undefined)
+        : Promise.resolve(),
+    );
   }
 }

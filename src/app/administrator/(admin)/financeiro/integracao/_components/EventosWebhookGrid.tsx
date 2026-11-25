@@ -8,7 +8,7 @@ import {
 } from 'lucide-react';
 import type { AsaasWebhookEventoStatus } from '@/types/supabase';
 import { formatarDataHoraBR } from '@/lib/termos/formato';
-import { reprocessarEventoAsaas, reprocessarPendentesAsaas } from '../actions';
+import { reprocessarEventoAsaas, reprocessarEventoPagarme, reprocessarPendentesAsaas, reprocessarPendentesPagarme } from '../actions';
 
 const PAGE_SIZES = [10, 25, 50];
 
@@ -32,7 +32,11 @@ type Props = {
   page: number;
   perPage: number;
   totaisPorStatus: Record<AsaasWebhookEventoStatus, number>;
+  /** Fila exibida: Asaas (Pix) ou Pagar.me (cartão) — SPEC §109. */
+  gateway?: 'asaas' | 'pagarme';
 };
+
+const NOME_GATEWAY = { asaas: 'Asaas', pagarme: 'Pagar.me' } as const;
 
 const STATUS_INFO: Record<AsaasWebhookEventoStatus, { label: string; cls: string }> = {
   pendente: { label: 'Pendente', cls: 'bg-amber-50 text-amber-700' },
@@ -64,7 +68,8 @@ function Th({ label, className = '' }: { label: string; className?: string }) {
   );
 }
 
-export default function EventosWebhookGrid({ eventos, total, page, perPage, totaisPorStatus }: Props) {
+export default function EventosWebhookGrid({ eventos, total, page, perPage, totaisPorStatus, gateway = 'asaas' }: Props) {
+  const nomeGateway = NOME_GATEWAY[gateway];
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -101,7 +106,7 @@ export default function EventosWebhookGrid({ eventos, total, page, perPage, tota
   async function handleReprocessar(id: string) {
     setReprocessando(id);
     setMensagem(null);
-    const r = await reprocessarEventoAsaas(id);
+    const r = gateway === 'pagarme' ? await reprocessarEventoPagarme(id) : await reprocessarEventoAsaas(id);
     setReprocessando(null);
     if (r.ok) {
       setMensagem({ ok: true, texto: r.status ? `Evento reprocessado: ${STATUS_INFO[r.status].label.toLowerCase()}.` : 'O evento não estava elegível (já processado ou em processamento).' });
@@ -114,7 +119,7 @@ export default function EventosWebhookGrid({ eventos, total, page, perPage, tota
   async function handleReprocessarPendentes() {
     setReprocessando('*');
     setMensagem(null);
-    const r = await reprocessarPendentesAsaas();
+    const r = gateway === 'pagarme' ? await reprocessarPendentesPagarme() : await reprocessarPendentesAsaas();
     setReprocessando(null);
     if (r.ok) {
       const { total: t, processados, ignorados, erros } = r.resumo;
@@ -138,7 +143,7 @@ export default function EventosWebhookGrid({ eventos, total, page, perPage, tota
         <div>
           <h2 className="text-lg font-bold text-[#0B2447]">Eventos recebidos</h2>
           <p className="text-sm text-slate-500">
-            Cada evento é gravado uma única vez (pelo id do Asaas) e processado depois da resposta.
+            Cada evento é gravado uma única vez (pelo id do {nomeGateway}) e processado depois da resposta.
           </p>
         </div>
         <button
@@ -265,7 +270,7 @@ export default function EventosWebhookGrid({ eventos, total, page, perPage, tota
                         <tr className="border-b border-slate-50 bg-slate-50/60">
                           <td colSpan={6} className="px-6 py-4">
                             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-3 text-xs text-slate-500">
-                              <p><span className="font-semibold">Criado no Asaas:</span> {formatarDataHoraBR(ev.criado_asaas_em, { segundos: true })}</p>
+                              <p><span className="font-semibold">Criado no {nomeGateway}:</span> {formatarDataHoraBR(ev.criado_asaas_em, { segundos: true })}</p>
                               <p><span className="font-semibold">Processado em:</span> {formatarDataHoraBR(ev.processado_em, { segundos: true })}</p>
                             </div>
                             {ev.erro && (

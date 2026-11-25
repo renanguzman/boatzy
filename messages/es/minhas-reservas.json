@@ -164,8 +164,10 @@
       "estornadoEm": "Reembolsado el {data}",
       "emAndamento": "En curso desde el {data}",
       "prazoExtrato": "El plazo para que el valor aparezca en tu resumen depende de tu banco o de la emisora de la tarjeta.",
-      "processado": "Pago procesado por Boatzy (Asaas). Comprobante emitido el {data}.",
-      "operadora": "Comprobante de la operadora"
+      "processado": "Pago procesado por Boatzy ({processadora}). Comprobante emitido el {data}.",
+      "operadora": "Comprobante de la operadora",
+      "autorizacao": "Código de autorización",
+      "jurosParcelamento": "Interés de las cuotas ({n} cuotas)"
     },
     "selo": {
       "pago": "Pago aprobado",

@@ -11,9 +11,12 @@ import { useFormatos } from '@/i18n/formatos';
 import { consultarStatusPedido, pagarPedido } from '@/lib/pagamentos/actions-cliente';
 import { TOMADOR_VAZIO, validarTomador, type CampoTomador, type TomadorForm } from '@/lib/pagamentos/tomador';
 import { normalizarDocumentoEstrangeiro, opcoesPaises, validarDocumentoEstrangeiro } from '@/lib/pagamentos/estrangeiro';
+import type { FormaPermitida } from '@/lib/pagamentos/checkout';
 import TomadorPagamento from './TomadorPagamento';
+import CartaoPagarme, { type TitularCartao } from './CartaoPagarme';
 
-export type FormaCheckout = { codigo: FormaPagamentoCodigo; nome: string; opcoesParcelas: number[] };
+/** Forma do checkout (com o gateway e, no cartão da Pagar.me, a tabela de juros) — SPEC §109. */
+export type FormaCheckout = FormaPermitida;
 
 /**
  * Checkout do cliente (Pix / cartão) — usado na página de pagamento da reserva
@@ -38,6 +41,10 @@ type Props = {
   pixInicial: Pix | null;
   retornoCartao: boolean;
   sandbox: boolean;
+  /** Chave pública da Pagar.me (tokenização no navegador); `null` = cartão da Pagar.me indisponível. */
+  pagarmePublicKey: string | null;
+  /** Celular do cadastro, para pré-preencher o cartão (antifraude). */
+  telefoneInicial: string | null;
 };
 
 export type Pix = { imagem: string; payload: string; expiraEm: string | null };
@@ -53,8 +60,11 @@ function formatRestante(ms: number): string {
 }
 
 export default function CheckoutPagamento({
-  pedidoId, caminho, valorTotal, expiraEm, formas, precisaCpf, estrangeiroInicial, titular, tomadorInicial, formaInicial, pixInicial, retornoCartao, sandbox,
+  pedidoId, caminho, valorTotal, expiraEm, formas: formasRecebidas, precisaCpf, estrangeiroInicial, titular, tomadorInicial, formaInicial, pixInicial,
+  retornoCartao, sandbox, pagarmePublicKey, telefoneInicial,
 }: Props) {
+  // Cartão da Pagar.me sem chave pública não tem como tokenizar: fica fora da lista.
+  const formas = formasRecebidas.filter((fm) => fm.gateway !== 'pagarme' || !!pagarmePublicKey);
   const router = useRouter();
   const t = useTranslations('Pagamento');
   const f = useFormatos();
@@ -80,7 +90,10 @@ export default function CheckoutPagamento({
   const [restante, setRestante] = useState(() => new Date(expiraEm).getTime() - Date.now());
 
   const formaAtual = formasVisiveis.find((f) => f.codigo === forma);
-  const acompanhando = !!pix || retornoCartao;
+  const cartaoPagarme = forma === 'cartao_credito' && formaAtual?.gateway === 'pagarme' && !!pagarmePublicKey;
+  // Cartão da Pagar.me em análise (antifraude): acompanha até o webhook decidir.
+  const [analisando, setAnalisando] = useState(false);
+  const acompanhando = !!pix || retornoCartao || analisando;
 
   // Contagem regressiva do prazo.
   useEffect(() => {
@@ -98,25 +111,36 @@ export default function CheckoutPagamento({
     return () => clearInterval(t);
   }, [acompanhando, pedidoId, router]);
 
-  async function pagar(formaEscolhida: FormaPagamentoCodigo) {
+  /** Valida o titular (CPF, estrangeiro ou terceiro) escolhido acima das formas; `null` = mostrou o erro. */
+  function prepararTitular(): TitularCartao | null {
+    setErro(null);
     if (semCpf) {
       const v = validarDocumentoEstrangeiro({ pais, documento: docEstrangeiro });
       if (!v.ok) {
         setErro({ texto: t(v.campo === 'pais' ? 'erros.paisInvalido' : 'erros.documentoEstrangeiroInvalido'), campo: v.campo });
-        return;
+        return null;
       }
     } else if (proprio && precisaCpf && !cpf) {
       setErro({ texto: t('informeCpf'), campo: 'cpf' });
-      return;
+      return null;
     }
     if (!proprio) {
       const v = validarTomador(tomador);
       if (!v.ok) {
         const chave = v.campo === 'documento' ? (tomador.tipo === 'cnpj' ? 'cnpj' : 'cpf') : v.campo;
         setErro({ texto: t(`tomador.erros.${chave}`), campo: v.campo });
-        return;
+        return null;
       }
     }
+    return {
+      cpf: proprio && precisaCpf && !semCpf ? cpf : undefined,
+      estrangeiro: semCpf ? { pais, documento: normalizarDocumentoEstrangeiro(docEstrangeiro) } : null,
+      tomador: proprio ? null : tomador,
+    };
+  }
+
+  async function pagar(formaEscolhida: FormaPagamentoCodigo) {
+    if (!prepararTitular()) return;
     setCarregando(true);
     setErro(null);
     const r = await pagarPedido({
@@ -143,8 +167,19 @@ export default function CheckoutPagamento({
       setPix(r.pix);
       setCarregando(false);
     } else {
-      window.location.assign(r.faturaUrl); // página segura do Asaas
+      window.location.assign(r.faturaUrl); // página segura do Asaas (cartão no Asaas só em rollback)
     }
+  }
+
+  /** Resultado do cartão da Pagar.me: aprovado → página recarrega já paga; em análise → acompanha. */
+  function resultadoCartao(r: { ok: boolean; situacao?: 'aprovado' | 'em_analise'; campo?: string }) {
+    if (!r.ok) {
+      // Erro de titular (CPF/estrangeiro/terceiro) aparece acima, junto do campo.
+      if (r.campo && !r.campo.startsWith('cobranca.')) setErro({ texto: '', campo: r.campo as NonNullable<typeof erro>['campo'] });
+      return;
+    }
+    if (r.situacao === 'aprovado') router.refresh();
+    else setAnalisando(true);
   }
 
   async function copiar() {
@@ -154,17 +189,17 @@ export default function CheckoutPagamento({
     setTimeout(() => setCopiado(false), 2500);
   }
 
-  if (retornoCartao && !pix) {
+  if ((retornoCartao || analisando) && !pix) {
     return (
       <div className="rounded-2xl border border-slate-200 bg-white shadow-sm p-6 text-center">
         <Loader2 className="h-8 w-8 text-marinho animate-spin mx-auto" />
         <h2 className="mt-3 text-lg font-bold text-marinho">{t('confirmando')}</h2>
         <p className="mt-1 text-sm text-slate-500">
-          {t('confirmandoTexto')}
+          {analisando ? t('cartao.analiseTexto') : t('confirmandoTexto')}
         </p>
         <button
           type="button"
-          onClick={() => router.replace(caminho)}
+          onClick={() => { setAnalisando(false); router.replace(caminho); }}
           className="mt-4 text-sm font-medium text-marinho hover:underline"
         >
           {t('voltarFormas')}
@@ -288,6 +323,22 @@ export default function CheckoutPagamento({
             </div>
           )}
 
+          {cartaoPagarme && formaAtual && pagarmePublicKey ? (
+            <CartaoPagarme
+              pedidoId={pedidoId}
+              valorTotal={valorTotal}
+              opcoesParcelas={formaAtual.opcoesParcelas}
+              juros={formaAtual.juros ?? {}}
+              publicKey={pagarmePublicKey}
+              prepararTitular={prepararTitular}
+              paisInicial={semCpf ? pais : 'BR'}
+              tomadorEndereco={proprio ? null : tomador}
+              telefoneInicial={telefoneInicial}
+              bloqueado={restante <= 0}
+              onResultado={resultadoCartao}
+            />
+          ) : (
+          <>
           {forma === 'cartao_credito' && formaAtual && formaAtual.opcoesParcelas.length > 1 && (
             <label className="block">
               <span className="text-xs font-semibold text-slate-600">{t('parcelamento')}</span>
@@ -323,6 +374,10 @@ export default function CheckoutPagamento({
             {carregando ? <Loader2 className="h-4 w-4 animate-spin" /> : forma === 'pix' ? <QrCode className="h-4 w-4" /> : <CreditCard className="h-4 w-4" />}
             {forma === 'pix' ? t('gerarPix') : t('pagarCartao')}
           </button>
+          </>
+          )}
+          {/* No cartão da Pagar.me, erros do titular aparecem aqui (os do cartão ficam no próprio formulário). */}
+          {cartaoPagarme && erro?.texto && <p className="text-sm text-red-600">{erro.texto}</p>}
         </div>
       )}
 

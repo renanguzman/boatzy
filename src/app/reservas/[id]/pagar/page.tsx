@@ -9,9 +9,9 @@ import { createClient } from '@/lib/supabase/server';
 import { supabaseAdmin } from '@/lib/supabase';
 import { isValidCPF } from '@/lib/validators';
 import { lerAsaasConfig } from '@/lib/asaas/config';
-import { getFormasPagamento } from '@/lib/financeiro/config';
+import { lerPagarmeConfig } from '@/lib/pagarme/config';
 import { expirarPedidosVencidosSemFalhar, PAGAMENTO_PAGO } from '@/lib/pagamentos/pedidos';
-import { formasPermitidasDoPedido, retomarPixPendente } from '@/lib/pagamentos/checkout';
+import { formasDoCheckout, retomarPixPendente } from '@/lib/pagamentos/checkout';
 import type { FormaPagamentoCodigo, PedidoStatus } from '@/types/supabase';
 import CheckoutPagamento, { type FormaCheckout, type Pix } from '@/components/pagamento/CheckoutPagamento';
 import { documentoTomador, tomadorParaForm, type TomadorForm, type TomadorRegistro } from '@/lib/pagamentos/tomador';
@@ -115,13 +115,14 @@ export default async function PagarReservaPage({
   let precisaCpf = false;
   let estrangeiro = { ativo: false, pais: '', documento: '' };
   let titular: { nome: string; documento: string | null } = { nome: '', documento: null };
+  let telefoneInicial: string | null = null;
   let tomadorInicial: TomadorForm | null = null;
   let formaInicial: FormaPagamentoCodigo | null = null;
   let pixInicial: Pix | null = null;
   if (pedido?.status === 'aguardando_pagamento') {
     const [todas, { data: usuario }, { data: pendente }] = await Promise.all([
-      getFormasPagamento(),
-      supabaseAdmin.from('users').select('name, cpf_cnpj, documento_estrangeiro, pais_documento').eq('id', user.id).single(),
+      formasDoCheckout({ valor_total: Number(pedido.valor_total) }),
+      supabaseAdmin.from('users').select('name, phone, cpf_cnpj, documento_estrangeiro, pais_documento').eq('id', user.id).single(),
       supabaseAdmin
         .from('pagamento')
         .select('forma_pagamento, pagamento_tomador ( * )')
@@ -131,10 +132,11 @@ export default async function PagarReservaPage({
         .limit(1)
         .maybeSingle(),
     ]);
-    formas = formasPermitidasDoPedido(todas, { valor_total: Number(pedido.valor_total) })
+    formas = todas
       .map((forma) => ({ ...forma, nome: t(`formas.${forma.codigo}`) }));
     precisaCpf = !(usuario?.cpf_cnpj && isValidCPF(usuario.cpf_cnpj));
     titular = { nome: usuario?.name ?? '', documento: usuario?.cpf_cnpj ?? null };
+    telefoneInicial = usuario?.phone ?? null;
     estrangeiro = estrangeiroInicial(usuario, await getLocale());
     const tomadorPendente = pendente
       ? ((Array.isArray(pendente.pagamento_tomador) ? pendente.pagamento_tomador[0] : pendente.pagamento_tomador) ?? null) as TomadorRegistro | null
@@ -145,7 +147,9 @@ export default async function PagarReservaPage({
   }
 
   const cfg = lerAsaasConfig();
-  const sandbox = cfg.ok && cfg.config.ambiente === 'sandbox';
+  const cfgPagarme = lerPagarmeConfig();
+  const sandbox = (cfg.ok && cfg.config.ambiente === 'sandbox') || (cfgPagarme.ok && cfgPagarme.config.ambiente === 'sandbox');
+  const pagarmePublicKey = cfgPagarme.ok ? cfgPagarme.config.publicKey : null;
 
   return (
     <div className="min-h-screen flex flex-col bg-areia">
@@ -231,6 +235,8 @@ export default async function PagarReservaPage({
                   pixInicial={pixInicial}
                   retornoCartao={sp.retorno === '1'}
                   sandbox={sandbox}
+                  pagarmePublicKey={pagarmePublicKey}
+                  telefoneInicial={telefoneInicial}
                 />
               )
             ) : pedido.status === 'pago' || pedido.status === 'reembolsado_parcial' || pedido.status === 'em_disputa' || pedido.status === 'reembolsado' ? (

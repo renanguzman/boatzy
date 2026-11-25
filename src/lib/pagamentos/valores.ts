@@ -161,3 +161,31 @@ export function linhasAvulsoParaCliente(input: {
   }
   return { itens, ajuste };
 }
+
+// ── Juros do parcelamento no cartão (Pagar.me, SPEC §109) ───────────────────
+// D-S5: os juros do parcelado são 100% pagos pelo cliente. À vista (1x) não tem
+// juros. O admin cadastra o acréscimo (%) de cada nº de parcelas sobre o valor à
+// vista (Financeiro → Configurações). Comissão, cupom e valor do gestor não mudam.
+
+/** nº de parcelas → acréscimo (%) sobre o valor à vista. Ausente = 0. */
+export type TabelaJuros = Record<number, number>;
+
+export type ValorParcelado = {
+  parcelas: number;
+  /** Acréscimo aplicado (%). */
+  percentual: number;
+  /** Juros em R$ (o que o cliente paga a mais). */
+  juros: number;
+  /** Total cobrado no cartão (= valor à vista + juros). */
+  total: number;
+  /** Valor de cada parcela (a 1ª absorve a diferença de centavos). */
+  parcela: number;
+};
+
+export function valorParcelado(valorAVista: number, parcelas: number, tabela: TabelaJuros | null): ValorParcelado {
+  const n = Math.max(1, Math.trunc(parcelas) || 1);
+  const percentual = n > 1 && tabela ? Math.max(0, Number(tabela[n] ?? 0)) : 0;
+  const juros = arredondarCentavos(valorAVista * (percentual / 100));
+  const total = arredondarCentavos(valorAVista + juros);
+  return { parcelas: n, percentual, juros, total, parcela: arredondarCentavos(Math.floor((total / n) * 100) / 100) };
+}
